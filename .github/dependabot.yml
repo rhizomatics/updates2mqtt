@@ -5,15 +5,17 @@
 
 version: 2
 updates:
-  - package-ecosystem: "pip" # See documentation for possible values
+  - package-ecosystem: "uv" 
     directory: "/" # Location of package manifests
     schedule:
       interval: "weekly"
-    groups:
-    python-packages:
-      patterns:
-        - "*"
- - package-ecosystem: "docker"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+
+  - package-ecosystem: "docker"
     directory: "/"
     schedule:
       interval: "weekly"
