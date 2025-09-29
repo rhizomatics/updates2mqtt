@@ -27,4 +27,4 @@ ADD src /app
 WORKDIR /app
 RUN uv sync --frozen --all-extras
 
-CMD ["uv", "run", "run.py"]
+CMD ["uv", "run", "updates2mqtt"]
