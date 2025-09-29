@@ -40,7 +40,9 @@ repos:
         additional_dependencies:
           - structlog
           - pytest
+          - pytest-httpx
           - paho-mqtt
           - omegaconf
           - docker-stubs
+          - types-cachetools
  

@@ -32,8 +32,9 @@ class DockerConfig:
     compose_version: str = "v2"
     default_entity_picture_url: str = "https://www.docker.com/wp-content/uploads/2022/03/Moby-logo.png"
     device_icon: str = "mdi:train-car-container"
-    discover_metadata: dict[str, MetadataSourceConfig] = field(default_factory=lambda: {
-        "linuxserver.io": MetadataSourceConfig(enabled=True)})
+    discover_metadata: dict[str, MetadataSourceConfig] = field(
+        default_factory=lambda: {"linuxserver.io": MetadataSourceConfig(enabled=True)}
+    )
 
 
 @dataclass
