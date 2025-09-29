@@ -1,0 +1,5 @@
+# mkdocs gh actio doesn't support pyproject.toml so need to duplicate requirements here
+mkdocs-material
+mkdocstrings
+mkdocstrings[python]
+pymdown-extensions
