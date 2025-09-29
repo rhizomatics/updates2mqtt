@@ -1,6 +1,5 @@
 from unittest.mock import patch
 
-import pytest
 from docker import DockerClient  # type:ignore[import-not-found]
 from pytest_httpx import HTTPXMock
 from pytest_subprocess import FakeProcess  # type: ignore[import-not-found]
