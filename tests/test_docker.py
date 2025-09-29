@@ -10,10 +10,9 @@ from updates2mqtt.config import DockerPackageUpdateInfo, MetadataSourceConfig
 from updates2mqtt.model import Discovery
 
 
-@pytest.mark.asyncio
 async def test_scanner(mock_docker_client: DockerClient) -> None:
     with patch("docker.from_env", return_value=mock_docker_client):
-        uut = mut.DockerProvider(mut.DockerConfig(), mut.UpdateInfoConfig())
+        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.UpdateInfoConfig())
         session = "unit_123"
         results: list[Discovery] = [d async for d in uut.scan(session)]
 
@@ -26,10 +25,9 @@ async def test_scanner(mock_docker_client: DockerClient) -> None:
     assert len(changed) == 3
 
 
-@pytest.mark.asyncio
 async def test_common_packages(mock_docker_client: DockerClient) -> None:
     with patch("docker.from_env", return_value=mock_docker_client):
-        uut = mut.DockerProvider(mut.DockerConfig(), mut.UpdateInfoConfig())
+        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.UpdateInfoConfig())
         uut.common_pkgs = {
             "common_pkg": mut.PackageUpdateInfo(
                 docker=DockerPackageUpdateInfo(image_name="common/pkg"),
@@ -46,8 +44,7 @@ async def test_common_packages(mock_docker_client: DockerClient) -> None:
     assert common[0].release_url == "https://commonhub/pkg/logo"
 
 
-@pytest.mark.asyncio
-async def test_discover_metadata(httpx_mock: HTTPXMock) -> None:
+def test_discover_metadata(httpx_mock: HTTPXMock) -> None:
     httpx_mock.add_response(
         json={
             "data": {
@@ -76,7 +73,7 @@ async def test_discover_metadata(httpx_mock: HTTPXMock) -> None:
 
 def test_build(mock_docker_client: DockerClient, fake_process: FakeProcess) -> None:
     with patch("docker.from_env", return_value=mock_docker_client):
-        uut = mut.DockerProvider(mut.DockerConfig(), mut.UpdateInfoConfig())
+        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.UpdateInfoConfig())
         d = Discovery(uut, "build-test-dummy", session="test-123")
         fake_process.register("docker compose build", returncode=0)
         assert uut.build(d, "build-test-dc-path")
