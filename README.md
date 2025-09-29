@@ -85,6 +85,9 @@ Individual docker containers can have customized entity pictures or release note
 The images will show up in the *Update* section of *Settings* menu in HomeAssistant,
 as will the release notes link. SVG icons should be used.
 
+Some popular services have the icon and release note links pre-configured, in `common_packages.yaml`,
+and packages from `linuxserver.io` can have metadata automatically discovered.
+
 #### Icon Sources
 
 - [Homarr Dashboard Icons](https://github.com/homarr-labs/dashboard-icons)
