@@ -40,11 +40,11 @@ class App:
             stream=sys.stdout,
             level=self.cfg.log.level,
         )
+        structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(getattr(logging, self.cfg.log.level)))
         log.debug("Logging initialized", level=self.cfg.log.level)
         self.common_pkg = load_package_info(PKG_INFO_FILE)
 
-        # structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.getLevelName(self.cfg.log.level)))
-
+        
         self.publisher = MqttClient(self.cfg.mqtt, self.cfg.node, self.cfg.homeassistant)
 
         self.scanners = []
