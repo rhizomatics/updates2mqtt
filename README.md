@@ -26,6 +26,7 @@ updates2mqtt prefers to be run inside a Docker container.
 ### Manual
 ```
 uv sync
+uv run updates2mqtt
 ```
 ### Docker
 
