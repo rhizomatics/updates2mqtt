@@ -36,6 +36,7 @@ class DockerProvider(ReleaseProvider):
         self.client: docker.DockerClient = docker.from_env()
         self.cfg: DockerConfig = cfg
         self.common_pkgs: dict[str, PackageUpdateInfo] = common_pkg_cfg.common_packages if common_pkg_cfg else {}
+        self.discovered_pkgs: dict[str, PackageUpdateInfo] = {}
         self.source_type: str = "docker"
         self.discoveries: dict[str, Discovery] = {}
         self.log: Any = structlog.get_logger().bind(integration="docker")
@@ -316,6 +317,7 @@ class DockerProvider(ReleaseProvider):
         return self.discoveries.get(discovery_name)
 
     def hass_state_format(self, discovery: Discovery) -> dict:  # noqa: ARG002
+        # disable until hass issues resolved
         return {
             # "docker_image_ref": discovery.custom.get("image_ref"),
             # "last_update_attempt": safe_json_dt(discovery.update_last_attempt),
@@ -340,15 +342,21 @@ class DockerProvider(ReleaseProvider):
                         "Found common package", pkg=pkg.docker.image_name, logo_url=picture_url, relnotes_url=relnotes_url
                     )
                     return pkg
+            for pkg in self.discovered_pkgs.values():
+                if pkg.docker is not None and pkg.docker.image_name is not None and pkg.docker.image_name == image_name:
+                    self.log.debug(
+                        "Found discovered package", pkg=pkg.docker.image_name, logo_url=picture_url, relnotes_url=relnotes_url
+                    )
+                    return pkg
 
-        self.log.debug("No common package found", image_name=image_name)
+        self.log.debug("No common or discovered package found", image_name=image_name)
         return PackageUpdateInfo(
             DockerPackageUpdateInfo(image_name or "UNKNOWN"), logo_url=picture_url, release_notes_url=relnotes_url
         )
 
     def discover_metadata(self) -> None:
         if self.cfg.discover_metadata.get("linuxserver.io") and self.cfg.discover_metadata["linuxserver.io"].enabled:
-            linuxserver_metadata(self.common_pkgs)
+            linuxserver_metadata(self.discovered_pkgs)
 
 
 @cached(cache=TTLCache(maxsize=1, ttl=604800))  # 1 week expiry

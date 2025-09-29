@@ -63,11 +63,12 @@ def test_discover_metadata(httpx_mock: HTTPXMock) -> None:
         mut.DockerConfig(discover_metadata={"linuxserver.io": MetadataSourceConfig(enabled=True)}), mut.UpdateInfoConfig()
     )
     uut.discover_metadata()
-    assert "mctesty901" in uut.common_pkgs
-    assert uut.common_pkgs["mctesty901"].docker is not None
-    assert uut.common_pkgs["mctesty901"].docker.image_name == "lscr.io/linuxserver/mctesty901"
-    assert uut.common_pkgs["mctesty901"].logo_url == "http://logos/mctesty.png"
-    assert uut.common_pkgs["mctesty901"].release_notes_url == "https://github/mctesty/901/releases"
+    assert "mctesty901" in uut.discovered_pkgs
+    pkg = uut.discovered_pkgs["mctesty901"]
+    assert pkg.docker is not None
+    assert pkg.docker.image_name == "lscr.io/linuxserver/mctesty901"
+    assert pkg.logo_url == "http://logos/mctesty.png"
+    assert pkg.release_notes_url == "https://github/mctesty/901/releases"
 
 
 def test_build(mock_docker_client: DockerClient, fake_process: FakeProcess) -> None:
