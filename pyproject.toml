@@ -31,6 +31,9 @@ classifiers = [
     "Programming Language :: Python :: 3.13"
 ]
 
+[project.scripts]
+updates2mqtt = "updates2mqtt.__main__:run"
+
 [tool.uv]
 compile-bytecode = true
 managed = true
