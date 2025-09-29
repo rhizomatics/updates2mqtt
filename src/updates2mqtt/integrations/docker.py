@@ -355,8 +355,9 @@ class DockerProvider(ReleaseProvider):
 def linuxserver_metadata_api() -> dict:
     """Fetch and cache linuxserver.io API call for image metadata"""
     try:
-        req = httpx.get("https://api.linuxserver.io/api/v1/images?include_config=false&include_deprecated=false")
-        return req.json()
+        with httpx.Client() as client:
+            req = client.get("https://api.linuxserver.io/api/v1/images?include_config=false&include_deprecated=false")
+            return req.json()
     except Exception:
         log.exception("Failed to fetch linuxserver.io metadata")
         return {}
