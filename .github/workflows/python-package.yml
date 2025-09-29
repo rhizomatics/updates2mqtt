@@ -12,9 +12,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-
     steps:
     - uses: actions/checkout@v4
     - name: uv-setup
@@ -36,7 +33,6 @@ jobs:
       uses: mhausenblas/mkdocs-deploy-gh-pages@master
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        REQUIREMENTS: requirements_docs.txt
 
 
 
