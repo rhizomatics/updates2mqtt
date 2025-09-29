@@ -11,7 +11,7 @@ common_packages:
     logo_url: https://www.librenms.org/images/LibreNMS-Logo.svg
     release_notes_url: https://github.com/librenms/docker/releases
 
-  unifi:
+  unifi-jacobalberty:
     docker:
       image_name: jacobalberty/unifi
     logo_url: https://pbs.twimg.com/profile_images/1610157462321254402/tMCv8T-y_400x400.png
