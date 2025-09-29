@@ -6,6 +6,8 @@
 
 Use Home Assistant to notify you of updates to Docker images for your containers and optionally perform the *pull* (or optionally *build*) and *update*.
 
+![Example Home Assistant settings page](images/hass_update_page.png "Home Assistant Updates")
+
 ## Description
 
 updates2mqtt perioidically checks for new versions of components being available, and publishes new version info to MQTT.
@@ -85,6 +87,9 @@ Individual docker containers can have customized entity pictures or release note
 The images will show up in the *Update* section of *Settings* menu in HomeAssistant,
 as will the release notes link. SVG icons should be used.
 
+Some popular services have the icon and release note links pre-configured, in `common_packages.yaml`,
+and packages from `linuxserver.io` can have metadata automatically discovered.
+
 #### Icon Sources
 
 - [Homarr Dashboard Icons](https://github.com/homarr-labs/dashboard-icons)
@@ -123,9 +128,7 @@ be read/write if automated install required.
 # HomeAssistant integration
 
 Any updates that have support for automated install will automatically show in the
-Home Assistant settings page:
-
-![Example Home Assistant settings page](images/hass_update_page.png "Home Assistant Updates")
+Home Assistant settings page.
 
 If the package supports automated update, then *Skip* and *Install* buttons will appear on the Home Assistant
 interface, and the package can be remotely fetched and the component restarted.

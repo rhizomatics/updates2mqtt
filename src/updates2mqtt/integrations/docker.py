@@ -8,10 +8,12 @@ from typing import Any, cast
 
 import docker  # type: ignore[import-not-found]
 import docker.errors  # type: ignore[import-not-found]
+import httpx
 import structlog
+from cachetools import TTLCache, cached
 from docker.models.containers import Container  # type: ignore[import-not-found]
 
-from updates2mqtt.config import DockerConfig, PackageUpdateInfo, UpdateInfoConfig
+from updates2mqtt.config import DockerConfig, DockerPackageUpdateInfo, PackageUpdateInfo, UpdateInfoConfig
 from updates2mqtt.model import Discovery, ReleaseProvider
 
 from .git_utils import git_check_update_available, git_pull, git_timestamp, git_trust
@@ -153,18 +155,8 @@ class DockerProvider(ReleaseProvider):
                     logger.warn("Cannot determine local version: %s", e)
                     logger.warn("RepoDigests=%s", image.attrs.get("RepoDigests"))
 
-        relnotes_url: str | None = None
-        picture_url: str | None = self.cfg.default_entity_picture_url
         platform: str = "Unknown"
-
-        for pkg in self.common_pkgs.values():
-            matched = False
-            if pkg.docker is not None and pkg.docker.image_name is not None and pkg.docker.image_name == image_name:
-                picture_url = pkg.logo_url
-                relnotes_url = pkg.release_notes_url
-                logger.debug("Found common package", pkg=pkg.docker.image_name, logo_url=picture_url, relnotes_url=relnotes_url)
-            if not matched:
-                logger.debug("No common package found", image_name=image_name)
+        pkg_info: PackageUpdateInfo = self.default_metadata(image_name)
 
         def env_override(env_var: str, default: Any) -> Any | None:
             return default if c_env.get(env_var) is None else c_env.get(env_var)
@@ -172,8 +164,8 @@ class DockerProvider(ReleaseProvider):
         try:
             env_str = c.attrs["Config"]["Env"]
             c_env = dict(env.split("=", maxsplit=1) for env in env_str if "==" not in env)
-            picture_url = env_override("REL2MQTT_PICTURE", picture_url)
-            relnotes_url = env_override("REL2MQTT_RELNOTES", relnotes_url)
+            picture_url = env_override("REL2MQTT_PICTURE", pkg_info.logo_url)
+            relnotes_url = env_override("REL2MQTT_RELNOTES", pkg_info.release_notes_url)
             if image is not None and image.attrs is not None:
                 platform = "/".join(
                     filter(
@@ -334,3 +326,52 @@ class DockerProvider(ReleaseProvider):
             # "compose_path": discovery.custom.get("compose_path"),
             # "platform": discovery.custom.get("platform"),
         }
+
+    def default_metadata(self, image_name: str | None) -> PackageUpdateInfo:
+        relnotes_url: str | None = None
+        picture_url: str | None = self.cfg.default_entity_picture_url
+
+        self.discover_metadata()
+
+        if image_name is not None:
+            for pkg in self.common_pkgs.values():
+                if pkg.docker is not None and pkg.docker.image_name is not None and pkg.docker.image_name == image_name:
+                    self.log.debug(
+                        "Found common package", pkg=pkg.docker.image_name, logo_url=picture_url, relnotes_url=relnotes_url
+                    )
+                    return pkg
+
+        self.log.debug("No common package found", image_name=image_name)
+        return PackageUpdateInfo(
+            DockerPackageUpdateInfo(image_name or "UNKNOWN"), logo_url=picture_url, release_notes_url=relnotes_url
+        )
+
+    def discover_metadata(self) -> None:
+        if self.cfg.discover_metadata.get("linuxserver.io") and self.cfg.discover_metadata["linuxserver.io"].enabled:
+            linuxserver_metadata(self.common_pkgs)
+
+
+@cached(cache=TTLCache(maxsize=1, ttl=604800))  # 1 week expiry
+def linuxserver_metadata_api() -> dict:
+    """Fetch and cache linuxserver.io API call for image metadata"""
+    try:
+        with httpx.Client() as client:
+            req = client.get("https://api.linuxserver.io/api/v1/images?include_config=false&include_deprecated=false")
+            return req.json()
+    except Exception:
+        log.exception("Failed to fetch linuxserver.io metadata")
+        return {}
+
+
+def linuxserver_metadata(common_pkgs: dict[str, PackageUpdateInfo]) -> None:
+    """Fetch linuxserver.io metadata for all their images via their API"""
+    repos: list = linuxserver_metadata_api().get("data", {}).get("repositories", {}).get("linuxserver", [])
+    for repo in repos:
+        image_name = repo.get("name")
+        if image_name and image_name not in common_pkgs:
+            common_pkgs[image_name] = PackageUpdateInfo(
+                DockerPackageUpdateInfo(f"lscr.io/linuxserver/{image_name}"),
+                logo_url=repo["project_logo"],
+                release_notes_url=f"{repo['github_url']}/releases",
+            )
+            log.debug("Added linuxserver.io package", pkg=image_name)

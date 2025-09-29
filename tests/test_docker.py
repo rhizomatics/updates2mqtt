@@ -1,18 +1,17 @@
 from unittest.mock import patch
 
-import pytest
 from docker import DockerClient  # type:ignore[import-not-found]
+from pytest_httpx import HTTPXMock
 from pytest_subprocess import FakeProcess  # type: ignore[import-not-found]
 
 import updates2mqtt.integrations.docker as mut
-from updates2mqtt.config import DockerPackageUpdateInfo
+from updates2mqtt.config import DockerPackageUpdateInfo, MetadataSourceConfig
 from updates2mqtt.model import Discovery
 
 
-@pytest.mark.asyncio
 async def test_scanner(mock_docker_client: DockerClient) -> None:
     with patch("docker.from_env", return_value=mock_docker_client):
-        uut = mut.DockerProvider(mut.DockerConfig(), mut.UpdateInfoConfig())
+        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.UpdateInfoConfig())
         session = "unit_123"
         results: list[Discovery] = [d async for d in uut.scan(session)]
 
@@ -25,10 +24,9 @@ async def test_scanner(mock_docker_client: DockerClient) -> None:
     assert len(changed) == 3
 
 
-@pytest.mark.asyncio
 async def test_common_packages(mock_docker_client: DockerClient) -> None:
     with patch("docker.from_env", return_value=mock_docker_client):
-        uut = mut.DockerProvider(mut.DockerConfig(), mut.UpdateInfoConfig())
+        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.UpdateInfoConfig())
         uut.common_pkgs = {
             "common_pkg": mut.PackageUpdateInfo(
                 docker=DockerPackageUpdateInfo(image_name="common/pkg"),
@@ -45,9 +43,36 @@ async def test_common_packages(mock_docker_client: DockerClient) -> None:
     assert common[0].release_url == "https://commonhub/pkg/logo"
 
 
+def test_discover_metadata(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(
+        json={
+            "data": {
+                "repositories": {
+                    "linuxserver": [
+                        {
+                            "name": "mctesty901",
+                            "project_logo": "http://logos/mctesty.png",
+                            "github_url": "https://github/mctesty/901",
+                        }
+                    ]
+                }
+            }
+        }
+    )
+    uut = mut.DockerProvider(
+        mut.DockerConfig(discover_metadata={"linuxserver.io": MetadataSourceConfig(enabled=True)}), mut.UpdateInfoConfig()
+    )
+    uut.discover_metadata()
+    assert "mctesty901" in uut.common_pkgs
+    assert uut.common_pkgs["mctesty901"].docker is not None
+    assert uut.common_pkgs["mctesty901"].docker.image_name == "lscr.io/linuxserver/mctesty901"
+    assert uut.common_pkgs["mctesty901"].logo_url == "http://logos/mctesty.png"
+    assert uut.common_pkgs["mctesty901"].release_notes_url == "https://github/mctesty/901/releases"
+
+
 def test_build(mock_docker_client: DockerClient, fake_process: FakeProcess) -> None:
     with patch("docker.from_env", return_value=mock_docker_client):
-        uut = mut.DockerProvider(mut.DockerConfig(), mut.UpdateInfoConfig())
+        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.UpdateInfoConfig())
         d = Discovery(uut, "build-test-dummy", session="test-123")
         fake_process.register("docker compose build", returncode=0)
         assert uut.build(d, "build-test-dc-path")
