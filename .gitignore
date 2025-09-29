@@ -10,6 +10,7 @@ htmlcov/
 .ruff_cache/
 lcov.info
 .vscode/
+.DS_Store
 
 # C extensions
 *.so
