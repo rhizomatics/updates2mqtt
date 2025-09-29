@@ -15,7 +15,7 @@ class MqttConfig:
     user: str = MISSING
     password: str = MISSING
     port: int = 1883
-    topic_root: str = "rel2mqtt"
+    topic_root: str = "updates2mqtt"
 
 
 @dataclass

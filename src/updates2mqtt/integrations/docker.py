@@ -165,8 +165,8 @@ class DockerProvider(ReleaseProvider):
         try:
             env_str = c.attrs["Config"]["Env"]
             c_env = dict(env.split("=", maxsplit=1) for env in env_str if "==" not in env)
-            picture_url = env_override("REL2MQTT_PICTURE", pkg_info.logo_url)
-            relnotes_url = env_override("REL2MQTT_RELNOTES", pkg_info.release_notes_url)
+            picture_url = env_override("UPD2MQTT_PICTURE", pkg_info.logo_url)
+            relnotes_url = env_override("UPD2MQTT_RELNOTES", pkg_info.release_notes_url)
             if image is not None and image.attrs is not None:
                 platform = "/".join(
                     filter(
@@ -211,10 +211,10 @@ class DockerProvider(ReleaseProvider):
             custom["image_ref"] = image_ref
             save_if_set("compose_path", c.labels.get("com.docker.compose.project.working_dir"))
             save_if_set("compose_version", c.labels.get("com.docker.compose.version"))
-            save_if_set("git_repo_path", c_env.get("REL2MQTT_GIT_REPO_PATH"))
-            save_if_set("apt_pkgs", c_env.get("REL2MQTT_APT_PKGS"))
+            save_if_set("git_repo_path", c_env.get("UPD2MQTT_GIT_REPO_PATH"))
+            save_if_set("apt_pkgs", c_env.get("UPD2MQTT_APT_PKGS"))
 
-            if c_env.get("REL2MQTT_UPDATE") == "AUTO":
+            if c_env.get("UPD2MQTT_UPDATE") == "AUTO":
                 logger.debug("Auto update policy detected")
                 update_policy = "Auto"
             else:

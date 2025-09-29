@@ -78,7 +78,7 @@ def build_mock_container(
     c.attrs["Config"] = {}
     c.attrs["Config"]["Env"] = []
     if picture:
-        c.attrs["Config"]["Env"].append(f"REL2MQTT_PICTURE={picture}")
+        c.attrs["Config"]["Env"].append(f"UPD2MQTT_PICTURE={picture}")
     if relnotes:
-        c.attrs["Config"]["Env"].append(f"REL2MQTT_RELNOTES={relnotes}")
+        c.attrs["Config"]["Env"].append(f"UPD2MQTT_RELNOTES={relnotes}")
     return c
