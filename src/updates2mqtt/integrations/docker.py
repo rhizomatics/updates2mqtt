@@ -336,13 +336,15 @@ class DockerProvider(ReleaseProvider):
         if image_name is not None:
             for pkg in self.common_pkgs.values():
                 if pkg.docker is not None and pkg.docker.image_name is not None and pkg.docker.image_name == image_name:
-                    self.log.debug("Found common package", pkg=pkg.docker.image_name, logo_url=picture_url, relnotes_url=relnotes_url)
+                    self.log.debug(
+                        "Found common package", pkg=pkg.docker.image_name, logo_url=picture_url, relnotes_url=relnotes_url
+                    )
                     return pkg
 
         self.log.debug("No common package found", image_name=image_name)
-        return PackageUpdateInfo(DockerPackageUpdateInfo(image_name or "UNKNOWN"),
-                                 logo_url=picture_url,
-                                 release_notes_url=relnotes_url)
+        return PackageUpdateInfo(
+            DockerPackageUpdateInfo(image_name or "UNKNOWN"), logo_url=picture_url, release_notes_url=relnotes_url
+        )
 
     def discover_metadata(self) -> None:
         if self.cfg.discover_metadata.get("linuxserver.io") and self.cfg.discover_metadata["linuxserver.io"].enabled:
@@ -351,9 +353,9 @@ class DockerProvider(ReleaseProvider):
 
 @cached(cache=TTLCache(maxsize=1, ttl=604800))  # 1 week expiry
 def linuxserver_metadata_api() -> dict:
-    '''Fetch and cache linuxserver.io API call for image metadata'''
+    """Fetch and cache linuxserver.io API call for image metadata"""
     try:
-        req = httpx.get('https://api.linuxserver.io/api/v1/images?include_config=false&include_deprecated=false')
+        req = httpx.get("https://api.linuxserver.io/api/v1/images?include_config=false&include_deprecated=false")
         return req.json()
     except Exception:
         log.exception("Failed to fetch linuxserver.io metadata")
@@ -361,14 +363,14 @@ def linuxserver_metadata_api() -> dict:
 
 
 def linuxserver_metadata(common_pkgs: dict[str, PackageUpdateInfo]) -> None:
-    '''Fetch linuxserver.io metadata for all their images via their API'''
-    repos: list = linuxserver_metadata_api().get('data', {}).get('repositories', {}).get('linuxserver', [])
+    """Fetch linuxserver.io metadata for all their images via their API"""
+    repos: list = linuxserver_metadata_api().get("data", {}).get("repositories", {}).get("linuxserver", [])
     for repo in repos:
-        image_name = repo.get('name')
+        image_name = repo.get("name")
         if image_name and image_name not in common_pkgs:
             common_pkgs[image_name] = PackageUpdateInfo(
                 DockerPackageUpdateInfo(f"lscr.io/linuxserver/{image_name}"),
-                logo_url=repo['project_logo'],
-                release_notes_url=f"{repo['github_url']}/releases"
+                logo_url=repo["project_logo"],
+                release_notes_url=f"{repo['github_url']}/releases",
             )
             log.debug("Added linuxserver.io package", pkg=image_name)

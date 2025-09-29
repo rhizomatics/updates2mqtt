@@ -47,13 +47,25 @@ async def test_common_packages(mock_docker_client: DockerClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_discover_metadata(httpx_mock: HTTPXMock) -> None:  # noqa: RUF029
-    httpx_mock.add_response(json={"data": {"repositories": {"linuxserver": [{"name": "mctesty901",
-                                                                          "project_logo": "http://logos/mctesty.png",
-                                                                          "github_url": "https://github/mctesty/901"}]}}})
-    uut = mut.DockerProvider(mut.DockerConfig(
-        discover_metadata={"linuxserver.io": MetadataSourceConfig(enabled=True)}
-    ), mut.UpdateInfoConfig())
+async def test_discover_metadata(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(
+        json={
+            "data": {
+                "repositories": {
+                    "linuxserver": [
+                        {
+                            "name": "mctesty901",
+                            "project_logo": "http://logos/mctesty.png",
+                            "github_url": "https://github/mctesty/901",
+                        }
+                    ]
+                }
+            }
+        }
+    )
+    uut = mut.DockerProvider(
+        mut.DockerConfig(discover_metadata={"linuxserver.io": MetadataSourceConfig(enabled=True)}), mut.UpdateInfoConfig()
+    )
     uut.discover_metadata()
     assert "mctesty901" in uut.common_pkgs
     assert uut.common_pkgs["mctesty901"].docker is not None
