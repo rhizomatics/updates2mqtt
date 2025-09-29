@@ -68,12 +68,12 @@ async def test_execute_command_remote(mock_mqtt_client: Mock, mock_provider: Rel
         uut.subscribe_hass_command(mock_provider)
         dummy_callable = lambda: None  # noqa: E731
 
-        mqtt_bytes_msg = MQTTMessage(topic=b"rel2mqtt/UNKNOWN/unit_test")
+        mqtt_bytes_msg = MQTTMessage(topic=b"updates2mqtt/UNKNOWN/unit_test")
         mqtt_bytes_msg.payload = b"unit_test|fooey|install"
         await uut.execute_command(mqtt_bytes_msg, dummy_callable, dummy_callable)
 
         mock_mqtt_client.publish.assert_called_with(
-            "rel2mqtt/UNKNOWN/unit_test/fooey",
+            "updates2mqtt/UNKNOWN/unit_test/fooey",
             payload=json.dumps({
                 "installed_version": "v2",
                 "latest_version": "v2",
@@ -103,7 +103,7 @@ async def test_execute_command_local(mock_mqtt_client: Mock, mock_provider: Rele
         await asyncio.sleep(1)
 
         mock_mqtt_client.publish.assert_called_with(
-            "rel2mqtt/UNKNOWN/unit_test/fooey",
+            "updates2mqtt/UNKNOWN/unit_test/fooey",
             payload=json.dumps({
                 "installed_version": "v2",
                 "latest_version": "v2",

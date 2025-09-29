@@ -47,7 +47,7 @@ mqtt:
   user: mymqttuser
   password: mymqttsecretpassword
   port: 1883
-  topic_root: rel2mqtt
+  topic_root: updates2mqtt
 homeassistant:
   discovery:
     prefix: homeassistant
@@ -77,12 +77,12 @@ mqtt:
 ```
 ### Customizing images and release notes
 
-Individual docker containers can have customized entity pictures or release notes, using env variables:
+Individual docker containers can have customized entity pictures or release notes, using env variables, for example in the `docker-compose.yaml` or in a separate `.env` file:
 
 ```
     environment:
-      - REL2MQTT_PICTURE=https://frigate.video/images/logo.svg
-      - REL2MQTT_RELNOTES=https://github.com/blakeblackshear/frigate/releases
+      - UPD2MQTT_PICTURE=https://frigate.video/images/logo.svg
+      - UPD2MQTT_RELNOTES=https://github.com/blakeblackshear/frigate/releases
 ```
 
 The images will show up in the *Update* section of *Settings* menu in HomeAssistant,
@@ -103,7 +103,7 @@ and packages from `linuxserver.io` can have metadata automatically discovered.
 ### Automated updates
 
 If Docker containers should be immediately updated, without any confirmation
-or trigger, *e.g.* from the HomeAssistant update dialog, then set an environment variable `REL2MQTT_UPDATE`
+or trigger, *e.g.* from the HomeAssistant update dialog, then set an environment variable `UPD2MQTT_UPDATE`
 in the target container to `Auto` ( it defaults to `Passive`)
 
 ### Custom docker builds
@@ -111,7 +111,7 @@ in the target container to `Auto` ( it defaults to `Passive`)
 If the image is locally built from a checked out git repo, package update can be driven
 by the availability of git repo changes to pull rather than a new image on a Docker registry.
 
-Declare the git path using the env var in ``REL2MQTT_GIT_REPO_PATH`` in the docker container ( directly or via an ``.env`` file).
+Declare the git path using the env var in ``UPD2MQTT_GIT_REPO_PATH`` in the docker container ( directly or via an ``.env`` file).
 The git repo at this path will be used as the source of timestamps, and an update command will carry out a 
 ``git pull`` and ``docker-compose build`` rather than pulling an image.
 
