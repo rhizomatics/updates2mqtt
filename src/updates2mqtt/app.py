@@ -44,7 +44,6 @@ class App:
         log.debug("Logging initialized", level=self.cfg.log.level)
         self.common_pkg = load_package_info(PKG_INFO_FILE)
 
-        
         self.publisher = MqttClient(self.cfg.mqtt, self.cfg.node, self.cfg.homeassistant)
 
         self.scanners = []
