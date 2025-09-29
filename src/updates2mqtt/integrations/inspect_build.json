@@ -1,0 +1,303 @@
+[
+    {
+        "Id": "cb584c639d8c42d2beef8bb909f989369f73cdef0e43c21dc046cdda76e02196",
+        "Created": "2023-08-12T09:06:36.029434997Z",
+        "Path": "/init",
+        "Args": [],
+        "State": {
+            "Status": "running",
+            "Running": true,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 1399145,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2023-08-12T09:06:36.54881213Z",
+            "FinishedAt": "0001-01-01T00:00:00Z"
+        },
+        "Image": "sha256:39465ffb6dcdf83fd874f007ba6a00f689a6ae4a22173de690f3b040309bb29f",
+        "ResolvConfPath": "/var/lib/docker/containers/cb584c639d8c42d2beef8bb909f989369f73cdef0e43c21dc046cdda76e02196/resolv.conf",
+        "HostnamePath": "/var/lib/docker/containers/cb584c639d8c42d2beef8bb909f989369f73cdef0e43c21dc046cdda76e02196/hostname",
+        "HostsPath": "/var/lib/docker/containers/cb584c639d8c42d2beef8bb909f989369f73cdef0e43c21dc046cdda76e02196/hosts",
+        "LogPath": "/var/lib/docker/containers/cb584c639d8c42d2beef8bb909f989369f73cdef0e43c21dc046cdda76e02196/cb584c639d8c42d2beef8bb909f989369f73cdef0e43c21dc046cdda76e02196-json.log",
+        "Name": "/pyload",
+        "RestartCount": 0,
+        "Driver": "overlay2",
+        "Platform": "linux",
+        "MountLabel": "",
+        "ProcessLabel": "",
+        "AppArmorProfile": "docker-default",
+        "ExecIDs": null,
+        "HostConfig": {
+            "Binds": [
+                "/home/containers/pyload/downloads:/downloads:rw",
+                "/home/containers/pyload/config:/config:rw"
+            ],
+            "ContainerIDFile": "",
+            "LogConfig": {
+                "Type": "json-file",
+                "Config": {}
+            },
+            "NetworkMode": "pyload_default",
+            "PortBindings": {
+                "7227/tcp": [
+                    {
+                        "HostIp": "",
+                        "HostPort": "7227"
+                    }
+                ],
+                "8000/tcp": [
+                    {
+                        "HostIp": "",
+                        "HostPort": "8040"
+                    }
+                ],
+                "9666/tcp": [
+                    {
+                        "HostIp": "",
+                        "HostPort": "9666"
+                    }
+                ]
+            },
+            "RestartPolicy": {
+                "Name": "unless-stopped",
+                "MaximumRetryCount": 0
+            },
+            "AutoRemove": false,
+            "VolumeDriver": "",
+            "VolumesFrom": [],
+            "CapAdd": null,
+            "CapDrop": null,
+            "CgroupnsMode": "private",
+            "Dns": null,
+            "DnsOptions": null,
+            "DnsSearch": null,
+            "ExtraHosts": null,
+            "GroupAdd": null,
+            "IpcMode": "private",
+            "Cgroup": "",
+            "Links": null,
+            "OomScoreAdj": 0,
+            "PidMode": "",
+            "Privileged": false,
+            "PublishAllPorts": false,
+            "ReadonlyRootfs": false,
+            "SecurityOpt": null,
+            "UTSMode": "",
+            "UsernsMode": "",
+            "ShmSize": 67108864,
+            "Runtime": "runc",
+            "ConsoleSize": [
+                0,
+                0
+            ],
+            "Isolation": "",
+            "CpuShares": 0,
+            "Memory": 0,
+            "NanoCpus": 0,
+            "CgroupParent": "",
+            "BlkioWeight": 0,
+            "BlkioWeightDevice": null,
+            "BlkioDeviceReadBps": null,
+            "BlkioDeviceWriteBps": null,
+            "BlkioDeviceReadIOps": null,
+            "BlkioDeviceWriteIOps": null,
+            "CpuPeriod": 0,
+            "CpuQuota": 0,
+            "CpuRealtimePeriod": 0,
+            "CpuRealtimeRuntime": 0,
+            "CpusetCpus": "",
+            "CpusetMems": "",
+            "Devices": null,
+            "DeviceCgroupRules": null,
+            "DeviceRequests": null,
+            "KernelMemory": 0,
+            "KernelMemoryTCP": 0,
+            "MemoryReservation": 0,
+            "MemorySwap": 0,
+            "MemorySwappiness": null,
+            "OomKillDisable": null,
+            "PidsLimit": null,
+            "Ulimits": null,
+            "CpuCount": 0,
+            "CpuPercent": 0,
+            "IOMaximumIOps": 0,
+            "IOMaximumBandwidth": 0,
+            "MaskedPaths": [
+                "/proc/asound",
+                "/proc/acpi",
+                "/proc/kcore",
+                "/proc/keys",
+                "/proc/latency_stats",
+                "/proc/timer_list",
+                "/proc/timer_stats",
+                "/proc/sched_debug",
+                "/proc/scsi",
+                "/sys/firmware"
+            ],
+            "ReadonlyPaths": [
+                "/proc/bus",
+                "/proc/fs",
+                "/proc/irq",
+                "/proc/sys",
+                "/proc/sysrq-trigger"
+            ]
+        },
+        "GraphDriver": {
+            "Data": {
+                "LowerDir": "/var/lib/docker/overlay2/ab79058597935f9644e35cbb6d336a02bbc1ac526192db062fdb521dedcf33ee-init/diff:/var/lib/docker/overlay2/d66a3812b80db3b3e31ad28589f0e4408a0919bee9d20da538e5c9701847050e/diff:/var/lib/docker/overlay2/83ca5da0584c2fce45cbd06b7e4d27176677b44531982bd1a4035efefc1172a7/diff:/var/lib/docker/overlay2/92643ba6b03a55ee794a39f3121427e784cd5996a192c2a88553073be20a4b9d/diff:/var/lib/docker/overlay2/bf1c404bcc8c0083aa3edd7dc71d9a4c8418ff32878811ae33e03df67ae8ac60/diff:/var/lib/docker/overlay2/b3a893b5fece0fcfb2dd96871024429eea050ac8ae6addc64dfdd9cb485fafea/diff:/var/lib/docker/overlay2/c2063ae5626bcb955fffe90e6eb0238dea3825337fbb1e87f25bef07f83f70e0/diff:/var/lib/docker/overlay2/8beeba7e53dd43bbf1f80ef740c96743bdd763b6639712bd0f3d02181e874394/diff",
+                "MergedDir": "/var/lib/docker/overlay2/ab79058597935f9644e35cbb6d336a02bbc1ac526192db062fdb521dedcf33ee/merged",
+                "UpperDir": "/var/lib/docker/overlay2/ab79058597935f9644e35cbb6d336a02bbc1ac526192db062fdb521dedcf33ee/diff",
+                "WorkDir": "/var/lib/docker/overlay2/ab79058597935f9644e35cbb6d336a02bbc1ac526192db062fdb521dedcf33ee/work"
+            },
+            "Name": "overlay2"
+        },
+        "Mounts": [
+            {
+                "Type": "bind",
+                "Source": "/home/containers/pyload/downloads",
+                "Destination": "/downloads",
+                "Mode": "rw",
+                "RW": true,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/home/containers/pyload/config",
+                "Destination": "/config",
+                "Mode": "rw",
+                "RW": true,
+                "Propagation": "rprivate"
+            }
+        ],
+        "Config": {
+            "Hostname": "cb584c639d8c",
+            "Domainname": "",
+            "User": "",
+            "AttachStdin": false,
+            "AttachStdout": false,
+            "AttachStderr": false,
+            "ExposedPorts": {
+                "7227/tcp": {},
+                "8000/tcp": {},
+                "9666/tcp": {}
+            },
+            "Tty": false,
+            "OpenStdin": false,
+            "StdinOnce": false,
+            "Env": [
+                "REL2MQTT_PICTURE=https://pyload.net/img/banner.png",
+                "REL2MQTT_RELNOTES=https://github.com/pyload/pyload/releases",
+                "REL2MQTT_GIT_REPO_PATH=build/pyload",
+                "PUID=1000",
+                "PGID=1000",
+                "TZ=Europe/London",
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "PS1=$(whoami)@$(hostname):$(pwd)\\$ ",
+                "HOME=/root",
+                "TERM=xterm",
+                "S6_CMD_WAIT_FOR_SERVICES_MAXTIME=0",
+                "S6_VERBOSITY=1",
+                "S6_STAGE2_HOOK=/docker-mods",
+                "PYTHONUNBUFFERED=1",
+                "S6_BEHAVIOUR_IF_STAGE2_FAILS=2",
+                "LANG=C.UTF-8"
+            ],
+            "Cmd": null,
+            "Image": "pyload",
+            "Volumes": {
+                "/config": {},
+                "/downloads": {}
+            },
+            "WorkingDir": "/",
+            "Entrypoint": [
+                "/init"
+            ],
+            "OnBuild": null,
+            "Labels": {
+                "build_version": "Linuxserver.io version:- a3c32bf4-ls40 Build-date:- 2023-04-04T08:32:51+02:00",
+                "com.docker.compose.config-hash": "baf794c0c1191e11427c7c6b32ef55e87b119cce0eaa10742172102a88d50db5",
+                "com.docker.compose.container-number": "1",
+                "com.docker.compose.oneoff": "False",
+                "com.docker.compose.project": "pyload",
+                "com.docker.compose.project.config_files": "docker-compose.yml",
+                "com.docker.compose.project.working_dir": "/home/containers/pyload",
+                "com.docker.compose.service": "pyload",
+                "com.docker.compose.version": "1.29.2",
+                "maintainer": "TheLamer",
+                "org.opencontainers.image.authors": "",
+                "org.opencontainers.image.created": "",
+                "org.opencontainers.image.description": "",
+                "org.opencontainers.image.documentation": "",
+                "org.opencontainers.image.licenses": "",
+                "org.opencontainers.image.ref.name": "ea0583a1b3d5152531c781c7298fc66691c0d5ec",
+                "org.opencontainers.image.revision": "",
+                "org.opencontainers.image.source": "",
+                "org.opencontainers.image.title": "",
+                "org.opencontainers.image.url": "",
+                "org.opencontainers.image.vendor": "",
+                "org.opencontainers.image.version": ""
+            }
+        },
+        "NetworkSettings": {
+            "Bridge": "",
+            "SandboxID": "8a55c26ed34d9c6ff86fca8c6a3f462fa366e5a27355b23d6b96eca6b1501c4b",
+            "HairpinMode": false,
+            "LinkLocalIPv6Address": "",
+            "LinkLocalIPv6PrefixLen": 0,
+            "Ports": {
+                "7227/tcp": [
+                    {
+                        "HostIp": "0.0.0.0",
+                        "HostPort": "7227"
+                    }
+                ],
+                "8000/tcp": [
+                    {
+                        "HostIp": "0.0.0.0",
+                        "HostPort": "8040"
+                    }
+                ],
+                "9666/tcp": [
+                    {
+                        "HostIp": "0.0.0.0",
+                        "HostPort": "9666"
+                    }
+                ]
+            },
+            "SandboxKey": "/var/run/docker/netns/8a55c26ed34d",
+            "SecondaryIPAddresses": null,
+            "SecondaryIPv6Addresses": null,
+            "EndpointID": "",
+            "Gateway": "",
+            "GlobalIPv6Address": "",
+            "GlobalIPv6PrefixLen": 0,
+            "IPAddress": "",
+            "IPPrefixLen": 0,
+            "IPv6Gateway": "",
+            "MacAddress": "",
+            "Networks": {
+                "pyload_default": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": [
+                        "cb584c639d8c",
+                        "pyload"
+                    ],
+                    "NetworkID": "3ae5a0513ca15b81800c373f6e1c17f9aa8c2e1431f1a8c9283c431f650e7961",
+                    "EndpointID": "bcde9928767f2bfa0600d70d5d5f1814c9548909b7ec9aa1dfc506ba21e583c8",
+                    "Gateway": "172.31.0.1",
+                    "IPAddress": "172.31.0.2",
+                    "IPPrefixLen": 16,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "MacAddress": "02:42:ac:1f:00:02",
+                    "DriverOpts": null
+                }
+            }
+        }
+    }
+]

@@ -1,0 +1,8 @@
+{
+    "connector": {
+      "name": "local",
+      "options": {
+        "pattern": ["**", "!htmlcov/**"]
+      }
+    }
+  }

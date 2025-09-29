@@ -1,0 +1,348 @@
+[
+    {
+        "Id": "c572b4a909267561d9adb11f7b0e0a52b675c60f2874c83af47fcf8d80c72842",
+        "Created": "2023-07-23T13:17:11.642066526Z",
+        "Path": "/init",
+        "Args": [],
+        "State": {
+            "Status": "running",
+            "Running": true,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 1110480,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2023-07-23T13:17:12.157349941Z",
+            "FinishedAt": "0001-01-01T00:00:00Z"
+        },
+        "Image": "sha256:dac652c4cf36785c91195cdba2d45ad2b320ae417ca221fcff91b4817c34d4dd",
+        "ResolvConfPath": "/var/lib/docker/containers/c572b4a909267561d9adb11f7b0e0a52b675c60f2874c83af47fcf8d80c72842/resolv.conf",
+        "HostnamePath": "/var/lib/docker/containers/c572b4a909267561d9adb11f7b0e0a52b675c60f2874c83af47fcf8d80c72842/hostname",
+        "HostsPath": "/var/lib/docker/containers/c572b4a909267561d9adb11f7b0e0a52b675c60f2874c83af47fcf8d80c72842/hosts",
+        "LogPath": "/var/lib/docker/containers/c572b4a909267561d9adb11f7b0e0a52b675c60f2874c83af47fcf8d80c72842/c572b4a909267561d9adb11f7b0e0a52b675c60f2874c83af47fcf8d80c72842-json.log",
+        "Name": "/frigate",
+        "RestartCount": 0,
+        "Driver": "overlay2",
+        "Platform": "linux",
+        "MountLabel": "",
+        "ProcessLabel": "",
+        "AppArmorProfile": "unconfined",
+        "ExecIDs": null,
+        "HostConfig": {
+            "Binds": [
+                "/home/containers/frigate/config:/config:rw",
+                "/media/BytesOfCloak/CCTV:/media:rw",
+                "/etc/localtime:/etc/localtime:ro"
+            ],
+            "ContainerIDFile": "",
+            "LogConfig": {
+                "Type": "json-file",
+                "Config": {}
+            },
+            "NetworkMode": "frigate_default",
+            "PortBindings": {
+                "1935/tcp": [
+                    {
+                        "HostIp": "",
+                        "HostPort": "1935"
+                    }
+                ],
+                "1984/tcp": [
+                    {
+                        "HostIp": "",
+                        "HostPort": "1984"
+                    }
+                ],
+                "5000/tcp": [
+                    {
+                        "HostIp": "",
+                        "HostPort": "5000"
+                    }
+                ],
+                "8554/tcp": [
+                    {
+                        "HostIp": "",
+                        "HostPort": "8554"
+                    }
+                ],
+                "8555/tcp": [
+                    {
+                        "HostIp": "",
+                        "HostPort": "8555"
+                    }
+                ],
+                "8555/udp": [
+                    {
+                        "HostIp": "",
+                        "HostPort": "8555"
+                    }
+                ]
+            },
+            "RestartPolicy": {
+                "Name": "unless-stopped",
+                "MaximumRetryCount": 0
+            },
+            "AutoRemove": false,
+            "VolumeDriver": "",
+            "VolumesFrom": [],
+            "CapAdd": null,
+            "CapDrop": null,
+            "CgroupnsMode": "private",
+            "Dns": null,
+            "DnsOptions": null,
+            "DnsSearch": null,
+            "ExtraHosts": null,
+            "GroupAdd": null,
+            "IpcMode": "private",
+            "Cgroup": "",
+            "Links": null,
+            "OomScoreAdj": 0,
+            "PidMode": "",
+            "Privileged": true,
+            "PublishAllPorts": false,
+            "ReadonlyRootfs": false,
+            "SecurityOpt": [
+                "label=disable"
+            ],
+            "UTSMode": "",
+            "UsernsMode": "",
+            "ShmSize": 536870912,
+            "Runtime": "runc",
+            "ConsoleSize": [
+                0,
+                0
+            ],
+            "Isolation": "",
+            "CpuShares": 0,
+            "Memory": 0,
+            "NanoCpus": 0,
+            "CgroupParent": "",
+            "BlkioWeight": 0,
+            "BlkioWeightDevice": null,
+            "BlkioDeviceReadBps": null,
+            "BlkioDeviceWriteBps": null,
+            "BlkioDeviceReadIOps": null,
+            "BlkioDeviceWriteIOps": null,
+            "CpuPeriod": 0,
+            "CpuQuota": 0,
+            "CpuRealtimePeriod": 0,
+            "CpuRealtimeRuntime": 0,
+            "CpusetCpus": "",
+            "CpusetMems": "",
+            "Devices": [
+                {
+                    "PathOnHost": "/dev/dri/renderD128",
+                    "PathInContainer": "/dev/dri/renderD128",
+                    "CgroupPermissions": "rwm"
+                },
+                {
+                    "PathOnHost": "/dev/dri/card0",
+                    "PathInContainer": "/dev/dri/card0",
+                    "CgroupPermissions": "rwm"
+                },
+                {
+                    "PathOnHost": "/dev/bus/usb",
+                    "PathInContainer": "/dev/bus/usb",
+                    "CgroupPermissions": "rwm"
+                }
+            ],
+            "DeviceCgroupRules": null,
+            "DeviceRequests": null,
+            "KernelMemory": 0,
+            "KernelMemoryTCP": 0,
+            "MemoryReservation": 0,
+            "MemorySwap": 0,
+            "MemorySwappiness": null,
+            "OomKillDisable": null,
+            "PidsLimit": null,
+            "Ulimits": null,
+            "CpuCount": 0,
+            "CpuPercent": 0,
+            "IOMaximumIOps": 0,
+            "IOMaximumBandwidth": 0,
+            "Mounts": [
+                {
+                    "Type": "tmpfs",
+                    "Target": "/tmp",
+                    "TmpfsOptions": {
+                        "SizeBytes": 3000000000
+                    }
+                }
+            ],
+            "MaskedPaths": null,
+            "ReadonlyPaths": null
+        },
+        "GraphDriver": {
+            "Data": {
+                "LowerDir": "/var/lib/docker/overlay2/072fddbad877e96fe31fd3781777fe2c72b8a8d26c57b6039e56737a3fba8995-init/diff:/var/lib/docker/overlay2/ff0108ad6ba3ae2e10dedb2d0286f30aa4c802a334b187758c13f2b95ff2a4b1/diff:/var/lib/docker/overlay2/6e7d4715adc7b414921695d0ff9a6d10a90d51e3c5e0a3ead410de4857549df6/diff:/var/lib/docker/overlay2/890c2a5ef3c74a8566e5c760dd73ae4a545b50604df635beb2f1f115659fa20a/diff:/var/lib/docker/overlay2/0f607867564412e9758e65104726ebfa2116fc80e0d5fbdddc1c1ffa1158b1a6/diff:/var/lib/docker/overlay2/32435e30ed7113aefbabddc643d873b5b49d09804974848fe24c6f4e040b656f/diff:/var/lib/docker/overlay2/6e51213074e1bd9f218235c957f55caabd18be56a59295aca73019dd1c8830e9/diff:/var/lib/docker/overlay2/238e49456b88eeabdefa123b881e75d7a580da1e47f4bf767f7a82d7014aa16f/diff",
+                "MergedDir": "/var/lib/docker/overlay2/072fddbad877e96fe31fd3781777fe2c72b8a8d26c57b6039e56737a3fba8995/merged",
+                "UpperDir": "/var/lib/docker/overlay2/072fddbad877e96fe31fd3781777fe2c72b8a8d26c57b6039e56737a3fba8995/diff",
+                "WorkDir": "/var/lib/docker/overlay2/072fddbad877e96fe31fd3781777fe2c72b8a8d26c57b6039e56737a3fba8995/work"
+            },
+            "Name": "overlay2"
+        },
+        "Mounts": [
+            {
+                "Type": "tmpfs",
+                "Source": "",
+                "Destination": "/tmp",
+                "Mode": "",
+                "RW": true,
+                "Propagation": ""
+            },
+            {
+                "Type": "bind",
+                "Source": "/home/containers/frigate/config",
+                "Destination": "/config",
+                "Mode": "rw",
+                "RW": true,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/media/BytesOfCloak/CCTV",
+                "Destination": "/media",
+                "Mode": "rw",
+                "RW": true,
+                "Propagation": "rprivate"
+            },
+            {
+                "Type": "bind",
+                "Source": "/etc/localtime",
+                "Destination": "/etc/localtime",
+                "Mode": "ro",
+                "RW": false,
+                "Propagation": "rprivate"
+            }
+        ],
+        "Config": {
+            "Hostname": "c572b4a90926",
+            "Domainname": "",
+            "User": "",
+            "AttachStdin": false,
+            "AttachStdout": false,
+            "AttachStderr": false,
+            "ExposedPorts": {
+                "1935/tcp": {},
+                "1984/tcp": {},
+                "5000/tcp": {},
+                "8554/tcp": {},
+                "8555/tcp": {},
+                "8555/udp": {}
+            },
+            "Tty": false,
+            "OpenStdin": false,
+            "StdinOnce": false,
+            "Env": [
+                "FRIGATE_RTSP_PASSWORD=barrs123",
+                "PLUS_API_KEY=72a8007f-cbfb-409a-96ce-bfff04c5efda:2522fcaaf26801c28b7465bf0670d8bc66614ce7",
+                "REL2MQTT_PICTURE=https://frigate.video/images/logo.svg",
+                "REL2MQTT_RELNOTES=https://github.com/blakeblackshear/frigate/releases",
+                "PATH=/usr/lib/btbn-ffmpeg/bin:/usr/local/go2rtc/bin:/usr/local/nginx/sbin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "NVIDIA_VISIBLE_DEVICES=all",
+                "NVIDIA_DRIVER_CAPABILITIES=compute,video,utility",
+                "S6_LOGGING_SCRIPT=T 1 n0 s10000000 T"
+            ],
+            "Cmd": null,
+            "Image": "ghcr.io/blakeblackshear/frigate:stable",
+            "Volumes": {
+                "/config": {},
+                "/etc/localtime": {},
+                "/media": {}
+            },
+            "WorkingDir": "/opt/frigate",
+            "Entrypoint": [
+                "/init"
+            ],
+            "OnBuild": null,
+            "Labels": {
+                "com.docker.compose.config-hash": "47bac14f96331942d8b83d4b9e5201434c4268981c0d5a3e569bc2ae6423425d",
+                "com.docker.compose.container-number": "1",
+                "com.docker.compose.oneoff": "False",
+                "com.docker.compose.project": "frigate",
+                "com.docker.compose.project.config_files": "docker-compose.yaml",
+                "com.docker.compose.project.working_dir": "/home/containers/frigate",
+                "com.docker.compose.service": "frigate",
+                "com.docker.compose.version": "1.29.2"
+            }
+        },
+        "NetworkSettings": {
+            "Bridge": "",
+            "SandboxID": "9e92996ccb0c0eb122cccd7320bcd475170a0bc10dc112be5518bac5322efa4a",
+            "HairpinMode": false,
+            "LinkLocalIPv6Address": "",
+            "LinkLocalIPv6PrefixLen": 0,
+            "Ports": {
+                "1935/tcp": [
+                    {
+                        "HostIp": "0.0.0.0",
+                        "HostPort": "1935"
+                    }
+                ],
+                "1984/tcp": [
+                    {
+                        "HostIp": "0.0.0.0",
+                        "HostPort": "1984"
+                    }
+                ],
+                "5000/tcp": [
+                    {
+                        "HostIp": "0.0.0.0",
+                        "HostPort": "5000"
+                    }
+                ],
+                "8554/tcp": [
+                    {
+                        "HostIp": "0.0.0.0",
+                        "HostPort": "8554"
+                    }
+                ],
+                "8555/tcp": [
+                    {
+                        "HostIp": "0.0.0.0",
+                        "HostPort": "8555"
+                    }
+                ],
+                "8555/udp": [
+                    {
+                        "HostIp": "0.0.0.0",
+                        "HostPort": "8555"
+                    }
+                ]
+            },
+            "SandboxKey": "/var/run/docker/netns/9e92996ccb0c",
+            "SecondaryIPAddresses": null,
+            "SecondaryIPv6Addresses": null,
+            "EndpointID": "",
+            "Gateway": "",
+            "GlobalIPv6Address": "",
+            "GlobalIPv6PrefixLen": 0,
+            "IPAddress": "",
+            "IPPrefixLen": 0,
+            "IPv6Gateway": "",
+            "MacAddress": "",
+            "Networks": {
+                "frigate_default": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": [
+                        "frigate",
+                        "c572b4a90926"
+                    ],
+                    "NetworkID": "f40efc3ea664b0a51e79c973b104d38e0707ea79353c300874b8171dc187457b",
+                    "EndpointID": "9df312cee2a4cc21eac8333bab402a9ebe5863454195f63fab252b97a02b718f",
+                    "Gateway": "192.168.208.1",
+                    "IPAddress": "192.168.208.2",
+                    "IPPrefixLen": 20,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "MacAddress": "02:42:c0:a8:d0:02",
+                    "DriverOpts": null
+                }
+            }
+        }
+    }
+]

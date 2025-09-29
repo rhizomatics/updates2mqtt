@@ -1,0 +1,42 @@
+# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
+
+name: Updates2MQTT
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: uv-setup
+      # Install a specific uv version using the installer
+      run: curl -LsSf https://astral.sh/uv/install.sh | sh
+    - name: "Set up Python"
+      uses: actions/setup-python@v5
+      with:
+        python-version-file: "pyproject.toml"
+    - name: Install dependencies
+      run: uv sync --all-extras --dev
+    - name: Ruff
+      uses: chartboost/ruff-action@v1
+    - name: Test with pytest
+      run: uv run pytest tests
+    - name: Prep for mkdocs
+      run: uv pip freeze | grep mkdocs > requirements_docs.txt
+    - name: Deploy docs
+      uses: mhausenblas/mkdocs-deploy-gh-pages@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        REQUIREMENTS: requirements_docs.txt
+
+
+
