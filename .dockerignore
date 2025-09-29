@@ -1,0 +1,13 @@
+venv
+.venv
+.mypy_cache
+.pytest_cache
+tests
+.coverage
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+lcov.info
+*.log
+

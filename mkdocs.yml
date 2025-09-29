@@ -1,0 +1,40 @@
+site_name: Updates2MQTT
+site_url: https://jeyrb.github.io/updates2mqtt/
+site_description: Notify and take action on server updates via MQTT, with HomeAssistant compatibility
+
+repo_name: rhizomatics/updates2mqtt
+repo_url: https://github.com/rhizomatics/updates2mqtt
+
+theme:
+  name: material
+  highlightjs: true
+  features:
+    - content.code.copy
+    - content.code.select
+    - content.code.annotate 
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        # See: https://mkdocstrings.github.io/python/usage/
+        python:
+          options:
+            show_source: false
+            show_root_heading: true
+            summary: true
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - smarty
+  - toc:
+      permalink: true
+  - sane_lists
+  - pymdownx.snippets:
+      check_paths: true
+
+
