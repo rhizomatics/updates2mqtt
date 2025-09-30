@@ -189,10 +189,10 @@ class DockerProvider(ReleaseProvider):
                     try:
                         reg_data = self.client.images.get_registry_data(image_ref)
                         latest_version = reg_data.short_id[7:] if reg_data else None
-                    except Exception as e:
+                    except docker.errors.APIError as e:
                         retries_left -= 1
-                        if retries_left == 0:
-                            logger.warn("Failed to fetch registry data: %s", e)
+                        if retries_left == 0 or e.is_client_error():
+                            logger.warn("Failed to fetch registry data: [%s] %s", e.errno, e.explanation)
                         else:
                             logger.debug("Failed to fetch registry data, retrying: %s", e)
 
