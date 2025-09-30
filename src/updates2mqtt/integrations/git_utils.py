@@ -36,6 +36,7 @@ def git_timestamp(repo_path: Path) -> datetime.datetime | None:
 def git_check_update_available(repo_path: Path, timeout: int = 120) -> bool:
     result = None
     try:
+        # check if remote repo ahead
         result = subprocess.run(
             "git status -uno",
             capture_output=True,
