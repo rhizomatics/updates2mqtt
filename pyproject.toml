@@ -7,9 +7,9 @@ authors = [
 ]
 
 requires-python = ">=3.13"
-version = "1.1.6"
+version = "1.1.7"
 license="Apache-2.0"
-keywords=["mqtt", "docker", "updates", "automation","home-assistant"]
+keywords=["mqtt", "docker", "updates", "automation","home-assistant","homeassistant","selfhosting"]
 packages = [
   { include = "src" },
 ]
@@ -50,9 +50,6 @@ dev = [
     "pytest-mqtt>=0.4.0",
     "pytest-subprocess>=1.5.0",
     "coverage",
-    "taskipy>=1.13.0",
-    "types-docker>=7.1.0.20250916",
-    {include-group = "mkdocs"},
 ]
 mkdocs=[
     "mkdocs-material",
@@ -60,16 +57,6 @@ mkdocs=[
     "mkdocstrings[python]>=0.18",
     "pymdown-extensions",
 ]
-
-[tool.taskipy.tasks]
-pyright_lint = "pyright ."
-ruff_format = "ruff format ."
-ruff_lint = "ruff check ."
-ruff_fix = "ruff check --fix ."
-test = "pytest tests -n auto --cov=app --cov-report=term --cov-report=xml"
-format = "task ruff_fix && task ruff_format"
-lint = "task ruff_lint && task pyright_lint"
-check = "task format && task lint && task test"
 
 [build-system]
 build-backend = "hatchling.build"
@@ -80,7 +67,7 @@ requires=[
 [tool.ruff]
 line-length = 128
 indent-width = 4
-target-version = "py312"
+target-version = "py313"
 exclude = [
     ".bzr",
     ".direnv",

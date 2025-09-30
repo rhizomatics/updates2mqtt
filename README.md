@@ -38,6 +38,8 @@ Create file `config.yaml` in `conf` directory. If the file is not present, a def
 
 ### Example configuration file
 
+This is a maximal config file, the minimum is no config file at all, which will generate a default config file. The only mandatory values are the MQTT user name and password.
+
 ```yaml
 
 node:
@@ -62,6 +64,10 @@ docker:
   compose_version: v2 # Controls whether to use `docker-compose` (v1) or `docker compose` (v2) command
   default_entity_picture_url: https://www.docker.com/wp-content/uploads/2022/03/Moby-logo.png
   device_icon: mdi:train-car-container
+  discover_metadata:
+    linuxserver.io:
+      enabled: true
+      cache_ttl: 604800 # cache metadata for 1 week
 scan_interval: 10800 # sleep interval between scan runs, in seconds
 log:
   level: INFO

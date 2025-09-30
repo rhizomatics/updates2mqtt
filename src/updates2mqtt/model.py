@@ -64,7 +64,7 @@ class ReleaseProvider:
         """Rescan a previously discovered component"""
 
     @abstractmethod
-    async def scan(self, session: str) -> AsyncGenerator[Discovery, None]:
+    async def scan(self, session: str) -> AsyncGenerator[Discovery]:
         """Scan for components to monitor"""
 
     def hass_config_format(self, discovery: Discovery) -> dict:

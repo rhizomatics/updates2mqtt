@@ -52,7 +52,7 @@ class HomeAssistantConfig:
 
 @dataclass
 class NodeConfig:
-    name: str = "UNKNOWN"
+    name: str = field(default_factory=lambda: os.uname().nodename.replace(".local", ""))
 
 
 @dataclass
@@ -113,9 +113,6 @@ def load_app_config(conf_file_path: Path) -> Config | None:
         except Exception:
             log.exception("Unable to write config file", path=conf_file_path)
         cfg = base_cfg
-
-    if cfg.node.name is None:
-        cfg.node.name = os.uname().nodename
 
     try:
         # Validate that all required fields are present, throw exception now rather than when config first used
