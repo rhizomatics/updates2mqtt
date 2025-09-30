@@ -269,7 +269,7 @@ class DockerProvider(ReleaseProvider):
             logger.exception("Docker Discovery Failure", container_attrs=c.attrs)
         return None
 
-    async def scan(self, session: str) -> AsyncGenerator[Discovery, None]:  # type: ignore  # noqa: PGH003
+    async def scan(self, session: str) -> AsyncGenerator[Discovery]:  # type: ignore  # noqa: PGH003
         logger = self.log.bind(session=session, action="scan")
         containers = results = 0
         for c in self.client.containers.list():
