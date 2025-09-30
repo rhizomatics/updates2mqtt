@@ -1,3 +1,4 @@
+from functools import cache
 import os
 import typing
 from dataclasses import dataclass, field
@@ -21,6 +22,7 @@ class MqttConfig:
 @dataclass
 class MetadataSourceConfig:
     enabled: bool = True
+    cache_ttl: int = 60 * 60 * 24 * 7  # 1 week
 
 
 @dataclass

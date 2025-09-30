@@ -8,9 +8,8 @@ from typing import Any, cast
 
 import docker  # type: ignore[import-not-found]
 import docker.errors  # type: ignore[import-not-found]
-import httpx
+import hishel
 import structlog
-from cachetools import TTLCache, cached
 from docker.models.containers import Container  # type: ignore[import-not-found]
 
 from updates2mqtt.config import DockerConfig, DockerPackageUpdateInfo, PackageUpdateInfo, UpdateInfoConfig
@@ -355,15 +354,15 @@ class DockerProvider(ReleaseProvider):
         )
 
     def discover_metadata(self) -> None:
-        if self.cfg.discover_metadata.get("linuxserver.io") and self.cfg.discover_metadata["linuxserver.io"].enabled:
-            linuxserver_metadata(self.discovered_pkgs)
+        cfg = self.cfg.discover_metadata.get("linuxserver.io")
+        if cfg and cfg.enabled:
+            linuxserver_metadata(self.discovered_pkgs, cache_ttl=cfg.cache_ttl)
 
 
-@cached(cache=TTLCache(maxsize=1, ttl=604800))  # 1 week expiry
-def linuxserver_metadata_api() -> dict:
+def linuxserver_metadata_api(cache_ttl:int) -> dict:
     """Fetch and cache linuxserver.io API call for image metadata"""
     try:
-        with httpx.Client() as client:
+        with hishel.CacheClient(headers=[("cache-control", f"max-age={cache_ttl}")]) as client:
             req = client.get("https://api.linuxserver.io/api/v1/images?include_config=false&include_deprecated=false")
             return req.json()
     except Exception:
@@ -371,13 +370,13 @@ def linuxserver_metadata_api() -> dict:
         return {}
 
 
-def linuxserver_metadata(common_pkgs: dict[str, PackageUpdateInfo]) -> None:
+def linuxserver_metadata(discovered_pkgs: dict[str, PackageUpdateInfo], cache_ttl: int) -> None:
     """Fetch linuxserver.io metadata for all their images via their API"""
-    repos: list = linuxserver_metadata_api().get("data", {}).get("repositories", {}).get("linuxserver", [])
+    repos: list = linuxserver_metadata_api(cache_ttl).get("data", {}).get("repositories", {}).get("linuxserver", [])
     for repo in repos:
         image_name = repo.get("name")
-        if image_name and image_name not in common_pkgs:
-            common_pkgs[image_name] = PackageUpdateInfo(
+        if image_name and image_name not in discovered_pkgs:
+            discovered_pkgs[image_name] = PackageUpdateInfo(
                 DockerPackageUpdateInfo(f"lscr.io/linuxserver/{image_name}"),
                 logo_url=repo["project_logo"],
                 release_notes_url=f"{repo['github_url']}/releases",
