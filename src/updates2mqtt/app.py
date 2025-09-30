@@ -61,7 +61,7 @@ class App:
         for scanner in self.scanners:
             log.info("Cleaning topics before scan", source_type=scanner.source_type)
             if self.scan_count == 0:
-                await self.publisher.clean_topics(scanner, session, force=True)
+                await self.publisher.clean_topics(scanner, None, force=True)
             log.info("Scanning", source=scanner.source_type, session=session)
             async for discovery in scanner.scan(session): # type: ignore[attr-defined]
                 async with asyncio.TaskGroup() as tg:
