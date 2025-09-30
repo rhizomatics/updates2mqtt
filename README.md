@@ -118,15 +118,26 @@ The git repo at this path will be used as the source of timestamps, and an updat
 Note that the updates2mqtt docker container needs access to this path declared in its volumes, and that has to
 be read/write if automated install required.
 
+### Environment Variables
 
-# Release Support
+The following environment variables can be used to configure updates2mqtt:
 
-| Ecosystem | Support     | Comments |
-| --------- | ----------- | -------- |
-| Docker    | Scan. Fetch | Fetch is ``docker pull`` only. Restart support only for ``docker-compose`` image based containers.|
+| Env Var | Description | Default  |
+|---------| ------------|----------|
+| `UPD2MQTT_UPDATE`  | Update mode, either `Passive` or `Auto`. If `Auto`, updates will be installed automatically. | `Passive` |
+| `UPD2MQTT_PICTURE`  | URL to an icon to use in Home Assistant.  | Docker logo URL   |
+| `UPD2MQTT_RELNOTES` | URL to release notes for the package.  |  | 
+| `UPD2MQTT_GIT_REPO_PATH` | Relative path to a local git repo if the image is built locally.  | |
+
+
+## Release Support
+
+| Ecosystem | Support     | Comments                                                                                           |
+|-----------|-------------|----------------------------------------------------------------------------------------------------|
+| Docker    | Scan. Fetch | Fetch is ``docker pull`` only. Restart support only for ``docker-compose`` image based containers. |
   
   
-# HomeAssistant integration
+## HomeAssistant integration
 
 Any updates that have support for automated install will automatically show in the
 Home Assistant settings page.
@@ -134,6 +145,7 @@ Home Assistant settings page.
 If the package supports automated update, then *Skip* and *Install* buttons will appear on the Home Assistant
 interface, and the package can be remotely fetched and the component restarted.
 
+## Development
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
 [![CodeQL](https://github.com/rhizomatics/updates2mqtt/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/rhizomatics/updates2mqtt/actions/workflows/github-code-scanning/codeql)
 [![Dependabot Updates](https://github.com/rhizomatics/updates2mqtt/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/rhizomatics/updates2mqtt/actions/workflows/dependabot/dependabot-updates)

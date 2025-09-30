@@ -35,7 +35,8 @@ class DockerProvider(ReleaseProvider):
         self.client: docker.DockerClient = docker.from_env()
         self.cfg: DockerConfig = cfg
         self.common_pkgs: dict[str, PackageUpdateInfo] = common_pkg_cfg.common_packages if common_pkg_cfg else {}
-        self.discovered_pkgs: dict[str, PackageUpdateInfo] = {}
+        # TODO: refresh discovered packages periodically
+        self.discovered_pkgs: dict[str, PackageUpdateInfo] = self.discover_metadata()
         self.source_type: str = "docker"
         self.discoveries: dict[str, Discovery] = {}
         self.log: Any = structlog.get_logger().bind(integration="docker")
@@ -332,8 +333,6 @@ class DockerProvider(ReleaseProvider):
         relnotes_url: str | None = None
         picture_url: str | None = self.cfg.default_entity_picture_url
 
-        self.discover_metadata()
-
         if image_name is not None:
             for pkg in self.common_pkgs.values():
                 if pkg.docker is not None and pkg.docker.image_name is not None and pkg.docker.image_name == image_name:
@@ -353,10 +352,12 @@ class DockerProvider(ReleaseProvider):
             DockerPackageUpdateInfo(image_name or "UNKNOWN"), logo_url=picture_url, release_notes_url=relnotes_url
         )
 
-    def discover_metadata(self) -> None:
+    def discover_metadata(self) -> dict[str, PackageUpdateInfo]:
+        pkgs: dict[str, PackageUpdateInfo] = {}
         cfg = self.cfg.discover_metadata.get("linuxserver.io")
         if cfg and cfg.enabled:
-            linuxserver_metadata(self.discovered_pkgs, cache_ttl=cfg.cache_ttl)
+            linuxserver_metadata(pkgs, cache_ttl=cfg.cache_ttl)
+        return pkgs
 
 
 def linuxserver_metadata_api(cache_ttl: int) -> dict:

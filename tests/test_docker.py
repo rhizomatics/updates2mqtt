@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+import pytest
 from docker import DockerClient  # type:ignore[import-not-found]
 from pytest_httpx import HTTPXMock
 from pytest_subprocess import FakeProcess  # type: ignore[import-not-found]
@@ -43,6 +44,7 @@ async def test_common_packages(mock_docker_client: DockerClient) -> None:
     assert common[0].release_url == "https://commonhub/pkg/logo"
 
 
+@pytest.mark.httpx_mock(assert_all_requests_were_expected=False)
 def test_discover_metadata(httpx_mock: HTTPXMock) -> None:
     httpx_mock.add_response(
         json={
@@ -60,7 +62,8 @@ def test_discover_metadata(httpx_mock: HTTPXMock) -> None:
         }
     )
     uut = mut.DockerProvider(
-        mut.DockerConfig(discover_metadata={"linuxserver.io": MetadataSourceConfig(enabled=True)}), mut.UpdateInfoConfig()
+        mut.DockerConfig(discover_metadata={"linuxserver.io": MetadataSourceConfig(enabled=True, cache_ttl=0)}),
+        mut.UpdateInfoConfig(),
     )
     uut.discover_metadata()
     assert "mctesty901" in uut.discovered_pkgs
