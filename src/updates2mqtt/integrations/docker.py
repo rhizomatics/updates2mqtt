@@ -359,7 +359,7 @@ class DockerProvider(ReleaseProvider):
             linuxserver_metadata(self.discovered_pkgs, cache_ttl=cfg.cache_ttl)
 
 
-def linuxserver_metadata_api(cache_ttl:int) -> dict:
+def linuxserver_metadata_api(cache_ttl: int) -> dict:
     """Fetch and cache linuxserver.io API call for image metadata"""
     try:
         with hishel.CacheClient(headers=[("cache-control", f"max-age={cache_ttl}")]) as client:
