@@ -349,7 +349,7 @@ class DockerProvider(ReleaseProvider):
 
         self.log.debug("No common or discovered package found", image_name=image_name)
         return PackageUpdateInfo(
-            DockerPackageUpdateInfo(image_name or "UNKNOWN"), logo_url=picture_url, release_notes_url=relnotes_url
+            DockerPackageUpdateInfo(image_name or NO_KNOWN_IMAGE), logo_url=picture_url, release_notes_url=relnotes_url
         )
 
     def discover_metadata(self) -> dict[str, PackageUpdateInfo]:
