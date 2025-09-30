@@ -34,8 +34,7 @@ def hass_format_config(
         "can_restart": discovery.can_restart,
         "update_policy": discovery.update_policy,
         "latest_version_topic": state_topic,
-        "latest_version_template": "{{value_json.latest_version}}",
-        "custom": discovery.custom
+        "latest_version_template": "{{value_json.latest_version}}"
     }
     if command_topic:
         config["command_topic"] = command_topic
