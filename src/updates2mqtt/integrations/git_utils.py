@@ -38,7 +38,7 @@ def git_check_update_available(repo_path: Path, timeout: int = 120) -> bool:
     try:
         # check if remote repo ahead
         result = subprocess.run(
-            "git status -uno",
+            "git fetch;git status -uno",
             capture_output=True,
             text=True,
             shell=True,
