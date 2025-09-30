@@ -60,7 +60,7 @@ def test_discover_metadata(httpx_mock: HTTPXMock) -> None:
         }
     )
     uut = mut.DockerProvider(
-        mut.DockerConfig(discover_metadata={"linuxserver.io": MetadataSourceConfig(enabled=True)}), mut.UpdateInfoConfig()
+        mut.DockerConfig(discover_metadata={"linuxserver.io": MetadataSourceConfig(enabled=True, cache_ttl=0)}), mut.UpdateInfoConfig()
     )
     uut.discover_metadata()
     assert "mctesty901" in uut.discovered_pkgs
