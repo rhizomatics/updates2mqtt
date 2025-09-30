@@ -44,5 +44,5 @@ repos:
           - paho-mqtt
           - omegaconf
           - docker-stubs
-          - types-cachetools
+          - hishel
  
