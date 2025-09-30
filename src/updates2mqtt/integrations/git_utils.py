@@ -46,6 +46,7 @@ def git_check_update_available(repo_path: Path, timeout: int = 120) -> bool:
             timeout=timeout,
         )
         if result.returncode == 0 and "Your branch is behind" in result.stdout:
+            log.debug("Local git repo update available", path=repo_path, status=result.stdout.strip())
             return True
     except Exception as e:
         log.warn("GIT Unable to check status %s: %s", result.stdout if result else "<NO RESULT>", e)
