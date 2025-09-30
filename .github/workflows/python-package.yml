@@ -30,7 +30,7 @@ jobs:
     - name: Test with pytest
       run: uv run pytest tests
     - name: Prep for mkdocs
-      run: uv pip freeze | grep mkdocs|mdown > requirements_docs.txt
+      run: uv pip compile pyproject.toml -o requirements_docs.txt --group mkdocs
     - name: Deploy docs
       uses: mhausenblas/mkdocs-deploy-gh-pages@master
       env:
