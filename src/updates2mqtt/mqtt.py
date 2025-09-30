@@ -88,10 +88,9 @@ class MqttClient:
     ) -> None:
         self.log.info("Disconnected from broker", result_code=rc)
 
-    async def clean_topics(self, provider: ReleaseProvider,
-                           last_scan_session: str | None,
-                           wait_time: int = 30,
-                           force: bool = False) -> None:
+    async def clean_topics(
+        self, provider: ReleaseProvider, last_scan_session: str | None, wait_time: int = 30, force: bool = False
+    ) -> None:
         logger = self.log.bind(action="clean")
         logger.info("Starting clean cycle")
         cleaner = mqtt.Client(

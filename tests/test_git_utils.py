@@ -34,7 +34,9 @@ def test_git_pull(fake_process: FakeProcess) -> None:
 
 def test_git_check_update_available(fake_process: FakeProcess) -> None:
     fake_process.register(
-        "git fetch;git status -uno", stdout="Your branch is behind 'origin/main' by 1 commit, and can be fast-forwarded.", returncode=0
+        "git fetch;git status -uno",
+        stdout="Your branch is behind 'origin/main' by 1 commit, and can be fast-forwarded.",
+        returncode=0,
     )
     assert git_check_update_available(Path("/my/path"))
     fake_process.register("git fetch;git status -uno", stdout="Your branch is up to date with 'origin/main'.", returncode=0)
