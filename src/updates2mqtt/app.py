@@ -7,7 +7,7 @@ from pathlib import Path
 
 import structlog
 
-from updates2mqtt.model import Discovery
+from updates2mqtt.model import Discovery, ReleaseProvider
 
 from .config import Config, load_app_config, load_package_info
 from .integrations.docker import DockerProvider
@@ -46,7 +46,8 @@ class App:
 
         self.publisher = MqttClient(self.cfg.mqtt, self.cfg.node, self.cfg.homeassistant)
 
-        self.scanners = []
+        self.scanners: list[ReleaseProvider] = []
+        self.scan_count: int = 0
         if self.cfg.docker.enabled:
             self.scanners.append(DockerProvider(self.cfg.docker, self.common_pkg))
         log.info(
@@ -56,21 +57,24 @@ class App:
         )
 
     async def scan(self) -> None:
+        session = uuid.uuid4().hex
         for scanner in self.scanners:
-            log.info("Starting scan", source_type=scanner.source_type)
-            session = uuid.uuid4().hex
+            log.info("Cleaning topics before scan", source_type=scanner.source_type)
+            if self.scan_count == 0:
+                await self.publisher.clean_topics(scanner, None, force=True)
             log.info("Scanning", source=scanner.source_type, session=session)
-            async for discovery in scanner.scan(session):
+            async for discovery in scanner.scan(session):  # type: ignore[attr-defined]
                 async with asyncio.TaskGroup() as tg:
                     tg.create_task(self.on_discovery(discovery))
-            await self.publisher.clean_topics(scanner, session)
-
+            await self.publisher.clean_topics(scanner, session, force=False)
+            self.scan_count += 1
             log.info("Scan complete", source_type=scanner.source_type)
 
     async def run(self) -> None:
         self.publisher.start()
         for scanner in self.scanners:
             self.publisher.subscribe_hass_command(scanner)
+
         while True:
             await self.scan()
             await asyncio.sleep(self.cfg.scan_interval)

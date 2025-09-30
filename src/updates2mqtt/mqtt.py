@@ -88,7 +88,9 @@ class MqttClient:
     ) -> None:
         self.log.info("Disconnected from broker", result_code=rc)
 
-    async def clean_topics(self, provider: ReleaseProvider, last_scan_session: str, wait_time: int = 30) -> None:
+    async def clean_topics(
+        self, provider: ReleaseProvider, last_scan_session: str | None, wait_time: int = 30, force: bool = False
+    ) -> None:
         logger = self.log.bind(action="clean")
         logger.info("Starting clean cycle")
         cleaner = mqtt.Client(
@@ -116,8 +118,11 @@ class MqttClient:
                         e,
                         exc_info=1,
                     )
-                if session is None or session != last_scan_session:
-                    log.info("Removing %s [%s]", msg.topic, session)
+                if session is not None and last_scan_session is not None and session != last_scan_session:
+                    log.info("Removing stale msg", topic=msg.topic, session=session)
+                    cleaner.publish(msg.topic, "", retain=True)
+                elif session is None and force:
+                    log.info("Removing untrackable msg", topic=msg.topic)
                     cleaner.publish(msg.topic, "", retain=True)
                 else:
                     log.debug(

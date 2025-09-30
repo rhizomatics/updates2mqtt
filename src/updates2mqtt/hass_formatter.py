@@ -30,6 +30,8 @@ def hass_format_config(
         "entity_picture": discovery.entity_picture_url,
         "icon": discovery.device_icon,
         "can_update": discovery.can_update,
+        "can_build": discovery.can_build,
+        "can_restart": discovery.can_restart,
         "update_policy": discovery.update_policy,
         "latest_version_topic": state_topic,
         "latest_version_template": "{{value_json.latest_version}}",
@@ -37,6 +39,8 @@ def hass_format_config(
     if command_topic:
         config["command_topic"] = command_topic
         config["payload_install"] = f"{discovery.source_type}|{discovery.name}|install"
+    if discovery.custom.get("git_repo_path"):
+        config["git_repo_path"] = discovery.custom["git_repo_path"]
     config.update(discovery.provider.hass_config_format(discovery))
     return config
 
