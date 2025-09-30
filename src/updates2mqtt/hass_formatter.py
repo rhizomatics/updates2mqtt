@@ -30,9 +30,12 @@ def hass_format_config(
         "entity_picture": discovery.entity_picture_url,
         "icon": discovery.device_icon,
         "can_update": discovery.can_update,
+        "can_build": discovery.can_build,
+        "can_restart": discovery.can_restart,
         "update_policy": discovery.update_policy,
         "latest_version_topic": state_topic,
         "latest_version_template": "{{value_json.latest_version}}",
+        "custom": discovery.custom
     }
     if command_topic:
         config["command_topic"] = command_topic
@@ -49,7 +52,7 @@ def hass_format_state(discovery: Discovery, node_name: str, session: str, in_pro
         "installed_version": discovery.current_version,
         "latest_version": discovery.latest_version,
         "title": title,
-        "in_progress": in_progress,
+        "in_progress": in_progress
     }
     if discovery.release_summary:
         state["release_summary"] = discovery.release_summary

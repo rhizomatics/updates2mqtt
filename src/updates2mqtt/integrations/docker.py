@@ -62,7 +62,7 @@ class DockerProvider(ReleaseProvider):
                 logger.info("Pulled", image_id=image.id, image_ref=image_ref, platform=platform)
             else:
                 logger.warn("Unable to pull", image_ref=image_ref, platform=platform)
-        elif discovery.custom.get("can_build"):
+        elif discovery.can_build:
             compose_path: str | None = discovery.custom.get("compose_path")
             git_repo_path: str | None = discovery.custom.get("git_repo_path")
             if not compose_path or not git_repo_path:
@@ -245,8 +245,6 @@ class DockerProvider(ReleaseProvider):
             if relnotes_url:
                 features.append("RELEASE_NOTES")
             custom["can_pull"] = can_pull
-            custom["can_build"] = can_build
-            custom["can_restart"] = can_restart
 
             return Discovery(
                 self,
@@ -261,6 +259,8 @@ class DockerProvider(ReleaseProvider):
                 title_template="Docker image update for {name} on {node}",
                 device_icon=self.cfg.device_icon,
                 can_update=can_update,
+                can_build=can_build,
+                can_restart=can_restart,
                 status=(c.status == "running" and "on") or "off",
                 custom=custom,
                 features=features,
@@ -317,7 +317,7 @@ class DockerProvider(ReleaseProvider):
         return self.discoveries.get(discovery_name)
 
     def hass_state_format(self, discovery: Discovery) -> dict:  # noqa: ARG002
-        # disable until hass issues resolved
+        # disable since hass mqtt update has strict json schema for message
         return {
             # "docker_image_ref": discovery.custom.get("image_ref"),
             # "last_update_attempt": safe_json_dt(discovery.update_last_attempt),

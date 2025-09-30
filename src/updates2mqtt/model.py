@@ -15,6 +15,8 @@ class Discovery:
         current_version: str | None = None,
         latest_version: str | None = None,
         can_update: bool = False,
+        can_build: bool = False,
+        can_restart: bool = False,
         status: str = "on",
         update_policy: str | None = None,
         update_last_attempt: float | None = None,
@@ -33,6 +35,8 @@ class Discovery:
         self.current_version: str | None = current_version
         self.latest_version: str | None = latest_version
         self.can_update: bool = can_update
+        self.can_build: bool = can_build
+        self.can_restart: bool = can_restart
         self.release_url: str | None = release_url
         self.release_summary: str | None = release_summary
         self.title_template: str | None = title_template

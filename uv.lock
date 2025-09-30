@@ -963,8 +963,33 @@ wheels = [
 ]
 
 [[package]]
+name = "types-docker"
+version = "7.1.0.20250916"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "types-requests" },
+    { name = "urllib3" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e3/f1/43847b409a078e9346ced6af6b2bc8b64b5d53189a18e4c8cd0c18d0d288/types_docker-7.1.0.20250916.tar.gz", hash = "sha256:770d777d2aa0fc523a05c3daa7a922ef0db4370ff111481018e51793ad68d5d0", size = 31180, upload-time = "2025-09-16T02:49:30.786Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c9/a6/36fdd8850a829b194f8adcf0fb269ad239fa12325a67a20cd76a3e86ba9b/types_docker-7.1.0.20250916-py3-none-any.whl", hash = "sha256:5573250eaf013f3b1df681af01eab20f3e95c3f24d90a753ba254e952b565323", size = 45837, upload-time = "2025-09-16T02:49:29.682Z" },
+]
+
+[[package]]
+name = "types-requests"
+version = "2.32.4.20250913"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "urllib3" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/36/27/489922f4505975b11de2b5ad07b4fe1dca0bca9be81a703f26c5f3acfce5/types_requests-2.32.4.20250913.tar.gz", hash = "sha256:abd6d4f9ce3a9383f269775a9835a4c24e5cd6b9f647d64f88aa4613c33def5d", size = 23113, upload-time = "2025-09-13T02:40:02.309Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2a/20/9a227ea57c1285986c4cf78400d0a91615d25b24e257fd9e2969606bdfae/types_requests-2.32.4.20250913-py3-none-any.whl", hash = "sha256:78c9c1fffebbe0fa487a418e0fa5252017e9c60d1a2da394077f1780f655d7e1", size = 20658, upload-time = "2025-09-13T02:40:01.115Z" },
+]
+
+[[package]]
 name = "updates2mqtt"
-version = "1.1.2"
+version = "1.1.4"
 source = { editable = "." }
 dependencies = [
     { name = "docker" },
@@ -992,6 +1017,7 @@ dev = [
     { name = "pytest-subprocess" },
     { name = "ruff" },
     { name = "taskipy" },
+    { name = "types-docker" },
 ]
 mkdocs = [
     { name = "mkdocs-material" },
@@ -1027,6 +1053,7 @@ dev = [
     { name = "pytest-subprocess", specifier = ">=1.5.0" },
     { name = "ruff", specifier = ">=0.3.7" },
     { name = "taskipy", specifier = ">=1.13.0" },
+    { name = "types-docker", specifier = ">=7.1.0.20250916" },
 ]
 mkdocs = [
     { name = "mkdocs-material" },
