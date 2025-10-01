@@ -76,7 +76,7 @@ class App:
         self.publisher.start()
         for scanner in self.scanners:
             self.publisher.subscribe_hass_command(scanner)
-
+        self.running.set()
         while self.running.is_set():
             await self.scan()
             if self.running.is_set():
