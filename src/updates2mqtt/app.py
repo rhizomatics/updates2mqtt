@@ -114,8 +114,8 @@ class App:
     def shutdown(self, signum: int | None = None, frame: FrameType | None = None) -> None:  # noqa: ARG002
         log.info("Shutting down", signal=signum)
 
-        def cancel_tasks():  # noqa: ANN202
-            log.warning("Received termination signal, cancelling tasks")
+        async def cancel_tasks():  # noqa: ANN202
+            log.debug("Raising exception to cancel tasks")
             raise TerminateTaskGroupIntervention()
 
         self.task_exec_group.create_task(cancel_tasks())
