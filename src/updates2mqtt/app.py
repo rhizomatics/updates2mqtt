@@ -1,11 +1,13 @@
 import asyncio
 import logging
+import signal
 import sys
 import time
 import uuid
 from pathlib import Path
-import signal
 from threading import Event
+from types import FrameType
+
 import structlog
 
 from updates2mqtt.model import Discovery, ReleaseProvider
@@ -29,6 +31,10 @@ UPDATE_INTERVAL = 60 * 60 * 4
 #  - use git hash as alt to img ref for builds, or daily builds
 
 
+class TerminateTaskGroupIntervention(Exception):  # noqa: N818
+    pass
+
+
 class App:
     def __init__(self) -> None:
         app_config: Config | None = load_app_config(CONF_FILE)
@@ -36,11 +42,7 @@ class App:
             log.error("Invalid configuration, exiting")
             sys.exit(1)
         self.cfg: Config = app_config
-        logging.basicConfig(
-            format="%(message)s",
-            stream=sys.stdout,
-            level=self.cfg.log.level,
-        )
+
         structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(getattr(logging, self.cfg.log.level)))
         log.debug("Logging initialized", level=self.cfg.log.level)
         self.common_pkg = load_package_info(PKG_INFO_FILE)
@@ -52,6 +54,8 @@ class App:
         if self.cfg.docker.enabled:
             self.scanners.append(DockerProvider(self.cfg.docker, self.common_pkg))
         self.running = Event()
+        self.task_exec_group = asyncio.TaskGroup()
+        signal.signal(signal.SIGTERM, self.shutdown)
         log.info(
             "App configured",
             node=self.cfg.node.name,
@@ -65,9 +69,13 @@ class App:
             if self.scan_count == 0:
                 await self.publisher.clean_topics(scanner, None, force=True)
             log.info("Scanning", source=scanner.source_type, session=session)
-            async for discovery in scanner.scan(session):  # type: ignore[attr-defined]
-                async with asyncio.TaskGroup() as tg:
-                    tg.create_task(self.on_discovery(discovery))
+            try:
+                async with self.task_exec_group as tg:
+                    async for discovery in scanner.scan(session):  # type: ignore[attr-defined]
+                        tg.create_task(self.on_discovery(discovery))
+            except TerminateTaskGroupIntervention:
+                log.warning("Scan terminated", source=scanner.source_type)
+                return
             await self.publisher.clean_topics(scanner, session, force=False)
             self.scan_count += 1
             log.info("Scan complete", source_type=scanner.source_type)
@@ -103,8 +111,14 @@ class App:
             else:
                 dlog.info("Skipping auto update")
 
-    def shutdown(self) -> None:
-        log.info("Shutting down")
+    def shutdown(self, signum: int | None = None, frame: FrameType | None = None) -> None:  # noqa: ARG002
+        log.info("Shutting down", signal=signum)
+
+        def cancel_tasks():  # noqa: ANN202
+            log.warning("Received termination signal, cancelling tasks")
+            raise TerminateTaskGroupIntervention()
+
+        self.task_exec_group.create_task(cancel_tasks())
         self.running.clear()
         self.publisher.stop()
         log.info("Shutdown complete")

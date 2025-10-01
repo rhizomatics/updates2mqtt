@@ -6,8 +6,7 @@ ENV UV_COMPILE_BYTECODE=1
 
 RUN apt-get -y update
 RUN apt-get -y upgrade
-RUN apt-get -y install git
-RUN apt-get install ca-certificates curl
+RUN apt-get -y install git ca-certificates curl
 RUN install -m 0755 -d /etc/apt/keyrings
 RUN curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
 RUN chmod a+r /etc/apt/keyrings/docker.asc
@@ -23,14 +22,14 @@ RUN apt-get -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugi
 
 WORKDIR /app
 
-ADD README.md /app/README.md
-ADD common_packages.yaml /app
-ADD pyproject.toml /app/pyproject.toml
 ADD uv.lock /app/uv.lock
-
 RUN uv sync --locked --no-install-project
 
 ADD src /app
+ADD README.md /app/README.md
+ADD common_packages.yaml /app
+ADD pyproject.toml /app/pyproject.toml
+
 RUN uv sync --locked
 
 ENV PATH="/app/.venv/bin:$PATH"
