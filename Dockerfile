@@ -23,12 +23,13 @@ RUN apt-get -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugi
 WORKDIR /app
 
 ADD uv.lock /app/uv.lock
+ADD pyproject.toml /app/pyproject.toml
 RUN uv sync --locked --no-install-project
 
 ADD src /app
 ADD README.md /app/README.md
 ADD common_packages.yaml /app
-ADD pyproject.toml /app/pyproject.toml
+
 
 RUN uv sync --locked
 
