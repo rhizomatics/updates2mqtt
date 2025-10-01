@@ -1,6 +1,8 @@
-FROM python:3.13-slim-bookworm
+FROM python:3.13-slim
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+
+ENV UV_COMPILE_BYTECODE=1
 
 RUN apt-get -y update
 RUN apt-get -y upgrade
@@ -19,12 +21,18 @@ RUN echo \
 RUN apt-get -y update
 RUN apt-get -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
+WORKDIR /app
+
 ADD README.md /app/README.md
 ADD common_packages.yaml /app
 ADD pyproject.toml /app/pyproject.toml
 ADD uv.lock /app/uv.lock
-ADD src /app
-WORKDIR /app
-RUN uv sync --frozen --all-extras
 
-CMD ["uv", "run", "updates2mqtt"]
+RUN uv sync --locked --no-install-project
+
+ADD src /app
+RUN uv sync --locked
+
+ENV PATH="/app/.venv/bin:$PATH"
+# Use explict path and python executable rather than `uv run` to get proper signal handling
+ENTRYPOINT ["python", "-m", "updates2mqtt"]
