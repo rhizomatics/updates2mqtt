@@ -4,7 +4,8 @@ import sys
 import time
 import uuid
 from pathlib import Path
-
+import signal
+from threading import Event
 import structlog
 
 from updates2mqtt.model import Discovery, ReleaseProvider
@@ -50,6 +51,7 @@ class App:
         self.scan_count: int = 0
         if self.cfg.docker.enabled:
             self.scanners.append(DockerProvider(self.cfg.docker, self.common_pkg))
+        self.running = Event()
         log.info(
             "App configured",
             node=self.cfg.node.name,
@@ -75,9 +77,11 @@ class App:
         for scanner in self.scanners:
             self.publisher.subscribe_hass_command(scanner)
 
-        while True:
+        while self.running.is_set():
             await self.scan()
-            await asyncio.sleep(self.cfg.scan_interval)
+            if self.running.is_set():
+                await asyncio.sleep(self.cfg.scan_interval)
+        log.debug("Exiting run loop")
 
     async def on_discovery(self, discovery: Discovery) -> None:
         dlog = log.bind(name=discovery.name)
@@ -98,6 +102,12 @@ class App:
                 self.publisher.local_message(discovery, "install")
             else:
                 dlog.info("Skipping auto update")
+
+    def shutdown(self) -> None:
+        log.info("Shutting down")
+        self.running.clear()
+        self.publisher.stop()
+        log.info("Shutdown complete")
 
 
 if __name__ == "__main__":

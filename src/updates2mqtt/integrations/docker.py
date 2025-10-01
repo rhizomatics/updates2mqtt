@@ -82,11 +82,12 @@ class DockerProvider(ReleaseProvider):
     def build(self, discovery: Discovery, compose_path: str) -> bool:
         logger = self.log.bind(container=discovery.name, action="build")
         logger.info("Building")
-        if compose_path:
-            return self.execute_compose("build", "", compose_path, logger)
-        return False
+        return self.execute_compose("build", "", compose_path, logger)
 
-    def execute_compose(self, command: str, args: str, cwd: str, logger: structlog.BoundLogger) -> bool:
+    def execute_compose(self, command: str, args: str, cwd: str | None, logger: structlog.BoundLogger) -> bool:
+        if not cwd or not Path(cwd).is_dir():
+            logger.warn("Invalid compose path, skipped %s", command)
+            return False
         logger.info(f"Executing compose {command} {args}")
         cmd: str = "docker-compose" if self.cfg.compose_version == "v1" else "docker compose"
         cmd = cmd + " " + command
@@ -106,9 +107,7 @@ class DockerProvider(ReleaseProvider):
     def restart(self, discovery: Discovery) -> bool:
         logger = self.log.bind(container=discovery.name, action="restart")
         compose_path = discovery.custom.get("compose_path")
-        if compose_path:
-            return self.execute_compose("up", "--detach", compose_path, logger)
-        return False
+        return self.execute_compose("up", "--detach", compose_path, logger)
 
     def rescan(self, discovery: Discovery) -> Discovery | None:
         logger = self.log.bind(container=discovery.name, action="rescan")
