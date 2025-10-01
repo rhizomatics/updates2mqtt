@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+import py
 import pytest
 from docker import DockerClient  # type:ignore[import-not-found]
 from pytest_httpx import HTTPXMock
@@ -74,11 +75,11 @@ def test_discover_metadata(httpx_mock: HTTPXMock) -> None:
     assert pkg.release_notes_url == "https://github/mctesty/901/releases"
 
 
-def test_build(mock_docker_client: DockerClient, fake_process: FakeProcess) -> None:
+def test_build(mock_docker_client: DockerClient, fake_process: FakeProcess, tmpdir: py.path.local) -> None:
     with patch("docker.from_env", return_value=mock_docker_client):
         uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.UpdateInfoConfig())
         d = Discovery(uut, "build-test-dummy", session="test-123")
         fake_process.register("docker compose build", returncode=0)
-        assert uut.build(d, "build-test-dc-path")
+        assert uut.build(d, tmpdir.strpath)
         fake_process.register("docker compose build", returncode=33)
-        assert not uut.build(d, "build-test-dc-path")
+        assert not uut.build(d, tmpdir.strpath)
