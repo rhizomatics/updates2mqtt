@@ -50,8 +50,7 @@ class App:
         if self.cfg.docker.enabled:
             self.scanners.append(DockerProvider(self.cfg.docker, self.common_pkg))
         self.running = Event()
-        self.task_exec_group = asyncio.TaskGroup()
-        signal.signal(signal.SIGTERM, self.shutdown)
+        asyncio.get_event_loop().add_signal_handler(signal.SIGTERM, self.shutdown)
         log.info(
             "App configured",
             node=self.cfg.node.name,
@@ -65,7 +64,7 @@ class App:
             if self.scan_count == 0:
                 await self.publisher.clean_topics(scanner, None, force=True)
             log.info("Scanning", source=scanner.source_type, session=session)
-            async with self.task_exec_group as tg:
+            async with asyncio.TaskGroup() as tg:
                 async for discovery in scanner.scan(session):  # type: ignore[attr-defined]
                     tg.create_task(self.on_discovery(discovery))
             await self.publisher.clean_topics(scanner, session, force=False)
@@ -73,6 +72,7 @@ class App:
             log.info("Scan complete", source_type=scanner.source_type)
 
     async def run(self) -> None:
+        log.debug("Starting run loop")
         self.publisher.start()
         for scanner in self.scanners:
             self.publisher.subscribe_hass_command(scanner)
@@ -106,7 +106,9 @@ class App:
     def shutdown(self, signum: int | None = None, frame: FrameType | None = None) -> None:  # noqa: ARG002
         log.info("Shutting down", signal=signum)
         self.running.clear()
-        for t in asyncio.all_tasks():
+        running_tasks = asyncio.all_tasks()
+        log.info(f"Cancelling {len(running_tasks)}tasks")
+        for t in running_tasks:
             t.cancel()
         self.publisher.stop()
         log.info("Shutdown complete")

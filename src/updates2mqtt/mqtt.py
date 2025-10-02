@@ -204,12 +204,14 @@ class MqttClient:
             logger.exception("Execution failed", component=comp_name, command=command)
 
     def local_message(self, discovery: Discovery, command: str) -> None:
+        '''Simulate an incoming MQTT message for local commands'''
         msg = LocalMessage(
             topic=self.command_topic(discovery.provider), payload="|".join([discovery.source_type, discovery.name, command])
         )
         self.handle_message(msg)
 
     def on_message(self, _client: mqtt.Client, _userdata: Any, msg: mqtt.MQTTMessage) -> None:
+        '''Callback for incoming MQTT messages'''  # noqa: D401
         if msg.topic in self.providers_by_topic:
             self.handle_message(msg)
         else:
