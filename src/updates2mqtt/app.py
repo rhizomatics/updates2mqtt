@@ -127,7 +127,8 @@ class App:
             scanner.stop()
         self.publisher.stop()
         time.sleep(1)
-        log.debug("Tasks waiting = %s", len(asyncio.all_tasks()))
+        for t in asyncio.all_tasks():
+            log.debug("Tasks waiting = %s", t)
         asyncio.get_event_loop().stop()
         log.info("Shutdown complete")
         # sys.exit(0)
