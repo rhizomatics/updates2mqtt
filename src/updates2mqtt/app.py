@@ -103,15 +103,17 @@ class App:
                 dlog.info("Skipping auto update")
 
     def shutdown(self) -> None:
+        print("Shutdown signal received")
         log.info("Shutting down on SIGTERM")
         self.running.clear()
         running_tasks = asyncio.all_tasks()
         log.info(f"Cancelling {len(running_tasks)}tasks")
+        print(f"Cancelling {len(running_tasks)} tasks")
         for t in running_tasks:
             t.cancel()
         self.publisher.stop()
         log.info("Shutdown complete")
-
+        print("Shutdown complete")
 
 def run() -> None:
     import asyncio
