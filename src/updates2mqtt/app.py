@@ -109,7 +109,7 @@ class App:
             raise
 
     async def interrupt_tasks(self) -> None:
-        running_tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
+        running_tasks = [t for t in asyncio.all_tasks() if t.get_name().startswith("discovery-") and t is not asyncio.current_task()]
         log.info(f"Cancelling {len(running_tasks)} tasks")
         for t in running_tasks:
             log.debug("Cancelling task", task=t.get_name())
