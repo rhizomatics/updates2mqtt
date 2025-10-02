@@ -119,7 +119,8 @@ class App:
 
     def stop(self, *args) -> None:  # noqa: ANN002, ARG002
         log.info("Shutting down on SIGTERM")
-        stop_task = asyncio.create_task(self.interrupt_tasks())  # noqa: F841, RUF006
+        with asyncio.Runner() as runner:
+            runner.run(self.interrupt_tasks()) 
         self.shutdown.is_set()
         for scanner in self.scanners:
             scanner.stop()
