@@ -226,6 +226,9 @@ class MqttClient:
 
         if self.event_loop is not None:
             asyncio.run_coroutine_threadsafe(self.execute_command(msg, update_start, update_end), self.event_loop)
+        else:
+            self.log.error("No event loop to handle message", topic=msg.topic
+                           )
 
     def config_topic(self, discovery: Discovery) -> str:
         prefix = self.hass_cfg.discovery.prefix

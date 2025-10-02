@@ -6,7 +6,6 @@ import time
 import uuid
 from pathlib import Path
 from threading import Event
-from types import FrameType
 
 import structlog
 
@@ -50,7 +49,7 @@ class App:
         if self.cfg.docker.enabled:
             self.scanners.append(DockerProvider(self.cfg.docker, self.common_pkg))
         self.running = Event()
-        
+
         log.info(
             "App configured",
             node=self.cfg.node.name,
@@ -73,7 +72,6 @@ class App:
 
     async def run(self) -> None:
         log.debug("Starting run loop")
-        asyncio.get_event_loop().add_signal_handler(signal.SIGTERM, self.shutdown)
         self.publisher.start()
         for scanner in self.scanners:
             self.publisher.subscribe_hass_command(scanner)
@@ -104,7 +102,7 @@ class App:
             else:
                 dlog.info("Skipping auto update")
 
-    def shutdown(self) -> None:  # noqa: ARG002
+    def shutdown(self) -> None:
         log.info("Shutting down on SIGTERM")
         self.running.clear()
         running_tasks = asyncio.all_tasks()
@@ -115,6 +113,16 @@ class App:
         log.info("Shutdown complete")
 
 
-if __name__ == "__main__":
+def run() -> None:
+    import asyncio
+
+    from .app import App
+
     app = App()
+    loop = asyncio.get_event_loop()
+    loop.add_signal_handler(signal.SIGTERM, app.shutdown)  # type: ignore[attr-defined]
     asyncio.run(app.run())
+
+
+if __name__ == "__main__":
+    run()
