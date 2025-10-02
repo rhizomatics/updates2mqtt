@@ -108,20 +108,26 @@ class App:
             dlog.exception("Discovery handling failed")
             raise
 
-    def stop(self, *args) -> None:  # noqa: ANN002, ARG002
-        log.info("Shutting down on SIGTERM")
-        self.shutdown.is_set()
-        for scanner in self.scanners:
-            scanner.stop()
+    async def interrupt_tasks(self) -> None:
         running_tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
         log.info(f"Cancelling {len(running_tasks)} tasks")
         for t in running_tasks:
             log.debug("Cancelling task", task=t.get_name())
             t.cancel()
+        await asyncio.gather(*running_tasks, return_exceptions=True)
+        log.debug("Cancelled tasks completed")
+
+    def stop(self, *args) -> None:  # noqa: ANN002, ARG002
+        log.info("Shutting down on SIGTERM")
+        stop_task = asyncio.create_task(self.interrupt_tasks())
+        self.shutdown.is_set()
+        for scanner in self.scanners:
+            scanner.stop()
         self.publisher.stop()
+        log.debug("stop task: %s", stop_task.result())
         asyncio.get_event_loop().stop()
         log.info("Shutdown complete")
-        #sys.exit(0)
+        # sys.exit(0)
 
 
 def run() -> None:

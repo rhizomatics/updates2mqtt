@@ -272,7 +272,7 @@ class DockerProvider(ReleaseProvider):
         containers = results = 0
         for c in self.client.containers.list():
             if self.shutdown.is_set():
-                logger.info("Shutdown detected, aborting scan at {c}")
+                logger.info(f"Shutdown detected, aborting scan at {c}")
                 raise CancelledError("Scan aborted due to shutdown")
             containers = containers + 1
             result = self.analyze(cast("Container", c), session)
