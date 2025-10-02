@@ -103,17 +103,15 @@ class App:
                 dlog.info("Skipping auto update")
 
     def shutdown(self) -> None:
-        print("Shutdown signal received")
         log.info("Shutting down on SIGTERM")
         self.running.clear()
         running_tasks = asyncio.all_tasks()
         log.info(f"Cancelling {len(running_tasks)}tasks")
-        print(f"Cancelling {len(running_tasks)} tasks")
         for t in running_tasks:
             t.cancel()
         self.publisher.stop()
         log.info("Shutdown complete")
-        print("Shutdown complete")
+
 
 def run() -> None:
     import asyncio
@@ -122,8 +120,8 @@ def run() -> None:
 
     app = App()
     loop = asyncio.get_event_loop()
-    loop.add_signal_handler(signal.SIGTERM, app.shutdown)  # type: ignore[attr-defined]
-    asyncio.run(app.run())
+    loop.add_signal_handler(signal.SIGTERM, app.shutdown)
+    asyncio.run(app.run(),debug=True)
 
 
 if __name__ == "__main__":
