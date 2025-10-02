@@ -32,15 +32,13 @@ def safe_json_dt(t: float | None) -> str | None:
 
 class DockerProvider(ReleaseProvider):
     def __init__(self, cfg: DockerConfig, common_pkg_cfg: UpdateInfoConfig) -> None:
+        super().__init__("docker")
         self.client: docker.DockerClient = docker.from_env()
         self.cfg: DockerConfig = cfg
         self.common_pkgs: dict[str, PackageUpdateInfo] = common_pkg_cfg.common_packages if common_pkg_cfg else {}
         # TODO: refresh discovered packages periodically
         self.discovered_pkgs: dict[str, PackageUpdateInfo] = self.discover_metadata()
-        self.source_type: str = "docker"
-        self.discoveries: dict[str, Discovery] = {}
-        self.log: Any = structlog.get_logger().bind(integration="docker")
-
+    
     def update(self, discovery: Discovery) -> bool:
         logger: Any = self.log.bind(container=discovery.name, action="update")
         logger.info("Updating - last at %s", discovery.update_last_attempt)
@@ -272,6 +270,9 @@ class DockerProvider(ReleaseProvider):
         logger = self.log.bind(session=session, action="scan")
         containers = results = 0
         for c in self.client.containers.list():
+            if self.shutdown.is_set():
+                logger.info("Shutdown detected, aborting scan")
+                return
             containers = containers + 1
             result = self.analyze(cast("Container", c), session)
             if result:

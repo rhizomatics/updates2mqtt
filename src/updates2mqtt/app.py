@@ -48,7 +48,7 @@ class App:
         self.scan_count: int = 0
         if self.cfg.docker.enabled:
             self.scanners.append(DockerProvider(self.cfg.docker, self.common_pkg))
-        self.running = Event()
+        self.shutdown = Event()
 
         log.info(
             "App configured",
@@ -65,7 +65,7 @@ class App:
             log.info("Scanning", source=scanner.source_type, session=session)
             async with asyncio.TaskGroup() as tg:
                 async for discovery in scanner.scan(session):  # type: ignore[attr-defined]
-                    tg.create_task(self.on_discovery(discovery),name=f"discovery-{discovery.name}")
+                    tg.create_task(self.on_discovery(discovery), name=f"discovery-{discovery.name}")
             await self.publisher.clean_topics(scanner, session, force=False)
             self.scan_count += 1
             log.info("Scan complete", source_type=scanner.source_type)
@@ -75,10 +75,10 @@ class App:
         self.publisher.start()
         for scanner in self.scanners:
             self.publisher.subscribe_hass_command(scanner)
-        self.running.set()
-        while self.running.is_set():
+
+        while not self.shutdown.is_set():
             await self.scan()
-            if self.running.is_set():
+            if not self.shutdown.is_set():
                 await asyncio.sleep(self.cfg.scan_interval)
         log.debug("Exiting run loop")
 
@@ -108,9 +108,11 @@ class App:
             dlog.exception("Discovery handling failed")
             raise
 
-    def shutdown(self, *args) -> None:  # noqa: ANN002, ARG002
+    def stop(self, *args) -> None:  # noqa: ANN002, ARG002
         log.info("Shutting down on SIGTERM")
-        self.running.clear()
+        self.shutdown.is_set()
+        for scanner in self.scanners:
+            scanner.stop()
         running_tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
         log.info(f"Cancelling {len(running_tasks)} tasks")
         for t in running_tasks:
@@ -119,6 +121,7 @@ class App:
         self.publisher.stop()
         asyncio.get_event_loop().stop()
         log.info("Shutdown complete")
+        sys.exit(0)
 
 
 def run() -> None:
@@ -127,7 +130,7 @@ def run() -> None:
     from .app import App
 
     app = App()
-    signal.signal(signal.SIGTERM, app.shutdown)
+    signal.signal(signal.SIGTERM, app.stop)
     asyncio.run(app.run(), debug=True)
 
 

@@ -1,6 +1,9 @@
 from abc import abstractmethod
 from collections.abc import AsyncGenerator, Callable
+from threading import Event
 from typing import Any
+
+import structlog
 
 
 class Discovery:
@@ -54,6 +57,16 @@ class Discovery:
 
 class ReleaseProvider:
     source_type = "base"
+
+    def __init__(self, source_type: str) -> None:
+        self.source_type: str = source_type
+        self.discoveries: dict[str, Discovery] = {}
+        self.log: Any = structlog.get_logger().bind(integration=self.source_type)
+        self.shutdown = Event()
+
+    def stop(self) -> None:
+        """Stop any loops or background tasks"""
+        self.shutdown.is_set()
 
     @abstractmethod
     def update(self, discovery: Discovery) -> bool:
