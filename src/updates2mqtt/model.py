@@ -66,7 +66,7 @@ class ReleaseProvider:
 
     def stop(self) -> None:
         """Stop any loops or background tasks"""
-        self.log("Stopping release provider", source_type=self.source_type)
+        self.log.info("Stopping release provider", source_type=self.source_type)
         self.shutdown.set()
 
     @abstractmethod
