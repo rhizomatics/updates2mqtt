@@ -84,28 +84,34 @@ class App:
 
     async def on_discovery(self, discovery: Discovery) -> None:
         dlog = log.bind(name=discovery.name)
-        if self.cfg.homeassistant.discovery.enabled:
-            self.publisher.publish_hass_config(discovery)
+        try:
+            if self.cfg.homeassistant.discovery.enabled:
+                self.publisher.publish_hass_config(discovery)
 
-        self.publisher.publish_hass_state(discovery)
-        if discovery.update_policy == "Auto":
-            # TODO: review auto update, trigger by version, use update interval as throttle
-            elapsed: float = time.time() - discovery.update_last_attempt if discovery.update_last_attempt is not None else -1
-            if elapsed == -1 or elapsed > UPDATE_INTERVAL:
-                dlog.info(
-                    "Initiate auto update (last:%s, elapsed:%s, max:%s)",
-                    discovery.update_last_attempt,
-                    elapsed,
-                    UPDATE_INTERVAL,
-                )
-                self.publisher.local_message(discovery, "install")
-            else:
-                dlog.info("Skipping auto update")
+            self.publisher.publish_hass_state(discovery)
+            if discovery.update_policy == "Auto":
+                # TODO: review auto update, trigger by version, use update interval as throttle
+                elapsed: float = time.time() - discovery.update_last_attempt if discovery.update_last_attempt is not None else -1
+                if elapsed == -1 or elapsed > UPDATE_INTERVAL:
+                    dlog.info(
+                        "Initiate auto update (last:%s, elapsed:%s, max:%s)",
+                        discovery.update_last_attempt,
+                        elapsed,
+                        UPDATE_INTERVAL,
+                    )
+                    self.publisher.local_message(discovery, "install")
+                else:
+                    dlog.info("Skipping auto update")
+        except asyncio.CancelledError:
+            dlog.info("Discovery handling cancelled")
+        except Exception:
+            dlog.exception("Discovery handling failed")
+            raise
 
     def shutdown(self) -> None:
         log.info("Shutting down on SIGTERM")
         self.running.clear()
-        running_tasks = asyncio.all_tasks()
+        running_tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
         log.info(f"Cancelling {len(running_tasks)}tasks")
         for t in running_tasks:
             t.cancel()
@@ -121,7 +127,7 @@ def run() -> None:
     app = App()
     loop = asyncio.get_event_loop()
     loop.add_signal_handler(signal.SIGTERM, app.shutdown)
-    asyncio.run(app.run(),debug=True)
+    asyncio.run(app.run(), debug=True)
 
 
 if __name__ == "__main__":
