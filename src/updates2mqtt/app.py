@@ -65,7 +65,7 @@ class App:
             log.info("Scanning", source=scanner.source_type, session=session)
             async with asyncio.TaskGroup() as tg:
                 async for discovery in scanner.scan(session):  # type: ignore[attr-defined]
-                    tg.create_task(self.on_discovery(discovery))
+                    tg.create_task(self.on_discovery(discovery),name=f"discovery-{discovery.name}")
             await self.publisher.clean_topics(scanner, session, force=False)
             self.scan_count += 1
             log.info("Scan complete", source_type=scanner.source_type)
@@ -114,10 +114,11 @@ class App:
         running_tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
         log.info(f"Cancelling {len(running_tasks)} tasks")
         for t in running_tasks:
+            log.debug("Cancelling task", task=t.get_name())
             t.cancel()
         self.publisher.stop()
+        asyncio.get_event_loop().stop()
         log.info("Shutdown complete")
-        sys.exit(0)
 
 
 def run() -> None:
