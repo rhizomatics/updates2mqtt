@@ -121,7 +121,7 @@ class App:
         self.publisher.stop()
         asyncio.get_event_loop().stop()
         log.info("Shutdown complete")
-        sys.exit(0)
+        #sys.exit(0)
 
 
 def run() -> None:
