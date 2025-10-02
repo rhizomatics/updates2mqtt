@@ -104,8 +104,8 @@ class App:
             else:
                 dlog.info("Skipping auto update")
 
-    def shutdown(self, signum: int | None = None, frame: FrameType | None = None) -> None:  # noqa: ARG002
-        log.info("Shutting down", signal=signum)
+    def shutdown(self) -> None:  # noqa: ARG002
+        log.info("Shutting down on SIGTERM")
         self.running.clear()
         running_tasks = asyncio.all_tasks()
         log.info(f"Cancelling {len(running_tasks)}tasks")
