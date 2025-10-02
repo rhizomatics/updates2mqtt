@@ -50,7 +50,7 @@ class App:
         if self.cfg.docker.enabled:
             self.scanners.append(DockerProvider(self.cfg.docker, self.common_pkg))
         self.running = Event()
-        asyncio.get_event_loop().add_signal_handler(signal.SIGTERM, self.shutdown)
+        
         log.info(
             "App configured",
             node=self.cfg.node.name,
@@ -73,6 +73,7 @@ class App:
 
     async def run(self) -> None:
         log.debug("Starting run loop")
+        asyncio.get_event_loop().add_signal_handler(signal.SIGTERM, self.shutdown)
         self.publisher.start()
         for scanner in self.scanners:
             self.publisher.subscribe_hass_command(scanner)
