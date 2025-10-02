@@ -31,10 +31,6 @@ UPDATE_INTERVAL = 60 * 60 * 4
 #  - use git hash as alt to img ref for builds, or daily builds
 
 
-class TerminateTaskGroupIntervention(Exception):  # noqa: N818
-    pass
-
-
 class App:
     def __init__(self) -> None:
         app_config: Config | None = load_app_config(CONF_FILE)
@@ -69,13 +65,9 @@ class App:
             if self.scan_count == 0:
                 await self.publisher.clean_topics(scanner, None, force=True)
             log.info("Scanning", source=scanner.source_type, session=session)
-            try:
-                async with self.task_exec_group as tg:
-                    async for discovery in scanner.scan(session):  # type: ignore[attr-defined]
-                        tg.create_task(self.on_discovery(discovery))
-            except TerminateTaskGroupIntervention:
-                log.warning("Scan terminated", source=scanner.source_type)
-                return
+            async with self.task_exec_group as tg:
+                async for discovery in scanner.scan(session):  # type: ignore[attr-defined]
+                    tg.create_task(self.on_discovery(discovery))
             await self.publisher.clean_topics(scanner, session, force=False)
             self.scan_count += 1
             log.info("Scan complete", source_type=scanner.source_type)
@@ -113,13 +105,9 @@ class App:
 
     def shutdown(self, signum: int | None = None, frame: FrameType | None = None) -> None:  # noqa: ARG002
         log.info("Shutting down", signal=signum)
-
-        async def cancel_tasks():  # noqa: ANN202
-            log.debug("Raising exception to cancel tasks")
-            raise TerminateTaskGroupIntervention()
-
-        self.task_exec_group.create_task(cancel_tasks())
         self.running.clear()
+        for t in asyncio.all_tasks():
+            t.cancel()
         self.publisher.stop()
         log.info("Shutdown complete")
 
