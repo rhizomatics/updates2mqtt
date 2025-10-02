@@ -1,3 +1,4 @@
+from asyncio import CancelledError
 import datetime
 import subprocess
 import time
@@ -182,7 +183,7 @@ class DockerProvider(ReleaseProvider):
 
             if image_ref and local_versions:
                 retries_left = 3
-                while reg_data is None and retries_left > 0:
+                while reg_data is None and retries_left > 0 and not self.shutdown.is_set():
                     try:
                         reg_data = self.client.images.get_registry_data(image_ref)
                         latest_version = reg_data.short_id[7:] if reg_data else None
@@ -271,8 +272,8 @@ class DockerProvider(ReleaseProvider):
         containers = results = 0
         for c in self.client.containers.list():
             if self.shutdown.is_set():
-                logger.info("Shutdown detected, aborting scan")
-                return
+                logger.info("Shutdown detected, aborting scan at {c}")
+                raise CancelledError("Scan aborted due to shutdown")
             containers = containers + 1
             result = self.analyze(cast("Container", c), session)
             if result:
@@ -364,6 +365,7 @@ def linuxserver_metadata_api(cache_ttl: int) -> dict:
     """Fetch and cache linuxserver.io API call for image metadata"""
     try:
         with hishel.CacheClient(headers=[("cache-control", f"max-age={cache_ttl}")]) as client:
+            log.debug(f"Fetching linuxserver.io metadata from API, cache_ttl={cache_ttl}")
             req = client.get("https://api.linuxserver.io/api/v1/images?include_config=false&include_deprecated=false")
             return req.json()
     except Exception:

@@ -56,9 +56,9 @@ class Discovery:
 
 
 class ReleaseProvider:
-    source_type = "base"
+    """Abstract base class for release providers, such as container scanners or package managers API calls"""
 
-    def __init__(self, source_type: str) -> None:
+    def __init__(self, source_type: str = "base") -> None:
         self.source_type: str = source_type
         self.discoveries: dict[str, Discovery] = {}
         self.log: Any = structlog.get_logger().bind(integration=self.source_type)
@@ -66,7 +66,8 @@ class ReleaseProvider:
 
     def stop(self) -> None:
         """Stop any loops or background tasks"""
-        self.shutdown.is_set()
+        self.log("Stopping release provider", source_type=self.source_type)
+        self.shutdown.set()
 
     @abstractmethod
     def update(self, discovery: Discovery) -> bool:
