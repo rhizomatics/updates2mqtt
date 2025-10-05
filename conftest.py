@@ -2,11 +2,11 @@ from unittest.mock import MagicMock, Mock, patch
 
 import paho.mqtt.client
 import pytest
-from docker import DockerClient  # type:ignore[import-not-found]
-from docker.models.containers import Container, ContainerCollection  # type:ignore[import-not-found]
-from docker.models.images import Image, RegistryData  # type:ignore[import-not-found]
+from docker import DockerClient
+from docker.models.containers import Container, ContainerCollection
+from docker.models.images import Image, RegistryData
 
-from updates2mqtt.model import Discovery, ReleaseProvider  # type:ignore[import-not-found]
+from updates2mqtt.model import Discovery, ReleaseProvider
 
 
 @pytest.fixture

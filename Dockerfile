@@ -34,5 +34,5 @@ ADD common_packages.yaml /app
 RUN uv sync --locked
 
 ENV PATH="/app/.venv/bin:$PATH"
-# Use explict path and python executable rather than `uv run` to get proper signal handling
+# Use explicit path and python executable rather than `uv run` to get proper signal handling
 ENTRYPOINT ["python", "-m", "updates2mqtt"]

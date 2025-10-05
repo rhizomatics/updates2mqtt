@@ -48,7 +48,7 @@ class App:
         self.scan_count: int = 0
         if self.cfg.docker.enabled:
             self.scanners.append(DockerProvider(self.cfg.docker, self.common_pkg))
-        self.shutdown = Event()
+        self.stopped = Event()
 
         log.info(
             "App configured",
@@ -76,9 +76,9 @@ class App:
         for scanner in self.scanners:
             self.publisher.subscribe_hass_command(scanner)
 
-        while not self.shutdown.is_set():
+        while not self.stopped.is_set():
             await self.scan()
-            if not self.shutdown.is_set():
+            if not self.stopped.is_set():
                 await asyncio.sleep(self.cfg.scan_interval)
         log.debug("Exiting run loop")
 
@@ -91,7 +91,9 @@ class App:
             self.publisher.publish_hass_state(discovery)
             if discovery.update_policy == "Auto":
                 # TODO: review auto update, trigger by version, use update interval as throttle
-                elapsed: float = time.time() - discovery.update_last_attempt if discovery.update_last_attempt is not None else -1
+                elapsed: float = (
+                    time.time() - discovery.update_last_attempt if discovery.update_last_attempt is not None else -1
+                )
                 if elapsed == -1 or elapsed > UPDATE_INTERVAL:
                     dlog.info(
                         "Initiate auto update (last:%s, elapsed:%s, max:%s)",
@@ -118,15 +120,17 @@ class App:
         log.debug("Cancelled tasks completed")
 
     def stop(self, *args) -> None:  # noqa: ANN002, ARG002
-        log.info("Shutting down on SIGTERM")
-        stop_task = asyncio.get_event_loop().create_task(self.interrupt_tasks(),
-                                                         name="interrupt-tasks",
-                                                         eager_start=True) # type: ignore
-        self.shutdown.is_set()
+        log.info("Stopping")
+        self.stopped.set()
         for scanner in self.scanners:
             scanner.stop()
         self.publisher.stop()
-        time.sleep(1)
+        log.info("Stopped")
+
+    def shutdown(self) -> None:
+        log.info("Shutting down on SIGTERM")
+        stop_task = asyncio.get_event_loop().create_task(self.interrupt_tasks(), name="interrupt-tasks", eager_start=True)  # pyright: ignore[reportCallIssue]
+        self.stop()
         for t in asyncio.all_tasks():
             log.debug("Tasks waiting = %s", t)
         asyncio.get_event_loop().stop()
@@ -135,13 +139,13 @@ class App:
 
 
 def run() -> None:
-    import asyncio
+    import aiorun
 
     from .app import App
 
     app = App()
     signal.signal(signal.SIGTERM, app.stop)
-    asyncio.run(app.run(), debug=True)
+    aiorun.run(app.run(), shutdown_callback=app.stop)
 
 
 if __name__ == "__main__":

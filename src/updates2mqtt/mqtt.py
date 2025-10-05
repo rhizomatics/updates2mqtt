@@ -204,14 +204,14 @@ class MqttClient:
             logger.exception("Execution failed", component=comp_name, command=command)
 
     def local_message(self, discovery: Discovery, command: str) -> None:
-        '''Simulate an incoming MQTT message for local commands'''
+        """Simulate an incoming MQTT message for local commands"""
         msg = LocalMessage(
             topic=self.command_topic(discovery.provider), payload="|".join([discovery.source_type, discovery.name, command])
         )
         self.handle_message(msg)
 
     def on_message(self, _client: mqtt.Client, _userdata: Any, msg: mqtt.MQTTMessage) -> None:
-        '''Callback for incoming MQTT messages'''  # noqa: D401
+        """Callback for incoming MQTT messages"""  # noqa: D401
         if msg.topic in self.providers_by_topic:
             self.handle_message(msg)
         else:
@@ -227,8 +227,7 @@ class MqttClient:
         if self.event_loop is not None:
             asyncio.run_coroutine_threadsafe(self.execute_command(msg, update_start, update_end), self.event_loop)
         else:
-            self.log.error("No event loop to handle message", topic=msg.topic
-                           )
+            self.log.error("No event loop to handle message", topic=msg.topic)
 
     def config_topic(self, discovery: Discovery) -> str:
         prefix = self.hass_cfg.discovery.prefix

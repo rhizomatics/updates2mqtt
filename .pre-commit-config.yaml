@@ -5,7 +5,7 @@ repos:
       - id: pyupgrade
         args: [--py311-plus]
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.13.2
+    rev: v0.13.3
     hooks:
      # Run the linter.
       - id: ruff-check
@@ -32,6 +32,10 @@ repos:
     hooks:
       - id: mypy
         args:
+          - --warn-redundant-casts
+          - --warn-unused-ignores
+          - --warn-unreachable
+          - --report-deprecated-as-note
           - --pretty
           - --namespace-packages
           - --explicit-package-bases
@@ -43,6 +47,6 @@ repos:
           - pytest-httpx
           - paho-mqtt
           - omegaconf
-          - docker-stubs
+          - types-docker
           - hishel
  

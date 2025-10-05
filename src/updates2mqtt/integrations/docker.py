@@ -1,17 +1,17 @@
-from asyncio import CancelledError
 import datetime
 import subprocess
 import time
 import typing
+from asyncio import CancelledError
 from collections.abc import AsyncGenerator, Callable
 from pathlib import Path
 from typing import Any, cast
 
-import docker  # type: ignore[import-not-found]
-import docker.errors  # type: ignore[import-not-found]
+import docker
+import docker.errors
 import hishel
 import structlog
-from docker.models.containers import Container  # type: ignore[import-not-found]
+from docker.models.containers import Container
 
 from updates2mqtt.config import DockerConfig, DockerPackageUpdateInfo, PackageUpdateInfo, UpdateInfoConfig
 from updates2mqtt.model import Discovery, ReleaseProvider
@@ -39,7 +39,7 @@ class DockerProvider(ReleaseProvider):
         self.common_pkgs: dict[str, PackageUpdateInfo] = common_pkg_cfg.common_packages if common_pkg_cfg else {}
         # TODO: refresh discovered packages periodically
         self.discovered_pkgs: dict[str, PackageUpdateInfo] = self.discover_metadata()
-    
+
     def update(self, discovery: Discovery) -> bool:
         logger: Any = self.log.bind(container=discovery.name, action="update")
         logger.info("Updating - last at %s", discovery.update_last_attempt)
@@ -56,7 +56,7 @@ class DockerProvider(ReleaseProvider):
         platform: str | None = discovery.custom.get("platform")
         if discovery.custom.get("can_pull") and image_ref:
             logger.info("Pulling", image_ref=image_ref, platform=platform)
-            image: Image = typing.cast("Image", self.client.images.pull(image_ref, platform=platform, all_tags=False))
+            image: Image = self.client.images.pull(image_ref, platform=platform, all_tags=False)
             if image:
                 logger.info("Pulled", image_id=image.id, image_ref=image_ref, platform=platform)
             else:
@@ -111,7 +111,7 @@ class DockerProvider(ReleaseProvider):
     def rescan(self, discovery: Discovery) -> Discovery | None:
         logger = self.log.bind(container=discovery.name, action="rescan")
         try:
-            c: Container = typing.cast("Container", self.client.containers.get(discovery.name))
+            c: Container = self.client.containers.get(discovery.name)
             if c:
                 rediscovery = self.analyze(c, discovery.session, original_discovery=discovery)
                 if rediscovery:
@@ -130,12 +130,12 @@ class DockerProvider(ReleaseProvider):
         image_name = None
         local_versions = None
         if c.attrs is None:
-            logger.warn("No container attributes found, discovery rejected")
+            logger.warn("No container attributes found, discovery rejected")  # type: ignore[unreachable]
             return None
         if c.name is None:
             logger.warn("No container name found, discovery rejected")
             return None
-        image: Image | None = cast("Image | None", c.image)
+        image: Image | None = c.image
         if image is not None and image.tags and len(image.tags) > 0:
             image_ref = image.tags[0]
         else:
