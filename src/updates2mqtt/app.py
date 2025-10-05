@@ -155,7 +155,7 @@ def run() -> None:
         aiorun.run(app.run(),
                 #shutdown_callback=app.shutdown,
                 stop_on_unhandled_errors=True,
-                timeout_task_shutdown=10)
+                timeout_task_shutdown=5)
         log.debug("App exited gracefully")
     except Exception:
         log.exception("App exited on exception")
