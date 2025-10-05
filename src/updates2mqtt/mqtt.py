@@ -140,19 +140,15 @@ class MqttClient:
 
         cleaner.on_message = cleanup
         options = paho.mqtt.subscribeoptions.SubscribeOptions(noLocal=True)
-        cleaner.subscribe(
-            f"{self.hass_cfg.discovery.prefix}/update/#",
-            options=options
-        )
-        cleaner.subscribe(
-            f"{self.cfg.topic_root}/{self.node_cfg.name}/{provider.source_type}/#",
-            options=options
-        )
+        cleaner.subscribe(f"{self.hass_cfg.discovery.prefix}/update/#", options=options)
+        cleaner.subscribe(f"{self.cfg.topic_root}/{self.node_cfg.name}/{provider.source_type}/#", options=options)
 
         while time.time() - results["last_timestamp"] <= wait_time:
             cleaner.loop(0.5)
 
-        log.info(f"Completed clean cycle, discovered:{results["discovered"]}, handled:{results["handled"]}, cleaned:{results["cleaned"]}")
+        log.info(
+            f"Clean completed, discovered:{results['discovered']}, handled:{results['handled']}, cleaned:{results['cleaned']}"
+        )
 
     def safe_json_decode(self, jsonish: str | bytes | None) -> dict:
         if jsonish is None:

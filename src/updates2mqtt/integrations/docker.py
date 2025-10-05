@@ -2,7 +2,6 @@ import datetime
 import subprocess
 import time
 import typing
-from asyncio import CancelledError
 from collections.abc import AsyncGenerator, Callable
 from pathlib import Path
 from typing import Any, cast

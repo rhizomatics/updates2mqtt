@@ -122,22 +122,19 @@ class App:
             log.debug("Cancelling task", task=t.get_name())
             t.cancel()
         await asyncio.gather(*running_tasks, return_exceptions=True)
-        log.debug("Cancelled tasks completed")
+        log.debug("Cancellation task completed")
 
     def shutdown(self, *args) -> None:  # noqa: ANN002
         log.info("Shutting down on SIGTERM: %s", args)
         self.stopped.set()
         for scanner in self.scanners:
             scanner.stop()
-        interrupt_task = asyncio.get_event_loop().create_task(self.interrupt_tasks(), eager_start=True)  # pyright: ignore[reportCallIssue]
-        log.debug("Interrupt: %s", interrupt_task.done())
+        interrupt_task = asyncio.get_event_loop().create_task(self.interrupt_tasks(), eager_start=True)  # type: ignore[call-arg] # pyright: ignore[reportCallIssue]
         for t in asyncio.all_tasks():
-           log.debug("Tasks waiting = %s", t)
-        # log.debug("Event loop stopping")
-        # asyncio.get_event_loop().stop()
-        # log.debug("Event loop stopped")
+            log.debug("Tasks waiting = %s", t)
         self.publisher.stop()
-        log.info("Shutdown complete")
+        log.debug("Interrupt: %s", interrupt_task.done())
+        log.info("Shutdown handling complete")
 
 
 def run() -> None:
@@ -149,8 +146,7 @@ def run() -> None:
     app = App()
     signal.signal(signal.SIGTERM, app.shutdown)
     try:
-        asyncio.run(app.run(),
-                debug=True)
+        asyncio.run(app.run(), debug=True)
         log.debug("App exited gracefully")
     except asyncio.CancelledError:
         log.debug("App exited on cancelled task")
