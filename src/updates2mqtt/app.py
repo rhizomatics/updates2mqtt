@@ -134,7 +134,7 @@ class App:
         for scanner in self.scanners:
             scanner.stop()
         interrupt_task =asyncio.run_coroutine_threadsafe(self.interrupt_tasks(), asyncio.get_event_loop())
-        log.info("Interrupt: %s", interrupt_task.result())
+        #log.info("Interrupt: %s", interrupt_task.result())
         for t in asyncio.all_tasks():
            log.debug("Tasks waiting = %s", t)
         # log.debug("Event loop stopping")
