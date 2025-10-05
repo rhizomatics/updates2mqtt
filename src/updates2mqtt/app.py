@@ -125,8 +125,8 @@ class App:
         self.stopped.set()
         for scanner in self.scanners:
             scanner.stop()
-        interrupt_task=asyncio.get_event_loop().create_task(self.interrupt_tasks(),eager_start=True) # pyright: ignore[reportCallIssue]
-        log.info("Interrupt: %s", interrupt_task.done())
+        interrupt_task = asyncio.get_event_loop().create_task(self.interrupt_tasks(), eager_start=True)  # pyright: ignore[reportCallIssue]
+        log.debug("Interrupt: %s", interrupt_task.done())
         for t in asyncio.all_tasks():
            log.debug("Tasks waiting = %s", t)
         # log.debug("Event loop stopping")
@@ -134,6 +134,7 @@ class App:
         # log.debug("Event loop stopped")
         self.publisher.stop()
         log.info("Shutdown complete")
+
 
 def run() -> None:
     import asyncio
@@ -148,7 +149,7 @@ def run() -> None:
                 debug=True)
         log.debug("App exited gracefully")
     except asyncio.CancelledError as e:
-        log.debug("App exited on cancelled task",e)
+        log.debug("App exited on cancelled task: %s", e)
 
 
 if __name__ == "__main__":
