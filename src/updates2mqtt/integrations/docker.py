@@ -183,7 +183,7 @@ class DockerProvider(ReleaseProvider):
 
             if image_ref and local_versions:
                 retries_left = 3
-                while reg_data is None and retries_left > 0 and not self.shutdown.is_set():
+                while reg_data is None and retries_left > 0 and not self.stopped.is_set():
                     try:
                         reg_data = self.client.images.get_registry_data(image_ref)
                         latest_version = reg_data.short_id[7:] if reg_data else None
@@ -271,7 +271,7 @@ class DockerProvider(ReleaseProvider):
         logger = self.log.bind(session=session, action="scan")
         containers = results = 0
         for c in self.client.containers.list():
-            if self.shutdown.is_set():
+            if self.stopped.is_set():
                 logger.info(f"Shutdown detected, aborting scan at {c}")
                 raise CancelledError("Scan aborted due to shutdown")
             containers = containers + 1

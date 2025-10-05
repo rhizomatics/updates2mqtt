@@ -62,12 +62,12 @@ class ReleaseProvider:
         self.source_type: str = source_type
         self.discoveries: dict[str, Discovery] = {}
         self.log: Any = structlog.get_logger().bind(integration=self.source_type)
-        self.shutdown = Event()
+        self.stopped = Event()
 
     def stop(self) -> None:
         """Stop any loops or background tasks"""
-        self.log.info("Stopping release provider", source_type=self.source_type)
-        self.shutdown.set()
+        self.log.info("Asking release provider to stop", source_type=self.source_type)
+        self.stopped.set()
 
     @abstractmethod
     def update(self, discovery: Discovery) -> bool:

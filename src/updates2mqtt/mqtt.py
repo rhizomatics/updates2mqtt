@@ -136,15 +136,15 @@ class MqttClient:
         options = paho.mqtt.subscribeoptions.SubscribeOptions(noLocal=True)
         cleaner.subscribe(
             f"{self.hass_cfg.discovery.prefix}/update/#",
-            options=options,
+            options=options
         )
         cleaner.subscribe(
             f"{self.cfg.topic_root}/{self.node_cfg.name}/{provider.source_type}/#",
-            options=options,
+            options=options
         )
         loop_end = time.time() + wait_time
         while time.time() <= loop_end:
-            cleaner.loop()
+            cleaner.loop(0.5)
 
         log.info("Completed clean cycle")
 
