@@ -80,6 +80,8 @@ class App:
             await self.scan()
             if not self.stopped.is_set():
                 await asyncio.sleep(self.cfg.scan_interval)
+            else:
+                log.info("Stop requested, exiting run loop and skipping sleep")
         log.debug("Exiting run loop")
 
     async def on_discovery(self, discovery: Discovery) -> None:
@@ -135,8 +137,9 @@ class App:
         log.info("Interrupt: %s",asyncio.run_coroutine_threadsafe(self.interrupt_tasks(), asyncio.get_event_loop()).result())
         for t in asyncio.all_tasks():
             log.debug("Tasks waiting = %s", t)
-        
+        log.debug("Event loop stopping")
         asyncio.get_event_loop().stop()
+        log.debug("Event loop stopped")
         self.publisher.stop()
         log.info("Shutdown complete")
         # sys.exit(0)
