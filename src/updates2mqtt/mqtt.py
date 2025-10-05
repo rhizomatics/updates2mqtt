@@ -148,7 +148,7 @@ class MqttClient:
             options=options
         )
         loop_end = time.time() + wait_time
-        last_result = -1
+        last_result = 0
         while time.time() <= loop_end and last_result != 0:
             last_result = cleaner.loop()
 
