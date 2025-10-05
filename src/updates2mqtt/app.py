@@ -61,10 +61,14 @@ class App:
             log.info("Cleaning topics before scan", source_type=scanner.source_type)
             if self.scan_count == 0:
                 await self.publisher.clean_topics(scanner, None, force=True)
+            if self.stopped.is_set():
+                break
             log.info("Scanning", source=scanner.source_type, session=session)
             async with asyncio.TaskGroup() as tg:
                 async for discovery in scanner.scan(session):  # type: ignore[attr-defined]
                     tg.create_task(self.on_discovery(discovery), name=f"discovery-{discovery.name}")
+            if self.stopped.is_set():
+                break
             await self.publisher.clean_topics(scanner, session, force=False)
             self.scan_count += 1
             log.info("Scan complete", source_type=scanner.source_type)
@@ -148,8 +152,8 @@ def run() -> None:
         asyncio.run(app.run(),
                 debug=True)
         log.debug("App exited gracefully")
-    except asyncio.CancelledError as e:
-        log.debug("App exited on cancelled task: %s", e)
+    except asyncio.CancelledError:
+        log.debug("App exited on cancelled task")
 
 
 if __name__ == "__main__":
