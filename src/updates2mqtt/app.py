@@ -146,7 +146,7 @@ def run() -> None:
     app = App()
     signal.signal(signal.SIGTERM, app.shutdown)
     try:
-        asyncio.run(app.run(), debug=True)
+        asyncio.run(app.run(), debug=False)
         log.debug("App exited gracefully")
     except asyncio.CancelledError:
         log.debug("App exited on cancelled task")
