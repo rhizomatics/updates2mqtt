@@ -89,7 +89,7 @@ class MqttClient:
         self.log.info("Disconnected from broker", result_code=rc)
 
     async def clean_topics(
-        self, provider: ReleaseProvider, last_scan_session: str | None, wait_time: int = 30, force: bool = False
+        self, provider: ReleaseProvider, last_scan_session: str | None, wait_time: int = 5, force: bool = False
     ) -> None:
         logger = self.log.bind(action="clean")
         logger.info("Starting clean cycle")
@@ -98,7 +98,7 @@ class MqttClient:
             client_id=f"updates2mqtt_clean_{self.node_cfg.name}",
             clean_session=True,
         )
-        results = {"cleaned": 0, "handled": 0, "discovered": 0}
+        results = {"cleaned": 0, "handled": 0, "discovered": 0, "last_timestamp": time.time()}
         cleaner.username_pw_set(self.cfg.user, password=self.cfg.password)
         cleaner.connect(host=self.cfg.host, port=self.cfg.port, keepalive=60)
         prefixes = [
@@ -121,6 +121,7 @@ class MqttClient:
                         exc_info=1,
                     )
                 results["handled"] += 1
+                results["last_timestamp"] = time.time()
                 if session is not None and last_scan_session is not None and session != last_scan_session:
                     log.info("Removing stale msg", topic=msg.topic, session=session)
                     cleaner.publish(msg.topic, "", retain=True)
@@ -147,10 +148,9 @@ class MqttClient:
             f"{self.cfg.topic_root}/{self.node_cfg.name}/{provider.source_type}/#",
             options=options
         )
-        loop_end = time.time() + wait_time
-        
-        while time.time() <= loop_end:
-            last_result = cleaner.loop(0.5)
+
+        while time.time() - results["last_timestamp"] <= wait_time:
+            cleaner.loop(0.5)
 
         log.info(f"Completed clean cycle, discovered:{results["discovered"]}, handled:{results["handled"]}, cleaned:{results["cleaned"]}")
 
