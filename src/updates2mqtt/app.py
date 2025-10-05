@@ -146,14 +146,15 @@ class App:
 
 def run() -> None:
     import aiorun
+    import signal
 
     from .app import App
 
     app = App()
-    # signal.signal(signal.SIGTERM, app.stop)
+    signal.signal(signal.SIGTERM, app.stop)
     try:
         aiorun.run(app.run(),
-                #shutdown_callback=app.shutdown,
+                shutdown_callback=app.shutdown,
                 stop_on_unhandled_errors=True,
                 timeout_task_shutdown=5)
         log.debug("App exited gracefully")
