@@ -120,21 +120,13 @@ class App:
         await asyncio.gather(*running_tasks, return_exceptions=True)
         log.debug("Cancelled tasks completed")
 
-    def stop(self, *args) -> None:  # noqa: ANN002, ARG002
-        log.info("Stopping")
-        self.stopped.set()
-        for scanner in self.scanners:
-            scanner.stop()
-        self.publisher.stop()
-        log.info("Stopped")
-
-    def shutdown(self, *args) -> None:
+    def shutdown(self, *args) -> None:  # noqa: ANN002
         log.info("Shutting down on SIGTERM: %s", args)
         self.stopped.set()
         for scanner in self.scanners:
             scanner.stop()
-        interrupt_task =asyncio.run_coroutine_threadsafe(self.interrupt_tasks(), asyncio.get_event_loop())
-        #log.info("Interrupt: %s", interrupt_task.result())
+        interrupt_task=asyncio.get_event_loop().create_task(self.interrupt_tasks(),eager_start=True) # pyright: ignore[reportCallIssue]
+        log.info("Interrupt: %s", interrupt_task.done())
         for t in asyncio.all_tasks():
            log.debug("Tasks waiting = %s", t)
         # log.debug("Event loop stopping")
