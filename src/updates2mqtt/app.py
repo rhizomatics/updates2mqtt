@@ -135,8 +135,9 @@ class App:
         log.info("Interrupt: %s",asyncio.run_coroutine_threadsafe(self.interrupt_tasks(), asyncio.get_event_loop()).result())
         for t in asyncio.all_tasks():
             log.debug("Tasks waiting = %s", t)
-        self.publisher.stop()
+        
         asyncio.get_event_loop().stop()
+        self.publisher.stop()
         log.info("Shutdown complete")
         # sys.exit(0)
 
