@@ -134,8 +134,6 @@ class App:
         # log.debug("Event loop stopped")
         self.publisher.stop()
         log.info("Shutdown complete")
-        # sys.exit(0)
-
 
 def run() -> None:
     import asyncio
@@ -149,9 +147,8 @@ def run() -> None:
         asyncio.run(app.run(),
                 debug=True)
         log.debug("App exited gracefully")
-    except Exception:
-        log.exception("App exited on exception")
-        sys.exit(1)
+    except asyncio.CancelledError as e:
+        log.debug("App exited on cancelled task",e)
 
 
 if __name__ == "__main__":
