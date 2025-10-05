@@ -153,7 +153,7 @@ def run() -> None:
     # signal.signal(signal.SIGTERM, app.stop)
     try:
         aiorun.run(app.run(),
-                shutdown_callback=app.shutdown,
+                #shutdown_callback=app.shutdown,
                 stop_on_unhandled_errors=True,
                 timeout_task_shutdown=10)
         log.debug("App exited gracefully")
