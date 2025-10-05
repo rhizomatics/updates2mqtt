@@ -151,9 +151,15 @@ def run() -> None:
 
     app = App()
     # signal.signal(signal.SIGTERM, app.stop)
-    aiorun.run(app.run(), shutdown_callback=app.shutdown, 
-               stop_on_unhandled_errors=True,
-               timeout_task_shutdown=10)
+    try:
+        aiorun.run(app.run(),
+                shutdown_callback=app.shutdown,
+                stop_on_unhandled_errors=True,
+                timeout_task_shutdown=10)
+        log.debug("App exited gracefully")
+    except Exception:
+        log.exception("App exited on exception")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
