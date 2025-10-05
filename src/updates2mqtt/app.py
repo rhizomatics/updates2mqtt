@@ -129,8 +129,9 @@ class App:
 
     def shutdown(self) -> None:
         log.info("Shutting down on SIGTERM")
-        stop_task = asyncio.get_event_loop().create_task(self.interrupt_tasks(), name="interrupt-tasks", eager_start=True)  # pyright: ignore[reportCallIssue]
         self.stop()
+
+        asyncio.run_coroutine_threadsafe(self.interrupt_tasks(), asyncio.get_event_loop()).result()
         for t in asyncio.all_tasks():
             log.debug("Tasks waiting = %s", t)
         asyncio.get_event_loop().stop()
