@@ -144,7 +144,7 @@ class MqttClient:
         )
         loop_end = time.time() + wait_time
         while time.time() <= loop_end:
-            cleaner.loop(0.5)
+            log.debug("MQTT Clean loop return: %s", cleaner.loop())
 
         log.info("Completed clean cycle")
 
