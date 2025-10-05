@@ -128,8 +128,8 @@ class App:
         self.publisher.stop()
         log.info("Stopped")
 
-    async def shutdown(self, loop: asyncio.AbstractEventLoop) -> None:
-        log.info("Shutting down on SIGTERM")
+    def shutdown(self, *args) -> None:
+        log.info("Shutting down on SIGTERM: %s", args)
         self.stopped.set()
         for scanner in self.scanners:
             scanner.stop()
@@ -145,18 +145,16 @@ class App:
 
 
 def run() -> None:
-    import aiorun
+    import asyncio
     import signal
 
     from .app import App
 
     app = App()
-    signal.signal(signal.SIGTERM, app.stop)
+    signal.signal(signal.SIGTERM, app.shutdown)
     try:
-        aiorun.run(app.run(),
-                shutdown_callback=app.shutdown,
-                stop_on_unhandled_errors=True,
-                timeout_task_shutdown=5)
+        asyncio.run(app.run(),
+                debug=True)
         log.debug("App exited gracefully")
     except Exception:
         log.exception("App exited on exception")
