@@ -123,11 +123,11 @@ class MqttClient:
                 results["handled"] += 1
                 results["last_timestamp"] = time.time()
                 if session is not None and last_scan_session is not None and session != last_scan_session:
-                    log.info("Removing stale msg", topic=msg.topic, session=session)
+                    log.debug("Removing stale msg", topic=msg.topic, session=session)
                     cleaner.publish(msg.topic, "", retain=True)
                     results["cleaned"] += 1
                 elif session is None and force:
-                    log.info("Removing untrackable msg", topic=msg.topic)
+                    log.debug("Removing untrackable msg", topic=msg.topic)
                     cleaner.publish(msg.topic, "", retain=True)
                     results["cleaned"] += 1
                 else:
