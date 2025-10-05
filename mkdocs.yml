@@ -1,5 +1,5 @@
 site_name: Updates2MQTT
-site_url: https://jeyrb.github.io/updates2mqtt/
+site_url: https://updates2mqtt.rhizomatics.org.uk
 site_description: Notify and take action on server updates via MQTT, with HomeAssistant compatibility
 
 repo_name: rhizomatics/updates2mqtt
