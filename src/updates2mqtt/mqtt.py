@@ -98,6 +98,7 @@ class MqttClient:
             client_id=f"updates2mqtt_clean_{self.node_cfg.name}",
             clean_session=True,
         )
+        results = {"cleaned": 0, "handled": 0, "discovered": 0}
         cleaner.username_pw_set(self.cfg.user, password=self.cfg.password)
         cleaner.connect(host=self.cfg.host, port=self.cfg.port, keepalive=60)
         prefixes = [
@@ -108,6 +109,7 @@ class MqttClient:
         def cleanup(_client: mqtt.Client, _userdata: Any, msg: mqtt.MQTTMessage) -> None:
             if msg.retain and any(msg.topic.startswith(prefix) for prefix in prefixes):
                 session = None
+                results["discovered"] += 1
                 try:
                     payload = self.safe_json_decode(msg.payload)
                     session = payload.get("source_session")
@@ -118,12 +120,15 @@ class MqttClient:
                         e,
                         exc_info=1,
                     )
+                results["handled"] += 1
                 if session is not None and last_scan_session is not None and session != last_scan_session:
                     log.info("Removing stale msg", topic=msg.topic, session=session)
                     cleaner.publish(msg.topic, "", retain=True)
+                    results["cleaned"] += 1
                 elif session is None and force:
                     log.info("Removing untrackable msg", topic=msg.topic)
                     cleaner.publish(msg.topic, "", retain=True)
+                    results["cleaned"] += 1
                 else:
                     log.debug(
                         "Retaining topic with current session: %s",
@@ -143,10 +148,11 @@ class MqttClient:
             options=options
         )
         loop_end = time.time() + wait_time
-        while time.time() <= loop_end:
-            log.debug("MQTT Clean loop return: %s", cleaner.loop())
+        last_result = -1
+        while time.time() <= loop_end and last_result != 0:
+            last_result = cleaner.loop()
 
-        log.info("Completed clean cycle")
+        log.info(f"Completed clean cycle, discovered:{results["discovered"]}, handled:{results["handled"]}, cleaned:{results["cleaned"]}")
 
     def safe_json_decode(self, jsonish: str | bytes | None) -> dict:
         if jsonish is None:
