@@ -148,9 +148,9 @@ class MqttClient:
             options=options
         )
         loop_end = time.time() + wait_time
-        last_result = 0
-        while time.time() <= loop_end and last_result != 0:
-            last_result = cleaner.loop()
+        
+        while time.time() <= loop_end:
+            last_result = cleaner.loop(0.5)
 
         log.info(f"Completed clean cycle, discovered:{results["discovered"]}, handled:{results["handled"]}, cleaned:{results["cleaned"]}")
 
