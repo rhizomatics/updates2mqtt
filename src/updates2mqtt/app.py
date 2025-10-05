@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import signal
 import sys
 import time
 import uuid
@@ -134,12 +133,12 @@ class App:
         self.stopped.set()
         for scanner in self.scanners:
             scanner.stop()
-        #log.info("Interrupt: %s",asyncio.run_coroutine_threadsafe(self.interrupt_tasks(), asyncio.get_event_loop()).result())
-        #for t in asyncio.all_tasks():
+        # log.info("Interrupt: %s",asyncio.run_coroutine_threadsafe(self.interrupt_tasks(), asyncio.get_event_loop()).result())
+        # for t in asyncio.all_tasks():
         #    log.debug("Tasks waiting = %s", t)
-        #log.debug("Event loop stopping")
-        #asyncio.get_event_loop().stop()
-        #log.debug("Event loop stopped")
+        # log.debug("Event loop stopping")
+        # asyncio.get_event_loop().stop()
+        # log.debug("Event loop stopped")
         self.publisher.stop()
         log.info("Shutdown complete")
         # sys.exit(0)
@@ -151,8 +150,10 @@ def run() -> None:
     from .app import App
 
     app = App()
-    #signal.signal(signal.SIGTERM, app.stop)
-    aiorun.run(app.run(), shutdown_callback=app.shutdown)
+    # signal.signal(signal.SIGTERM, app.stop)
+    aiorun.run(app.run(), shutdown_callback=app.shutdown, 
+               stop_on_unhandled_errors=True,
+               timeout_task_shutdown=10)
 
 
 if __name__ == "__main__":
