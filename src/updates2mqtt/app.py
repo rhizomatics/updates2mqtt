@@ -3,8 +3,10 @@ import logging
 import sys
 import time
 import uuid
+from collections.abc import Callable
 from pathlib import Path
 from threading import Event
+from typing import Any
 
 import structlog
 
@@ -46,9 +48,11 @@ class App:
 
         self.scanners: list[ReleaseProvider] = []
         self.scan_count: int = 0
+        self.last_scan: float | None = None
         if self.cfg.docker.enabled:
             self.scanners.append(DockerProvider(self.cfg.docker, self.common_pkg, self.cfg.node))
         self.stopped = Event()
+        self.healthcheck_topic = self.cfg.node.healthcheck.topic_template.format(node_name=self.cfg.node.name)
 
         log.info(
             "App configured",
@@ -73,10 +77,13 @@ class App:
             await self.publisher.clean_topics(scanner, session, force=False)
             self.scan_count += 1
             log.info("Scan complete", source_type=scanner.source_type)
+        self.last_scan = time.time()
 
     async def run(self) -> None:
         log.debug("Starting run loop")
         self.publisher.start()
+        self.healthcheck_loop_task = asyncio.create_task(repeated_call(self.healthcheck, interval=self.cfg.node.healthcheck.interval))
+
         for scanner in self.scanners:
             self.publisher.subscribe_hass_command(scanner)
 
@@ -136,6 +143,20 @@ class App:
         self.publisher.stop()
         log.debug("Interrupt: %s", interrupt_task.done())
         log.info("Shutdown handling complete")
+
+    def healthcheck(self) -> None:
+        self.publisher.publish(topic=self.healthcheck_topic, payload={"version": updates2mqtt.version,
+                                                                      "heartbeat": time.time(),
+                                                                      "last_scan": self.last_scan,
+                                                                      "scan_count": self.scan_count
+                                                                      })
+
+
+async def repeated_call(coroutine: Callable, interval: int = 60, *args: Any, **kwargs: Any) -> None:
+    # run a task periodically indefinitely
+    while True:
+        await asyncio.sleep(interval)
+        await coroutine(*args, **kwargs)
 
 
 def run() -> None:

@@ -70,7 +70,8 @@ docker:
   allow_build: true # if true, will do a `docker-compose build` if a git repo is configured
   compose_version: v2 # Controls whether to use `docker-compose` (v1) or `docker compose` (v2) command
   default_entity_picture_url: https://www.docker.com/wp-content/uploads/2022/03/Moby-logo.png # Picture for update dialog
-  device_icon: mdi:train-car-container # Material Design Icon to use when browsing entities in Home Assistant
+  device_icon: mdi:docker # Material Design Icon to use when browsing entities in Home Assistant
+  # device_icon: mdi:train-car-container # Alternative icon if you don't like Docker branding
   discover_metadata:
     linuxserver.io:
       enabled: true
@@ -141,6 +142,7 @@ The following environment variables can be used to configure updates2mqtt:
 | `UPD2MQTT_PICTURE`  | URL to an icon to use in Home Assistant.  | Docker logo URL   |
 | `UPD2MQTT_RELNOTES` | URL to release notes for the package.  |  | 
 | `UPD2MQTT_GIT_REPO_PATH` | Relative path to a local git repo if the image is built locally.  | |
+| `UPD2MQTT_IGNORE` | If set to `True`, the container will be ignored by updates2mqtt. | False |
 
 
 ## Release Support
@@ -172,6 +174,10 @@ There are 3 separate types of MQTT topic used for HomeAssisstant integration:
 If the package supports automated update, then *Skip* and *Install* buttons will appear on the Home Assistant
 interface, and the package can be remotely fetched and the component restarted.
 
+## Related Projects
+
+- [psmqtt](https://github.com/eschava/psmqtt) - Report system health and metrics via MQTT
+- 
 ## Development
 
 Access to Docker APIs uses the Python [docker-py](https://docker-py.readthedocs.io/en/stable/) SDK for Python. [Eclipse Paho](https://eclipse.dev/paho/files/paho.mqtt.python/html/client.html) is used for MQTT access, and [OmegaConf](https://omegaconf.readthedocs.io) for configuration.

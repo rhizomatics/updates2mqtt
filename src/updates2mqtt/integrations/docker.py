@@ -141,6 +141,17 @@ class DockerProvider(ReleaseProvider):
         if c.name is None:
             logger.warn("No container name found, discovery rejected")
             return None
+
+        def env_override(env_var: str, default: Any) -> Any | None:
+            return default if c_env.get(env_var) is None else c_env.get(env_var)
+
+        env_str = c.attrs["Config"]["Env"]
+        c_env = dict(env.split("=", maxsplit=1) for env in env_str if "==" not in env)
+        ignore_container: str | None = env_override("UPD2MQTT_IGNORE", "FALSE")
+        if ignore_container and ignore_container.upper() in ("1", "TRUE"):
+            logger.info("Container ignored due to UPD2MQTT_IGNORE setting")
+            return None
+
         image: Image | None = c.image
         if image is not None and image.tags and len(image.tags) > 0:
             image_ref = image.tags[0]
@@ -163,12 +174,8 @@ class DockerProvider(ReleaseProvider):
         platform: str = "Unknown"
         pkg_info: PackageUpdateInfo = self.default_metadata(image_name)
 
-        def env_override(env_var: str, default: Any) -> Any | None:
-            return default if c_env.get(env_var) is None else c_env.get(env_var)
-
         try:
-            env_str = c.attrs["Config"]["Env"]
-            c_env = dict(env.split("=", maxsplit=1) for env in env_str if "==" not in env)
+
             picture_url = env_override("UPD2MQTT_PICTURE", pkg_info.logo_url)
             relnotes_url = env_override("UPD2MQTT_RELNOTES", pkg_info.release_notes_url)
             if image is not None and image.attrs is not None:
