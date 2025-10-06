@@ -112,7 +112,7 @@ class DockerProvider(ReleaseProvider):
     def restart(self, discovery: Discovery) -> bool:
         logger = self.log.bind(container=discovery.name, action="restart")
         compose_path = discovery.custom.get("compose_path")
-        return self.execute_compose(DockerComposeCommand.UP, "--detach", compose_path, logger)
+        return self.execute_compose(DockerComposeCommand.UP, "--detach --yes", compose_path, logger)
 
     def rescan(self, discovery: Discovery) -> Discovery | None:
         logger = self.log.bind(container=discovery.name, action="rescan")
