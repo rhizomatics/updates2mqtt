@@ -160,6 +160,8 @@ The following environment variables can be used to configure updates2mqtt:
 A heartbeat JSON payload is optionally published periodically to a configurable MQTT topic, defaulting to `healthcheck/{node_name}/updates2mqtt`. It contains the current version of updates2mqtt, the node name, a timestamp, and some basic stats.
 
 A `healthcheck.sh` script is included in the Docker image, and can be used as a Docker healthcheck, if the container environment variables are set for `MQTT_HOST`, `MQTT_PORT`, `MQTT_USER` and `MQTT_PASS`.
+
+TIP: Check healthcheck is working using `docker inspect --format "{{json .State.Health }}" updates2mqtt | jq`
   
 ## HomeAssistant integration
 
