@@ -281,6 +281,6 @@ class MqttClient:
         if self.client:
             self.client.loop()
 
-    def publish(self, topic: str, payload: dict) -> None:
+    def publish(self, topic: str, payload: dict, qos: int = 0, retain: bool = True) -> None:
         if self.client:
-            self.client.publish(topic, payload=json.dumps(payload), qos=0, retain=True)
+            self.client.publish(topic, payload=json.dumps(payload), qos=qos, retain=retain)

@@ -156,17 +156,18 @@ class App:
                                                                       "last_scan": self.last_scan,
                                                                       "scan_count": self.scan_count
                                                                       })
+        log.debug("Healthcheck published", topic=self.healthcheck_topic)
 
 
-async def repeated_call(coroutine: Callable, interval: int = 60, *args: Any, **kwargs: Any) -> None:
+async def repeated_call(func: Callable, interval: int = 60, *args: Any, **kwargs: Any) -> None:
     # run a task periodically indefinitely
     while True:
-        log.debug("Starting periodic task", task=coroutine.__name__)
-        await coroutine(*args, **kwargs)
-        log.debug("Periodic task complete, sleeping", task=coroutine.__name__, interval=interval)
+        log.debug("Starting periodic task", task=func.__name__)
+        await func(*args, **kwargs)
+        log.debug("periodic task complete, sleeping", task=func.__name__, interval=interval)
         await asyncio.sleep(interval)
-        log.debug("Woke up from sleep, restarting periodic task", task=coroutine.__name__)
-    log.debug("Exiting periodic task loop", task=coroutine.__name__)
+        log.debug("Woke up from sleep, restarting periodic task", task=func.__name__)
+    log.debug("Exiting periodic task loop", task=func.__name__)
 
 
 def run() -> None:
