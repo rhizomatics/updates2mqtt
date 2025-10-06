@@ -39,8 +39,8 @@ def hass_format_config(
         "origin": {
             "name": "updates2mqtt",
             "sw_version": updates2mqtt.version,
-            "support_url": "https://github.com/rhizomatics/updates2mqtt/issues"
-        }
+            "support_url": "https://github.com/rhizomatics/updates2mqtt/issues",
+        },
     }
     if command_topic:
         config["command_topic"] = command_topic

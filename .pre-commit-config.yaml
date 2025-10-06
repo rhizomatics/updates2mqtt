@@ -41,6 +41,7 @@ repos:
           - --explicit-package-bases
           - --show-error-codes
           - --show-error-context
+          - --follow-untyped-imports
         additional_dependencies:
           - structlog
           - pytest
@@ -49,6 +50,7 @@ repos:
           - omegaconf
           - types-docker
           - hishel
+          - usingversion
  
   - repo: https://github.com/PyCQA/bandit
     rev: '1.8.6'

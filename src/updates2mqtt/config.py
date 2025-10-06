@@ -49,16 +49,20 @@ class HomeAssistantConfig:
     discovery: HomeAssistantDiscoveryConfig = field(default_factory=HomeAssistantDiscoveryConfig)
     state_topic_suffix: str = "state"
 
+
 @dataclass
 class HealthCheckConfig:
     enabled: bool = True
     interval: int = 300  # Interval in seconds to publish healthcheck message, 0 to disable
     topic_template: str = "healthcheck/{node_name}/updates2mqtt"
+
+
 @dataclass
 class NodeConfig:
     name: str = field(default_factory=lambda: os.uname().nodename.replace(".local", ""))
     git_path: Path = Path("/usr/bin/git")
     healthcheck: HealthCheckConfig = field(default_factory=HealthCheckConfig)
+
 
 @dataclass
 class LogConfig:

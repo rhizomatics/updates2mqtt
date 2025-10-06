@@ -175,7 +175,6 @@ class DockerProvider(ReleaseProvider):
         pkg_info: PackageUpdateInfo = self.default_metadata(image_name)
 
         try:
-
             picture_url = env_override("UPD2MQTT_PICTURE", pkg_info.logo_url)
             relnotes_url = env_override("UPD2MQTT_RELNOTES", pkg_info.release_notes_url)
             if image is not None and image.attrs is not None:

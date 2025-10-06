@@ -85,9 +85,12 @@ class App:
         self.publisher.start()
 
         if self.cfg.node.healthcheck.enabled:
-            log.info(f"Setting up healthcheck every {self.cfg.node.healthcheck.interval} seconds to topic {self.healthcheck_topic}")
-            self.healthcheck_loop_task = asyncio.create_task(repeated_call(self.healthcheck,
-                                                                       interval=self.cfg.node.healthcheck.interval))
+            log.info(
+                f"Setting up healthcheck every {self.cfg.node.healthcheck.interval} seconds to topic {self.healthcheck_topic}"
+            )
+            self.healthcheck_loop_task = asyncio.create_task(
+                repeated_call(self.healthcheck, interval=self.cfg.node.healthcheck.interval)
+            )
 
         for scanner in self.scanners:
             self.publisher.subscribe_hass_command(scanner)
@@ -150,13 +153,17 @@ class App:
         log.info("Shutdown handling complete")
 
     async def healthcheck(self) -> None:
-        self.publisher.publish(topic=self.healthcheck_topic, payload={"version": updates2mqtt.version,
-                                                                      "node": self.cfg.node.name,
-                                                                      "heartbeat": time.time(),
-                                                                      "timestamp": datetime.now(UTC).isoformat(),
-                                                                      "last_scan": self.last_scan,
-                                                                      "scan_count": self.scan_count
-                                                                      })
+        self.publisher.publish(
+            topic=self.healthcheck_topic,
+            payload={
+                "version": updates2mqtt.version,
+                "node": self.cfg.node.name,
+                "heartbeat": time.time(),
+                "timestamp": datetime.now(UTC).isoformat(),
+                "last_scan": self.last_scan,
+                "scan_count": self.scan_count,
+            },
+        )
 
 
 async def repeated_call(func: Callable, interval: int = 60, *args: Any, **kwargs: Any) -> None:

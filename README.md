@@ -164,7 +164,7 @@ A heartbeat JSON payload is optionally published periodically to a configurable 
 Any updates that have support for automated install will automatically show in the
 Home Assistant settings page if the [MQTT Integration](https://www.home-assistant.io/integrations/mqtt/) is installed and automatic discovery is not disabled.
 
-![Home Assistant MQTT Integraion configuation](images/ha_mqtt_discovery.png "Home Assistant MQTT Discovery")
+![Home Assistant MQTT Integraion configuration](images/ha_mqtt_discovery.png "Home Assistant MQTT Discovery")
 
 The `homeassistant` default topic prefix matches the default updates2mqtt config, if its changed in HomeAssistant, then the updates2mqtt config must be changed to match.
 
