@@ -13,7 +13,7 @@ from updates2mqtt.model import Discovery
 
 async def test_scanner(mock_docker_client: DockerClient) -> None:
     with patch("docker.from_env", return_value=mock_docker_client):
-        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.UpdateInfoConfig())
+        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.UpdateInfoConfig(), mut.NodeConfig())
         session = "unit_123"
         results: list[Discovery] = [d async for d in uut.scan(session)]
 
@@ -28,7 +28,7 @@ async def test_scanner(mock_docker_client: DockerClient) -> None:
 
 async def test_common_packages(mock_docker_client: DockerClient) -> None:
     with patch("docker.from_env", return_value=mock_docker_client):
-        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.UpdateInfoConfig())
+        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.UpdateInfoConfig(), mut.NodeConfig())
         uut.common_pkgs = {
             "common_pkg": mut.PackageUpdateInfo(
                 docker=DockerPackageUpdateInfo(image_name="common/pkg"),
@@ -65,6 +65,7 @@ def test_discover_metadata(httpx_mock: HTTPXMock) -> None:
     uut = mut.DockerProvider(
         mut.DockerConfig(discover_metadata={"linuxserver.io": MetadataSourceConfig(enabled=True, cache_ttl=0)}),
         mut.UpdateInfoConfig(),
+        mut.NodeConfig(),
     )
     uut.discover_metadata()
     assert "mctesty901" in uut.discovered_pkgs
@@ -77,7 +78,7 @@ def test_discover_metadata(httpx_mock: HTTPXMock) -> None:
 
 def test_build(mock_docker_client: DockerClient, fake_process: FakeProcess, tmpdir: Path) -> None:
     with patch("docker.from_env", return_value=mock_docker_client):
-        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.UpdateInfoConfig())
+        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.UpdateInfoConfig(), mut.NodeConfig())
         d = Discovery(uut, "build-test-dummy", session="test-123")
         fake_process.register("docker compose build", returncode=0)
         assert uut.build(d, str(tmpdir))

@@ -5,7 +5,6 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-import paho.mqtt
 import paho.mqtt.client as mqtt
 import paho.mqtt.subscribeoptions
 import structlog

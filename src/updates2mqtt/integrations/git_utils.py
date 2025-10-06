@@ -7,20 +7,20 @@ import structlog
 log = structlog.get_logger()
 
 
-def git_trust(repo_path: Path) -> bool:
+def git_trust(repo_path: Path, git_path: Path) -> bool:
     try:
-        subprocess.run(f"git config --global --add safe.directory {repo_path}", check=True, shell=True, cwd=repo_path)
+        subprocess.run(f"{git_path} config --global --add safe.directory {repo_path}", check=True, shell=True, cwd=repo_path)
         return True
     except Exception as e:
         log.warn("GIT Unable to trust repo at %s: %s", repo_path, e)
         return False
 
 
-def git_timestamp(repo_path: Path) -> datetime.datetime | None:
+def git_timestamp(repo_path: Path, git_path: Path) -> datetime.datetime | None:
     result = None
     try:
         result = subprocess.run(
-            r"git log -1 --format=%cI --no-show-signature",
+            str(git_path) + r" log -1 --format=%cI --no-show-signature",
             cwd=repo_path,
             shell=True,
             text=True,
@@ -33,12 +33,12 @@ def git_timestamp(repo_path: Path) -> datetime.datetime | None:
     return None
 
 
-def git_check_update_available(repo_path: Path, timeout: int = 120) -> bool:
+def git_check_update_available(repo_path: Path, git_path: Path, timeout: int = 120) -> bool:
     result = None
     try:
         # check if remote repo ahead
         result = subprocess.run(
-            "git fetch;git status -uno",
+            f"{git_path} fetch;{git_path} status -uno",
             capture_output=True,
             text=True,
             shell=True,
@@ -54,9 +54,9 @@ def git_check_update_available(repo_path: Path, timeout: int = 120) -> bool:
     return False
 
 
-def git_pull(repo_path: Path) -> bool:
+def git_pull(repo_path: Path, git_path: Path) -> bool:
     log.info("GIT Pulling git at %s", repo_path)
-    proc = subprocess.run("git pull", shell=True, check=False, cwd=repo_path, timeout=300)
+    proc = subprocess.run(f"{git_path} pull", shell=True, check=False, cwd=repo_path, timeout=300)
     if proc.returncode == 0:
         log.info("GIT pull at %s successful", repo_path)
         return True

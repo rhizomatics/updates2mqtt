@@ -46,7 +46,7 @@ class App:
         self.scanners: list[ReleaseProvider] = []
         self.scan_count: int = 0
         if self.cfg.docker.enabled:
-            self.scanners.append(DockerProvider(self.cfg.docker, self.common_pkg))
+            self.scanners.append(DockerProvider(self.cfg.docker, self.common_pkg, self.cfg.node))
         self.stopped = Event()
 
         log.info(

@@ -3,6 +3,7 @@ import subprocess
 import time
 import typing
 from collections.abc import AsyncGenerator, Callable
+from enum import Enum
 from pathlib import Path
 from typing import Any, cast
 
@@ -12,7 +13,7 @@ import hishel
 import structlog
 from docker.models.containers import Container
 
-from updates2mqtt.config import DockerConfig, DockerPackageUpdateInfo, PackageUpdateInfo, UpdateInfoConfig
+from updates2mqtt.config import DockerConfig, DockerPackageUpdateInfo, NodeConfig, PackageUpdateInfo, UpdateInfoConfig
 from updates2mqtt.model import Discovery, ReleaseProvider
 
 from .git_utils import git_check_update_available, git_pull, git_timestamp, git_trust
@@ -26,15 +27,21 @@ log = structlog.get_logger()
 NO_KNOWN_IMAGE = "UNKNOWN"
 
 
+class DockerComposeCommand(Enum):
+    BUILD = "build"
+    UP = "up"
+
+
 def safe_json_dt(t: float | None) -> str | None:
     return time.strftime("%Y-%m-%dT%H:%M:%S.0000", time.gmtime(t)) if t else None
 
 
 class DockerProvider(ReleaseProvider):
-    def __init__(self, cfg: DockerConfig, common_pkg_cfg: UpdateInfoConfig) -> None:
+    def __init__(self, cfg: DockerConfig, common_pkg_cfg: UpdateInfoConfig, node_cfg: NodeConfig) -> None:
         super().__init__("docker")
         self.client: docker.DockerClient = docker.from_env()
         self.cfg: DockerConfig = cfg
+        self.node_cfg: NodeConfig = node_cfg
         self.common_pkgs: dict[str, PackageUpdateInfo] = common_pkg_cfg.common_packages if common_pkg_cfg else {}
         # TODO: refresh discovered packages periodically
         self.discovered_pkgs: dict[str, PackageUpdateInfo] = self.discover_metadata()
@@ -70,8 +77,8 @@ class DockerProvider(ReleaseProvider):
                 full_repo_path: Path = Path(compose_path) / git_repo_path
             else:
                 full_repo_path = Path(git_repo_path)
-            if git_check_update_available(full_repo_path):
-                git_pull(full_repo_path)
+            if git_check_update_available(full_repo_path, self.node_cfg.git_path):
+                git_pull(full_repo_path, self.node_cfg.git_path)
             if compose_path:
                 self.build(discovery, compose_path)
             else:
@@ -80,15 +87,15 @@ class DockerProvider(ReleaseProvider):
     def build(self, discovery: Discovery, compose_path: str) -> bool:
         logger = self.log.bind(container=discovery.name, action="build")
         logger.info("Building")
-        return self.execute_compose("build", "", compose_path, logger)
+        return self.execute_compose(DockerComposeCommand.BUILD, "", compose_path, logger)
 
-    def execute_compose(self, command: str, args: str, cwd: str | None, logger: structlog.BoundLogger) -> bool:
+    def execute_compose(self, command: DockerComposeCommand, args: str, cwd: str | None, logger: structlog.BoundLogger) -> bool:
         if not cwd or not Path(cwd).is_dir():
             logger.warn("Invalid compose path, skipped %s", command)
             return False
         logger.info(f"Executing compose {command} {args}")
         cmd: str = "docker-compose" if self.cfg.compose_version == "v1" else "docker compose"
-        cmd = cmd + " " + command
+        cmd = cmd + " " + command.value
         if args:
             cmd = cmd + " " + args
 
@@ -105,7 +112,7 @@ class DockerProvider(ReleaseProvider):
     def restart(self, discovery: Discovery) -> bool:
         logger = self.log.bind(container=discovery.name, action="restart")
         compose_path = discovery.custom.get("compose_path")
-        return self.execute_compose("up", "--detach", compose_path, logger)
+        return self.execute_compose(DockerComposeCommand.UP, "--detach", compose_path, logger)
 
     def rescan(self, discovery: Discovery) -> Discovery | None:
         logger = self.log.bind(container=discovery.name, action="rescan")
@@ -222,8 +229,8 @@ class DockerProvider(ReleaseProvider):
                     cast("str", custom.get("git_repo_path"))
                 )
 
-                git_trust(full_repo_path)
-                save_if_set("git_local_timestamp", git_timestamp(full_repo_path))
+                git_trust(full_repo_path, self.node_cfg.git_path)
+                save_if_set("git_local_timestamp", git_timestamp(full_repo_path, self.node_cfg.git_path))
             features: list[str] = []
             can_pull: bool = (
                 self.cfg.allow_pull

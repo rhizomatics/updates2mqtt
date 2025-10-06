@@ -53,6 +53,7 @@ class HomeAssistantConfig:
 @dataclass
 class NodeConfig:
     name: str = field(default_factory=lambda: os.uname().nodename.replace(".local", ""))
+    git_path: Path = Path("/usr/bin/git")
 
 
 @dataclass
