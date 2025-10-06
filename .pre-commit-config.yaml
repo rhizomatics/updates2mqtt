@@ -4,6 +4,18 @@ repos:
     hooks:
       - id: pyupgrade
         args: [--py313-plus]
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-merge-conflict
+        name: Check for merge-conflicts
+      - id: check-yaml
+        name: Check for un-parseable yaml
+        args: [--allow-multiple-documents]
+      - id: check-executables-have-shebangs
+        name: Check shell script for shebang lines
+      - id: check-shebang-scripts-are-executable
+        name: Check shell scripts are executable
   - repo: https://github.com/astral-sh/uv-pre-commit
     rev: 0.8.23
     hooks:
@@ -25,12 +37,7 @@ repos:
           - --skip="./.*,*.csv,*.json"
           - --quiet-level=2
         exclude_types: [csv, json]
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v6.0.0
-    hooks:
-      - id: check-executables-have-shebangs
-        stages: [manual]
-      - id: check-json
+
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.18.2
     hooks:
