@@ -4,6 +4,10 @@ repos:
     hooks:
       - id: pyupgrade
         args: [--py313-plus]
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.8.23
+    hooks:
+      - id: uv-lock
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.13.3
     hooks:
