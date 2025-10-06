@@ -85,6 +85,7 @@ class App:
         self.publisher.start()
 
         if self.cfg.node.healthcheck.enabled:
+            await self.healthcheck()  # initial eager healthcheck
             log.info(
                 f"Setting up healthcheck every {self.cfg.node.healthcheck.interval} seconds to topic {self.healthcheck_topic}"
             )
