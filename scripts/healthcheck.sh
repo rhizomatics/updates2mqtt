@@ -5,7 +5,12 @@
 
 # Arguments
 MQTT_TOPIC=$1
-TIMEOUT_SECONDS=$2  # How old the heartbeat can be before failing
+TIMEOUT_SECONDS=${2:-480}  # How old the heartbeat can be before failing
+
+if [ -z "$MQTT_TOPIC" ] ; then
+    echo "ERROR: MQTT topic not provided as first argument" >&2
+    exit $EXIT_DEPENDENCY_ERROR
+fi
 
 # Configuration
 MQTT_HOST="${MQTT_HOST:-localhost}"
