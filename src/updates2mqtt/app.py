@@ -148,7 +148,7 @@ class App:
         log.debug("Interrupt: %s", interrupt_task.done())
         log.info("Shutdown handling complete")
 
-    def healthcheck(self) -> None:
+    async def healthcheck(self) -> None:
         self.publisher.publish(topic=self.healthcheck_topic, payload={"version": updates2mqtt.version,
                                                                       "node": self.cfg.node.name,
                                                                       "heartbeat": time.time(),
@@ -156,7 +156,7 @@ class App:
                                                                       "last_scan": self.last_scan,
                                                                       "scan_count": self.scan_count
                                                                       })
-        log.debug("Healthcheck published", topic=self.healthcheck_topic)
+        
 
 
 async def repeated_call(func: Callable, interval: int = 60, *args: Any, **kwargs: Any) -> None:
