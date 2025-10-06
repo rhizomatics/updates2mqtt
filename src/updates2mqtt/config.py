@@ -32,7 +32,7 @@ class DockerConfig:
     allow_build: bool = True
     compose_version: str = "v2"
     default_entity_picture_url: str = "https://www.docker.com/wp-content/uploads/2022/03/Moby-logo.png"
-    device_icon: str = "mdi:train-car-container"
+    device_icon: str = "mdi:docker"  # Icon to show when browsing entities in Home Assistant
     discover_metadata: dict[str, MetadataSourceConfig] = field(
         default_factory=lambda: {"linuxserver.io": MetadataSourceConfig(enabled=True)}
     )

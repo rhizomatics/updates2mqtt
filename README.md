@@ -50,7 +50,7 @@ This is a maximal config file, the minimum is no config file at all, which will 
 ```yaml
 
 node:
-  name: docker-host-1
+  name: docker-host-1 # Unique name for this instance, used to name MQTT entities
   git_repo_path: /usr/bin/git # Path to git inside container, needed only if non-default and using local docker builds
 mqtt:
   host: localhost
@@ -60,7 +60,7 @@ mqtt:
   topic_root: updates2mqtt
 homeassistant:
   discovery:
-    prefix: homeassistant
+    prefix: homeassistant # Matches the default MQTT discovery prefix in Home Assistant
     enabled: true
   state_topic_suffix: state
 docker:
@@ -69,8 +69,8 @@ docker:
   allow_restart: true # if true, will do a `docker-compose up` if an update is installed
   allow_build: true # if true, will do a `docker-compose build` if a git repo is configured
   compose_version: v2 # Controls whether to use `docker-compose` (v1) or `docker compose` (v2) command
-  default_entity_picture_url: https://www.docker.com/wp-content/uploads/2022/03/Moby-logo.png
-  device_icon: mdi:train-car-container # Icon to use for Home Assistant as alternative to entity picture
+  default_entity_picture_url: https://www.docker.com/wp-content/uploads/2022/03/Moby-logo.png # Picture for update dialog
+  device_icon: mdi:train-car-container # Material Design Icon to use when browsing entities in Home Assistant
   discover_metadata:
     linuxserver.io:
       enabled: true
