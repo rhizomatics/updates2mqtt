@@ -57,10 +57,10 @@ node:
     interval: 300 # publish a heartbeat every 5 minutes
     topic_template: healthcheck/{node_name}/updates2mqtt
 mqtt:
-  host: localhost
-  user: mymqttuser
-  password: mymqttsecretpassword # Use an environment variable for secrets
-  port: 1883
+  host: ${oc.env:MQTT_HOST}
+  user: ${oc.env:MQTT_USER}
+  password: ${oc.env:MQTT_PASS}$ # Use an environment variable for secrets
+  port: ${oc.env:MQTT_PORT}
   topic_root: updates2mqtt
 homeassistant:
   discovery:
