@@ -155,8 +155,8 @@ class App:
 async def repeated_call(coroutine: Callable, interval: int = 60, *args: Any, **kwargs: Any) -> None:
     # run a task periodically indefinitely
     while True:
-        await asyncio.sleep(interval)
         await coroutine(*args, **kwargs)
+        await asyncio.sleep(interval)
 
 
 def run() -> None:
