@@ -1,10 +1,10 @@
 import asyncio
-import datetime
 import logging
 import sys
 import time
 import uuid
 from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
 from threading import Event
 from typing import Any
@@ -78,14 +78,15 @@ class App:
             await self.publisher.clean_topics(scanner, session, force=False)
             self.scan_count += 1
             log.info("Scan complete", source_type=scanner.source_type)
-        self.last_scan = datetime.datetime.now(datetime.UTC).isoformat()
+        self.last_scan = datetime.now(UTC).isoformat()
 
     async def run(self) -> None:
         log.debug("Starting run loop")
         self.publisher.start()
 
-        log.info("Setting up healthcheck every {self.cfg.node.healthcheck.interval} seconds to topic {self.healthcheck_topic}")
-        self.healthcheck_loop_task = asyncio.create_task(repeated_call(self.healthcheck, interval=self.cfg.node.healthcheck.interval))
+        log.info(f"Setting up healthcheck every {self.cfg.node.healthcheck.interval} seconds to topic {self.healthcheck_topic}")
+        self.healthcheck_loop_task = asyncio.create_task(repeated_call(self.healthcheck,
+                                                                       interval=self.cfg.node.healthcheck.interval))
 
         for scanner in self.scanners:
             self.publisher.subscribe_hass_command(scanner)
@@ -149,7 +150,9 @@ class App:
 
     def healthcheck(self) -> None:
         self.publisher.publish(topic=self.healthcheck_topic, payload={"version": updates2mqtt.version,
+                                                                      "node": self.cfg.node.name,
                                                                       "heartbeat": time.time(),
+                                                                      "timestamp": datetime.now(UTC).isoformat(),
                                                                       "last_scan": self.last_scan,
                                                                       "scan_count": self.scan_count
                                                                       })
@@ -158,8 +161,12 @@ class App:
 async def repeated_call(coroutine: Callable, interval: int = 60, *args: Any, **kwargs: Any) -> None:
     # run a task periodically indefinitely
     while True:
+        log.debug("Starting periodic task", task=coroutine.__name__)
         await coroutine(*args, **kwargs)
+        log.debug("Periodic task complete, sleeping", task=coroutine.__name__, interval=interval)
         await asyncio.sleep(interval)
+        log.debug("Woke up from sleep, restarting periodic task", task=coroutine.__name__)
+    log.debug("Exiting periodic task loop", task=coroutine.__name__)
 
 
 def run() -> None:
