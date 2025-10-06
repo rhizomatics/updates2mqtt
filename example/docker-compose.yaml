@@ -7,5 +7,11 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock # Access to Docker daemon for container updates
       - /home/containers:/home/containers # Optional, map all root paths for docker compose directories
     restart: always
+    env_file: ./.env  # Environment variables file
+    healthcheck:
+      test: ["CMD", "/app/healthcheck.sh"]
+      interval: 5m
+      timeout: 30s
+      retries: 3
 
 

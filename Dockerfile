@@ -18,7 +18,7 @@ RUN echo \
    tee /etc/apt/sources.list.d/docker.list > /dev/null
 
 RUN apt-get -y update
-RUN apt-get -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+RUN apt-get -y install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin mosquitto-clients jq
 
 WORKDIR /app
 
@@ -27,6 +27,8 @@ ADD pyproject.toml /app/pyproject.toml
 RUN uv sync --locked --no-install-project
 
 ADD src /app
+ADD scripts/healthcheck.sh /app
+RUN chmod ug+x /app/healthcheck.sh
 ADD README.md /app/README.md
 ADD common_packages.yaml /app
 
