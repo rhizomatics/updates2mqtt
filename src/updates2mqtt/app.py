@@ -162,11 +162,16 @@ class App:
 async def repeated_call(func: Callable, interval: int = 60, *args: Any, **kwargs: Any) -> None:
     # run a task periodically indefinitely
     while True:
-        log.debug("Starting periodic task", task=func.__name__)
-        await func(*args, **kwargs)
-        log.debug("periodic task complete, sleeping", task=func.__name__, interval=interval)
-        await asyncio.sleep(interval)
-        log.debug("Woke up from sleep, restarting periodic task", task=func.__name__)
+        try:
+            log.debug("Starting periodic task", task=func.__name__)
+            await func(*args, **kwargs)
+            log.debug("periodic task complete, sleeping", task=func.__name__, interval=interval)
+            await asyncio.sleep(interval)
+            log.debug("Woke up from sleep, restarting periodic task", task=func.__name__)
+        except asyncio.CancelledError:
+            log.exception("Periodic task cancelled")
+        except Exception:
+            log.exception("Periodic task failed")
     log.debug("Exiting periodic task loop", task=func.__name__)
 
 
