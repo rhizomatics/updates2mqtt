@@ -35,6 +35,8 @@ UPDATE_INTERVAL = 60 * 60 * 4
 
 class App:
     def __init__(self) -> None:
+        self.startup_timestamp: str = datetime.now(UTC).isoformat()
+        self.last_scan_timestamp: str | None = None
         app_config: Config | None = load_app_config(CONF_FILE)
         if app_config is None:
             log.error("Invalid configuration, exiting")
@@ -78,7 +80,7 @@ class App:
             await self.publisher.clean_topics(scanner, session, force=False)
             self.scan_count += 1
             log.info("Scan complete", source_type=scanner.source_type)
-        self.last_scan = datetime.now(UTC).isoformat()
+        self.last_scan_timestamp = datetime.now(UTC).isoformat()
 
     async def run(self) -> None:
         log.debug("Starting run loop")
@@ -159,9 +161,10 @@ class App:
             payload={
                 "version": updates2mqtt.version,
                 "node": self.cfg.node.name,
-                "heartbeat": time.time(),
-                "timestamp": datetime.now(UTC).isoformat(),
-                "last_scan": self.last_scan,
+                "heartbeat_raw": time.time(),
+                "heartbeat_stamp": datetime.now(UTC).isoformat(),
+                "startup_stamp": self.startup_timestamp,
+                "last_scan_stamp": self.last_scan_timestamp,
                 "scan_count": self.scan_count,
             },
         )
