@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import logging
 import sys
 import time
@@ -48,7 +49,7 @@ class App:
 
         self.scanners: list[ReleaseProvider] = []
         self.scan_count: int = 0
-        self.last_scan: float | None = None
+        self.last_scan: str | None = None
         if self.cfg.docker.enabled:
             self.scanners.append(DockerProvider(self.cfg.docker, self.common_pkg, self.cfg.node))
         self.stopped = Event()
@@ -77,11 +78,13 @@ class App:
             await self.publisher.clean_topics(scanner, session, force=False)
             self.scan_count += 1
             log.info("Scan complete", source_type=scanner.source_type)
-        self.last_scan = time.time()
+        self.last_scan = datetime.datetime.now(datetime.UTC).isoformat()
 
     async def run(self) -> None:
         log.debug("Starting run loop")
         self.publisher.start()
+
+        log.info("Setting up healthcheck every {self.cfg.node.healthcheck.interval} seconds to topic {self.healthcheck_topic}")
         self.healthcheck_loop_task = asyncio.create_task(repeated_call(self.healthcheck, interval=self.cfg.node.healthcheck.interval))
 
         for scanner in self.scanners:
