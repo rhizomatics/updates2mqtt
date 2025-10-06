@@ -45,13 +45,17 @@ Create file `config.yaml` in `conf` directory. If the file is not present, a def
 
 ### Example configuration file
 
-This is a maximal config file, the minimum is no config file at all, which will generate a default config file. The only mandatory values are the MQTT user name and password.
+This is a maximal config file, the minimum is no config file at all, which will generate a default config file. The only mandatory values are the MQTT user name and password, everything else can be omitted.
 
 ```yaml
 
 node:
-  name: docker-host-1 # Unique name for this instance, used to name MQTT entities
+  name: docker-host-1 # Unique name for this instance, used to name MQTT entities. Defaults to O/S hostname
   git_repo_path: /usr/bin/git # Path to git inside container, needed only if non-default and using local docker builds
+  healthcheck:
+    enabled: true
+    interval: 300 # publish a heartbeat every 5 minutes
+    topic_template: healthcheck/{node_name}/updates2mqtt
 mqtt:
   host: localhost
   user: mymqttuser
@@ -151,6 +155,9 @@ The following environment variables can be used to configure updates2mqtt:
 |-----------|-------------|----------------------------------------------------------------------------------------------------|
 | Docker    | Scan. Fetch | Fetch is ``docker pull`` only. Restart support only for ``docker-compose`` image based containers. |
   
+## Healthcheck
+
+A heartbeat JSON payload is optionally published periodically to a configurable MQTT topic, defaulting to `healthcheck/{node_name}/updates2mqtt`. It contains the current version of updates2mqtt, the node name, a timestamp, and some basic stats.
   
 ## HomeAssistant integration
 

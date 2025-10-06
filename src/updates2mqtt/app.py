@@ -84,8 +84,9 @@ class App:
         log.debug("Starting run loop")
         self.publisher.start()
 
-        log.info(f"Setting up healthcheck every {self.cfg.node.healthcheck.interval} seconds to topic {self.healthcheck_topic}")
-        self.healthcheck_loop_task = asyncio.create_task(repeated_call(self.healthcheck,
+        if self.cfg.node.healthcheck.enabled:
+            log.info(f"Setting up healthcheck every {self.cfg.node.healthcheck.interval} seconds to topic {self.healthcheck_topic}")
+            self.healthcheck_loop_task = asyncio.create_task(repeated_call(self.healthcheck,
                                                                        interval=self.cfg.node.healthcheck.interval))
 
         for scanner in self.scanners:
@@ -156,23 +157,18 @@ class App:
                                                                       "last_scan": self.last_scan,
                                                                       "scan_count": self.scan_count
                                                                       })
-        
 
 
 async def repeated_call(func: Callable, interval: int = 60, *args: Any, **kwargs: Any) -> None:
     # run a task periodically indefinitely
     while True:
         try:
-            log.debug("Starting periodic task", task=func.__name__)
             await func(*args, **kwargs)
-            log.debug("periodic task complete, sleeping", task=func.__name__, interval=interval)
             await asyncio.sleep(interval)
-            log.debug("Woke up from sleep, restarting periodic task", task=func.__name__)
         except asyncio.CancelledError:
             log.exception("Periodic task cancelled")
         except Exception:
             log.exception("Periodic task failed")
-    log.debug("Exiting periodic task loop", task=func.__name__)
 
 
 def run() -> None:
