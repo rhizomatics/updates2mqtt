@@ -2,6 +2,7 @@ from typing import Any
 
 import structlog
 
+import updates2mqtt
 from updates2mqtt.model import Discovery
 
 log = structlog.get_logger()
@@ -35,6 +36,11 @@ def hass_format_config(
         "update_policy": discovery.update_policy,
         "latest_version_topic": state_topic,
         "latest_version_template": "{{value_json.latest_version}}",
+        "origin": {
+            "name": "updates2mqtt",
+            "sw_version": updates2mqtt.version,
+            "support_url": "https://github.com/rhizomatics/updates2mqtt/issues"
+        }
     }
     if command_topic:
         config["command_topic"] = command_topic

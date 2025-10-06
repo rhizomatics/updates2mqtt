@@ -6,7 +6,7 @@
 
 Use Home Assistant to notify you of updates to Docker images for your containers and optionally perform the *pull* (or optionally *build*) and *update*.
 
-![Example Home Assistant update dialog](images/hass_update_detail.png "Home Assistant Updates")
+![Example Home Assistant update dialog](images/ha_update_detail.png "Home Assistant Updates")
 
 ## Description
 
@@ -30,7 +30,14 @@ uv run updates2mqtt
 ```
 ### Docker
 
-See ``examples`` directory for a working ``docker-compose.yaml`` which presumes that ``updates2mqtt`` has been checked out inside a ``build`` subdirectory of the docker-compose directory.
+See `examples` directory for a working `docker-compose.yaml`.
+
+If you want to update and restart containers, then the file system paths to the location of the
+directory where the docker compose file lives must be available in the updates2mqtt container. 
+
+The example `docker-compose.yaml` mounts `/home/containers` for this purpose, so if your containers are in
+`/home/containers/app1`, `/home/containers/app2` etc, then updates2mqtt will be able to find them. Map as
+many root paths as needed.
 
 ## Configuration
 
@@ -44,10 +51,11 @@ This is a maximal config file, the minimum is no config file at all, which will 
 
 node:
   name: docker-host-1
+  git_repo_path: /usr/bin/git # Path to git inside container, needed only if non-default and using local docker builds
 mqtt:
   host: localhost
   user: mymqttuser
-  password: mymqttsecretpassword
+  password: mymqttsecretpassword # Use an environment variable for secrets
   port: 1883
   topic_root: updates2mqtt
 homeassistant:
@@ -57,13 +65,12 @@ homeassistant:
   state_topic_suffix: state
 docker:
   enabled: true
-  default: true
   allow_pull: true # if true, will do a `docker pull` if an update is available
-  allow_restart: true # if true, will do a `docker-compose restart` if an update is installed
+  allow_restart: true # if true, will do a `docker-compose up` if an update is installed
   allow_build: true # if true, will do a `docker-compose build` if a git repo is configured
   compose_version: v2 # Controls whether to use `docker-compose` (v1) or `docker compose` (v2) command
   default_entity_picture_url: https://www.docker.com/wp-content/uploads/2022/03/Moby-logo.png
-  device_icon: mdi:train-car-container
+  device_icon: mdi:train-car-container # Icon to use for Home Assistant as alternative to entity picture
   discover_metadata:
     linuxserver.io:
       enabled: true
@@ -146,9 +153,13 @@ The following environment variables can be used to configure updates2mqtt:
 ## HomeAssistant integration
 
 Any updates that have support for automated install will automatically show in the
-Home Assistant settings page.
+Home Assistant settings page if the [MQTT Integration](https://www.home-assistant.io/integrations/mqtt/) is installed and automatic discovery is not disabled.
 
-![Home Assistant updates in Settings](images/hass_update_page.png "Home Assistant Updates")
+![Home Assistant MQTT Integraion configuation](images/ha_mqtt_discovery.png "Home Assistant MQTT Discovery")
+
+The `homeassistant` default topic prefix matches the default updates2mqtt config, if its changed in HomeAssistant, then the updates2mqtt config must be changed to match.
+
+![Home Assistant updates in Settings](images/ha_update_page.png "Home Assistant Updates")
 
 For Home Assistant integration, updates2mqtt represents each component being managed as a [MQTT Update](https://www.home-assistant.io/integrations/update.mqtt/) entity, and uses [MQTT discovery(https://www.home-assistant.io/integrations/mqtt/#mqtt-discovery)] so that HomeAssistant automatically picks up components discovered by updates2mqtt with zero configuration on HomeAssistant itself. 
 
@@ -162,6 +173,9 @@ If the package supports automated update, then *Skip* and *Install* buttons will
 interface, and the package can be remotely fetched and the component restarted.
 
 ## Development
+
+Access to Docker APIs uses the Python [docker-py](https://docker-py.readthedocs.io/en/stable/) SDK for Python. [Eclipse Paho](https://eclipse.dev/paho/files/paho.mqtt.python/html/client.html) is used for MQTT access, and [OmegaConf](https://omegaconf.readthedocs.io) for configuration.
+
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
 [![CodeQL](https://github.com/rhizomatics/updates2mqtt/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/rhizomatics/updates2mqtt/actions/workflows/github-code-scanning/codeql)
 [![Dependabot Updates](https://github.com/rhizomatics/updates2mqtt/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/rhizomatics/updates2mqtt/actions/workflows/dependabot/dependabot-updates)

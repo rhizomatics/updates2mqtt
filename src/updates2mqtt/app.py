@@ -8,6 +8,7 @@ from threading import Event
 
 import structlog
 
+import updates2mqtt
 from updates2mqtt.model import Discovery, ReleaseProvider
 
 from .config import Config, load_app_config, load_package_info
@@ -143,7 +144,9 @@ def run() -> None:
 
     from .app import App
 
+    log.debug(f"Starting updates2mqtt v{updates2mqtt.version}")
     app = App()
+
     signal.signal(signal.SIGTERM, app.shutdown)
     try:
         asyncio.run(app.run(), debug=False)

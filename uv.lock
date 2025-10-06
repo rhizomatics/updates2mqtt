@@ -904,8 +904,17 @@ wheels = [
 ]
 
 [[package]]
+name = "toml"
+version = "0.10.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/be/ba/1f744cdc819428fc6b5084ec34d9b30660f6f9daaf70eead706e3203ec3c/toml-0.10.2.tar.gz", hash = "sha256:b3bda1d108d5dd99f4a20d24d9c348e91c4db7ab1b749200bded2f839ccbe68f", size = 22253, upload-time = "2020-11-01T01:40:22.204Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/44/6f/7120676b6d73228c96e17f1f794d8ab046fc910d781c8d151120c3f1569e/toml-0.10.2-py2.py3-none-any.whl", hash = "sha256:806143ae5bfb6a3c6e736a764057db0e6a0e05e338b5630894a5f779cabb4f9b", size = 16588, upload-time = "2020-11-01T01:40:20.672Z" },
+]
+
+[[package]]
 name = "updates2mqtt"
-version = "1.2.2"
+version = "1.2.3"
 source = { editable = "." }
 dependencies = [
     { name = "docker" },
@@ -915,6 +924,7 @@ dependencies = [
     { name = "paho-mqtt" },
     { name = "rich" },
     { name = "structlog" },
+    { name = "usingversion" },
 ]
 
 [package.dev-dependencies]
@@ -945,6 +955,7 @@ requires-dist = [
     { name = "paho-mqtt", specifier = ">=2.1.0" },
     { name = "rich", specifier = ">=14.0.0" },
     { name = "structlog", specifier = ">=25.4.0" },
+    { name = "usingversion", specifier = ">=0.1.2" },
 ]
 
 [package.metadata.requires-dev]
@@ -974,6 +985,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/15/22/9ee70a2574a4f4599c47dd506532914ce044817c7752a79b6a51286319bc/urllib3-2.5.0.tar.gz", hash = "sha256:3fc47733c7e419d4bc3f6b3dc2b4f890bb743906a30d56ba4a5bfa4bbff92760", size = 393185, upload-time = "2025-06-18T14:07:41.644Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a7/c2/fe1e52489ae3122415c51f387e221dd0773709bad6c6cdaa599e8a2c5185/urllib3-2.5.0-py3-none-any.whl", hash = "sha256:e6b01673c0fa6a13e374b50871808eb3bf7046c4b125b216f6bf1cc604cff0dc", size = 129795, upload-time = "2025-06-18T14:07:40.39Z" },
+]
+
+[[package]]
+name = "usingversion"
+version = "0.1.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "toml" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c0/bb/10e660fa3381ca2ef602068f74457ed5be1934f830b3cb3b77b07fa8146b/usingversion-0.1.2.tar.gz", hash = "sha256:d254068f7080eaa6d28a7d602d27828da3bc1a8b3bc10911f5cbb9b46877e7c8", size = 7401, upload-time = "2024-02-15T14:10:00.925Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/88/b9/b6dd8e022b9a5ac39cd670c66c31fe005c5398175d6a5e127b9d2cd5f68f/usingversion-0.1.2-py3-none-any.whl", hash = "sha256:9ed8256e68d0b169f00c70f64f9a74a2d668a575032c30b12b3d13a97512fbde", size = 8033, upload-time = "2024-02-15T14:09:59.724Z" },
 ]
 
 [[package]]

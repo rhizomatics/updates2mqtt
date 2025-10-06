@@ -1,11 +1,11 @@
-version: '3'
 services:
   updates2mqtt:
     container_name: updates2mqtt
-    build: ./build/updates2mqtt
+    image: ghcr.io/rhizomatics/updates2mqtt:release
     volumes:
-      - ./conf:/updates2mqtt/conf
-      - /var/run/docker.sock:/var/run/docker.sock
+      - ./conf:/app/conf  # Config file lives at /app/conf/config.yaml inside the container
+      - /var/run/docker.sock:/var/run/docker.sock # Access to Docker daemon for container updates
+      - /home/containers:/home/containers # Optional, map all root paths for docker compose directories
     restart: always
 
 
