@@ -29,6 +29,8 @@ jobs:
       uses: chartboost/ruff-action@v1
     - name: Test with pytest
       run: uv run pytest tests
+    - name: Build a binary wheel and a source tarball
+      run: uv build
     - name: Prep for mkdocs
       run: uv pip compile pyproject.toml -o requirements_docs.txt --group mkdocs
     - name: Deploy docs
