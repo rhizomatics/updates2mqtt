@@ -22,7 +22,7 @@ def test_config(config_name: str) -> None:
 def test_round_trip_config() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         conf_path: Path = Path(tmpdir) / "config-test.yaml"
-        generated_config = load_app_config(conf_path)
+        generated_config = load_app_config(conf_path, return_new=True)
         assert conf_path.exists()
         assert generated_config is not None
         # set mandatory values

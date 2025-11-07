@@ -96,6 +96,10 @@ class UpdateInfoConfig:
     common_packages: dict[str, PackageUpdateInfo] = field(default_factory=lambda: {})
 
 
+class IncompleteConfigException(BaseException):
+    pass
+
+
 def load_package_info(pkginfo_file_path: Path) -> UpdateInfoConfig:
     if pkginfo_file_path.exists():
         log.debug("Loading common package update info", path=pkginfo_file_path)
@@ -107,29 +111,33 @@ def load_package_info(pkginfo_file_path: Path) -> UpdateInfoConfig:
     return typing.cast("UpdateInfoConfig", cfg)
 
 
-def load_app_config(conf_file_path: Path) -> Config | None:
-    initializing: bool = False
+def load_app_config(conf_file_path: Path, return_new: bool = False) -> Config | None:
     base_cfg = OmegaConf.structured(Config)
     if conf_file_path.exists():
         cfg = OmegaConf.merge(base_cfg, OmegaConf.load(conf_file_path))
     else:
-        initializing = True
-        try:
-            log.debug("Creating config directory if not already present", path=conf_file_path)
-            conf_file_path.parent.mkdir(parents=True, exist_ok=True)
-        except Exception:
-            log.exception("Unable to create config directory", path=conf_file_path.parent)
+        if not conf_file_path.parent.exists():
+            try:
+                log.debug(f"Creating config directory {conf_file_path.parent} if not already present")
+                conf_file_path.parent.mkdir(parents=True, exist_ok=True)
+            except Exception:
+                log.exception("Unable to create config directory", path=conf_file_path.parent)
         try:
             conf_file_path.write_text(OmegaConf.to_yaml(base_cfg))
+            log.info(f"Auto-generated a new config file at {conf_file_path}")
+            log.info("The config has place holders for MQTT user and password")
+            if return_new:
+                return base_cfg
+            return None
         except Exception:
             log.exception("Unable to write config file", path=conf_file_path)
         cfg = base_cfg
 
     try:
         # Validate that all required fields are present, throw exception now rather than when config first used
-        OmegaConf.to_container(cfg, throw_on_missing=not initializing)
+        OmegaConf.to_container(cfg, throw_on_missing=True)
         OmegaConf.set_readonly(cfg, True)
         return typing.cast("Config", cfg)
     except (MissingMandatoryValue, ValidationError) as e:
-        log.error("Configuration error: %s", e, path=conf_file_path)
+        log.error("Configuration error %s", e, path=conf_file_path.as_posix())
         return None

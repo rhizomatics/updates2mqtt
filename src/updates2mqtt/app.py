@@ -39,7 +39,8 @@ class App:
         self.last_scan_timestamp: str | None = None
         app_config: Config | None = load_app_config(CONF_FILE)
         if app_config is None:
-            log.error(f"Invalid configuration at {CONF_FILE}, exiting")
+            log.error(f"Invalid configuration at {CONF_FILE}, edit config to fix missing or invalid values and restart")
+            log.error("Exiting app")
             sys.exit(1)
         self.cfg: Config = app_config
 
