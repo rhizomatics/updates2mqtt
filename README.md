@@ -30,10 +30,15 @@ button in the HomeAssistant update dialog. Icons and release notes can be specif
 
 updates2mqtt prefers to be run inside a Docker container.
 
-### Manual
+### Manual - Run without installing using uv
 ```
-uv sync
-uv run updates2mqtt
+uv run --with updates2mqtt updates2mqtt
+```
+
+### Manual - Install and run with pip
+```
+pip install updates2mqtt
+python3 -m updates2mqtt
 ```
 ### Docker
 
