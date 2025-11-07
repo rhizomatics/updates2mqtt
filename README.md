@@ -28,18 +28,9 @@ button in the HomeAssistant update dialog. Icons and release notes can be specif
 
 ## Install
 
-updates2mqtt prefers to be run inside a Docker container.
+updates2mqtt prefers to be run inside a Docker container, though can run standalone, for
+example scripted via cron or systemd.
 
-### Manual - Run without installing using uv
-```
-uv run --with updates2mqtt updates2mqtt
-```
-
-### Manual - Install and run with pip
-```
-pip install updates2mqtt
-python3 -m updates2mqtt
-```
 ### Docker
 
 See `examples` directory for a working `docker-compose.yaml`.
@@ -50,6 +41,21 @@ directory where the docker compose file lives must be available in the updates2m
 The example `docker-compose.yaml` mounts `/home/containers` for this purpose, so if your containers are in
 `/home/containers/app1`, `/home/containers/app2` etc, then updates2mqtt will be able to find them. Map as
 many root paths as needed.
+
+### Without Docker
+
+#### Run without installing using uv
+
+```
+uv run --with updates2mqtt updates2mqtt
+```
+
+#### Install and run with pip
+
+```
+pip install updates2mqtt
+python3 -m updates2mqtt
+```
 
 ## Configuration
 
