@@ -1,0 +1,33 @@
+log:
+  level: INFO
+node:
+  name: mydockerpc
+  git_path: /usr/bin/git
+  healthcheck:
+    enabled: true
+    interval: 300
+    topic_template: healthcheck/{node_name}/updates2mqtt
+mqtt:
+  host: localhost
+  port: ${oc.env:MQTT_PORT}
+  user: ${oc.env:MQTT_USER}
+  password: ${oc.env:MQTT_PASS}
+  topic_root: updates2mqtt
+homeassistant:
+  discovery:
+    prefix: homeassistant
+    enabled: true
+  state_topic_suffix: state
+docker:
+  enabled: true
+  allow_pull: true
+  allow_restart: true
+  allow_build: true
+  compose_version: v2
+  default_entity_picture_url: https://www.docker.com/wp-content/uploads/2022/03/Moby-logo.png
+  device_icon: mdi:docker
+  discover_metadata:
+    linuxserver.io:
+      enabled: true
+      cache_ttl: 604800
+scan_interval: 10800

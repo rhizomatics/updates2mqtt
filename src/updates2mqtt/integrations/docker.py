@@ -9,9 +9,9 @@ from typing import Any, cast
 
 import docker
 import docker.errors
-import hishel
 import structlog
 from docker.models.containers import Container
+from hishel import CacheClient  # type: ignore[attr-defined]
 
 from updates2mqtt.config import DockerConfig, DockerPackageUpdateInfo, NodeConfig, PackageUpdateInfo, UpdateInfoConfig
 from updates2mqtt.model import Discovery, ReleaseProvider
@@ -77,8 +77,8 @@ class DockerProvider(ReleaseProvider):
                 full_repo_path: Path = Path(compose_path) / git_repo_path
             else:
                 full_repo_path = Path(git_repo_path)
-            if git_check_update_available(full_repo_path, self.node_cfg.git_path):
-                git_pull(full_repo_path, self.node_cfg.git_path)
+            if git_check_update_available(full_repo_path, Path(self.node_cfg.git_path)):
+                git_pull(full_repo_path, Path(self.node_cfg.git_path))
             if compose_path:
                 self.build(discovery, compose_path)
             else:
@@ -235,8 +235,8 @@ class DockerProvider(ReleaseProvider):
                     cast("str", custom.get("git_repo_path"))
                 )
 
-                git_trust(full_repo_path, self.node_cfg.git_path)
-                save_if_set("git_local_timestamp", git_timestamp(full_repo_path, self.node_cfg.git_path))
+                git_trust(full_repo_path, Path(self.node_cfg.git_path))
+                save_if_set("git_local_timestamp", git_timestamp(full_repo_path, Path(self.node_cfg.git_path)))
             features: list[str] = []
             can_pull: bool = (
                 self.cfg.allow_pull
@@ -376,7 +376,7 @@ class DockerProvider(ReleaseProvider):
 def linuxserver_metadata_api(cache_ttl: int) -> dict:
     """Fetch and cache linuxserver.io API call for image metadata"""
     try:
-        with hishel.CacheClient(headers=[("cache-control", f"max-age={cache_ttl}")]) as client:
+        with CacheClient(headers=[("cache-control", f"max-age={cache_ttl}")]) as client:
             log.debug(f"Fetching linuxserver.io metadata from API, cache_ttl={cache_ttl}")
             req = client.get("https://api.linuxserver.io/api/v1/images?include_config=false&include_deprecated=false")
             return req.json()

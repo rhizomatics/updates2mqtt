@@ -60,7 +60,7 @@ class HealthCheckConfig:
 @dataclass
 class NodeConfig:
     name: str = field(default_factory=lambda: os.uname().nodename.replace(".local", ""))
-    git_path: Path = Path("/usr/bin/git")
+    git_path: str = "/usr/bin/git"
     healthcheck: HealthCheckConfig = field(default_factory=HealthCheckConfig)
 
 
@@ -108,10 +108,12 @@ def load_package_info(pkginfo_file_path: Path) -> UpdateInfoConfig:
 
 
 def load_app_config(conf_file_path: Path) -> Config | None:
+    initializing: bool = False
     base_cfg = OmegaConf.structured(Config)
     if conf_file_path.exists():
         cfg = OmegaConf.merge(base_cfg, OmegaConf.load(conf_file_path))
     else:
+        initializing = True
         try:
             log.debug("Creating config directory if not already present", path=conf_file_path)
             conf_file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -125,7 +127,7 @@ def load_app_config(conf_file_path: Path) -> Config | None:
 
     try:
         # Validate that all required fields are present, throw exception now rather than when config first used
-        OmegaConf.to_container(cfg, throw_on_missing=True)
+        OmegaConf.to_container(cfg, throw_on_missing=not initializing)
         OmegaConf.set_readonly(cfg, True)
         return typing.cast("Config", cfg)
     except (MissingMandatoryValue, ValidationError) as e:
