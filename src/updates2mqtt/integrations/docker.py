@@ -388,6 +388,7 @@ def linuxserver_metadata_api(cache_ttl: int) -> dict:
 def linuxserver_metadata(discovered_pkgs: dict[str, PackageUpdateInfo], cache_ttl: int) -> None:
     """Fetch linuxserver.io metadata for all their images via their API"""
     repos: list = linuxserver_metadata_api(cache_ttl).get("data", {}).get("repositories", {}).get("linuxserver", [])
+    added = 0
     for repo in repos:
         image_name = repo.get("name")
         if image_name and image_name not in discovered_pkgs:
@@ -396,4 +397,6 @@ def linuxserver_metadata(discovered_pkgs: dict[str, PackageUpdateInfo], cache_tt
                 logo_url=repo["project_logo"],
                 release_notes_url=f"{repo['github_url']}/releases",
             )
+            added += 1
             log.debug("Added linuxserver.io package", pkg=image_name)
+    log.info(f"Added {added} linuxserver.io package details")
