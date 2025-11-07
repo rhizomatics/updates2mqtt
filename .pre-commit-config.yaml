@@ -60,7 +60,7 @@ repos:
           - paho-mqtt
           - omegaconf
           - types-docker
-          - hishel
+          - hishel[httpx]
           - usingversion
  
   - repo: https://github.com/PyCQA/bandit

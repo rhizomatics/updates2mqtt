@@ -11,7 +11,7 @@ import docker
 import docker.errors
 import structlog
 from docker.models.containers import Container
-from hishel import CacheClient  # type: ignore[attr-defined]
+from hishel.httpx import SyncCacheClient
 
 from updates2mqtt.config import DockerConfig, DockerPackageUpdateInfo, NodeConfig, PackageUpdateInfo, UpdateInfoConfig
 from updates2mqtt.model import Discovery, ReleaseProvider
@@ -376,7 +376,7 @@ class DockerProvider(ReleaseProvider):
 def linuxserver_metadata_api(cache_ttl: int) -> dict:
     """Fetch and cache linuxserver.io API call for image metadata"""
     try:
-        with CacheClient(headers=[("cache-control", f"max-age={cache_ttl}")]) as client:
+        with SyncCacheClient(headers=[("cache-control", f"max-age={cache_ttl}")]) as client:
             log.debug(f"Fetching linuxserver.io metadata from API, cache_ttl={cache_ttl}")
             req = client.get("https://api.linuxserver.io/api/v1/images?include_config=false&include_deprecated=false")
             return req.json()
