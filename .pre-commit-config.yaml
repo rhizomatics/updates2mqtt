@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.21.0
+    rev: v3.21.1
     hooks:
       - id: pyupgrade
         args: [--py313-plus]
@@ -17,7 +17,7 @@ repos:
       - id: check-shebang-scripts-are-executable
         name: Check shell scripts are executable
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.9.7
+    rev: 0.9.8
     hooks:
       - id: uv-lock
   - repo: https://github.com/astral-sh/ruff-pre-commit
