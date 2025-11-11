@@ -155,6 +155,7 @@ class App:
         self.publisher.stop()
         log.debug("Interrupt: %s", interrupt_task.done())
         log.info("Shutdown handling complete")
+        sys.exit(143)  # SIGTERM Graceful Exit
 
     async def healthcheck(self) -> None:
         self.publisher.publish(
