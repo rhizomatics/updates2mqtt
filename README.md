@@ -17,15 +17,19 @@ Use Home Assistant to notify you of updates to Docker images for your containers
 
 ## Description
 
-updates2mqtt perioidically checks for new versions of components being available, and publishes new version info to MQTT.
-HomeAssistant auto discovery is supported, so all updates can be seen in the same place as Home Assistant's own components and add-ins.
+updates2mqtt perioidically checks for new versions of components being available, and publishes new version info to MQTT. HomeAssistant auto discovery is supported, so all updates can be seen in the same place as Home Assistant's own components and add-ins.
 
 Currently only Docker containers are supported, either via an image registry check, or a git repo for source (see [Local Builds](local_builds.md)). The design is modular, so other update sources can be added, at least for notification. The next anticipated is **apt** for Debian based systems.
 
-Components can also be updated, either automatically or triggered via MQTT, for example by hitting the *Install*
-button in the HomeAssistant update dialog. Icons and release notes can be specified for a better HA experience.
+Components can also be updated, either automatically or triggered via MQTT, for example by hitting the *Install* button in the HomeAssistant update dialog. Icons and release notes can be specified for a better HA experience.
 
 To get started, read the [Installation](installation.md) and [Configuration](configuration.md) pages.
+
+For a quick spin, try this:
+
+```yaml
+docker run -e MQTT_USER=user1 -e MQTT_PASS=pass1 -e MQTT_HOST=192.168.1.5 ghcr.io/rhizomatics/updates2mqtt:release
+```
 
 ## Release Support
 
