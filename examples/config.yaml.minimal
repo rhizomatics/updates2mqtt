@@ -4,19 +4,6 @@ mqtt:
   user: ${oc.env:MQTT_USER}
   password: ${oc.env:MQTT_PASS}
 
-docker:
-  enabled: True
-  compose_version: v2
-
 node:
   name: dockernuc
-  healthcheck:
-    interval: 300
 
-homeassistant:
-  discovery:
-    prefix: homeassistant
-    enabled: True
-
-log:
-  level: INFO

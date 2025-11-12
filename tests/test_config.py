@@ -11,6 +11,21 @@ EXAMPLES_ROOT = "examples"
 examples = [str(p.name) for p in Path(EXAMPLES_ROOT).iterdir() if p.name.startswith("config")]
 
 
+def test_envvar_config(monkeypatch) -> None:  # noqa: ANN001
+    with tempfile.TemporaryDirectory() as tmpdir:
+        monkeypatch.setenv("MQTT_HOST", "193.11.55.12")
+        monkeypatch.setenv("MQTT_USER", "tester")
+        monkeypatch.setenv("MQTT_PASS", uuid.uuid4().hex)
+        monkeypatch.setenv("MQTT_PORT", "1824")
+        conf_path: Path = Path(tmpdir) / "config-test-env.yaml"
+        validated_config = load_app_config(conf_path, return_new=True)
+        assert validated_config is not None
+        assert validated_config.node.git_path == "/usr/bin/git"
+        assert validated_config.mqtt.port == 1824
+        assert validated_config.mqtt.host == "193.11.55.12"
+        assert validated_config.mqtt.user == "tester"
+
+
 @pytest.mark.parametrize("config_name", examples)
 def test_config(config_name: str) -> None:
     config_path: Path = Path(EXAMPLES_ROOT) / config_name

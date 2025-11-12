@@ -4,17 +4,17 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import structlog
-from omegaconf import MISSING, MissingMandatoryValue, OmegaConf, ValidationError
+from omegaconf import MISSING, DictConfig, MissingMandatoryValue, OmegaConf, ValidationError
 
 log = structlog.get_logger()
 
 
 @dataclass
 class MqttConfig:
-    host: str = "localhost"
-    user: str = MISSING
-    password: str = MISSING
-    port: int = 1883
+    host: str = "${oc.env:MQTT_HOST,localhost}"
+    user: str = "${oc.env:MQTT_USER,null}"
+    password: str = "${oc.env:MQTT_PASS,null}"  # noqa: S105
+    port: int = "${oc.decode:${oc.env:MQTT_PORT,1883}}"  # type: ignore[assignment]
     topic_root: str = "updates2mqtt"
 
 
@@ -112,9 +112,10 @@ def load_package_info(pkginfo_file_path: Path) -> UpdateInfoConfig:
 
 
 def load_app_config(conf_file_path: Path, return_new: bool = False) -> Config | None:
-    base_cfg = OmegaConf.structured(Config)
+    base_cfg: DictConfig = OmegaConf.structured(Config)
+    is_new: bool = False
     if conf_file_path.exists():
-        cfg = OmegaConf.merge(base_cfg, OmegaConf.load(conf_file_path))
+        cfg: DictConfig = typing.cast("DictConfig", OmegaConf.merge(base_cfg, OmegaConf.load(conf_file_path)))
     else:
         if not conf_file_path.parent.exists():
             try:
@@ -126,9 +127,7 @@ def load_app_config(conf_file_path: Path, return_new: bool = False) -> Config | 
             conf_file_path.write_text(OmegaConf.to_yaml(base_cfg))
             log.info(f"Auto-generated a new config file at {conf_file_path}")
             log.info("The config has place holders for MQTT user and password")
-            if return_new:
-                return base_cfg
-            return None
+            is_new = True
         except Exception:
             log.exception("Unable to write config file", path=conf_file_path)
         cfg = base_cfg
@@ -140,4 +139,6 @@ def load_app_config(conf_file_path: Path, return_new: bool = False) -> Config | 
         return typing.cast("Config", cfg)
     except (MissingMandatoryValue, ValidationError) as e:
         log.error("Configuration error %s", e, path=conf_file_path.as_posix())
+        if return_new and is_new and cfg is not None:
+            return typing.cast("Config", cfg)
         return None
