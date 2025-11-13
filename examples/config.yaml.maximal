@@ -9,9 +9,9 @@ node:
     topic_template: healthcheck/{node_name}/updates2mqtt
 mqtt:
   host: localhost
-  port: ${oc.env:MQTT_PORT}
-  user: ${oc.env:MQTT_USER}
-  password: ${oc.env:MQTT_PASS}
+  port: 1883
+  user: mymqttuser
+  password: mysecret
   topic_root: updates2mqtt
 homeassistant:
   discovery:

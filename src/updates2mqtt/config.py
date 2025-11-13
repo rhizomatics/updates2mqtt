@@ -12,8 +12,8 @@ log = structlog.get_logger()
 @dataclass
 class MqttConfig:
     host: str = "${oc.env:MQTT_HOST,localhost}"
-    user: str = "${oc.env:MQTT_USER,null}"
-    password: str = "${oc.env:MQTT_PASS,null}"  # noqa: S105
+    user: str = f"${{oc.env:MQTT_USER,{MISSING}}}"
+    password: str = f"${{oc.env:MQTT_PASS,{MISSING}}}"
     port: int = "${oc.decode:${oc.env:MQTT_PORT,1883}}"  # type: ignore[assignment]
     topic_root: str = "updates2mqtt"
 
@@ -111,7 +111,7 @@ def load_package_info(pkginfo_file_path: Path) -> UpdateInfoConfig:
     return typing.cast("UpdateInfoConfig", cfg)
 
 
-def load_app_config(conf_file_path: Path, return_new: bool = False) -> Config | None:
+def load_app_config(conf_file_path: Path, return_invalid: bool = False) -> Config | None:
     base_cfg: DictConfig = OmegaConf.structured(Config)
     is_new: bool = False
     if conf_file_path.exists():
@@ -136,9 +136,15 @@ def load_app_config(conf_file_path: Path, return_new: bool = False) -> Config | 
         # Validate that all required fields are present, throw exception now rather than when config first used
         OmegaConf.to_container(cfg, throw_on_missing=True)
         OmegaConf.set_readonly(cfg, True)
-        return typing.cast("Config", cfg)
+        config: Config = typing.cast("Config", cfg)
+        if config.mqtt.user == MISSING or config.mqtt.password == MISSING:
+            if not is_new:
+                log.warning("MQTT connection configuration has place holders")
+            if not is_new and not return_invalid:
+                return None
+        return config
     except (MissingMandatoryValue, ValidationError) as e:
         log.error("Configuration error %s", e, path=conf_file_path.as_posix())
-        if return_new and is_new and cfg is not None:
+        if return_invalid and cfg is not None:
             return typing.cast("Config", cfg)
-        return None
+        raise
