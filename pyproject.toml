@@ -171,6 +171,8 @@ directory="htmlcov"
 mypy_path=["./src","./tests"]
 
 [project.urls]
+Homepage="https://updates2mqtt.rhizomatics.org.uk"
 Repository="https://github.com/rhizomatics/updates2mqtt"
 Documentation="https://updates2mqtt.rhizomatics.org.uk"
 Issues="https://github.com/rhizomatics/updates2mqtt/issues"
+Changelog="https://github.com/rhizomatics/updates2mqtt/blob/main/CHANGELOG.md"
