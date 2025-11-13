@@ -3,13 +3,14 @@ import json
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from threading import Event
 from typing import Any
 
 import paho.mqtt.client as mqtt
 import paho.mqtt.subscribeoptions
 import structlog
 from paho.mqtt.client import MQTTMessage
-from paho.mqtt.enums import CallbackAPIVersion
+from paho.mqtt.enums import CallbackAPIVersion, MQTTErrorCode
 from paho.mqtt.properties import Properties
 from paho.mqtt.reasoncodes import ReasonCode
 
@@ -35,6 +36,7 @@ class MqttClient:
         self.providers_by_topic: dict[str, ReleaseProvider] = {}
         self.event_loop: asyncio.AbstractEventLoop | None = None
         self.client: mqtt.Client | None = None
+        self.fatal_failure = Event()
         self.log = structlog.get_logger().bind(host=cfg.host, integration="mqtt")
 
     def start(self, event_loop: asyncio.AbstractEventLoop | None = None) -> None:
@@ -47,7 +49,8 @@ class MqttClient:
                 clean_session=True,
             )
             self.client.username_pw_set(self.cfg.user, password=self.cfg.password)
-            self.client.connect(host=self.cfg.host, port=self.cfg.port, keepalive=60)
+            rc: MQTTErrorCode = self.client.connect(host=self.cfg.host, port=self.cfg.port, keepalive=60)
+            self.log.info("Client connection requested", result_code=rc)
 
             self.client.on_connect = self.on_connect
             self.client.on_disconnect = self.on_disconnect
@@ -66,12 +69,19 @@ class MqttClient:
             self.client.disconnect()
             self.client = None
 
+    def is_available(self) -> bool:
+        return not self.fatal_failure.is_set()
+
     def on_connect(
         self, _client: mqtt.Client, _userdata: Any, _flags: mqtt.ConnectFlags, rc: ReasonCode, _props: Properties | None
     ) -> None:
-        if not self.client:
-            self.log.warn("No client, check if started")
+        if not self.client or self.fatal_failure.is_set():
+            self.log.warn("No client, check if started and authorized")
             return
+        if rc.getName() == "Not authorized":
+            self.fatal_failure.set()
+            log.error("Invalid MQTT credentials", result_code=rc)
+
         self.log.info("Connected to broker", result_code=rc)
         for topic in self.providers_by_topic:
             self.log.info("(Re)subscribing", topic=topic)
@@ -91,6 +101,8 @@ class MqttClient:
         self, provider: ReleaseProvider, last_scan_session: str | None, wait_time: int = 5, force: bool = False
     ) -> None:
         logger = self.log.bind(action="clean")
+        if self.fatal_failure.is_set():
+            return
         logger.info("Starting clean cycle")
         cleaner = mqtt.Client(
             callback_api_version=CallbackAPIVersion.VERSION1,

@@ -99,12 +99,17 @@ class App:
         for scanner in self.scanners:
             self.publisher.subscribe_hass_command(scanner)
 
-        while not self.stopped.is_set():
+        while not self.stopped.is_set() and self.publisher.is_available():
             await self.scan()
-            if not self.stopped.is_set():
+            if not self.stopped.is_set() and self.publisher.is_available():
                 await asyncio.sleep(self.cfg.scan_interval)
             else:
                 log.info("Stop requested, exiting run loop and skipping sleep")
+
+        if not self.publisher.is_available():
+            log.error("MQTT fatal connection error - check host,port,user,password in config")
+            self.shutdown(exit_code=1)
+
         log.debug("Exiting run loop")
 
     async def on_discovery(self, discovery: Discovery) -> None:
@@ -144,8 +149,8 @@ class App:
         await asyncio.gather(*running_tasks, return_exceptions=True)
         log.debug("Cancellation task completed")
 
-    def shutdown(self, *args) -> None:  # noqa: ANN002
-        log.info("Shutting down on SIGTERM: %s", args)
+    def shutdown(self, *args, exit_code: int = 143) -> None:  # noqa: ANN002, ARG002
+        log.info("Shutting down, exit_code: %s", exit_code)
         self.stopped.set()
         for scanner in self.scanners:
             scanner.stop()
@@ -155,9 +160,11 @@ class App:
         self.publisher.stop()
         log.debug("Interrupt: %s", interrupt_task.done())
         log.info("Shutdown handling complete")
-        sys.exit(143)  # SIGTERM Graceful Exit
+        sys.exit(exit_code)  # SIGTERM Graceful Exit = 143
 
     async def healthcheck(self) -> None:
+        if not self.publisher.is_available():
+            return
         self.publisher.publish(
             topic=self.healthcheck_topic,
             payload={
@@ -179,7 +186,7 @@ async def repeated_call(func: Callable, interval: int = 60, *args: Any, **kwargs
             await func(*args, **kwargs)
             await asyncio.sleep(interval)
         except asyncio.CancelledError:
-            log.exception("Periodic task cancelled")
+            log.debug("Periodic task cancelled")
         except Exception:
             log.exception("Periodic task failed")
 

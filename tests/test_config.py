@@ -18,7 +18,7 @@ def test_envvar_config(monkeypatch) -> None:  # noqa: ANN001
         monkeypatch.setenv("MQTT_PASS", uuid.uuid4().hex)
         monkeypatch.setenv("MQTT_PORT", "1824")
         conf_path: Path = Path(tmpdir) / "config-test-env.yaml"
-        validated_config = load_app_config(conf_path, return_new=True)
+        validated_config = load_app_config(conf_path, return_invalid=True)
         assert validated_config is not None
         assert validated_config.node.git_path == "/usr/bin/git"
         assert validated_config.mqtt.port == 1824
@@ -27,7 +27,9 @@ def test_envvar_config(monkeypatch) -> None:  # noqa: ANN001
 
 
 @pytest.mark.parametrize("config_name", examples)
-def test_config(config_name: str) -> None:
+def test_config(config_name: str, monkeypatch) -> None:  # noqa: ANN001
+    monkeypatch.setenv("MQTT_USER", "tester")
+    monkeypatch.setenv("MQTT_PASS", uuid.uuid4().hex)
     config_path: Path = Path(EXAMPLES_ROOT) / config_name
     validated_config = load_app_config(config_path)
     assert validated_config is not None
@@ -37,7 +39,7 @@ def test_config(config_name: str) -> None:
 def test_round_trip_config() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         conf_path: Path = Path(tmpdir) / "config-test.yaml"
-        generated_config = load_app_config(conf_path, return_new=True)
+        generated_config = load_app_config(conf_path, return_invalid=True)
         assert conf_path.exists()
         assert generated_config is not None
         # set mandatory values
