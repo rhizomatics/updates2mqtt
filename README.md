@@ -72,8 +72,10 @@ interface, and the package can be remotely fetched and the component restarted.
 
 ## Related Projects
 
+Other apps useful for self-hosting with the help of MQTT:
+
 - [psmqtt](https://github.com/eschava/psmqtt) - Report system health and metrics via MQTT
-- 
+
 ## Development
 
 Access to Docker APIs uses the Python [docker-py](https://docker-py.readthedocs.io/en/stable/) SDK for Python. [Eclipse Paho](https://eclipse.dev/paho/files/paho.mqtt.python/html/client.html) is used for MQTT access, and [OmegaConf](https://omegaconf.readthedocs.io) for configuration.
