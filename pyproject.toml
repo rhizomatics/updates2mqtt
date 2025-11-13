@@ -60,6 +60,9 @@ dev = [
 mkdocs=[
     "mkdocs-material",
     "mkdocstrings",
+    "mkdocs-minify-plugin",
+    "mkdocs-autorefs",
+    "mkdocs-pagetree-plugin",
     "mkdocstrings[python]",
     "pymdown-extensions",
 ]

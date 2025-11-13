@@ -14,7 +14,10 @@ theme:
     - content.code.annotate 
 
 plugins:
-  - search
+  - autorefs
+  - pagetree
+  - minify:
+      minify_html: true
   - mkdocstrings:
       handlers:
         # See: https://mkdocstrings.github.io/python/usage/
@@ -30,6 +33,7 @@ markdown_extensions:
       pygments_lang_class: true
   - pymdownx.inlinehilite
   - pymdownx.superfences
+  - admonition
   - smarty
   - toc:
       permalink: true
