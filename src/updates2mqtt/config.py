@@ -113,7 +113,6 @@ def load_package_info(pkginfo_file_path: Path) -> UpdateInfoConfig:
 
 def load_app_config(conf_file_path: Path, return_invalid: bool = False) -> Config | None:
     base_cfg: DictConfig = OmegaConf.structured(Config)
-    is_new: bool = False
     if conf_file_path.exists():
         cfg: DictConfig = typing.cast("DictConfig", OmegaConf.merge(base_cfg, OmegaConf.load(conf_file_path)))
     else:
@@ -126,8 +125,6 @@ def load_app_config(conf_file_path: Path, return_invalid: bool = False) -> Confi
         try:
             conf_file_path.write_text(OmegaConf.to_yaml(base_cfg))
             log.info(f"Auto-generated a new config file at {conf_file_path}")
-            log.info("The config has place holders for MQTT user and password")
-            is_new = True
         except Exception:
             log.exception("Unable to write config file", path=conf_file_path)
         cfg = base_cfg
@@ -137,9 +134,9 @@ def load_app_config(conf_file_path: Path, return_invalid: bool = False) -> Confi
         OmegaConf.to_container(cfg, throw_on_missing=True)
         OmegaConf.set_readonly(cfg, True)
         config: Config = typing.cast("Config", cfg)
-        if config.mqtt.user == MISSING or config.mqtt.password == MISSING:
-            if not is_new:
-                log.warning("MQTT connection configuration has place holders")
+
+        if config.mqtt.user in ("", MISSING) or config.mqtt.password in ("", MISSING):
+            log.info("The config has place holders for MQTT user and/or password")
             if not return_invalid:
                 return None
         return config
