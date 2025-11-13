@@ -140,7 +140,7 @@ def load_app_config(conf_file_path: Path, return_invalid: bool = False) -> Confi
         if config.mqtt.user == MISSING or config.mqtt.password == MISSING:
             if not is_new:
                 log.warning("MQTT connection configuration has place holders")
-            if not is_new and not return_invalid:
+            if not return_invalid:
                 return None
         return config
     except (MissingMandatoryValue, ValidationError) as e:
