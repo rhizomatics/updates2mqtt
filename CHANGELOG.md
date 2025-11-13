@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 1.3.7
+- Improved initial setup when run without config or env vars for MQTT
+- Minor test deps update and pyproject docs
+
 ## 1.3.6
 - Changed exit code on graceful shutdown to 143
 - App now exits if the MQTT username / password is not authorized
