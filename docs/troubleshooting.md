@@ -32,3 +32,21 @@ Where `docker-compose` projects are being automatically updated and restarted, o
   
 If the `updates2mqtt` container is not running as root, then ensure that the user is a member of the local `docker` group. (If it is running as root, then consider moving
 to a defined user, see [Running as Non-Root](configuration.md#running-as-non-root)).
+
+### Docker Help
+
+Best place to start is the `docker-py` [Issues](https://github.com/docker/docker-py/issues?q=is%3Aissue) on GitHub, since this is the primary component inside Updates2MQTT.
+
+A simple way of testing if there's a `docker-py` issue is to load the client
+directly from python. This example uses `uv` to avoid changing local Python
+environment, use `pip` or other preferred tool to install if you want instead.
+
+```yaml
+uv run --with docker python3
+>>> import docker
+>>> docker.__version__
+>>> client = docker.from_env()
+>>> client.info()['Containers']
+```
+
+This should output the version of the `docker` package, and the total count of local containers if the connection is good. Updates2MQTT uses at least v7.1.0 of `docker` for Python API.
