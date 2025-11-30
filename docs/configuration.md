@@ -69,7 +69,7 @@ have one, follow the [Docker Post Install Steps](https://docs.docker.com/engine/
 sudo adduser --system --ingroup docker --no-create-home -shell /sbin/nologin updates2mqtt
 ```
 
-Note the `uid` that is reported here. If you don't know the `gid` for the `docker` group, use `grep docker /etc/group`
+Note the `uid` that is reported here. If you don't know the `gid` for the `docker` group, use `grep docker /etc/group`. In this example, our `uid` is `130` and the `gid` of `docker` group is `119`.
 
 In the `docker-compose.yaml`, set the user and group using [user](https://docs.docker.com/reference/compose-file/services/#user) attribute:
 
