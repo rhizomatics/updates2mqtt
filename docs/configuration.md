@@ -44,6 +44,8 @@ log:
   level: INFO
 ```
 
+## Improving Security
+
 ### Moving Secrets Out of Config
 
 Example use of environment variables, e.g. for secrets:
@@ -52,7 +54,40 @@ Example use of environment variables, e.g. for secrets:
 mqtt:
     password: ${oc.env:MQTT_PASS}
 ```
-### Customizing images and release notes
+
+### Running as non-root
+
+It is good practice not to run Docker containers as root, and `updates2mqtt` will
+work with any user so long as it has Docker permissions, usually as a result
+of being a member of the `docker` group.
+
+To create a suitable use, use the shell command below - it will create a user
+that can only be used for this purpose, and can't otherwise login. It assumes there is already a group called `docker` with access to the Docker Daemon, if you dont
+have one, follow the [Docker Post Install Steps](https://docs.docker.com/engine/install/linux-postinstall/) which explain how and why to do it.
+
+```bash
+sudo adduser --system --ingroup docker --no-create-home -shell /sbin/nologin updates2mqtt
+```
+
+Note the `uid` that is reported here. If you don't know the `gid` for the `docker` group, use `grep docker /etc/group`
+
+In the `docker-compose.yaml`, set the user and group using [user](https://docs.docker.com/reference/compose-file/services/#user) attribute:
+
+```yaml
+services:
+  updates2mqtt:
+    container_name: updates2mqtt
+    image: ghcr.io/rhizomatics/updates2mqtt:release
+    user: 130:119
+```
+
+If you're using Updates2MQTT to update local git repos, then the user created above will also need `rw` access to those, which you can do by making it a member of the
+same group as owns the repos and making sure they have group `rw` access configured.
+
+For more information, see the [Understanding the Docker USER Instruction](https://www.docker.com/blog/understanding-the-docker-user-instruction/) article from Docker.
+
+
+## Customizing images and release notes
 
 Individual docker containers can have customized entity pictures or release notes, using env variables, for example in the `docker-compose.yaml` or in a separate `.env` file:
 
@@ -64,6 +99,7 @@ Individual docker containers can have customized entity pictures or release note
 
 The images will show up in the *Update* section of *Settings* menu in HomeAssistant,
 as will the release notes link. SVG icons should be used.
+
 
 #### Icon Sources
 
