@@ -103,8 +103,8 @@ class MqttClient:
             log.error("Invalid MQTT credentials", result_code=rc)
 
         self.log.info("Connected to broker", result_code=rc)
-        for topic in self.providers_by_topic:
-            self.log.info("(Re)subscribing", topic=topic)
+        for topic, provider in self.providers_by_topic.items():
+            self.log.info("(Re)subscribing", topic=topic, provider=provider.source_type)
             self.client.subscribe(topic)
 
     def on_disconnect(
