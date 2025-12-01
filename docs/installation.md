@@ -12,6 +12,19 @@ See `examples` directory for a working `docker-compose.yaml`.
 
 If you want to update and restart containers, then the file system paths to the location of the directory where the docker compose file lives must be available in the updates2mqtt container. 
 
+```yaml
+volumes:
+      # Must have config directory mapped
+      - ./conf:/app/conf
+      # Must have the Docker daemon socket mapped
+      - /var/run/docker.sock:/var/run/docker.sock
+      # This list of paths is only needed when containers are to be updated
+      # The paths here are completely dependent on where your docker-compose files live
+      - /home/containers:/home/containers
+      - /dev.containers:/dev.containers
+      - /containers:/containers
+```
+
 The example `docker-compose.yaml` mounts `/home/containers` for this purpose, so if your containers are in
 `/home/containers/app1`, `/home/containers/app2` etc, then updates2mqtt will be able to find them. Map as many root paths as needed.
 
