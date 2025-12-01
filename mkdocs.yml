@@ -32,6 +32,9 @@ plugins:
   - tags
   - minify:
       minify_html: true
+  - coverage:
+      page_path: developer/coverage
+      html_report_dir: htmlcov
   - mkdocstrings:
       handlers:
         # See: https://mkdocstrings.github.io/python/usage/
