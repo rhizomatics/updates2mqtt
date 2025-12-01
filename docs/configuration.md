@@ -86,6 +86,16 @@ same group as owns the repos and making sure they have group `rw` access configu
 
 For more information, see the [Understanding the Docker USER Instruction](https://www.docker.com/blog/understanding-the-docker-user-instruction/) article from Docker.
 
+### MQTT Access Control
+
+Its best to have a dedicated MQTT user for Updates2MQTT, for security and debug. For most
+secure installations, only use secure ports with validated certificates, although this will
+require more complicated setup and ongoing support, including using host names rather than
+IP addresses, and with [LetsEncrypt](https://letsencrypt.org) to update certificates.
+
+The two brokers most commonly used with Home Assistant, **Mosquitto** and **EMQX**, both have
+access control mechanisms, so you can restrict the user account for Updates2MQTT to only be able
+to read and write its own topics.
 
 ## Customizing images and release notes
 
