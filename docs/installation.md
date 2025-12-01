@@ -27,3 +27,16 @@ uv run --with updates2mqtt updates2mqtt
 pip install updates2mqtt
 python3 -m updates2mqtt
 ```
+
+## Verifying it Works
+
+Rather than wait for a container to need an update, you can check right away that
+Home Assistant has recognized the containers as MQTT Update targets.
+
+From the [Entities View](https://www.home-assistant.io/docs/configuration/entities_domains/), or the
+[Developer Tools](https://www.home-assistant.io/docs/tools/dev-tools/), filter
+the entities by `update.` If there are lots of other updates (HassOS apps, Zigbee
+device firmware etc), then pick one of the container names you know.
+
+![Home Assistant Entities](images/ha_entities.png){width=640}
+
