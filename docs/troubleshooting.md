@@ -1,6 +1,18 @@
 # Troubleshooting
 
-## Log Level
+## General
+
+Things that need to work:
+
+- Docker API access to list and inspect containers
+- MQTT Publication of results
+- Home Assistant discovering the Update entities on MQTT
+- Home Assistant generating update notices in UI when there's a new version
+- Command Topic message sent by Home Assistant when Update button clicked
+- Docker Compose available from shell to make updates and restart
+- Git command available in shell to check for local repo updates and pull
+
+## Updates2MQTT Log Level
 
 Update the `config.yaml` and change the log level to DEBUG
 
@@ -57,6 +69,18 @@ Oddly, the Paho MQTT client used by Updates2MQTT is known to [report success eve
 #### Alternative MQTT Discovery
 
 There's also an alternative to MQTT Discovery in HA, using plain yaml, the [MQTT Update Integration](https://www.home-assistant.io/integrations/update.mqtt/#configuration). The [BBQKees Boiler Gateway](https://bbqkees-electronics.nl/wiki/home-automations/home-assistant-configuration.html) has some detailed steps and examples for MQTT Discovery too.
+
+#### Home Assistant Logs
+
+Use the [System Log](https://www.home-assistant.io/integrations/system_log/) to check
+for MQTT errors, or for positive confirmation that Update entities have been discovered. The
+*raw* log will show more, and allow you to scroll back for hours.
+
+The [Logger Integration](https://www.home-assistant.io/integrations/logger/#viewing-logs)
+lets you tweak the levels of specific integrations. This is less useful for Updates2MQTT,
+since all the work is happening outside of Home Assistant, however it can be useful
+for general MQTT issues, and the examples in the Home Assistant documentation shows how
+to tune the MQTT integration.
 
 ## Docker
 
