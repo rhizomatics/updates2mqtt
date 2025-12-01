@@ -30,7 +30,7 @@ ADD scripts/healthcheck.sh /app
 RUN chmod ug+x /app/healthcheck.sh
 ADD README.md /app/README.md
 ADD common_packages.yaml /app
-
+RUN mkdir /app/.cache && chmod a+rw /app/.cache
 
 RUN uv sync --locked
 
