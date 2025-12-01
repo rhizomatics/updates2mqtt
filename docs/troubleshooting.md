@@ -96,6 +96,26 @@ Oddly, the Paho MQTT client used by Updates2MQTT is known to [report success eve
 
 There's also an alternative to MQTT Discovery in HA, using plain yaml, the [MQTT Update Integration](https://www.home-assistant.io/integrations/update.mqtt/#configuration). The [BBQKees Boiler Gateway](https://bbqkees-electronics.nl/wiki/home-automations/home-assistant-configuration.html) has some detailed steps and examples for MQTT Discovery too.
 
+#### No Update Button
+
+If there's an update showing, but no *Update* button present, then there's a few reasons, which
+can be checked directly from the config and log:
+
+- Config has the `allow_pull`,`allow_restart` and `allow_build` all overridden to `False`
+- A new version reference can't be found 
+- The compose working directory can't be found
+  - This is sourced from the `com.docker.compose.project.working_dir` label, which can be seen in `docker inspect`
+  - This only stops restart, not pull, so if `allow_pull` is on, the Update button will still show
+- The git repo path can't be found for a local build
+
+The current state of this can be seen in MQTT, the config message will have two extra
+values as below:
+
+```yaml
+  "command_topic": "updates2mqtt/dockernuc/docker",
+  "payload_install": "docker|homarr|install"
+```
+
 #### Home Assistant Logs
 
 Use the [System Log](https://www.home-assistant.io/integrations/system_log/) to check
