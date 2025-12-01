@@ -9,7 +9,7 @@ from typing import Any
 import paho.mqtt.client as mqtt
 import paho.mqtt.subscribeoptions
 import structlog
-from paho.mqtt.client import MQTTMessage
+from paho.mqtt.client import MQTT_CLEAN_START_FIRST_ONLY, MQTTMessage
 from paho.mqtt.enums import CallbackAPIVersion, MQTTErrorCode, MQTTProtocolVersion
 from paho.mqtt.properties import Properties
 from paho.mqtt.reasoncodes import ReasonCode
@@ -58,11 +58,16 @@ class MqttClient:
             self.client = mqtt.Client(
                 callback_api_version=CallbackAPIVersion.VERSION2,
                 client_id=f"updates2mqtt_{self.node_cfg.name}",
-                clean_session=True,
+                clean_session=True if protocol != MQTTProtocolVersion.MQTTv5 else None,
                 protocol=protocol,
             )
             self.client.username_pw_set(self.cfg.user, password=self.cfg.password)
-            rc: MQTTErrorCode = self.client.connect(host=self.cfg.host, port=self.cfg.port, keepalive=60)
+            rc: MQTTErrorCode = self.client.connect(
+                host=self.cfg.host,
+                port=self.cfg.port,
+                keepalive=60,
+                clean_start=MQTT_CLEAN_START_FIRST_ONLY,
+            )
             self.log.info("Client connection requested", result_code=rc)
 
             self.client.on_connect = self.on_connect
