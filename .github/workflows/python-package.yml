@@ -24,9 +24,8 @@ jobs:
       with:
         python-version-file: "pyproject.toml"
     - name: Install dependencies
-      run: |
-       uv sync --all-extras --dev
-       sudo apt-get install pngquant
+      run: uv sync --all-extras --dev
+       
     - name: Ruff
       uses: chartboost/ruff-action@v1
     - name: Test with pytest
@@ -34,7 +33,9 @@ jobs:
     - name: Build a binary wheel and a source tarball
       run: uv build
     - name: Prep for mkdocs
-      run: uv pip compile pyproject.toml -o requirements_docs.txt --group mkdocs
+      run: |
+       sudo apt-get install pngquant
+       uv pip compile pyproject.toml -o requirements_docs.txt --group mkdocs
     - name: Deploy docs
       uses: mhausenblas/mkdocs-deploy-gh-pages@master
       env:
