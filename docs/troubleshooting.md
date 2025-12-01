@@ -12,14 +12,40 @@ Things that need to work:
 - Docker Compose available from shell to make updates and restart
 - Git command available in shell to check for local repo updates and pull
 
-## Updates2MQTT Log Level
+## Updates2MQTT Logs
 
-Update the `config.yaml` and change the log level to DEBUG
+If running under docker, and following the container naming guidance, then see the
+logs using:
+
+`docker logs updates2mqtt`
+
+or change to the directory where the `docker-compose.yaml` is installed and do `docker compose logs`
+
+### Changing Log Level
+
+Update the `config.yaml` and change the log level to DEBUG, which will show much
+more diagnostic information.
 
 ```yaml
 log:
   level: DEBUG
 ```
+
+When you have everything working, its best to change the log level back, so
+your container isn't generating big logs.
+
+### Going Inside Container
+
+From the `docker-compose.yaml` directory, execute 
+
+`docker compose exec -it updates2mqtt bash`
+
+(if you have an old Docker install, you may need to use `docker-compose` instead of `docker compose`)
+
+This will give you shell access inside the container, which is a good way of checking
+for path issues, permissio issues etc. For example, if you have compose directories in the
+`/containers` directory, you could `cd /containers` and validate that Updates2MQTT can see the
+other compose directories, `ls` the contents, and run `docker compose` or `git` actions there.
 
 ## MQTT
 
