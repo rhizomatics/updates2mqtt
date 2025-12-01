@@ -272,7 +272,8 @@ class MqttClient:
         if msg.topic in self.providers_by_topic:
             self.handle_message(msg)
         else:
-            self.log.warn("Unhandled message: %s", msg.topic)
+            # apparently the root non-wildcard sub sometimes brings in child topics
+            self.log.debug("Unhandled message #%s on %s:%s", msg.mid, msg.topic, msg.payload)
 
     def handle_message(self, msg: mqtt.MQTTMessage | LocalMessage) -> None:
         def update_start(discovery: Discovery) -> None:
