@@ -17,7 +17,7 @@ repos:
       - id: check-shebang-scripts-are-executable
         name: Check shell scripts are executable
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.9.11
+    rev: 0.9.13
     hooks:
       - id: uv-lock
   - repo: https://github.com/astral-sh/ruff-pre-commit
@@ -39,7 +39,7 @@ repos:
         exclude_types: [csv, json]
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.18.2
+    rev: v1.19.0
     hooks:
       - id: mypy
         args:

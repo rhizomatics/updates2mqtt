@@ -287,7 +287,7 @@ class DockerProvider(ReleaseProvider):
                 logger.info(f"Shutdown detected, aborting scan at {c}")
                 break
             containers = containers + 1
-            result = self.analyze(cast("Container", c), session)
+            result = self.analyze(c, session)
             if result:
                 self.discoveries[result.name] = result
                 results = results + 1

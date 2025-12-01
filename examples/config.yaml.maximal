@@ -13,6 +13,7 @@ mqtt:
   user: mymqttuser
   password: mysecret
   topic_root: updates2mqtt
+  protocol: 5
 homeassistant:
   discovery:
     prefix: homeassistant

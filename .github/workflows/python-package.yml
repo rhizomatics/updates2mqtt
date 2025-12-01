@@ -15,7 +15,7 @@ jobs:
     permissions:
       contents: write
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: uv-setup
       # Install a specific uv version using the installer
       run: curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -25,6 +25,7 @@ jobs:
         python-version-file: "pyproject.toml"
     - name: Install dependencies
       run: uv sync --all-extras --dev
+       
     - name: Ruff
       uses: chartboost/ruff-action@v1
     - name: Test with pytest
@@ -32,11 +33,12 @@ jobs:
     - name: Build a binary wheel and a source tarball
       run: uv build
     - name: Prep for mkdocs
-      run: uv pip compile pyproject.toml -o requirements_docs.txt --group mkdocs
+      run:  uv pip compile pyproject.toml -o requirements_docs.txt --group mkdocs
     - name: Deploy docs
       uses: mhausenblas/mkdocs-deploy-gh-pages@master
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        EXTRA_PACKAGES: pngquant
         REQUIREMENTS: requirements_docs.txt
         CUSTOM_DOMAIN: updates2mqtt.rhizomatics.org.uk
 

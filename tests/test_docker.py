@@ -46,7 +46,7 @@ async def test_common_packages(mock_docker_client: DockerClient) -> None:
 
 
 @pytest.mark.httpx_mock(assert_all_requests_were_expected=False)
-def test_discover_metadata(httpx_mock: HTTPXMock) -> None:
+def test_discover_metadata(httpx_mock: HTTPXMock, mock_docker_client: DockerClient) -> None:
     httpx_mock.add_response(
         json={
             "data": {
@@ -62,12 +62,13 @@ def test_discover_metadata(httpx_mock: HTTPXMock) -> None:
             }
         }
     )
-    uut = mut.DockerProvider(
-        mut.DockerConfig(discover_metadata={"linuxserver.io": MetadataSourceConfig(enabled=True, cache_ttl=0)}),
-        mut.UpdateInfoConfig(),
-        mut.NodeConfig(),
-    )
-    uut.discover_metadata()
+    with patch("docker.from_env", return_value=mock_docker_client):
+        uut = mut.DockerProvider(
+            mut.DockerConfig(discover_metadata={"linuxserver.io": MetadataSourceConfig(enabled=True, cache_ttl=0)}),
+            mut.UpdateInfoConfig(),
+            mut.NodeConfig(),
+        )
+        uut.discover_metadata()
     assert "mctesty901" in uut.discovered_pkgs
     pkg = uut.discovered_pkgs["mctesty901"]
     assert pkg.docker is not None

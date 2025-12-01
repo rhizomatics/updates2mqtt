@@ -13,8 +13,9 @@ from updates2mqtt.model import Discovery, ReleaseProvider
 from updates2mqtt.mqtt import MqttClient
 
 
-def test_publish(mock_mqtt_client: Mock) -> None:
-    config = MqttConfig()
+@pytest.mark.parametrize("protocol", ["3", "3.1", "5", "?"])
+def test_publish(mock_mqtt_client: Mock, protocol: str) -> None:
+    config = MqttConfig(protocol=protocol)
     hass_config = HomeAssistantConfig()
     node_config = NodeConfig()
 

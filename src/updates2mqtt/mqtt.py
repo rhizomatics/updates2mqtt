@@ -9,8 +9,8 @@ from typing import Any
 import paho.mqtt.client as mqtt
 import paho.mqtt.subscribeoptions
 import structlog
-from paho.mqtt.client import MQTTMessage
-from paho.mqtt.enums import CallbackAPIVersion, MQTTErrorCode
+from paho.mqtt.client import MQTT_CLEAN_START_FIRST_ONLY, MQTTMessage
+from paho.mqtt.enums import CallbackAPIVersion, MQTTErrorCode, MQTTProtocolVersion
 from paho.mqtt.properties import Properties
 from paho.mqtt.reasoncodes import ReasonCode
 
@@ -42,19 +42,39 @@ class MqttClient:
     def start(self, event_loop: asyncio.AbstractEventLoop | None = None) -> None:
         logger = self.log.bind(action="start")
         try:
+            protocol: MQTTProtocolVersion
+            if self.cfg.protocol in ("3", "3.11"):
+                protocol = MQTTProtocolVersion.MQTTv311
+            elif self.cfg.protocol == "3.1":
+                protocol = MQTTProtocolVersion.MQTTv31
+            elif self.cfg.protocol in ("5", "5.0"):
+                protocol = MQTTProtocolVersion.MQTTv5
+            else:
+                self.log.info("No valid MQTT protocol version found (%s), setting to default v3.11", self.cfg.protocol)
+                protocol = MQTTProtocolVersion.MQTTv311
+            self.log.debug("MQTT protocol set to %r", protocol)
+
             self.event_loop = event_loop or asyncio.get_event_loop()
             self.client = mqtt.Client(
                 callback_api_version=CallbackAPIVersion.VERSION2,
                 client_id=f"updates2mqtt_{self.node_cfg.name}",
-                clean_session=True,
+                clean_session=True if protocol != MQTTProtocolVersion.MQTTv5 else None,
+                protocol=protocol,
             )
             self.client.username_pw_set(self.cfg.user, password=self.cfg.password)
-            rc: MQTTErrorCode = self.client.connect(host=self.cfg.host, port=self.cfg.port, keepalive=60)
+            rc: MQTTErrorCode = self.client.connect(
+                host=self.cfg.host,
+                port=self.cfg.port,
+                keepalive=60,
+                clean_start=MQTT_CLEAN_START_FIRST_ONLY,
+            )
             self.log.info("Client connection requested", result_code=rc)
 
             self.client.on_connect = self.on_connect
             self.client.on_disconnect = self.on_disconnect
             self.client.on_message = self.on_message
+            self.client.on_subscribe = self.on_subscribe
+            self.client.on_unsubscribe = self.on_unsubscribe
 
             self.client.loop_start()
 
@@ -83,8 +103,8 @@ class MqttClient:
             log.error("Invalid MQTT credentials", result_code=rc)
 
         self.log.info("Connected to broker", result_code=rc)
-        for topic in self.providers_by_topic:
-            self.log.info("(Re)subscribing", topic=topic)
+        for topic, provider in self.providers_by_topic.items():
+            self.log.info("(Re)subscribing", topic=topic, provider=provider.source_type)
             self.client.subscribe(topic)
 
     def on_disconnect(
@@ -223,12 +243,37 @@ class MqttClient:
         )
         self.handle_message(msg)
 
+    def on_subscribe(
+        self,
+        _client: mqtt.Client,
+        userdata: Any,
+        mid: int,
+        reason_code_list: list[ReasonCode],
+        properties: Properties | None = None,
+    ) -> None:
+        self.log.debug(
+            "on_subscribe, userdata=%s, mid=%s, reasons=%s, properties=%s", userdata, mid, reason_code_list, properties
+        )
+
+    def on_unsubscribe(
+        self,
+        _client: mqtt.Client,
+        userdata: Any,
+        mid: int,
+        reason_code_list: list[ReasonCode],
+        properties: Properties | None = None,
+    ) -> None:
+        self.log.debug(
+            "on_unsubscribe, userdata=%s, mid=%s, reasons=%s, properties=%s", userdata, mid, reason_code_list, properties
+        )
+
     def on_message(self, _client: mqtt.Client, _userdata: Any, msg: mqtt.MQTTMessage) -> None:
         """Callback for incoming MQTT messages"""  # noqa: D401
         if msg.topic in self.providers_by_topic:
             self.handle_message(msg)
         else:
-            self.log.warn("Unhandled message: %s", msg.topic)
+            # apparently the root non-wildcard sub sometimes brings in child topics
+            self.log.debug("Unhandled message #%s on %s:%s", msg.mid, msg.topic, msg.payload)
 
     def handle_message(self, msg: mqtt.MQTTMessage | LocalMessage) -> None:
         def update_start(discovery: Discovery) -> None:
