@@ -33,13 +33,12 @@ jobs:
     - name: Build a binary wheel and a source tarball
       run: uv build
     - name: Prep for mkdocs
-      run: |
-       sudo apt-get install pngquant
-       uv pip compile pyproject.toml -o requirements_docs.txt --group mkdocs
+      run:  uv pip compile pyproject.toml -o requirements_docs.txt --group mkdocs
     - name: Deploy docs
       uses: mhausenblas/mkdocs-deploy-gh-pages@master
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        EXTRA_PACKAGES: pngquant
         REQUIREMENTS: requirements_docs.txt
         CUSTOM_DOMAIN: updates2mqtt.rhizomatics.org.uk
 
