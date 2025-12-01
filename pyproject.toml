@@ -154,10 +154,11 @@ norecursedirs = [
     ".git",
     "templates",
 ]
+
 pythonpath = [
   "."
 ]
-addopts = "--cov --cov-report=lcov:lcov.info --cov-report=term --import-mode=importlib"
+addopts = "--junitxml=junit/test-results.xml --cov --cov-report=lcov:lcov.info --cov-report=xml --cov-report=term --import-mode=importlib"
 
 [tool.coverage.run]
 branch = true

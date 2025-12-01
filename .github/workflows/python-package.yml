@@ -32,6 +32,27 @@ jobs:
       run: uv run pytest tests
     - name: Build a binary wheel and a source tarball
       run: uv build
+    - name: Generate badges
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        genbadge coverage -i cov.xml -o badges/coverage.svg
+        genbadge tests -i junit/test-results.xml -o badges/tests.svg
+
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        TEMP_DIR=$(mktemp -d)
+        cd $TEMP_DIR
+        git clone --single-branch --branch badges https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git . 2>/dev/null
+        cp -r ${{ github.workspace }}/badges .
+        git add badges
+        if git commit -m "Update badges [skip ci]"; then
+          git push origin badges --force
+          echo "Badges updated successfully"
+        else
+          echo "No changes to badges"
+        fi
+
     - name: Prep for mkdocs
       run:  uv pip compile pyproject.toml -o requirements_docs.txt --group mkdocs
     - name: Deploy docs

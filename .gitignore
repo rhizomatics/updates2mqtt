@@ -11,6 +11,7 @@ htmlcov/
 lcov.info
 .vscode/
 .DS_Store
+junit/
 
 # C extensions
 *.so
