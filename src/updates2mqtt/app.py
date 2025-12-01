@@ -16,7 +16,7 @@ from updates2mqtt.model import Discovery, ReleaseProvider
 
 from .config import Config, load_app_config, load_package_info
 from .integrations.docker import DockerProvider
-from .mqtt import MqttClient
+from .mqtt import MqttPublisher
 
 log = structlog.get_logger()
 
@@ -48,7 +48,7 @@ class App:
         log.debug("Logging initialized", level=self.cfg.log.level)
         self.common_pkg = load_package_info(PKG_INFO_FILE)
 
-        self.publisher = MqttClient(self.cfg.mqtt, self.cfg.node, self.cfg.homeassistant)
+        self.publisher = MqttPublisher(self.cfg.mqtt, self.cfg.node, self.cfg.homeassistant)
 
         self.scanners: list[ReleaseProvider] = []
         self.scan_count: int = 0
@@ -74,7 +74,7 @@ class App:
                 break
             log.info("Scanning", source=scanner.source_type, session=session)
             async with asyncio.TaskGroup() as tg:
-                async for discovery in scanner.scan(session):  # type: ignore[attr-defined]
+                async for discovery in scanner.scan(session):  # xtype: ignore[attr-defined]
                     tg.create_task(self.on_discovery(discovery), name=f"discovery-{discovery.name}")
             if self.stopped.is_set():
                 break
@@ -83,7 +83,7 @@ class App:
             log.info("Scan complete", source_type=scanner.source_type)
         self.last_scan_timestamp = datetime.now(UTC).isoformat()
 
-    async def run(self) -> None:
+    async def main_loop(self) -> None:
         log.debug("Starting run loop")
         self.publisher.start()
 
@@ -93,7 +93,7 @@ class App:
                 f"Setting up healthcheck every {self.cfg.node.healthcheck.interval} seconds to topic {self.healthcheck_topic}"
             )
             self.healthcheck_loop_task = asyncio.create_task(
-                repeated_call(self.healthcheck, interval=self.cfg.node.healthcheck.interval)
+                repeated_call(self.healthcheck, interval=self.cfg.node.healthcheck.interval), name="healthcheck"
             )
 
         for scanner in self.scanners:
@@ -145,7 +145,8 @@ class App:
         log.info(f"Cancelling {len(running_tasks)} tasks")
         for t in running_tasks:
             log.debug("Cancelling task", task=t.get_name())
-            t.cancel()
+            if t.get_name() == "healthcheck" or t.get_name().startswith("discovery-"):
+                t.cancel()
         await asyncio.gather(*running_tasks, return_exceptions=True)
         log.debug("Cancellation task completed")
 
@@ -154,7 +155,11 @@ class App:
         self.stopped.set()
         for scanner in self.scanners:
             scanner.stop()
-        interrupt_task = asyncio.get_event_loop().create_task(self.interrupt_tasks(), eager_start=True)  # type: ignore[call-arg] # pyright: ignore[reportCallIssue]
+        interrupt_task = asyncio.get_event_loop().create_task(
+            self.interrupt_tasks(),
+            eager_start=True,  # type: ignore[call-arg] # pyright: ignore[reportCallIssue]
+            name="interrupt",
+        )
         for t in asyncio.all_tasks():
             log.debug("Tasks waiting = %s", t)
         self.publisher.stop()
@@ -168,7 +173,7 @@ class App:
         self.publisher.publish(
             topic=self.healthcheck_topic,
             payload={
-                "version": updates2mqtt.version,
+                "version": updates2mqtt.version,  # pyright: ignore[reportAttributeAccessIssue]
                 "node": self.cfg.node.name,
                 "heartbeat_raw": time.time(),
                 "heartbeat_stamp": datetime.now(UTC).isoformat(),
@@ -197,12 +202,12 @@ def run() -> None:
 
     from .app import App
 
-    log.debug(f"Starting updates2mqtt v{updates2mqtt.version}")
+    log.debug(f"Starting updates2mqtt v{updates2mqtt.version}")  # pyright: ignore[reportAttributeAccessIssue]
     app = App()
 
     signal.signal(signal.SIGTERM, app.shutdown)
     try:
-        asyncio.run(app.run(), debug=False)
+        asyncio.run(app.main_loop(), debug=False)
         log.debug("App exited gracefully")
     except asyncio.CancelledError:
         log.debug("App exited on cancelled task")

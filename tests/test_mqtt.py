@@ -10,7 +10,7 @@ from paho.mqtt.client import MQTTMessage
 
 from updates2mqtt.config import HomeAssistantConfig, MqttConfig, NodeConfig
 from updates2mqtt.model import Discovery, ReleaseProvider
-from updates2mqtt.mqtt import MqttClient
+from updates2mqtt.mqtt import MqttPublisher
 
 
 @pytest.mark.parametrize("protocol", ["3", "3.1", "5", "?"])
@@ -20,7 +20,7 @@ def test_publish(mock_mqtt_client: Mock, protocol: str) -> None:
     node_config = NodeConfig()
 
     with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
-        uut = MqttClient(config, node_config, hass_config)
+        uut = MqttPublisher(config, node_config, hass_config)
         uut.start()
 
         uut.publish("test.topic.123", {"foo": "a8", "bar": False})
@@ -35,7 +35,7 @@ async def test_handler(mock_mqtt_client: Mock) -> None:
     node_config = NodeConfig()
     node_config.name = "testing"
     with patch("updates2mqtt.mqtt.mqtt.Client", new=mock_mqtt_client):
-        uut = MqttClient(config, node_config, hass_config)
+        uut = MqttPublisher(config, node_config, hass_config)
         uut.start(event_loop=asyncio.get_running_loop())
 
         provider = Mock(spec=ReleaseProvider)
@@ -63,7 +63,7 @@ async def test_execute_command_remote(mock_mqtt_client: Mock, mock_provider: Rel
     node_config = NodeConfig("TESTBED")
 
     with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
-        uut = MqttClient(config, node_config, hass_config)
+        uut = MqttPublisher(config, node_config, hass_config)
         uut.start(event_loop=asyncio.get_running_loop())
 
         uut.subscribe_hass_command(mock_provider)
@@ -95,7 +95,7 @@ async def test_execute_command_local(mock_mqtt_client: Mock, mock_provider: Rele
     node_config = NodeConfig("TESTBED")
 
     with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
-        uut = MqttClient(config, node_config, hass_config)
+        uut = MqttPublisher(config, node_config, hass_config)
 
         uut.start(event_loop=asyncio.get_running_loop())
 
@@ -127,7 +127,7 @@ async def test_stop(mock_mqtt_client: Mock, mock_provider: ReleaseProvider) -> N
     node_config = NodeConfig()
 
     with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
-        uut = MqttClient(config, node_config, hass_config)
+        uut = MqttPublisher(config, node_config, hass_config)
 
         uut.start(event_loop=asyncio.get_running_loop())
 

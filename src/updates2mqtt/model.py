@@ -80,6 +80,10 @@ class ReleaseProvider:
     @abstractmethod
     async def scan(self, session: str) -> AsyncGenerator[Discovery]:
         """Scan for components to monitor"""
+        raise NotImplementedError
+        # force recognition as an async generator
+        if False:  # type: ignore[unreachable]
+            yield 0
 
     def hass_config_format(self, discovery: Discovery) -> dict:
         _ = discovery

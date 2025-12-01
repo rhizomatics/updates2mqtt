@@ -56,6 +56,7 @@ dev = [
     "pytest-mqtt>=0.6.0",
     "pytest-subprocess>=1.5.3",
     "coverage",
+    "icdiff",
     "genbadge[all]"
 ]
 mkdocs=[
@@ -159,7 +160,7 @@ norecursedirs = [
 pythonpath = [
   "."
 ]
-addopts = "--junitxml=junit/test-results.xml --cov --cov-report=lcov:lcov.info --cov-report=xml --cov-report=term --import-mode=importlib"
+addopts = "--junitxml=junit/test-results.xml --cov --cov-report=lcov:lcov.info --cov-report=xml --cov-report=html --cov-report=term --import-mode=importlib"
 
 [tool.coverage.run]
 branch = true

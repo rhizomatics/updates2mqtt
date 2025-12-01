@@ -28,7 +28,7 @@ class LocalMessage:
     payload: str | None = field(default=None)
 
 
-class MqttClient:
+class MqttPublisher:
     def __init__(self, cfg: MqttConfig, node_cfg: NodeConfig, hass_cfg: HomeAssistantConfig) -> None:
         self.cfg: MqttConfig = cfg
         self.node_cfg: NodeConfig = node_cfg
@@ -90,7 +90,7 @@ class MqttClient:
             self.client = None
 
     def is_available(self) -> bool:
-        return not self.fatal_failure.is_set()
+        return self.client is not None and not self.fatal_failure.is_set()
 
     def on_connect(
         self, _client: mqtt.Client, _userdata: Any, _flags: mqtt.ConnectFlags, rc: ReasonCode, _props: Properties | None
