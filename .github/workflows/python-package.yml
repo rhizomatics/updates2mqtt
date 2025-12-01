@@ -27,7 +27,9 @@ jobs:
       run: uv sync --all-extras --dev
        
     - name: Ruff
-      uses: chartboost/ruff-action@v1
+      uses:  astral-sh/ruff-action@v3
+      with: 
+        src: "./src"
     - name: Test with pytest
       run: uv run pytest tests
     - name: Build a binary wheel and a source tarball
