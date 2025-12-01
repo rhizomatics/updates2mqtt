@@ -43,14 +43,14 @@ class MqttClient:
         logger = self.log.bind(action="start")
         try:
             protocol: MQTTProtocolVersion
-            if self.cfg in ("3", "3.11"):
+            if self.cfg.protocol in ("3", "3.11"):
                 protocol = MQTTProtocolVersion.MQTTv311
-            elif self.cfg == "3.1":
+            elif self.cfg.protocol == "3.1":
                 protocol = MQTTProtocolVersion.MQTTv31
-            elif self.cfg in ("5", "5.0"):
+            elif self.cfg.protocol in ("5", "5.0"):
                 protocol = MQTTProtocolVersion.MQTTv5
             else:
-                self.log.info("No valid MQTT protocol version found, setting to default v3.11")
+                self.log.info("No valid MQTT protocol version found (%s), setting to default v3.11", self.cfg.protocol)
                 protocol = MQTTProtocolVersion.MQTTv311
             self.log.debug("MQTT protocol set to %s", MQTTProtocolVersion(protocol))
 
