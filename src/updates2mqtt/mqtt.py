@@ -52,7 +52,7 @@ class MqttClient:
             else:
                 self.log.info("No valid MQTT protocol version found (%s), setting to default v3.11", self.cfg.protocol)
                 protocol = MQTTProtocolVersion.MQTTv311
-            self.log.debug("MQTT protocol set to %s", MQTTProtocolVersion(protocol))
+            self.log.debug("MQTT protocol set to %r", protocol)
 
             self.event_loop = event_loop or asyncio.get_event_loop()
             self.client = mqtt.Client(
