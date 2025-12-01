@@ -10,7 +10,7 @@ import paho.mqtt.client as mqtt
 import paho.mqtt.subscribeoptions
 import structlog
 from paho.mqtt.client import MQTTMessage
-from paho.mqtt.enums import CallbackAPIVersion, MQTTErrorCode
+from paho.mqtt.enums import CallbackAPIVersion, MQTTErrorCode, MQTTProtocolVersion
 from paho.mqtt.properties import Properties
 from paho.mqtt.reasoncodes import ReasonCode
 
@@ -42,11 +42,24 @@ class MqttClient:
     def start(self, event_loop: asyncio.AbstractEventLoop | None = None) -> None:
         logger = self.log.bind(action="start")
         try:
+            protocol: MQTTProtocolVersion
+            if self.cfg in ("3", "3.11"):
+                protocol = MQTTProtocolVersion.MQTTv311
+            elif self.cfg == "3.1":
+                protocol = MQTTProtocolVersion.MQTTv31
+            elif self.cfg == "5":
+                protocol = MQTTProtocolVersion.MQTTv5
+            else:
+                self.log.info("Invalid MQTT protocol version, setting to default v3.11")
+                protocol = MQTTProtocolVersion.MQTTv311
+            self.log.debug("MQTT protocol set to %s", protocol)
+
             self.event_loop = event_loop or asyncio.get_event_loop()
             self.client = mqtt.Client(
                 callback_api_version=CallbackAPIVersion.VERSION2,
                 client_id=f"updates2mqtt_{self.node_cfg.name}",
                 clean_session=True,
+                protocol=protocol,
             )
             self.client.username_pw_set(self.cfg.user, password=self.cfg.password)
             rc: MQTTErrorCode = self.client.connect(host=self.cfg.host, port=self.cfg.port, keepalive=60)
@@ -222,6 +235,30 @@ class MqttClient:
             topic=self.command_topic(discovery.provider), payload="|".join([discovery.source_type, discovery.name, command])
         )
         self.handle_message(msg)
+
+    def on_subscribe(
+        self,
+        _client: mqtt.Client,
+        userdata: Any,
+        mid: int,
+        reason_code_list: list[ReasonCode],
+        properties: Properties | None = None,
+    ) -> None:
+        self.log.debug(
+            "on_subscribe, userdata=%s, mid=%s, reasons=%s, properties=%s", userdata, mid, reason_code_list, properties
+        )
+
+    def on_unsubscribe(
+        self,
+        _client: mqtt.Client,
+        userdata: Any,
+        mid: int,
+        reason_code_list: list[ReasonCode],
+        properties: Properties | None = None,
+    ) -> None:
+        self.log.debug(
+            "on_unsubscribe, userdata=%s, mid=%s, reasons=%s, properties=%s", userdata, mid, reason_code_list, properties
+        )
 
     def on_message(self, _client: mqtt.Client, _userdata: Any, msg: mqtt.MQTTMessage) -> None:
         """Callback for incoming MQTT messages"""  # noqa: D401

@@ -16,6 +16,7 @@ class MqttConfig:
     password: str = f"${{oc.env:MQTT_PASS,{MISSING}}}"
     port: int = "${oc.decode:${oc.env:MQTT_PORT,1883}}"  # type: ignore[assignment]
     topic_root: str = "updates2mqtt"
+    protocol: str = "3.11"
 
 
 @dataclass
