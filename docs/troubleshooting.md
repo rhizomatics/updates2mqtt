@@ -43,7 +43,9 @@ Alternatively, use the debug option and logging of Mosquitto broker, or the buil
 
 See the examples at [Home Assistant Configuration](home_assistant.md#configuration)
 
-In addition to the base MQTT configuration, Updates2MQTT relies on [MQTT Discovery](https://www.home-assistant.io/integrations/update.mqtt/) and [MQTT Update](https://www.home-assistant.io/integrations/update.mqtt/) integrations. All of these have a single set of [MQTT Issues](https://github.com/home-assistant/core/issues?q=is%3Aissue+label%3A%22integration%3A+mqtt%22). When configured, each monitored container will have an `update` entity visible in the [Home Assistant Developer Tools](https://www.home-assistant.io/docs/tools/dev-tools/).
+In addition to the base MQTT configuration, Updates2MQTT relies on [MQTT Discovery](https://www.home-assistant.io/integrations/update.mqtt/) and [MQTT Update](https://www.home-assistant.io/integrations/update.mqtt/) integrations. All of these have a single set of [MQTT Issues](https://github.com/home-assistant/core/issues?q=is%3Aissue+label%3A%22integration%3A+mqtt%22). 
+
+When configured, each monitored container will have an `update` entity visible in the [Home Assistant Developer Tools](https://www.home-assistant.io/docs/tools/dev-tools/) and [Entities View](https://www.home-assistant.io/docs/configuration/entities_domains/).
 
 #### Home Assistant Mosquitto HassOS App
 
