@@ -56,6 +56,7 @@ dev = [
     "pytest-mqtt>=0.6.0",
     "pytest-subprocess>=1.5.3",
     "coverage",
+    "genbadge[all]"
 ]
 mkdocs=[
     "mkdocs-material",
