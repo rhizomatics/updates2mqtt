@@ -22,6 +22,7 @@ mqtt:
   password: ${oc.env:MQTT_PASS}$ # Use an environment variable for secrets
   port: ${oc.env:MQTT_PORT}
   topic_root: updates2mqtt
+  protocol: 3.11 # Can be changed to 5 if your broker supports it
 homeassistant:
   discovery:
     prefix: homeassistant # Matches the default MQTT discovery prefix in Home Assistant
