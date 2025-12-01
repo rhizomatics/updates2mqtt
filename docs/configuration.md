@@ -4,7 +4,8 @@ Create file `config.yaml` in `conf` directory. If the file is not present, a def
 
 ### Example configuration file
 
-This is a maximal config file, the minimum is no config file at all, which will generate a default config file. The only mandatory values are the MQTT user name and password, everything else can be omitted.
+This is a maximal config file, the minimum is no config file at all, which will generate a default config file. The only mandatory values are the MQTT user name and password, everything else can be omitted ( although
+its best to have at least a `node` `name` value so HomeAssistant doesn't show some ugly generated Docker host name).
 
 ```yaml
 

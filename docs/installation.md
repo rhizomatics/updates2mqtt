@@ -4,6 +4,8 @@
 
 updates2mqtt prefers to be run inside a Docker container, though can run standalone, for example scripted via cron or systemd.
 
+The only mandatory configuration is the MQTT broker host, user name and password, which can be set by environment variable, or the config file. See [Configuration](configuration.md).
+
 ### Docker
 
 See `examples` directory for a working `docker-compose.yaml`.
