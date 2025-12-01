@@ -43,6 +43,10 @@ plugins:
             show_source: false
             show_root_heading: true
             summary: true
+            show_inheritance_diagram: false
+            overloads_only: true
+            show_if_no_docstring: false
+
 markdown_extensions:
   - admonition
   - pymdownx.details
@@ -55,7 +59,6 @@ markdown_extensions:
       pygments_lang_class: true
   - pymdownx.inlinehilite
   - pymdownx.superfences
-  - admonition
   - smarty
   - toc:
       permalink: true
