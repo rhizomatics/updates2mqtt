@@ -27,7 +27,7 @@ def git_timestamp(repo_path: Path, git_path: Path) -> datetime.datetime | None:
             capture_output=True,
             check=True,
         )
-        if not result.stdout.strip():
+        if not result or not result.stdout or not result.stdout.strip():
             log.info("GIT No result from git log at %s", repo_path)
         else:
             return datetime.datetime.fromisoformat(result.stdout.strip())
