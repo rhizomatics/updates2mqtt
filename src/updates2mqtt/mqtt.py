@@ -50,7 +50,7 @@ class MqttClient:
             elif self.cfg == "5":
                 protocol = MQTTProtocolVersion.MQTTv5
             else:
-                self.log.info("Invalid MQTT protocol version, setting to default v3.11")
+                self.log.info("No valid MQTT protocol version found, setting to default v3.11")
                 protocol = MQTTProtocolVersion.MQTTv311
             self.log.debug("MQTT protocol set to %s", protocol)
 
