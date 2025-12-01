@@ -36,8 +36,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        genbadge coverage -i cov.xml -o badges/coverage.svg
-        genbadge tests -i junit/test-results.xml -o badges/tests.svg
+        uv run genbadge coverage -i cov.xml -o badges/coverage.svg
+        uv run genbadge tests -i junit/test-results.xml -o badges/tests.svg
 
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
