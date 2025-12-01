@@ -15,7 +15,7 @@ jobs:
     permissions:
       contents: write
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: uv-setup
       # Install a specific uv version using the installer
       run: curl -LsSf https://astral.sh/uv/install.sh | sh
