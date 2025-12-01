@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 1.4.1
+- More logging for Docker discovery on why Home Assistant doesn't show an update button
+- More test cases
+- `MqttClient` is now `MqttPublisher` to avoid confusion with actual MQTT client
+- Task cleanup now only interrupts explicit list of tasks - healthcheck and discovery tasks
 ## 1.4.0
 - MQTT protocol can now be set, to one of `3.1`,`3.11` or `5`
 - Debug messages now provided for `on_subscribe` and `on_unsubscribe` callbacks

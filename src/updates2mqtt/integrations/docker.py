@@ -135,8 +135,8 @@ class DockerProvider(ReleaseProvider):
         image_ref = None
         image_name = None
         local_versions = None
-        if c.attrs is None:
-            logger.warn("No container attributes found, discovery rejected")  # type: ignore[unreachable]
+        if c.attrs is None or not c.attrs:
+            logger.warn("No container attributes found, discovery rejected")
             return None
         if c.name is None:
             logger.warn("No container name found, discovery rejected")
@@ -145,7 +145,7 @@ class DockerProvider(ReleaseProvider):
         def env_override(env_var: str, default: Any) -> Any | None:
             return default if c_env.get(env_var) is None else c_env.get(env_var)
 
-        env_str = c.attrs["Config"]["Env"]
+        env_str = c.attrs.get("Config", {}).get("Env")
         c_env = dict(env.split("=", maxsplit=1) for env in env_str if "==" not in env)
         ignore_container: str | None = env_override("UPD2MQTT_IGNORE", "FALSE")
         if ignore_container and ignore_container.upper() in ("1", "TRUE"):
@@ -244,6 +244,10 @@ class DockerProvider(ReleaseProvider):
                 and image_ref != ""
                 and (local_version != NO_KNOWN_IMAGE or latest_version != NO_KNOWN_IMAGE)
             )
+            if self.cfg.allow_pull and not can_pull:
+                logger.info(
+                    f"Pull not available, image_ref:{image_ref},local_version:{local_version},latest_version:{latest_version}"
+                )
             can_build: bool = self.cfg.allow_build and custom.get("git_repo_path") is not None
             can_restart: bool = self.cfg.allow_restart and custom.get("compose_path") is not None
             can_update: bool = False
@@ -252,6 +256,8 @@ class DockerProvider(ReleaseProvider):
                 can_update = True
                 features.append("INSTALL")
                 features.append("PROGRESS")
+            elif any((self.cfg.allow_build, self.cfg.allow_restart, self.cfg.allow_pull)):
+                logger.info(f"Update not available, can_pull:{can_pull}, can_build:{can_build},can_restart{can_restart}")
             if relnotes_url:
                 features.append("RELEASE_NOTES")
             custom["can_pull"] = can_pull
