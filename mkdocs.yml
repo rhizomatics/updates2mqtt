@@ -8,14 +8,28 @@ repo_url: https://github.com/rhizomatics/updates2mqtt
 theme:
   name: material
   highlightjs: true
+  logo: images/logo-blank-256x256.png
+  language: en
   features:
     - content.code.copy
     - content.code.select
     - content.code.annotate 
-
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.path
+    - navigation.indexes
+    - navigation.top
+    - toc.follow
+    - toc.integrate
 plugins:
+  - search
   - autorefs
   - pagetree
+  - optimize
+  - tags
   - minify:
       minify_html: true
   - mkdocstrings:
@@ -27,6 +41,11 @@ plugins:
             show_root_heading: true
             summary: true
 markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - attr_list
+  - md_in_html
+  - pymdownx.blocks.caption
   - pymdownx.highlight:
       anchor_linenums: true
       line_spans: __span

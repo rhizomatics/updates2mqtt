@@ -12,9 +12,14 @@
 
 ## Summary
 
-Use Home Assistant to notify you of updates to Docker images for your containers and optionally perform the *pull* (or optionally *build*) and *update*.
+Let Home Assistant tell you about new updates to Docker images for your containers.
 
-![Example Home Assistant update dialog](images/ha_update_detail.png "Home Assistant Updates")
+![Example Home Assistant update page](images/ha_update_detail.png "Home Assistant Updates")
+
+Read the release notes, and optionally click *Update* to trigger a Docker *pull* (or optionally *build*) and *update*.
+
+![Example Home Assistant update dialog](images/ha_update_dialog.png "Home Assistant Updates"){width=480}
+
 
 ## Description
 
