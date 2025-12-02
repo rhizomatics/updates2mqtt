@@ -20,13 +20,14 @@ volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       # This list of paths is only needed when containers are to be updated
       # The paths here are completely dependent on where your docker-compose files live
-      - /home/containers:/home/containers
-      - /dev.containers:/dev.containers
-      - /containers:/containers
+      # and the internal/external paths must be exactly the same
+      - /my/container/home:/my/container/home
+      - /more/containers:/more/containers
 ```
 
-The example `docker-compose.yaml` mounts `/home/containers` for this purpose, so if your containers are in
-`/home/containers/app1`, `/home/containers/app2` etc, then updates2mqtt will be able to find them. Map as many root paths as needed.
+The example `docker-compose.yaml` mounts `/my/container/home` for this purpose, so if your containers are in
+`/my/container/home/app1`, `/my/container/home/app2` etc, then updates2mqtt will be able to find them in
+order to restart them. Map as many root paths as needed.
 
 ### Without Docker
 
