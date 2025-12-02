@@ -68,6 +68,7 @@ mkdocs=[
     "mkdocs-coverage",
     "mkdocstrings[python]",
     "pymdown-extensions",
+    "mkdocs-git-revision-date-localized-plugin",
     "pngquant"
 ]
 

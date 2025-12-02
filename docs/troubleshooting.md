@@ -1,3 +1,11 @@
+---
+tags:
+  - docker
+  - docker-compose
+  - homeassistant
+  - mqtt
+  - paho
+---
 # Troubleshooting
 
 ## General

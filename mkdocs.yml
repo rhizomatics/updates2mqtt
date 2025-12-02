@@ -4,13 +4,18 @@ site_description: Notify and take action on server updates via MQTT, with HomeAs
 
 repo_name: rhizomatics/updates2mqtt
 repo_url: https://github.com/rhizomatics/updates2mqtt
+edit_uri: edit/main/docs/
 
 theme:
   name: material
   highlightjs: true
   logo: images/logo-blank-256x256.png
   language: en
+  icon:
+    repo: fontawesome/brands/github
   features:
+    - content.action.edit
+    - content.action.view
     - content.code.copy
     - content.code.select
     - content.code.annotate 
@@ -24,12 +29,18 @@ theme:
     - navigation.top
     - toc.follow
     - toc.integrate
+    - search.suggest
+    - search
+    - search.share
 plugins:
   - search
   - autorefs
   - pagetree
   - optimize
-  - tags
+  - tags:
+      tags: false
+  - git-revision-date-localized:
+      enable_creation_date: true
   - minify:
       minify_html: true
   - coverage:
