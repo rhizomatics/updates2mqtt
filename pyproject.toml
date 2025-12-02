@@ -69,6 +69,7 @@ mkdocs=[
     "mkdocstrings[python]",
     "pymdown-extensions",
     "mkdocs-git-revision-date-localized-plugin",
+    "mkdocs-meta-descriptions-plugin",
     "pngquant"
 ]
 

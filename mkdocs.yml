@@ -41,6 +41,7 @@ plugins:
       tags: false
   - git-revision-date-localized:
       enable_creation_date: true
+  - meta-descriptions
   - minify:
       minify_html: true
   - coverage:

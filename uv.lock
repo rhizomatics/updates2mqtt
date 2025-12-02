@@ -56,6 +56,19 @@ wheels = [
 ]
 
 [[package]]
+name = "beautifulsoup4"
+version = "4.14.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "soupsieve" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c3/b0/1c6a16426d389813b48d95e26898aff79abbde42ad353958ad95cc8c9b21/beautifulsoup4-4.14.3.tar.gz", hash = "sha256:6292b1c5186d356bba669ef9f7f051757099565ad9ada5dd630bd9de5fa7fb86", size = 627737, upload-time = "2025-11-30T15:08:26.084Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1a/39/47f9197bdd44df24d67ac8893641e16f386c984a0619ef2ee4c51fbbc019/beautifulsoup4-4.14.3-py3-none-any.whl", hash = "sha256:0918bfe44902e6ad8d57732ba310582e98da931428d231a5ecb9e7c703a735bb", size = 107721, upload-time = "2025-11-30T15:08:24.087Z" },
+]
+
+[[package]]
 name = "certifi"
 version = "2025.11.12"
 source = { registry = "https://pypi.org/simple" }
@@ -670,6 +683,21 @@ wheels = [
 ]
 
 [[package]]
+name = "mkdocs-meta-descriptions-plugin"
+version = "4.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "beautifulsoup4" },
+    { name = "mkdocs" },
+    { name = "packaging" },
+    { name = "pymdown-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/2b/18/ee307424dd767c14b3b90137180fb0bc4784148eb3b6985bcf7324ba3174/mkdocs_meta_descriptions_plugin-4.1.0.tar.gz", hash = "sha256:2da083f97ad4d580de3fcef9ea7d2c60037445addfb41d1272f5813659ddb765", size = 144951, upload-time = "2025-04-19T15:29:53.448Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/94/54/da9ea958a070aac4bc1bed682f55aa090eff3130af5f59ad83014b2191b3/mkdocs_meta_descriptions_plugin-4.1.0-py3-none-any.whl", hash = "sha256:e1fb07c1de09e58af82d7ef85bd462766bac916f91b3a3de9f569ca495e6b810", size = 8922, upload-time = "2025-04-19T15:29:51.934Z" },
+]
+
+[[package]]
 name = "mkdocs-minify-plugin"
 version = "0.8.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1240,6 +1268,15 @@ wheels = [
 ]
 
 [[package]]
+name = "soupsieve"
+version = "2.8"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/6d/e6/21ccce3262dd4889aa3332e5a119a3491a95e8f60939870a3a035aabac0d/soupsieve-2.8.tar.gz", hash = "sha256:e2dd4a40a628cb5f28f6d4b0db8800b8f581b65bb380b97de22ba5ca8d72572f", size = 103472, upload-time = "2025-08-27T15:39:51.78Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/14/a0/bb38d3b76b8cae341dad93a2dd83ab7462e6dbcdd84d43f54ee60a8dc167/soupsieve-2.8-py3-none-any.whl", hash = "sha256:0cc76456a30e20f5d7f2e14a98a4ae2ee4e5abdc7c5ea0aafe795f344bc7984c", size = 36679, upload-time = "2025-08-27T15:39:50.179Z" },
+]
+
+[[package]]
 name = "structlog"
 version = "25.5.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1311,6 +1348,7 @@ mkdocs = [
     { name = "mkdocs-coverage" },
     { name = "mkdocs-git-revision-date-localized-plugin" },
     { name = "mkdocs-material" },
+    { name = "mkdocs-meta-descriptions-plugin" },
     { name = "mkdocs-minify-plugin" },
     { name = "mkdocs-pagetree-plugin" },
     { name = "mkdocstrings", extra = ["python"] },
@@ -1351,6 +1389,7 @@ mkdocs = [
     { name = "mkdocs-coverage" },
     { name = "mkdocs-git-revision-date-localized-plugin" },
     { name = "mkdocs-material" },
+    { name = "mkdocs-meta-descriptions-plugin" },
     { name = "mkdocs-minify-plugin" },
     { name = "mkdocs-pagetree-plugin" },
     { name = "mkdocstrings", extras = ["python"] },
