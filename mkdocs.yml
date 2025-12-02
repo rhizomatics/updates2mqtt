@@ -9,7 +9,7 @@ edit_uri: edit/main/docs/
 theme:
   name: material
   highlightjs: true
-  logo: images/logo-blank-256x256.png
+  logo: images/updates2mqtt-dark-256x256.png
   language: en
   icon:
     repo: fontawesome/brands/github
