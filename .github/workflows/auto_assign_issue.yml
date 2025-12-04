@@ -1,0 +1,18 @@
+name: Issue assignment
+
+on:
+    issues:
+        types: [opened]
+
+jobs:
+    auto-assign:
+        runs-on: ubuntu-latest
+        permissions:
+            issues: write
+        steps:
+            - name: 'Auto-assign issue'
+              uses: pozil/auto-assign-issue@39c06395cbac76e79afc4ad4e5c5c6db6ecfdd2e
+              with:
+                  assignees: jeyrb
+                  numOfAssignee: 1
+                  allowSelfAssign: true
