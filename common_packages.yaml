@@ -82,3 +82,15 @@ common_packages:
       image_name: jellyfin/jellyfin
     logo_url: https://avatars.githubusercontent.com/u/45698031?s=48&v=4
     release_notes_url: https://github.com/jellyfin/jellyfin/releases
+
+  owntone:
+    docker:
+      image_name: owntone/owntone
+    logo_url: https://raw.githubusercontent.com/owntone/owntone-server/443fb684871e005a7e442a08cc4d610208abbe6c/docs/assets/logo.svg
+    release_notes_url: https://github.com/owntone/owntone-server/releases
+
+  homarr:
+    docker:
+      image_name: ghcr.io/homarr-labs/homarr
+    logo_url: https://github.com/homarr-labs/homarr/blob/dev/docs/img/logo/2340450-2-title.png?raw=true
+    release_notes_url: https://github.com/homarr-labs/homarr/releases
