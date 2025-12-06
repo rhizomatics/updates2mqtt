@@ -3,7 +3,8 @@
 ## 1.4.2
 - Replace `origin` in config MQTT message with `device` for better HomeAssistant compatibility
 - An `area` can be defined in the Home Assistant section of config and this will then be used as `suggested_area` for device
-- Icon and release note info added for Owntone and Homarr
+- Icon and release note info added for Owntone, Nextcloud, n8n, and Homarr
+- More testcases
 ## 1.4.1
 - More logging for Docker discovery on why Home Assistant doesn't show an update button
 - More test cases
