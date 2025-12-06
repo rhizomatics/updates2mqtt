@@ -19,6 +19,8 @@ homeassistant:
     prefix: homeassistant
     enabled: true
   state_topic_suffix: state
+  area: Server Room
+  device_creation: true
 docker:
   enabled: true
   allow_pull: true
