@@ -50,6 +50,7 @@ class HomeAssistantConfig:
     discovery: HomeAssistantDiscoveryConfig = field(default_factory=HomeAssistantDiscoveryConfig)
     state_topic_suffix: str = "state"
     device_creation: bool = True
+    area: str | None = None
 
 
 @dataclass
@@ -64,7 +65,6 @@ class NodeConfig:
     name: str = field(default_factory=lambda: os.uname().nodename.replace(".local", ""))
     git_path: str = "/usr/bin/git"
     healthcheck: HealthCheckConfig = field(default_factory=HealthCheckConfig)
-    area: str | None = None
 
 
 @dataclass

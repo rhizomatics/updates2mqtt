@@ -51,8 +51,8 @@ def hass_format_config(
             "manufacturer": "rhizomatics",
             "identifiers": [f"{node_name}.updates2mqtt"],
         }
-    if area:
-        config["suggested_area"] = area
+        if area:
+            config["device"]["suggested_area"] = area
     if command_topic:
         config["command_topic"] = command_topic
         config["payload_install"] = f"{discovery.source_type}|{discovery.name}|install"
