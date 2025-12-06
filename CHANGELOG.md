@@ -1,5 +1,7 @@
 # CHANGELOG
 
+## 1.4.2
+- Replace `origin` in config MQTT message with `device` for better HomeAssistant compatibility
 ## 1.4.1
 - More logging for Docker discovery on why Home Assistant doesn't show an update button
 - More test cases

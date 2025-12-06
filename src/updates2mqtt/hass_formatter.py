@@ -36,10 +36,11 @@ def hass_format_config(
         "update_policy": discovery.update_policy,
         "latest_version_topic": state_topic,
         "latest_version_template": "{{value_json.latest_version}}",
-        "origin": {
-            "name": "updates2mqtt",
-            "sw_version": updates2mqtt.version,
-            "support_url": "https://github.com/rhizomatics/updates2mqtt/issues",
+        "device": {
+            "name": f"{node_name} updates2mqtt Agent",
+            "sw_version": updates2mqtt.version,  # pyright: ignore[reportAttributeAccessIssue]
+            "manufacturer": "rhizomatics",
+            "identifiers": [f"{node_name}.updates2mqtt"],
         },
     }
     if command_topic:
