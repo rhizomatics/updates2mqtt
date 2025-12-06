@@ -49,6 +49,7 @@ class HomeAssistantDiscoveryConfig:
 class HomeAssistantConfig:
     discovery: HomeAssistantDiscoveryConfig = field(default_factory=HomeAssistantDiscoveryConfig)
     state_topic_suffix: str = "state"
+    device_creation: bool = True
 
 
 @dataclass
@@ -63,6 +64,7 @@ class NodeConfig:
     name: str = field(default_factory=lambda: os.uname().nodename.replace(".local", ""))
     git_path: str = "/usr/bin/git"
     healthcheck: HealthCheckConfig = field(default_factory=HealthCheckConfig)
+    area: str | None = None
 
 
 @dataclass
@@ -74,7 +76,7 @@ class LogConfig:
 class Config:
     log: LogConfig = field(default_factory=LogConfig)
     node: NodeConfig = field(default_factory=NodeConfig)
-    mqtt: MqttConfig = field(default_factory=MqttConfig)
+    mqtt: MqttConfig = field(default_factory=MqttConfig)  # pyright: ignore[reportCallIssue, reportArgumentType]
     homeassistant: HomeAssistantConfig = field(default_factory=HomeAssistantConfig)
     docker: DockerConfig = field(default_factory=DockerConfig)
     scan_interval: int = 60 * 60 * 3

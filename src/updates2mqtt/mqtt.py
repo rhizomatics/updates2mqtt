@@ -315,12 +315,14 @@ class MqttPublisher:
         self.publish(
             self.config_topic(discovery),
             hass_format_config(
-                discovery,
-                object_id,
-                self.node_cfg.name,
-                self.state_topic(discovery),
-                command_topic,
-                discovery.session,
+                discovery=discovery,
+                object_id=object_id,
+                node_name=self.node_cfg.name,
+                area=self.node_cfg.area,
+                state_topic=self.state_topic(discovery),
+                command_topic=command_topic,
+                device_creation=self.hass_cfg.device_creation,
+                session=discovery.session,
             ),
         )
 

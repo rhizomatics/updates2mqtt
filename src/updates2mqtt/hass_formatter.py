@@ -19,9 +19,16 @@ HASS_UPDATE_SCHEMA = [
 
 
 def hass_format_config(
-    discovery: Discovery, object_id: str, node_name: str, state_topic: str, command_topic: str | None, session: str
+    discovery: Discovery,
+    object_id: str,
+    node_name: str,
+    state_topic: str,
+    command_topic: str | None,
+    device_creation: bool = True,
+    area: str | None = None,
+    session: str | None = None,
 ) -> dict[str, Any]:
-    config = {
+    config: dict[str, Any] = {
         "name": f"{discovery.name} {discovery.source_type} on {node_name}",
         "device_class": None,  # not firmware, so defaults to null
         "unique_id": object_id,
@@ -36,13 +43,16 @@ def hass_format_config(
         "update_policy": discovery.update_policy,
         "latest_version_topic": state_topic,
         "latest_version_template": "{{value_json.latest_version}}",
-        "device": {
+    }
+    if device_creation:
+        config["device"] = {
             "name": f"{node_name} updates2mqtt Agent",
             "sw_version": updates2mqtt.version,  # pyright: ignore[reportAttributeAccessIssue]
             "manufacturer": "rhizomatics",
             "identifiers": [f"{node_name}.updates2mqtt"],
-        },
-    }
+        }
+    if area:
+        config["suggested_area"] = area
     if command_topic:
         config["command_topic"] = command_topic
         config["payload_install"] = f"{discovery.source_type}|{discovery.name}|install"
