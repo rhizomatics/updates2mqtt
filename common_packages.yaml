@@ -26,7 +26,7 @@ common_packages:
   caddy:
     docker:
       image_name: caddy
-    logo_url: https://d1q6f0aelx0por.cloudfront.net/product-logos/library-caddy-logo.png
+    logo_url: https://avatars.githubusercontent.com/u/12955528?s=48&v=4
     release_notes_url: https://github.com/caddyserver/caddy/releases
 
   uptime-kuma:
