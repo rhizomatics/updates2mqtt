@@ -4,7 +4,9 @@
 - Target specific service on docker compose commands, where available from `com.docker.compose.service` label
 - Log level in config is now an enum, and forced to be upper case
 - Removed unnecessary latest_version fields from config message, which also saves a redundant MQTT subscription
+- Publication of `command_topic` for each discovery can now be forced with `force_command_topic` option
 - More common packages: docker:cli
+- Reduced log noise in INFO and increased logging detail for DEBUG
 - Common Packages now allow entries without all the values, initially `rtl_433` which lacks a logo
 ## 1.4.2
 - Replace `origin` in config MQTT message with `device` for better HomeAssistant compatibility
