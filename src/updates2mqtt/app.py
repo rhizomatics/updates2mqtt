@@ -7,19 +7,16 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from threading import Event
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import structlog
 
 import updates2mqtt
 from updates2mqtt.model import Discovery, ReleaseProvider
 
-from .config import Config, load_app_config, load_package_info
+from .config import Config, PackageUpdateInfo, load_app_config, load_package_info
 from .integrations.docker import DockerProvider
 from .mqtt import MqttPublisher
-
-if TYPE_CHECKING:
-    from updates2mqtt.config import UpdateInfoConfig
 
 log = structlog.get_logger()
 
@@ -49,7 +46,7 @@ class App:
 
         structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(getattr(logging, str(self.cfg.log.level))))
         log.debug("Logging initialized", level=self.cfg.log.level)
-        self.common_pkg: UpdateInfoConfig = load_package_info(PKG_INFO_FILE)
+        self.common_pkg: dict[str, PackageUpdateInfo] = load_package_info(PKG_INFO_FILE)
 
         self.publisher = MqttPublisher(self.cfg.mqtt, self.cfg.node, self.cfg.homeassistant)
 

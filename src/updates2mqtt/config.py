@@ -42,7 +42,8 @@ class DockerConfig:
     allow_build: bool = True
     compose_version: str = "v2"
     default_entity_picture_url: str = "https://www.docker.com/wp-content/uploads/2022/03/Moby-logo.png"
-    device_icon: str = "mdi:docker"  # Icon to show when browsing entities in Home Assistant
+    # Icon to show when browsing entities in Home Assistant
+    device_icon: str = "mdi:docker"
     discover_metadata: dict[str, MetadataSourceConfig] = field(
         default_factory=lambda: {"linuxserver.io": MetadataSourceConfig(enabled=True)}
     )
@@ -85,7 +86,7 @@ class LogConfig:
 class Config:
     log: LogConfig = field(default_factory=LogConfig)
     node: NodeConfig = field(default_factory=NodeConfig)
-    mqtt: MqttConfig = field(default_factory=MqttConfig)  # pyright: ignore[reportCallIssue, reportArgumentType]
+    mqtt: MqttConfig = field(default_factory=MqttConfig)  # pyright: ignore[reportArgumentType, reportCallIssue]
     homeassistant: HomeAssistantConfig = field(default_factory=HomeAssistantConfig)
     docker: DockerConfig = field(default_factory=DockerConfig)
     scan_interval: int = 60 * 60 * 3
@@ -112,16 +113,22 @@ class IncompleteConfigException(BaseException):
     pass
 
 
-def load_package_info(pkginfo_file_path: Path) -> UpdateInfoConfig:
+def load_package_info(pkginfo_file_path: Path) -> dict[str, PackageUpdateInfo]:
     if pkginfo_file_path.exists():
         log.debug("Loading common package update info", path=pkginfo_file_path)
         cfg = OmegaConf.load(pkginfo_file_path)
     else:
         log.warn("No common package update info found", path=pkginfo_file_path)
         cfg = OmegaConf.structured(UpdateInfoConfig)
-    OmegaConf.to_container(cfg, throw_on_missing=True)
-    OmegaConf.set_readonly(cfg, True)
-    return typing.cast("UpdateInfoConfig", cfg)
+    try:
+        # omegaconf broken-ness on optional fields and converting to backclasses
+        pkg_conf: dict[str, PackageUpdateInfo] = {
+            pkg: PackageUpdateInfo(**pkg_cfg) for pkg, pkg_cfg in cfg.common_packages.items()
+        }
+        return pkg_conf
+    except (MissingMandatoryValue, ValidationError) as e:
+        log.error("Configuration error %s", e, path=pkginfo_file_path.as_posix())
+        raise
 
 
 def load_app_config(conf_file_path: Path, return_invalid: bool = False) -> Config | None:

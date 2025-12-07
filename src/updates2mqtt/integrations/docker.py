@@ -13,7 +13,7 @@ import structlog
 from docker.models.containers import Container
 from hishel.httpx import SyncCacheClient
 
-from updates2mqtt.config import DockerConfig, DockerPackageUpdateInfo, NodeConfig, PackageUpdateInfo, UpdateInfoConfig
+from updates2mqtt.config import DockerConfig, DockerPackageUpdateInfo, NodeConfig, PackageUpdateInfo
 from updates2mqtt.model import Discovery, ReleaseProvider
 
 from .git_utils import git_check_update_available, git_pull, git_timestamp, git_trust
@@ -37,12 +37,12 @@ def safe_json_dt(t: float | None) -> str | None:
 
 
 class DockerProvider(ReleaseProvider):
-    def __init__(self, cfg: DockerConfig, common_pkg_cfg: UpdateInfoConfig, node_cfg: NodeConfig) -> None:
+    def __init__(self, cfg: DockerConfig, common_pkg_cfg: dict[str, PackageUpdateInfo], node_cfg: NodeConfig) -> None:
         super().__init__("docker")
         self.client: docker.DockerClient = docker.from_env()
         self.cfg: DockerConfig = cfg
         self.node_cfg: NodeConfig = node_cfg
-        self.common_pkgs: dict[str, PackageUpdateInfo] = common_pkg_cfg.common_packages if common_pkg_cfg else {}
+        self.common_pkgs: dict[str, PackageUpdateInfo] = common_pkg_cfg if common_pkg_cfg else {}
         # TODO: refresh discovered packages periodically
         self.discovered_pkgs: dict[str, PackageUpdateInfo] = self.discover_metadata()
 
