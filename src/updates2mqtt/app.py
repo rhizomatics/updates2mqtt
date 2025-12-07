@@ -76,7 +76,6 @@ class App:
             async with asyncio.TaskGroup() as tg:
                 # xtype: ignore[attr-defined]
                 async for discovery in scanner.scan(session):
-                    log.debug("create_task", discovery_name=discovery.name)
                     tg.create_task(self.on_discovery(discovery), name=f"discovery-{discovery.name}")
             if self.stopped.is_set():
                 log.debug("Breaking scan loop on stopped event")
