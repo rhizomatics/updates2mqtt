@@ -210,6 +210,7 @@ class DockerProvider(ReleaseProvider):
                 retries_left = 3
                 while reg_data is None and retries_left > 0 and not self.stopped.is_set():
                     try:
+                        logger.debug("Fetching registry data", image_ref=image_ref)
                         reg_data = self.client.images.get_registry_data(image_ref)
                         latest_version = reg_data.short_id[7:] if reg_data else None
                     except docker.errors.APIError as e:
