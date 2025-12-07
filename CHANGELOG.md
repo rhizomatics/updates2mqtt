@@ -1,10 +1,11 @@
 # CHANGELOG
 
-## 1.4.3
+## 1.5.0
 - Target specific service on docker compose commands, where available from `com.docker.compose.service` label
 - Log level in config is now an enum, and forced to be upper case
 - Removed unnecessary latest_version fields from config message, which also saves a redundant MQTT subscription
 - More common packages: docker:cli
+- Common Packages now allow entries without all the values, initially `rtl_433` which lacks a logo
 ## 1.4.2
 - Replace `origin` in config MQTT message with `device` for better HomeAssistant compatibility
 - An `area` can be defined in the Home Assistant section of config and this will then be used as `suggested_area` for device
