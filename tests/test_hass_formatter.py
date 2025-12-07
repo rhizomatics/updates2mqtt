@@ -22,14 +22,14 @@ def test_formatter_includes_device(mock_discoveries: list[Discovery], monkeypatc
         "source_session": None,
         "supported_features": [],
         "origin": {
-            "name": "testbed01 updates2mqtt Agent",
+            "name": "testbed01 updates2mqtt",
             "sw_version": "3.0.0",
             "support_url": "https://github.com/rhizomatics/updates2mqtt/issues",
         },
         "device": {
             "identifiers": ["testbed01.updates2mqtt"],
             "manufacturer": "rhizomatics",
-            "name": "testbed01 updates2mqtt Agent",
+            "name": "testbed01 updates2mqtt",
             "suggested_area": "Basement",
             "sw_version": "3.0.0",
         },
@@ -57,7 +57,7 @@ def test_formatter_excludes_device(mock_discoveries: list[Discovery], monkeypatc
         "source_session": None,
         "supported_features": [],
         "origin": {
-            "name": "testbed01 updates2mqtt Agent",
+            "name": "testbed01 updates2mqtt",
             "sw_version": "3.0.0",
             "support_url": "https://github.com/rhizomatics/updates2mqtt/issues",
         },

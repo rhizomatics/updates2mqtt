@@ -28,8 +28,13 @@ def hass_format_config(
     area: str | None = None,
     session: str | None = None,
 ) -> dict[str, Any]:
+    if device_creation:
+        # avoid duplication, since Home Assistant will concatenate device and entity name on update
+        name: str = f"{discovery.name} {discovery.source_type}"
+    else:
+        name = f"{discovery.name} {discovery.source_type} on {node_name}"
     config: dict[str, Any] = {
-        "name": f"{discovery.name} {discovery.source_type} on {node_name}",
+        "name": name,
         "device_class": None,  # not firmware, so defaults to null
         "unique_id": object_id,
         "state_topic": state_topic,
@@ -42,14 +47,14 @@ def hass_format_config(
         "can_restart": discovery.can_restart,
         "update_policy": discovery.update_policy,
         "origin": {
-            "name": f"{node_name} updates2mqtt Agent",
+            "name": f"{node_name} updates2mqtt",
             "sw_version": updates2mqtt.version,  # pyright: ignore[reportAttributeAccessIssue]
             "support_url": "https://github.com/rhizomatics/updates2mqtt/issues",
         },
     }
     if device_creation:
         config["device"] = {
-            "name": f"{node_name} updates2mqtt Agent",
+            "name": f"{node_name} updates2mqtt",
             "sw_version": updates2mqtt.version,  # pyright: ignore[reportAttributeAccessIssue]
             "manufacturer": "rhizomatics",
             "identifiers": [f"{node_name}.updates2mqtt"],
