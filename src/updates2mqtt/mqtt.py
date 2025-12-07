@@ -235,7 +235,7 @@ class MqttPublisher:
                 updated = provider.command(comp_name, command, on_update_start, on_update_end)
                 discovery = provider.resolve(comp_name)
                 if updated and discovery:
-                    self.publish_hass_state(discovery, updated)
+                    self.publish_hass_state(discovery)
                 else:
                     logger.debug("No change to republish after execution")
             logger.info("Execution ended")
