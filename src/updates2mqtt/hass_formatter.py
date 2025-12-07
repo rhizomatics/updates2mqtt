@@ -40,8 +40,6 @@ def hass_format_config(
         "state_topic": state_topic,
         "source_session": session,
         "supported_features": discovery.features,
-        "entity_picture": discovery.entity_picture_url,
-        "icon": discovery.device_icon,
         "can_update": discovery.can_update,
         "can_build": discovery.can_build,
         "can_restart": discovery.can_restart,
@@ -52,6 +50,10 @@ def hass_format_config(
             "support_url": "https://github.com/rhizomatics/updates2mqtt/issues",
         },
     }
+    if discovery.entity_picture_url:
+        config["entity_picture"] = discovery.entity_picture_url
+    if discovery.device_icon:
+        config["icon"] = discovery.device_icon
     if device_creation:
         config["device"] = {
             "name": f"{node_name} updates2mqtt",
