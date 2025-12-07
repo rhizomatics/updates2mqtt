@@ -195,8 +195,8 @@ async def repeated_call(func: Callable, interval: int = 60, *args: Any, **kwargs
         try:
             await func(*args, **kwargs)
             await asyncio.sleep(interval)
-        except asyncio.CancelledError as ce:
-            log.debug("Periodic task cancelled", func=func, exception=ce)
+        except asyncio.CancelledError:
+            log.debug("Periodic task cancelled", func=func)
         except Exception:
             log.exception("Periodic task failed")
 
