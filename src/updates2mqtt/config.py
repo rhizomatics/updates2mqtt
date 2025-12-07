@@ -1,12 +1,21 @@
 import os
 import typing
 from dataclasses import dataclass, field
+from enum import StrEnum
 from pathlib import Path
 
 import structlog
 from omegaconf import MISSING, DictConfig, MissingMandatoryValue, OmegaConf, ValidationError
 
 log = structlog.get_logger()
+
+
+class LogLevel(StrEnum):
+    DEBUG = "DEBUG"
+    INFO = "INFO"
+    WARNING = "WARNING"
+    ERROR = "ERROR"
+    CRITICAL = "CRITICAL"
 
 
 @dataclass
@@ -69,7 +78,7 @@ class NodeConfig:
 
 @dataclass
 class LogConfig:
-    level: str = "INFO"
+    level: LogLevel = LogLevel.INFO
 
 
 @dataclass

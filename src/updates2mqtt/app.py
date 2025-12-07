@@ -44,7 +44,7 @@ class App:
             sys.exit(1)
         self.cfg: Config = app_config
 
-        structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(getattr(logging, self.cfg.log.level)))
+        structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(getattr(logging, str(self.cfg.log.level))))
         log.debug("Logging initialized", level=self.cfg.log.level)
         self.common_pkg = load_package_info(PKG_INFO_FILE)
 
@@ -74,7 +74,8 @@ class App:
                 break
             log.info("Scanning", source=scanner.source_type, session=session)
             async with asyncio.TaskGroup() as tg:
-                async for discovery in scanner.scan(session):  # xtype: ignore[attr-defined]
+                # xtype: ignore[attr-defined]
+                async for discovery in scanner.scan(session):
                     tg.create_task(self.on_discovery(discovery), name=f"discovery-{discovery.name}")
             if self.stopped.is_set():
                 break
@@ -157,7 +158,8 @@ class App:
             scanner.stop()
         interrupt_task = asyncio.get_event_loop().create_task(
             self.interrupt_tasks(),
-            eager_start=True,  # type: ignore[call-arg] # pyright: ignore[reportCallIssue]
+            # type: ignore[call-arg] # pyright: ignore[reportCallIssue]
+            eager_start=True,
             name="interrupt",
         )
         for t in asyncio.all_tasks():
@@ -173,7 +175,8 @@ class App:
         self.publisher.publish(
             topic=self.healthcheck_topic,
             payload={
-                "version": updates2mqtt.version,  # pyright: ignore[reportAttributeAccessIssue]
+                # pyright: ignore[reportAttributeAccessIssue]
+                "version": updates2mqtt.version,
                 "node": self.cfg.node.name,
                 "heartbeat_raw": time.time(),
                 "heartbeat_stamp": datetime.now(UTC).isoformat(),
@@ -202,7 +205,8 @@ def run() -> None:
 
     from .app import App
 
-    log.debug(f"Starting updates2mqtt v{updates2mqtt.version}")  # pyright: ignore[reportAttributeAccessIssue]
+    # pyright: ignore[reportAttributeAccessIssue]
+    log.debug(f"Starting updates2mqtt v{updates2mqtt.version}")
     app = App()
 
     signal.signal(signal.SIGTERM, app.shutdown)
