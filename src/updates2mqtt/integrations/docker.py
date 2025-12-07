@@ -304,12 +304,14 @@ class DockerProvider(ReleaseProvider):
         containers = results = 0
         logger.debug("Starting container scan loop")
         for c in self.client.containers.list():
+            logger.debug("Analyzing container", container=c)
             if self.stopped.is_set():
                 logger.info(f"Shutdown detected, aborting scan at {c}")
                 break
             containers = containers + 1
             result = self.analyze(c, session)
             if result:
+                logger.debug("Analyzed container", result_name=result.name, custom=result.custom)
                 self.discoveries[result.name] = result
                 results = results + 1
                 yield result
