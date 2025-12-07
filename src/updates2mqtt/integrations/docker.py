@@ -304,7 +304,7 @@ class DockerProvider(ReleaseProvider):
         containers = results = 0
         logger.debug("Starting container scan loop")
         for c in self.client.containers.list():
-            logger.debug("Analyzing container", container=c)
+            logger.debug("Analyzing container", container=c.name)
             if self.stopped.is_set():
                 logger.info(f"Shutdown detected, aborting scan at {c}")
                 break
@@ -316,7 +316,7 @@ class DockerProvider(ReleaseProvider):
                 results = results + 1
                 yield result
             else:
-                logger.debug("No result from analysis", container=c)
+                logger.debug("No result from analysis", container=c.name)
         logger.info("Completed", container_count=containers, result_count=results)
 
     def command(self, discovery_name: str, command: str, on_update_start: Callable, on_update_end: Callable) -> bool:
