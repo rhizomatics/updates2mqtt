@@ -371,26 +371,28 @@ class DockerProvider(ReleaseProvider):
         }
 
     def default_metadata(self, image_name: str | None) -> PackageUpdateInfo:
-        relnotes_url: str | None = None
-        picture_url: str | None = self.cfg.default_entity_picture_url
-
         if image_name is not None:
             for pkg in self.common_pkgs.values():
                 if pkg.docker is not None and pkg.docker.image_name is not None and pkg.docker.image_name == image_name:
                     self.log.debug(
-                        "Found common package", image_name=image_name, logo_url=picture_url, relnotes_url=relnotes_url
+                        "Found common package", image_name=image_name, logo_url=pkg.logo_url, relnotes_url=pkg.release_notes_url
                     )
                     return pkg
             for pkg in self.discovered_pkgs.values():
                 if pkg.docker is not None and pkg.docker.image_name is not None and pkg.docker.image_name == image_name:
                     self.log.debug(
-                        "Found discovered package", pkg=pkg.docker.image_name, logo_url=picture_url, relnotes_url=relnotes_url
+                        "Found discovered package",
+                        pkg=pkg.docker.image_name,
+                        logo_url=pkg.logo_url,
+                        relnotes_url=pkg.release_notes_url,
                     )
                     return pkg
 
         self.log.debug("No common or discovered package found", image_name=image_name)
         return PackageUpdateInfo(
-            DockerPackageUpdateInfo(image_name or NO_KNOWN_IMAGE), logo_url=picture_url, release_notes_url=relnotes_url
+            DockerPackageUpdateInfo(image_name or NO_KNOWN_IMAGE),
+            logo_url=self.cfg.default_entity_picture_url,
+            release_notes_url=None,
         )
 
     def discover_metadata(self) -> dict[str, PackageUpdateInfo]:
