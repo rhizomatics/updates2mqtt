@@ -62,27 +62,29 @@ class App:
             "App configured",
             node=self.cfg.node.name,
             scan_interval=self.cfg.scan_interval,
+            healthcheck_topic=self.healthcheck_topic,
         )
 
     async def scan(self) -> None:
         session = uuid.uuid4().hex
         for scanner in self.scanners:
-            log.info("Cleaning topics before scan", source_type=scanner.source_type)
+            slog = log.bind(source_type=scanner.source_type, session=session)
+            slog.info("Cleaning topics before scan")
             if self.scan_count == 0:
                 await self.publisher.clean_topics(scanner, None, force=True)
             if self.stopped.is_set():
                 break
-            log.info("Scanning", source=scanner.source_type, session=session)
+            slog.info("Scanning ...")
             async with asyncio.TaskGroup() as tg:
                 # xtype: ignore[attr-defined]
                 async for discovery in scanner.scan(session):
                     tg.create_task(self.on_discovery(discovery), name=f"discovery-{discovery.name}")
             if self.stopped.is_set():
-                log.debug("Breaking scan loop on stopped event")
+                slog.debug("Breaking scan loop on stopped event")
                 break
             await self.publisher.clean_topics(scanner, session, force=False)
             self.scan_count += 1
-            log.info(f"Scan #{self.scan_count} complete", source_type=scanner.source_type)
+            slog.info(f"Scan #{self.scan_count} complete")
         self.last_scan_timestamp = datetime.now(UTC).isoformat()
 
     async def main_loop(self) -> None:
@@ -172,13 +174,15 @@ class App:
     async def healthcheck(self) -> None:
         if not self.publisher.is_available():
             return
+        heartbeat_stamp: str = datetime.now(UTC).isoformat()
+        log.debug("Publishing health check", heartbeat_stamp=heartbeat_stamp)
         self.publisher.publish(
             topic=self.healthcheck_topic,
             payload={
                 "version": updates2mqtt.version,  # pyright: ignore[reportAttributeAccessIssue]
                 "node": self.cfg.node.name,
                 "heartbeat_raw": time.time(),
-                "heartbeat_stamp": datetime.now(UTC).isoformat(),
+                "heartbeat_stamp": heartbeat_stamp,
                 "startup_stamp": self.startup_timestamp,
                 "last_scan_stamp": self.last_scan_timestamp,
                 "scan_count": self.scan_count,

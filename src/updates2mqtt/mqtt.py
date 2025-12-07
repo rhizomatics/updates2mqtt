@@ -50,9 +50,9 @@ class MqttPublisher:
             elif self.cfg.protocol in ("5", "5.0"):
                 protocol = MQTTProtocolVersion.MQTTv5
             else:
-                self.log.info("No valid MQTT protocol version found (%s), setting to default v3.11", self.cfg.protocol)
+                logger.info("No valid MQTT protocol version found (%s), setting to default v3.11", self.cfg.protocol)
                 protocol = MQTTProtocolVersion.MQTTv311
-            self.log.debug("MQTT protocol set to %r", protocol)
+            logger.debug("MQTT protocol set to %r", protocol)
 
             self.event_loop = event_loop or asyncio.get_event_loop()
             self.client = mqtt.Client(
@@ -68,7 +68,7 @@ class MqttPublisher:
                 keepalive=60,
                 clean_start=MQTT_CLEAN_START_FIRST_ONLY,
             )
-            self.log.info("Client connection requested", result_code=rc)
+            logger.info("Client connection requested", result_code=rc)
 
             self.client.on_connect = self.on_connect
             self.client.on_disconnect = self.on_disconnect
@@ -78,7 +78,7 @@ class MqttPublisher:
 
             self.client.loop_start()
 
-            logger.info("Connected to broker", host=self.cfg.host, port=self.cfg.port)
+            logger.debug("MQTT Publisher loop started", host=self.cfg.host, port=self.cfg.port)
         except Exception as e:
             logger.error("Failed to connect to broker", host=self.cfg.host, port=self.cfg.port, error=str(e))
             raise OSError(f"Connection Failure to {self.cfg.host}:{self.cfg.port} as {self.cfg.user} -- {e}") from e
@@ -101,11 +101,14 @@ class MqttPublisher:
         if rc.getName() == "Not authorized":
             self.fatal_failure.set()
             log.error("Invalid MQTT credentials", result_code=rc)
-
-        self.log.info("Connected to broker", result_code=rc)
-        for topic, provider in self.providers_by_topic.items():
-            self.log.info("(Re)subscribing", topic=topic, provider=provider.source_type)
-            self.client.subscribe(topic)
+            return
+        if rc != 0:
+            self.log.warning("Connection failed to broker", result_code=rc)
+        else:
+            self.log.debug("Connected to broker", result_code=rc)
+            for topic, provider in self.providers_by_topic.items():
+                self.log.debug("(Re)subscribing", topic=topic, provider=provider.source_type)
+                self.client.subscribe(topic)
 
     def on_disconnect(
         self,
@@ -115,7 +118,10 @@ class MqttPublisher:
         rc: ReasonCode,
         _props: Properties | None,
     ) -> None:
-        self.log.info("Disconnected from broker", result_code=rc)
+        if rc == 0:
+            self.log.debug("Disconnected from broker", result_code=rc)
+        else:
+            self.log.warning("Disconnect failure from broker", result_code=rc)
 
     async def clean_topics(
         self, provider: ReleaseProvider, last_scan_session: str | None, wait_time: int = 5, force: bool = False
