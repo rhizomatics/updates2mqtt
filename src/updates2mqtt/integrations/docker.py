@@ -87,17 +87,27 @@ class DockerProvider(ReleaseProvider):
     def build(self, discovery: Discovery, compose_path: str) -> bool:
         logger = self.log.bind(container=discovery.name, action="build")
         logger.info("Building")
-        return self.execute_compose(DockerComposeCommand.BUILD, "", compose_path, logger)
+        return self.execute_compose(
+            command=DockerComposeCommand.BUILD,
+            args="",
+            service=discovery.custom.get("compose_service"),
+            cwd=compose_path,
+            logger=logger,
+        )
 
-    def execute_compose(self, command: DockerComposeCommand, args: str, cwd: str | None, logger: structlog.BoundLogger) -> bool:
+    def execute_compose(
+        self, command: DockerComposeCommand, args: str, service: str | None, cwd: str | None, logger: structlog.BoundLogger
+    ) -> bool:
         if not cwd or not Path(cwd).is_dir():
             logger.warn("Invalid compose path, skipped %s", command)
             return False
-        logger.info(f"Executing compose {command} {args}")
+        logger.info(f"Executing compose {command} {args} {service}")
         cmd: str = "docker-compose" if self.cfg.compose_version == "v1" else "docker compose"
         cmd = cmd + " " + command.value
         if args:
             cmd = cmd + " " + args
+        if service:
+            cmd = cmd + " " + service
 
         proc = subprocess.run(cmd, check=False, shell=True, cwd=cwd)
         if proc.returncode == 0:
@@ -112,7 +122,10 @@ class DockerProvider(ReleaseProvider):
     def restart(self, discovery: Discovery) -> bool:
         logger = self.log.bind(container=discovery.name, action="restart")
         compose_path = discovery.custom.get("compose_path")
-        return self.execute_compose(DockerComposeCommand.UP, "--detach --yes", compose_path, logger)
+        compose_service: str | None = discovery.custom.get("compose_service")
+        return self.execute_compose(
+            command=DockerComposeCommand.UP, args="--detach --yes", service=compose_service, cwd=compose_path, logger=logger
+        )
 
     def rescan(self, discovery: Discovery) -> Discovery | None:
         logger = self.log.bind(container=discovery.name, action="rescan")
@@ -221,6 +234,7 @@ class DockerProvider(ReleaseProvider):
             custom["image_ref"] = image_ref
             save_if_set("compose_path", c.labels.get("com.docker.compose.project.working_dir"))
             save_if_set("compose_version", c.labels.get("com.docker.compose.version"))
+            save_if_set("compose_service", c.labels.get("com.docker.compose.service"))
             save_if_set("git_repo_path", c_env.get("UPD2MQTT_GIT_REPO_PATH"))
             save_if_set("apt_pkgs", c_env.get("UPD2MQTT_APT_PKGS"))
 

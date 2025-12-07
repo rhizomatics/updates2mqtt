@@ -1,5 +1,7 @@
 # CHANGELOG
 
+## 1.4.3
+- Target specific service on docker compose commands, where available from `com.docker.compose.service` label
 ## 1.4.2
 - Replace `origin` in config MQTT message with `device` for better HomeAssistant compatibility
 - An `area` can be defined in the Home Assistant section of config and this will then be used as `suggested_area` for device
