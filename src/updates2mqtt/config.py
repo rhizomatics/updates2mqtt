@@ -60,6 +60,7 @@ class HomeAssistantConfig:
     discovery: HomeAssistantDiscoveryConfig = field(default_factory=HomeAssistantDiscoveryConfig)
     state_topic_suffix: str = "state"
     device_creation: bool = True
+    force_command_topic: bool = False
     area: str | None = None
 
 

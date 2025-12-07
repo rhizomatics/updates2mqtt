@@ -21,6 +21,7 @@ homeassistant:
   state_topic_suffix: state
   area: Server Room
   device_creation: true
+  force_command_topic: false
 docker:
   enabled: true
   allow_pull: true

@@ -24,6 +24,7 @@ def hass_format_config(
     node_name: str,
     state_topic: str,
     command_topic: str | None,
+    can_update: bool,
     device_creation: bool = True,
     area: str | None = None,
     session: str | None = None,
@@ -65,7 +66,8 @@ def hass_format_config(
             config["device"]["suggested_area"] = area
     if command_topic:
         config["command_topic"] = command_topic
-        config["payload_install"] = f"{discovery.source_type}|{discovery.name}|install"
+        if can_update:
+            config["payload_install"] = f"{discovery.source_type}|{discovery.name}|install"
     if discovery.custom.get("git_repo_path"):
         config["git_repo_path"] = discovery.custom["git_repo_path"]
     config.update(discovery.provider.hass_config_format(discovery))
