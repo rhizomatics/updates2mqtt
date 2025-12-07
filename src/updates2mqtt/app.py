@@ -76,12 +76,14 @@ class App:
             async with asyncio.TaskGroup() as tg:
                 # xtype: ignore[attr-defined]
                 async for discovery in scanner.scan(session):
+                    log.debug("create_task", discovery_name=discovery.name)
                     tg.create_task(self.on_discovery(discovery), name=f"discovery-{discovery.name}")
             if self.stopped.is_set():
+                log.debug("Breaking scan loop on stopped event")
                 break
             await self.publisher.clean_topics(scanner, session, force=False)
             self.scan_count += 1
-            log.info("Scan complete", source_type=scanner.source_type)
+            log.info(f"Scan #{self.scan_count} complete", source_type=scanner.source_type)
         self.last_scan_timestamp = datetime.now(UTC).isoformat()
 
     async def main_loop(self) -> None:
