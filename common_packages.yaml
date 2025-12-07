@@ -3,7 +3,7 @@ common_packages:
     docker:
       image_name: ghcr.io/rhizomatics/updates2mqtt
     logo_url: https://avatars.githubusercontent.com/u/162821163?s=48&v=4
-    release_notes_url: https://github.com/rhizomatics/updates2mqtt/pkgs/container/updates2mqtt
+    release_notes_url: https://github.com/rhizomatics/updates2mqtt/releases
 
   frigate:
     docker:
