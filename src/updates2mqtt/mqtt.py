@@ -317,9 +317,6 @@ class MqttPublisher:
 
     def publish_hass_config(self, discovery: Discovery) -> None:
         object_id = f"{discovery.source_type}_{self.node_cfg.name}_{discovery.name}"
-        command_topic: str | None = (
-            self.command_topic(discovery.provider) if discovery.can_update or self.hass_cfg.force_command_topic else None
-        )
         self.publish(
             self.config_topic(discovery),
             hass_format_config(
@@ -328,8 +325,8 @@ class MqttPublisher:
                 node_name=self.node_cfg.name,
                 area=self.hass_cfg.area,
                 state_topic=self.state_topic(discovery),
-                can_update=discovery.can_update,
-                command_topic=command_topic,
+                command_topic=self.command_topic(discovery.provider),
+                force_command_topic=self.hass_cfg.force_command_topic,
                 device_creation=self.hass_cfg.device_creation,
                 session=discovery.session,
             ),

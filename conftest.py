@@ -35,7 +35,7 @@ def app_with_mocked_external_dependencies(
 
 @pytest.fixture
 def mock_discoveries(mock_provider: ReleaseProvider) -> list[Discovery]:
-    return [Discovery(mock_provider, "thing-1", "test001")]
+    return [Discovery(mock_provider, "thing-1", "test001", can_update=True)]
 
 
 @pytest.fixture
