@@ -2,6 +2,11 @@
 
 # MQTT Health Check Script
 # Checks if the heartbeat timestamp in MQTT payload is recent enough
+# Requires MQTT connection details to be available as environment variables
+#   - MQTT_HOST (defaults to localhost)
+#   - MQTT_PORT (defaults to 1883)
+#   - MQTT_USER (no default)
+#   - MQTT_PASS (no default)
 
 # Arguments
 MQTT_TOPIC=$1

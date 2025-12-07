@@ -1,4 +1,4 @@
-![updates2mqtt](/images/updates2mqtt-dark-256x256.png){ align=left }
+![updates2mqtt](images/updates2mqtt-dark-256x256.png){ align=left }
 
 # updates2mqtt
 
@@ -54,15 +54,17 @@ Presently only Docker containers are supported, although others are planned, pro
 |-----------|-------------|----------------------------------------------------------------------------------------------------|
 | Docker    | Scan. Fetch | Fetch is ``docker pull`` only. Restart support only for ``docker-compose`` image based containers. |
   
-## Healthcheck
+## Heartbeat
 
 A heartbeat JSON payload is optionally published periodically to a configurable MQTT topic, defaulting to `healthcheck/{node_name}/updates2mqtt`. It contains the current version of updates2mqtt, the node name, a timestamp, and some basic stats.
+
+## Healthcheck
 
 A `healthcheck.sh` script is included in the Docker image, and can be used as a Docker healthcheck, if the container environment variables are set for `MQTT_HOST`, `MQTT_PORT`, `MQTT_USER` and `MQTT_PASS`. It uses the `mosquitto-clients` Linux package which provides `mosquitto_sub` command to subscribe to topics.
 
 !!! tip
 
-    Check healthcheck is working using `docker inspect --format "{{json .State.Health }}" updates2mqtt | jq`
+    Check healthcheck is working using `docker inspect --format "{{json .State.Health }}" updates2mqtt | jq` (can omit `| jq` if you don't have jsonquery installed, but much easier to read with it)
 
 Another approach is using a restarter service directly in Docker Compose to force a restart, in this case once a day:
 
