@@ -185,7 +185,7 @@ class DockerProvider(ReleaseProvider):
                     logger.warn("RepoDigests=%s", image.attrs.get("RepoDigests"))
 
         platform: str = "Unknown"
-        pkg_info: PackageUpdateInfo = self.default_metadata(image_name)
+        pkg_info: PackageUpdateInfo = self.default_metadata(image_name, image_ref=image_ref)
 
         try:
             picture_url = env_override("UPD2MQTT_PICTURE", pkg_info.logo_url)
@@ -370,19 +370,30 @@ class DockerProvider(ReleaseProvider):
             # "platform": discovery.custom.get("platform"),
         }
 
-    def default_metadata(self, image_name: str | None) -> PackageUpdateInfo:
-        if image_name is not None:
+    def default_metadata(self, image_name: str | None, image_ref: str | None) -> PackageUpdateInfo:
+        def match(pkg: PackageUpdateInfo) -> bool:
+            if pkg is not None and pkg.docker is not None and pkg.docker.image_name is not None:
+                if image_name is not None and image_name == pkg.docker.image_name:
+                    return True
+                if image_ref is not None and image_ref == pkg.docker.image_name:
+                    return True
+            return False
+
+        if image_name is not None and image_ref is not None:
             for pkg in self.common_pkgs.values():
-                if pkg.docker is not None and pkg.docker.image_name is not None and pkg.docker.image_name == image_name:
+                if match(pkg):
                     self.log.debug(
-                        "Found common package", image_name=image_name, logo_url=pkg.logo_url, relnotes_url=pkg.release_notes_url
+                        "Found common package",
+                        image_name=pkg.docker.image_name,  # type: ignore [union-attr]
+                        logo_url=pkg.logo_url,
+                        relnotes_url=pkg.release_notes_url,
                     )
                     return pkg
             for pkg in self.discovered_pkgs.values():
-                if pkg.docker is not None and pkg.docker.image_name is not None and pkg.docker.image_name == image_name:
+                if match(pkg):
                     self.log.debug(
                         "Found discovered package",
-                        pkg=pkg.docker.image_name,
+                        pkg=pkg.docker.image_name,  # type: ignore [union-attr]
                         logo_url=pkg.logo_url,
                         relnotes_url=pkg.release_notes_url,
                     )

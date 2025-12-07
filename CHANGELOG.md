@@ -6,6 +6,7 @@
 - Removed unnecessary latest_version fields from config message, which also saves a redundant MQTT subscription
 - Publication of `command_topic` for each discovery can now be forced with `force_command_topic` option
 - More common packages: docker:cli
+- Common packages can now match on the image ref rather than base name, for example `docker:cli`
 - Reduced log noise in INFO and increased logging detail for DEBUG
 - Common Packages now allow entries without all the values, initially `rtl_433` which lacks a logo
 ## 1.4.2
