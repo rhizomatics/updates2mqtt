@@ -300,8 +300,9 @@ class DockerProvider(ReleaseProvider):
         return None
 
     async def scan(self, session: str) -> AsyncGenerator[Discovery]:
-        logger = self.log.bind(session=session, action="scan")
+        logger = self.log.bind(session=session, action="scan", source=self.source_type)
         containers = results = 0
+        logger.debug("Starting container scan loop")
         for c in self.client.containers.list():
             if self.stopped.is_set():
                 logger.info(f"Shutdown detected, aborting scan at {c}")
@@ -312,6 +313,8 @@ class DockerProvider(ReleaseProvider):
                 self.discoveries[result.name] = result
                 results = results + 1
                 yield result
+            else:
+                logger.debug("No result from analysis", container=c)
         logger.info("Completed", container_count=containers, result_count=results)
 
     def command(self, discovery_name: str, command: str, on_update_start: Callable, on_update_end: Callable) -> bool:
