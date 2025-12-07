@@ -106,3 +106,13 @@ common_packages:
       image_name: docker.n8n.io/n8nio/n8n
     logo_url: https://avatars.githubusercontent.com/u/45487711?s=48&v=4
     release_notes_url: https://github.com/n8n-io/n8n/releases
+
+  docker_cli:
+    docker:
+      image_name: docker:cli
+    logo_url: https://www.docker.com/app/uploads/2023/05/cli_1@2x.png
+    release_notes_url: https://github.com/docker-library/docker/commits/master/29/cli
+
+  rtl_433:
+    docker: hertzg/rtl_433
+  release_notes_url: https://github.com/merbanan/rtl_433/releases
