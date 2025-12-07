@@ -64,14 +64,14 @@ async def test_execute_command_remote(mock_mqtt_client: Mock, mock_provider: Rel
 
     with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
         uut = MqttPublisher(config, node_config, hass_config)
+        uut.providers_by_topic = {}
         uut.start(event_loop=asyncio.get_running_loop())
 
         uut.subscribe_hass_command(mock_provider)
-        dummy_callable = lambda: None  # noqa: E731
 
         mqtt_bytes_msg = MQTTMessage(topic=b"updates2mqtt/TESTBED/unit_test")
         mqtt_bytes_msg.payload = b"unit_test|fooey|install"
-        await uut.execute_command(mqtt_bytes_msg, dummy_callable, dummy_callable)
+        await uut.execute_command(mqtt_bytes_msg, Mock(), Mock())
 
         mock_mqtt_client.publish.assert_called_with(
             "updates2mqtt/TESTBED/unit_test/fooey",
@@ -80,7 +80,7 @@ async def test_execute_command_remote(mock_mqtt_client: Mock, mock_provider: Rel
                     "installed_version": "v2",
                     "latest_version": "v2",
                     "title": "Update for fooey on TESTBED",
-                    "in_progress": True,
+                    "in_progress": False,
                 }
             ),
             qos=0,
@@ -112,7 +112,7 @@ async def test_execute_command_local(mock_mqtt_client: Mock, mock_provider: Rele
                     "installed_version": "v2",
                     "latest_version": "v2",
                     "title": "Update for fooey on TESTBED",
-                    "in_progress": True,
+                    "in_progress": False,
                 }
             ),
             qos=0,
