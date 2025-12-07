@@ -119,6 +119,7 @@ def load_package_info(pkginfo_file_path: Path) -> UpdateInfoConfig:
     else:
         log.warn("No common package update info found", path=pkginfo_file_path)
         cfg = OmegaConf.structured(UpdateInfoConfig)
+    OmegaConf.to_container(cfg, throw_on_missing=True)
     OmegaConf.set_readonly(cfg, True)
     return typing.cast("UpdateInfoConfig", cfg)
 

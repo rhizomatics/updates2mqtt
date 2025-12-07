@@ -116,4 +116,4 @@ common_packages:
   rtl_433:
     docker: 
       image_name: hertzg/rtl_433
-  release_notes_url: https://github.com/merbanan/rtl_433/releases
+    release_notes_url: https://github.com/merbanan/rtl_433/releases

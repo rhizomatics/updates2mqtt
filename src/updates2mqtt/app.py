@@ -7,7 +7,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from threading import Event
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import structlog
 
@@ -17,6 +17,9 @@ from updates2mqtt.model import Discovery, ReleaseProvider
 from .config import Config, load_app_config, load_package_info
 from .integrations.docker import DockerProvider
 from .mqtt import MqttPublisher
+
+if TYPE_CHECKING:
+    from updates2mqtt.config import UpdateInfoConfig
 
 log = structlog.get_logger()
 
@@ -46,7 +49,7 @@ class App:
 
         structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(getattr(logging, str(self.cfg.log.level))))
         log.debug("Logging initialized", level=self.cfg.log.level)
-        self.common_pkg = load_package_info(PKG_INFO_FILE)
+        self.common_pkg: UpdateInfoConfig = load_package_info(PKG_INFO_FILE)
 
         self.publisher = MqttPublisher(self.cfg.mqtt, self.cfg.node, self.cfg.homeassistant)
 
@@ -159,8 +162,7 @@ class App:
             scanner.stop()
         interrupt_task = asyncio.get_event_loop().create_task(
             self.interrupt_tasks(),
-            # type: ignore[call-arg] # pyright: ignore[reportCallIssue]
-            eager_start=True,
+            eager_start=True,  # type: ignore[call-arg] # pyright: ignore[reportCallIssue]
             name="interrupt",
         )
         for t in asyncio.all_tasks():
@@ -176,8 +178,7 @@ class App:
         self.publisher.publish(
             topic=self.healthcheck_topic,
             payload={
-                # pyright: ignore[reportAttributeAccessIssue]
-                "version": updates2mqtt.version,
+                "version": updates2mqtt.version,  # pyright: ignore[reportAttributeAccessIssue]
                 "node": self.cfg.node.name,
                 "heartbeat_raw": time.time(),
                 "heartbeat_stamp": datetime.now(UTC).isoformat(),
@@ -207,7 +208,7 @@ def run() -> None:
     from .app import App
 
     # pyright: ignore[reportAttributeAccessIssue]
-    log.debug(f"Starting updates2mqtt v{updates2mqtt.version}")
+    log.debug(f"Starting updates2mqtt v{updates2mqtt.version}")  # pyright: ignore[reportAttributeAccessIssue]
     app = App()
 
     signal.signal(signal.SIGTERM, app.shutdown)
