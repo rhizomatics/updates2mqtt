@@ -7,7 +7,7 @@ def test_formatter_includes_device(mock_discoveries: list[Discovery], monkeypatc
     monkeypatch.setattr(updates2mqtt, "version", "3.0.0")
     msg = hass_format_config(mock_discoveries[0], "obj001", "testbed01", "state_topic_1", "command_topic_1", area="Basement")
     assert msg == {
-        "name": "thing-1 unit_test on testbed01",
+        "name": "thing-1 unit_test",
         "unique_id": "obj001",
         "update_policy": None,
         "can_build": False,
