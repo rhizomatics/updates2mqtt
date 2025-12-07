@@ -277,6 +277,7 @@ class DockerProvider(ReleaseProvider):
                 features.append("RELEASE_NOTES")
             custom["can_pull"] = can_pull
 
+            logger.debug("Analyze generated discovery", discovery_name=c.name, current_version=local_version)
             return Discovery(
                 self,
                 c.name,
@@ -298,6 +299,7 @@ class DockerProvider(ReleaseProvider):
             )
         except Exception:
             logger.exception("Docker Discovery Failure", container_attrs=c.attrs)
+        logger.debug("Analyze returned empty discovery")
         return None
 
     async def scan(self, session: str) -> AsyncGenerator[Discovery]:
@@ -310,7 +312,7 @@ class DockerProvider(ReleaseProvider):
                 logger.info(f"Shutdown detected, aborting scan at {c}")
                 break
             containers = containers + 1
-            result = self.analyze(c, session)
+            result: Discovery | None = self.analyze(c, session)
             if result:
                 logger.debug("Analyzed container", result_name=result.name, custom=result.custom)
                 self.discoveries[result.name] = result
