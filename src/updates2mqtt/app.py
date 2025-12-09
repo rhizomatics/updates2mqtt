@@ -39,7 +39,9 @@ class App:
         self.last_scan_timestamp: str | None = None
         app_config: Config | None = load_app_config(CONF_FILE)
         if app_config is None:
-            log.error(f"Invalid configuration at {CONF_FILE}, edit config to fix missing or invalid values and restart")
+            log.error(f"Invalid configuration at {CONF_FILE}")
+            log.error("Edit config to fix missing or invalid values and restart")
+            log.error("Alternately supply correct MQTT_HOST,MQTT_USER,MQTT_PASSWORD environment variables")
             log.error("Exiting app")
             sys.exit(1)
         self.cfg: Config = app_config
