@@ -8,7 +8,6 @@ def test_formatter_includes_device(mock_discoveries: list[Discovery], monkeypatc
     msg = hass_format_config(
         mock_discoveries[0],
         "obj001",
-        "testbed01",
         "state_topic_1",
         "command_topic_1",
         force_command_topic=False,
@@ -16,7 +15,7 @@ def test_formatter_includes_device(mock_discoveries: list[Discovery], monkeypatc
         area="Basement",
     )
     assert msg == {
-        "name": "thing-1 unit_test",
+        "name": "TestRun for thing-1 on testbed01",
         "unique_id": "obj001",
         "update_policy": None,
         "can_build": False,
@@ -45,11 +44,9 @@ def test_formatter_includes_device(mock_discoveries: list[Discovery], monkeypatc
 
 def test_formatter_excludes_device(mock_discoveries: list[Discovery], monkeypatch) -> None:  # noqa: ANN001
     monkeypatch.setattr(updates2mqtt, "version", "3.0.0")
-    msg = hass_format_config(
-        mock_discoveries[0], "obj001", "testbed01", "state_topic_1", "command_topic_1", True, device_creation=False
-    )
+    msg = hass_format_config(mock_discoveries[0], "obj001", "state_topic_1", "command_topic_1", True, device_creation=False)
     assert msg == {
-        "name": "thing-1 unit_test on testbed01",
+        "name": "TestRun for thing-1 on testbed01",
         "unique_id": "obj001",
         "update_policy": None,
         "can_build": False,
@@ -72,7 +69,7 @@ def test_formatter_excludes_device(mock_discoveries: list[Discovery], monkeypatc
 def test_formatter_forces_command_topic(mock_discoveries: list[Discovery]) -> None:
     discovery = mock_discoveries[0]
     discovery.can_update = False
-    msg = hass_format_config(discovery, "obj001", "testbed01", "state_topic_1", "command_topic_1", True)
+    msg = hass_format_config(discovery, "obj001", "state_topic_1", "command_topic_1", True)
     assert msg["command_topic"] == "command_topic_1"
     assert "payload_install" not in msg
 
@@ -80,6 +77,6 @@ def test_formatter_forces_command_topic(mock_discoveries: list[Discovery]) -> No
 def test_formatter_no_update_suppresses_command_topic(mock_discoveries: list[Discovery]) -> None:
     discovery = mock_discoveries[0]
     discovery.can_update = False
-    msg = hass_format_config(discovery, "obj001", "testbed01", "state_topic_1", "command_topic_1", False)
+    msg = hass_format_config(discovery, "obj001", "state_topic_1", "command_topic_1", False)
     assert "command_topic" not in msg
     assert "payload_install" not in msg

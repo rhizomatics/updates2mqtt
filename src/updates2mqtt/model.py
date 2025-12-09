@@ -14,6 +14,7 @@ class Discovery:
         provider: "ReleaseProvider",
         name: str,
         session: str,
+        node: str,
         entity_picture_url: str | None = None,
         current_version: str | None = None,
         latest_version: str | None = None,
@@ -21,11 +22,12 @@ class Discovery:
         can_build: bool = False,
         can_restart: bool = False,
         status: str = "on",
+        update_type: str | None = "Update",
         update_policy: str | None = None,
         update_last_attempt: float | None = None,
         release_url: str | None = None,
         release_summary: str | None = None,
-        title_template: str = "Update for {name} on {node}",
+        title_template: str = "{discovery.update_type} for {discovery.name} on {discovery.node}",
         device_icon: str | None = None,
         custom: dict[str, Any] | None = None,
         features: list[str] | None = None,
@@ -34,6 +36,7 @@ class Discovery:
         self.source_type: str = provider.source_type
         self.session: str = session
         self.name: str = name
+        self.node: str = node
         self.entity_picture_url: str | None = entity_picture_url
         self.current_version: str | None = current_version
         self.latest_version: str | None = latest_version
@@ -44,6 +47,7 @@ class Discovery:
         self.release_summary: str | None = release_summary
         self.title_template: str | None = title_template
         self.device_icon: str | None = device_icon
+        self.update_type: str | None = update_type
         self.status: str = status
         self.update_policy: str | None = update_policy
         self.update_last_attempt: float | None = update_last_attempt
@@ -53,6 +57,12 @@ class Discovery:
     def __repr__(self) -> str:
         """Build a custom string representation"""
         return f"Discovery('{self.name}','{self.source_type}',current={self.current_version},latest={self.latest_version})"
+
+    @property
+    def title(self) -> str:
+        if self.title_template:
+            return self.title_template.format(discovery=self)
+        return self.name
 
 
 class ReleaseProvider:

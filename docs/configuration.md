@@ -1,6 +1,25 @@
-# Configuration
+# Minimal Configuration
 
-Create file `config.yaml` in `conf` directory. If the file is not present, a default file will be generated.
+The core configuration can be supplied by environment variables, everything else will default, either to fixed values built into Updates2MQTT, or in the case of the node name, taken from the operating system.
+
+| Env Var       | Default      |
+|---------------|--------------|
+| MQTT_HOST     | localhost    |
+| MQTT_PORT     | 1883         |
+| MQTT_USER     | *NO DEFAULT* |
+| MQTT_PASSWORD | *NO DEFAULT* |
+| U2M_LOG_LEVEL | INFO         |
+
+Startup will fail if `MQTT_USER` and `MQTT_PASSWORD` are not defined some how.
+
+The example [docker-compose.yaml](docker_compose.md) and [.env](env.md) demonstrate one way of doing this, or skip
+the `.env` file and use an `environment` section in the Compose file.
+
+# Configuration File
+
+The configuration file is optional, and only needed if you have to override the defaults.
+
+Create file `config.yaml` in `conf` directory. If the file is not present, a default file will be generated, and the parent director if necessary. If you don't want that to happen, then set `U2M_AUTOGEN_CONFIG=0`.
 
 ### Example configuration file
 

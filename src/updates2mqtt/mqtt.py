@@ -309,7 +309,6 @@ class MqttPublisher:
             self.state_topic(discovery),
             hass_format_state(
                 discovery,
-                self.node_cfg.name,
                 discovery.session,
                 in_progress=in_progress,
             ),
@@ -322,7 +321,6 @@ class MqttPublisher:
             hass_format_config(
                 discovery=discovery,
                 object_id=object_id,
-                node_name=self.node_cfg.name,
                 area=self.hass_cfg.area,
                 state_topic=self.state_topic(discovery),
                 command_topic=self.command_topic(discovery.provider),

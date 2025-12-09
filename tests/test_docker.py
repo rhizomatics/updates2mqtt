@@ -80,7 +80,7 @@ def test_discover_metadata(httpx_mock: HTTPXMock, mock_docker_client: DockerClie
 def test_build(mock_docker_client: DockerClient, fake_process: FakeProcess, tmpdir: Path) -> None:
     with patch("docker.from_env", return_value=mock_docker_client):
         uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), {}, mut.NodeConfig())
-        d = Discovery(uut, "build-test-dummy", session="test-123")
+        d = Discovery(uut, "build-test-dummy", "test-123", "node003")
         fake_process.register("docker compose build", returncode=0)
         assert uut.build(d, str(tmpdir))
         fake_process.register("docker compose build", returncode=33)

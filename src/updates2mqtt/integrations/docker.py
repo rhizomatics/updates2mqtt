@@ -101,18 +101,22 @@ class DockerProvider(ReleaseProvider):
         if not cwd or not Path(cwd).is_dir():
             logger.warn("Invalid compose path, skipped %s", command)
             return False
-        logger.info(f"Executing compose {command} {args} {service}")
+
         cmd: str = "docker-compose" if self.cfg.compose_version == "v1" else "docker compose"
+        logger.info(f"Executing {cmd} {command} {args} {service}")
         cmd = cmd + " " + command.value
         if args:
             cmd = cmd + " " + args
         if service:
             cmd = cmd + " " + service
 
-        proc = subprocess.run(cmd, check=False, shell=True, cwd=cwd)
+        proc: subprocess.CompletedProcess[str] = subprocess.run(cmd, check=False, shell=True, cwd=cwd, text=True)
         if proc.returncode == 0:
             logger.info(f"{command} via compose successful")
             return True
+        if proc.stderr and "unknown command: docker compose" in proc.stderr:
+            logger.warning("docker compose set to wrong version, seems like v1 installed")
+            self.cfg.compose_version = "v1"
         logger.warn(
             f"{command} failed: %s",
             proc.returncode,
@@ -275,6 +279,12 @@ class DockerProvider(ReleaseProvider):
                 logger.info(f"Update not available, can_pull:{can_pull}, can_build:{can_build},can_restart{can_restart}")
             if relnotes_url:
                 features.append("RELEASE_NOTES")
+            if can_pull:
+                update_type: str = "Docker Image"
+            elif can_build:
+                update_type = "Docker Build"
+            else:
+                update_type = "Unavailable"
             custom["can_pull"] = can_pull
 
             logger.debug("Analyze generated discovery", discovery_name=c.name, current_version=local_version)
@@ -282,15 +292,16 @@ class DockerProvider(ReleaseProvider):
                 self,
                 c.name,
                 session,
+                node=self.node_cfg.name,
                 entity_picture_url=picture_url,
                 release_url=relnotes_url,
                 current_version=local_version,
                 update_policy=update_policy,
                 update_last_attempt=(original_discovery and original_discovery.update_last_attempt) or None,
                 latest_version=latest_version if latest_version != NO_KNOWN_IMAGE else local_version,
-                title_template="Docker image update for {name} on {node}",
                 device_icon=self.cfg.device_icon,
                 can_update=can_update,
+                update_type=update_type,
                 can_build=can_build,
                 can_restart=can_restart,
                 status=(c.status == "running" and "on") or "off",

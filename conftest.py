@@ -35,7 +35,7 @@ def app_with_mocked_external_dependencies(
 
 @pytest.fixture
 def mock_discoveries(mock_provider: ReleaseProvider) -> list[Discovery]:
-    return [Discovery(mock_provider, "thing-1", "test001", can_update=True)]
+    return [Discovery(mock_provider, "thing-1", "test001", "testbed01", can_update=True, update_type="TestRun")]
 
 
 @pytest.fixture
@@ -71,7 +71,7 @@ def mock_provider() -> ReleaseProvider:
     provider.source_type = "unit_test"
     provider.command.return_value = True  # type: ignore[attr-defined]
     provider.resolve.return_value = Discovery(  # type: ignore[attr-defined]
-        provider, "fooey", session="test-mqtt-123", current_version="v2", latest_version="v2"
+        provider, "fooey", session="test-mqtt-123", node="node002", current_version="v2", latest_version="v2"
     )
     provider.hass_state_format.return_value = {"fixture": "test_exec"}  # type: ignore[attr-defined]
     return provider

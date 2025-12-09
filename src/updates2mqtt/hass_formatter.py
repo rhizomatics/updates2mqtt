@@ -21,7 +21,6 @@ HASS_UPDATE_SCHEMA = [
 def hass_format_config(
     discovery: Discovery,
     object_id: str,
-    node_name: str,
     state_topic: str,
     command_topic: str | None,
     force_command_topic: bool | None,
@@ -29,13 +28,8 @@ def hass_format_config(
     area: str | None = None,
     session: str | None = None,
 ) -> dict[str, Any]:
-    if device_creation:
-        # avoid duplication, since Home Assistant will concatenate device and entity name on update
-        name: str = f"{discovery.name} {discovery.source_type}"
-    else:
-        name = f"{discovery.name} {discovery.source_type} on {node_name}"
     config: dict[str, Any] = {
-        "name": name,
+        "name": discovery.title,
         "device_class": None,  # not firmware, so defaults to null
         "unique_id": object_id,
         "state_topic": state_topic,
@@ -46,7 +40,7 @@ def hass_format_config(
         "can_restart": discovery.can_restart,
         "update_policy": discovery.update_policy,
         "origin": {
-            "name": f"{node_name} updates2mqtt",
+            "name": f"{discovery.node} updates2mqtt",
             "sw_version": updates2mqtt.version,  # pyright: ignore[reportAttributeAccessIssue]
             "support_url": "https://github.com/rhizomatics/updates2mqtt/issues",
         },
@@ -57,10 +51,10 @@ def hass_format_config(
         config["icon"] = discovery.device_icon
     if device_creation:
         config["device"] = {
-            "name": f"{node_name} updates2mqtt",
+            "name": f"{discovery.node} updates2mqtt",
             "sw_version": updates2mqtt.version,  # pyright: ignore[reportAttributeAccessIssue]
             "manufacturer": "rhizomatics",
-            "identifiers": [f"{node_name}.updates2mqtt"],
+            "identifiers": [f"{discovery.node}.updates2mqtt"],
         }
         if area:
             config["device"]["suggested_area"] = area
@@ -74,14 +68,11 @@ def hass_format_config(
     return config
 
 
-def hass_format_state(discovery: Discovery, node_name: str, session: str, in_progress: bool = False) -> dict[str, Any]:  # noqa: ARG001
-    title: str = (
-        discovery.title_template.format(name=discovery.name, node=node_name) if discovery.title_template else discovery.name
-    )
+def hass_format_state(discovery: Discovery, session: str, in_progress: bool = False) -> dict[str, Any]:  # noqa: ARG001
     state = {
         "installed_version": discovery.current_version,
         "latest_version": discovery.latest_version,
-        "title": title,
+        "title": discovery.title,
         "in_progress": in_progress,
     }
     if discovery.release_summary:

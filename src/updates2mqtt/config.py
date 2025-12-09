@@ -25,7 +25,7 @@ class MqttConfig:
     password: str = f"${{oc.env:MQTT_PASS,{MISSING}}}"
     port: int = "${oc.decode:${oc.env:MQTT_PORT,1883}}"  # type: ignore[assignment]
     topic_root: str = "updates2mqtt"
-    protocol: str = "3.11"
+    protocol: str = "${oc.env:MQTT_VERSION,3.11}"
 
 
 @dataclass
@@ -80,12 +80,12 @@ class NodeConfig:
 
 @dataclass
 class LogConfig:
-    level: LogLevel = LogLevel.INFO
+    level: LogLevel = "${oc.decode:${oc.env:U2M_LOG_LEVEL,INFO}}"  # type: ignore[assignment] # pyright: ignore[reportAssignmentType]
 
 
 @dataclass
 class Config:
-    log: LogConfig = field(default_factory=LogConfig)
+    log: LogConfig = field(default_factory=LogConfig)  # pyright: ignore[reportArgumentType, reportCallIssue]
     node: NodeConfig = field(default_factory=NodeConfig)
     mqtt: MqttConfig = field(default_factory=MqttConfig)  # pyright: ignore[reportArgumentType, reportCallIssue]
     homeassistant: HomeAssistantConfig = field(default_factory=HomeAssistantConfig)
@@ -132,22 +132,29 @@ def load_package_info(pkginfo_file_path: Path) -> dict[str, PackageUpdateInfo]:
         raise
 
 
+def is_autogen_config() -> bool:
+    env_var: str | None = os.environ.get("U2M_AUTOGEN_CONFIG")
+    return not (env_var and env_var.lower() in ("no", "0", "false"))
+
+
 def load_app_config(conf_file_path: Path, return_invalid: bool = False) -> Config | None:
     base_cfg: DictConfig = OmegaConf.structured(Config)
     if conf_file_path.exists():
         cfg: DictConfig = typing.cast("DictConfig", OmegaConf.merge(base_cfg, OmegaConf.load(conf_file_path)))
-    else:
+    elif is_autogen_config():
         if not conf_file_path.parent.exists():
             try:
                 log.debug(f"Creating config directory {conf_file_path.parent} if not already present")
                 conf_file_path.parent.mkdir(parents=True, exist_ok=True)
             except Exception:
-                log.exception("Unable to create config directory", path=conf_file_path.parent)
+                log.warning("Unable to create config directory", path=conf_file_path.parent)
         try:
             conf_file_path.write_text(OmegaConf.to_yaml(base_cfg))
             log.info(f"Auto-generated a new config file at {conf_file_path}")
         except Exception:
-            log.exception("Unable to write config file", path=conf_file_path)
+            log.warning("Unable to write config file", path=conf_file_path)
+        cfg = base_cfg
+    else:
         cfg = base_cfg
 
     try:

@@ -6,6 +6,7 @@ from unittest.mock import Mock, patch
 
 import paho.mqtt.client
 import pytest
+from omegaconf import OmegaConf
 from paho.mqtt.client import MQTTMessage
 
 from updates2mqtt.config import HomeAssistantConfig, MqttConfig, NodeConfig
@@ -30,9 +31,9 @@ def test_publish(mock_mqtt_client: Mock, protocol: str) -> None:
 
 @pytest.mark.asyncio
 async def test_handler(mock_mqtt_client: Mock) -> None:
-    config = MqttConfig()
-    hass_config = HomeAssistantConfig()
-    node_config = NodeConfig()
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
     node_config.name = "testing"
     with patch("updates2mqtt.mqtt.mqtt.Client", new=mock_mqtt_client):
         uut = MqttPublisher(config, node_config, hass_config)
@@ -40,7 +41,7 @@ async def test_handler(mock_mqtt_client: Mock) -> None:
 
         provider = Mock(spec=ReleaseProvider)
         provider.source_type = "unit_test"
-        discovery = Discovery(provider, "qux", session="test-mqtt-123")
+        discovery = Discovery(provider, "qux", "test-mqtt-123", "node004")
         provider.command.return_value = discovery
         provider.hass_state_format.return_value = {}
 
@@ -58,9 +59,10 @@ async def test_handler(mock_mqtt_client: Mock) -> None:
 
 
 async def test_execute_command_remote(mock_mqtt_client: Mock, mock_provider: ReleaseProvider) -> None:
-    config = MqttConfig()
-    hass_config = HomeAssistantConfig()
-    node_config = NodeConfig("TESTBED")
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+    node_config.name = "TESTBED"
 
     with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
         uut = MqttPublisher(config, node_config, hass_config)
@@ -79,7 +81,7 @@ async def test_execute_command_remote(mock_mqtt_client: Mock, mock_provider: Rel
                 {
                     "installed_version": "v2",
                     "latest_version": "v2",
-                    "title": "Update for fooey on TESTBED",
+                    "title": "Update for fooey on node002",
                     "in_progress": False,
                 }
             ),
@@ -90,9 +92,10 @@ async def test_execute_command_remote(mock_mqtt_client: Mock, mock_provider: Rel
 
 @pytest.mark.asyncio
 async def test_execute_command_local(mock_mqtt_client: Mock, mock_provider: ReleaseProvider) -> None:
-    config = MqttConfig()
-    hass_config = HomeAssistantConfig()
-    node_config = NodeConfig("TESTBED")
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+    node_config.name = "TESTBED"
 
     with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
         uut = MqttPublisher(config, node_config, hass_config)
@@ -101,7 +104,8 @@ async def test_execute_command_local(mock_mqtt_client: Mock, mock_provider: Rele
 
         uut.subscribe_hass_command(mock_provider)
 
-        discovery = Discovery(mock_provider, "fooey", session="test-mqtt-123", current_version="v1")
+        discovery = mock_provider.resolve("test")
+        assert discovery is not None
         uut.local_message(discovery, "install")
         await asyncio.sleep(1)
 
@@ -111,7 +115,7 @@ async def test_execute_command_local(mock_mqtt_client: Mock, mock_provider: Rele
                 {
                     "installed_version": "v2",
                     "latest_version": "v2",
-                    "title": "Update for fooey on TESTBED",
+                    "title": "Update for fooey on node002",
                     "in_progress": False,
                 }
             ),
@@ -122,9 +126,9 @@ async def test_execute_command_local(mock_mqtt_client: Mock, mock_provider: Rele
 
 @pytest.mark.asyncio
 async def test_stop(mock_mqtt_client: Mock, mock_provider: ReleaseProvider) -> None:
-    config = MqttConfig()
-    hass_config = HomeAssistantConfig()
-    node_config = NodeConfig()
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
 
     with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
         uut = MqttPublisher(config, node_config, hass_config)

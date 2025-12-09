@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 1.5.1
+- `MQTT_VERSION` environment variable added, defaults to `3.11`
+- `U2M_AUTOGEN_CONFIG` environment variable added to control auto-generation of config files and directories
+- `U2M_LOG_LEVEL` environment variable added to set log level without config file
+- Title generation for Docker images reverts to same whether HA device set or not
+- Test added to ensure component always functions without a config file, if no env var present
 ## 1.5.0
 - Target specific service on docker compose commands, where available from `com.docker.compose.service` label
 - Log level in config is now an enum, and forced to be upper case

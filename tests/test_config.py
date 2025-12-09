@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 import pytest
 from omegaconf import OmegaConf
 
-from updates2mqtt.config import MqttConfig, PackageUpdateInfo, load_app_config, load_package_info
+from updates2mqtt.config import LogLevel, MqttConfig, PackageUpdateInfo, load_app_config, load_package_info
 
 EXAMPLES_ROOT = "examples"
 examples = [str(p.name) for p in Path(EXAMPLES_ROOT).iterdir() if p.name.startswith("config")]
@@ -63,7 +63,17 @@ def test_round_trip_config() -> None:
 uname: type = namedtuple("uname", ["nodename"])
 
 
-@patch.dict(os.environ, {"MQTT_HOST": "192.168.3.4", "MQTT_PORT": "2883", "MQTT_USER": "u2macct", "MQTT_PASS": "toosecret123!"})
+@patch.dict(
+    os.environ,
+    {
+        "MQTT_HOST": "192.168.3.4",
+        "MQTT_PORT": "2883",
+        "MQTT_USER": "u2macct",
+        "MQTT_PASS": "toosecret123!",
+        "U2M_LOG_LEVEL": "WARNING",
+        "U2M_AUTOGEN_CONFIG": "0",
+    },
+)
 @patch("os.uname", Mock(return_value=uname("xunit003a")))
 def test_env_only_config() -> None:
     generated_config = load_app_config(Path("no_such_dir/no_such_file.yaml"))
@@ -73,6 +83,8 @@ def test_env_only_config() -> None:
     assert generated_config.mqtt.user == "u2macct"
     assert generated_config.mqtt.password == "toosecret123!"  # noqa: S105
     assert generated_config.node.name == "xunit003a"
+    assert generated_config.log.level == LogLevel.WARNING
+    assert not Path("no_such_dir").exists()
 
 
 def test_package_config() -> None:
