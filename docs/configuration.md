@@ -8,6 +8,7 @@ The core configuration can be supplied by environment variables, everything else
 | MQTT_PORT     | 1883         |
 | MQTT_USER     | *NO DEFAULT* |
 | MQTT_PASSWORD | *NO DEFAULT* |
+| MQTT_VERSION  | 3.11.        |
 | U2M_LOG_LEVEL | INFO         |
 
 Startup will fail if `MQTT_USER` and `MQTT_PASSWORD` are not defined some how.
