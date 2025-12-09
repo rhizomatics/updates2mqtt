@@ -1,6 +1,9 @@
+import os
 import tempfile
 import uuid
+from collections import namedtuple
 from pathlib import Path
+from unittest.mock import Mock, patch
 
 import pytest
 from omegaconf import OmegaConf
@@ -55,6 +58,21 @@ def test_round_trip_config() -> None:
         reloaded_config = load_app_config(conf_path)
         assert reloaded_config is not None
         assert reloaded_config.mqtt.user == "myuser"
+
+
+uname: type = namedtuple("uname", ["nodename"])
+
+
+@patch.dict(os.environ, {"MQTT_HOST": "192.168.3.4", "MQTT_PORT": "2883", "MQTT_USER": "u2macct", "MQTT_PASS": "toosecret123!"})
+@patch("os.uname", Mock(return_value=uname("xunit003a")))
+def test_env_only_config() -> None:
+    generated_config = load_app_config(Path("no_such_dir/no_such_file.yaml"))
+    assert generated_config is not None
+    assert generated_config.mqtt.host == "192.168.3.4"
+    assert generated_config.mqtt.port == 2883
+    assert generated_config.mqtt.user == "u2macct"
+    assert generated_config.mqtt.password == "toosecret123!"  # noqa: S105
+    assert generated_config.node.name == "xunit003a"
 
 
 def test_package_config() -> None:
