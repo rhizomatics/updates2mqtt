@@ -20,7 +20,7 @@ the `.env` file and use an `environment` section in the Compose file.
 
 Set `U2M_AUTOGEN_CONFIG=0` in the environment to prevent a default config file being created in the local compose directory if you want to keep it zero-configuration-file.
 
-# Configuration File
+## With A Configuration File
 
 The configuration file is optional, and only needed if you have to override the defaults.
 
