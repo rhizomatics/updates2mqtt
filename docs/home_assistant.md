@@ -1,6 +1,6 @@
 # HomeAssistant Integration
 
- `updates2mqtt` represents each component being managed as a [MQTT Update](https://www.home-assistant.io/integrations/update.mqtt/) entity, and uses [MQTT discovery](https://www.home-assistant.io/integrations/mqtt/#mqtt-discovery) so that HomeAssistant automatically picks up components discovered by updates2mqtt with zero configuration on HomeAssistant itself. 
+ `updates2mqtt` represents each component being managed as a [MQTT Update](https://www.home-assistant.io/integrations/update.mqtt/) entity, and uses [MQTT discovery](https://www.home-assistant.io/integrations/mqtt/#mqtt-discovery) so that HomeAssistant automatically picks up components discovered by Updates2MQTT with zero configuration on HomeAssistant itself. 
 
 ## Configuration
 
@@ -12,7 +12,7 @@ Home Assistant settings page if the [MQTT Integration](https://www.home-assistan
 
 ![Home Assistant MQTT Integration configuration](images/ha_mqtt_discovery.png "Home Assistant MQTT Discovery")
 
-The `homeassistant` default topic prefix matches the default updates2mqtt config, if its changed in HomeAssistant, then the updates2mqtt config must be changed to match.
+The `homeassistant` default topic prefix matches the default Updates2MQTT config, if its changed in HomeAssistant, then the Updates2MQTT config must be changed to match.
 
 ![Home Assistant updates in Settings](images/ha_update_page.png "Home Assistant Updates")
 
@@ -35,7 +35,7 @@ There are 3 separate types of MQTT topic used for HomeAssisstant integration:
 - *Command* to support triggering an update. 
     - These will be created on the fly by HomeAssistant when an update is requested
     - Updates2mqtt subscribes to pick up the changes, so you won't typically see these if browsing MQTT topics. 
-    - Only one is needed per updates2mqtt agent, with a name like `updates2mqtt/dockernuc/docker`
+    - Only one is needed per Updates2MQTT agent, with a name like `updates2mqtt/dockernuc/docker`
 
 If the package supports automated update, then *Skip* and *Install* buttons will appear on the Home Assistant interface, and the package can be remotely fetched and the component restarted.
 

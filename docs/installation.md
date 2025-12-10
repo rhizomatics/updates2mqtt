@@ -2,7 +2,7 @@
 
 ## Install
 
-updates2mqtt prefers to be run inside a Docker container, though can run standalone, for example scripted via cron or systemd.
+Updates2MQTT prefers to be run inside a Docker container, though can run standalone, for example scripted via cron or systemd.
 
 The only mandatory configuration is the MQTT broker host, user name and password, which can be set by environment variables, or the config file. The node name will be taken from the operating system if there's no config file. See [Configuration](configuration.md) for details.
 
@@ -12,7 +12,7 @@ To check that it's working, have a look at [Verifying it Works on Home Assistant
 
 See `examples` directory for a working `docker-compose.yaml`.
 
-If you want to update and restart containers, then the file system paths to the location of the directory where the docker compose file lives must be available in the updates2mqtt container. 
+If you want to update and restart containers, then the file system paths to the location of the directory where the docker compose file lives must be available in the Updates2MQTT container. 
 
 ```yaml
 volumes:
@@ -28,7 +28,7 @@ volumes:
 ```
 
 The example `docker-compose.yaml` mounts `/my/container/home` for this purpose, so if your containers are in
-`/my/container/home/app1`, `/my/container/home/app2` etc, then updates2mqtt will be able to find them in
+`/my/container/home/app1`, `/my/container/home/app2` etc, then Updates2MQTT will be able to find them in
 order to restart them. Map as many root paths as needed.
 
 ### Without Docker

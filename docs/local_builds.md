@@ -19,4 +19,4 @@ services:
 Declare the git path using the env var in ``UPD2MQTT_GIT_REPO_PATH`` in the docker container ( directly or via an ``.env`` file). The git repo at this path will be used as the source of timestamps, and an update command will carry out a 
 ``git pull`` and ``docker-compose build`` rather than pulling an image.
 
-Note that the updates2mqtt docker container needs access to this path declared in its volumes, and that has to be read/write if automated install required.
+Note that the Updates2MQTT docker container needs access to this path declared in its volumes, and that has to be read/write if automated install required.

@@ -32,7 +32,7 @@ Read the release notes, and optionally click *Update* to trigger a Docker *pull*
 
 ## Description
 
-updates2mqtt perioidically checks for new versions of components being available, and publishes new version info to MQTT. HomeAssistant auto discovery is supported, so all updates can be seen in the same place as Home Assistant's own components and add-ins.
+Updates2MQTT perioidically checks for new versions of components being available, and publishes new version info to MQTT. HomeAssistant auto discovery is supported, so all updates can be seen in the same place as Home Assistant's own components and add-ins.
 
 Currently only Docker containers are supported, either via an image registry check, or a git repo for source (see [Local Builds](local_builds.md)). The design is modular, so other update sources can be added, at least for notification. The next anticipated is **apt** for Debian based systems.
 
@@ -56,7 +56,7 @@ Presently only Docker containers are supported, although others are planned, pro
   
 ## Heartbeat
 
-A heartbeat JSON payload is optionally published periodically to a configurable MQTT topic, defaulting to `healthcheck/{node_name}/updates2mqtt`. It contains the current version of updates2mqtt, the node name, a timestamp, and some basic stats.
+A heartbeat JSON payload is optionally published periodically to a configurable MQTT topic, defaulting to `healthcheck/{node_name}/updates2mqtt`. It contains the current version of Updates2MQTT, the node name, a timestamp, and some basic stats.
 
 ## Healthcheck
 
@@ -109,7 +109,7 @@ The following environment variables can be used to configure containers for `upd
 | `UPD2MQTT_PICTURE`  | URL to an icon to use in Home Assistant.  | Docker logo URL   |
 | `UPD2MQTT_RELNOTES` | URL to release notes for the package.  |  | 
 | `UPD2MQTT_GIT_REPO_PATH` | Relative path to a local git repo if the image is built locally.  | |
-| `UPD2MQTT_IGNORE` | If set to `True`, the container will be ignored by updates2mqtt. | False |
+| `UPD2MQTT_IGNORE` | If set to `True`, the container will be ignored by Updates2MQTT. | False |
 
 
 ## Related Projects
