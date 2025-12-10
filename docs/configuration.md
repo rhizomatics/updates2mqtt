@@ -1,4 +1,6 @@
-# Minimal Configuration
+# Configuration
+
+## Without a Configuration File
 
 The core configuration can be supplied by environment variables, everything else will default, either to fixed values built into Updates2MQTT, or in the case of the node name, taken from the operating system.
 
@@ -15,6 +17,8 @@ Startup will fail if `MQTT_USER` and `MQTT_PASSWORD` are not defined some how.
 
 The example [docker-compose.yaml](docker_compose.md) and [.env](env.md) demonstrate one way of doing this, or skip
 the `.env` file and use an `environment` section in the Compose file.
+
+Set `U2M_AUTOGEN_CONFIG=0` in the environment to prevent a default config file being created in the local compose directory if you want to keep it zero-configuration-file.
 
 # Configuration File
 
