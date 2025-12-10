@@ -43,6 +43,18 @@ If it doesn't support automated update, the `command_topic` won't be published w
 message, unless `force_command_topic` is set to `true` in the `homeassistant` configuration section,
 this will force the Home Assistant app to show the update, but with a do-nothing Update button.
 
+## Verifying it Works
+
+Rather than wait for a container to need an update, you can check right away that
+Home Assistant has recognized the containers as MQTT Update targets.
+
+From the [Entities View](https://www.home-assistant.io/docs/configuration/entities_domains/), or the
+[Developer Tools](https://www.home-assistant.io/docs/tools/dev-tools/), filter
+the entities by `update.` If there are lots of other updates (HassOS apps, Zigbee
+device firmware etc), then pick one of the container names you know.
+
+![Home Assistant Entities](images/ha_entities.png){width=640}
+
 ## More Home Assistant information
 
 - [MQTT Integration](https://www.home-assistant.io/integrations/mqtt/)

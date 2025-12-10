@@ -6,6 +6,8 @@ updates2mqtt prefers to be run inside a Docker container, though can run standal
 
 The only mandatory configuration is the MQTT broker host, user name and password, which can be set by environment variables, or the config file. The node name will be taken from the operating system if there's no config file. See [Configuration](configuration.md) for details.
 
+To check that it's working, have a look at [Verifying it Works on Home Assistant](home_assistant.md#verifying-it-works).
+
 ### Docker
 
 See `examples` directory for a working `docker-compose.yaml`.
@@ -31,6 +33,9 @@ order to restart them. Map as many root paths as needed.
 
 ### Without Docker
 
+Updates2MQTT is published as a [PyPI package](https://pypi.org/project/updates2mqtt/) on every release,
+so it can be used in any way you like - cron, systemd, your own Dockerfile, or whatever.
+
 #### Run without installing using uv
 
 ```
@@ -43,16 +48,4 @@ uv run --with updates2mqtt updates2mqtt
 pip install updates2mqtt
 python3 -m updates2mqtt
 ```
-
-## Verifying it Works
-
-Rather than wait for a container to need an update, you can check right away that
-Home Assistant has recognized the containers as MQTT Update targets.
-
-From the [Entities View](https://www.home-assistant.io/docs/configuration/entities_domains/), or the
-[Developer Tools](https://www.home-assistant.io/docs/tools/dev-tools/), filter
-the entities by `update.` If there are lots of other updates (HassOS apps, Zigbee
-device firmware etc), then pick one of the container names you know.
-
-![Home Assistant Entities](images/ha_entities.png){width=640}
 
