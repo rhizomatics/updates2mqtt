@@ -297,7 +297,7 @@ class DockerProvider(ReleaseProvider):
                 release_url=relnotes_url,
                 current_version=local_version,
                 update_policy=update_policy,
-                update_last_attempt=(original_discovery and original_discovery.update_last_attempt) or None,
+                update_last_attempt=original_discovery.update_last_attempt if original_discovery else None,
                 latest_version=latest_version if latest_version != NO_KNOWN_IMAGE else local_version,
                 device_icon=self.cfg.device_icon,
                 can_update=can_update,
