@@ -145,7 +145,7 @@ pre-packaged with some common ones, in `common_packages.yaml`, and can automatic
 If you have something not covered, here are some good places to look for self-hosted app icons:
 
 - [Homarr Dashboard Icons](https://github.com/homarr-labs/dashboard-icons)
-- [Self Hosted Icons](https://github.com/selfhst/icons)
+- [Self Hosted Icons](https://selfh.st/icons/) ([repo](https://github.com/selfhst/icons))
 - [Simple Icons](https://github.com/simple-icons/simple-icons)
 - [Tabler Icons](https://tabler.io/icons)
 - [Papirus Icons](https://github.com/PapirusDevelopmentTeam/papirus-icon-theme)
