@@ -54,7 +54,7 @@ jobs:
         fi
 
     - name: Prep for mkdocs
-      run:  uv pip compile pyproject.toml -o requirements_docs.txt --group mkdocs
+      run:  uv pip compile pyproject.toml -o requirements_docs.txt --group docs
     - name: Deploy docs
       uses: mhausenblas/mkdocs-deploy-gh-pages@master
       env:

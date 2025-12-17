@@ -59,7 +59,7 @@ dev = [
     "icdiff",
     "genbadge[all]"
 ]
-mkdocs=[
+docs=[
     "mkdocs",
     "mkdocs-material",
     "mkdocs-minify-plugin",
@@ -74,10 +74,8 @@ mkdocs=[
 ]
 
 [build-system]
-build-backend = "hatchling.build"
-requires=[
-  "hatchling"
-]
+requires = ["uv_build>=0.9.18,<0.10.0"]
+build-backend = "uv_build"
 
 [tool.bandit]
 exclude_dirs = ["tests"]

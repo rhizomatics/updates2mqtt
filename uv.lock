@@ -1342,7 +1342,7 @@ dev = [
     { name = "pytest-subprocess" },
     { name = "ruff" },
 ]
-mkdocs = [
+docs = [
     { name = "mkdocs" },
     { name = "mkdocs-autorefs" },
     { name = "mkdocs-coverage" },
@@ -1383,7 +1383,7 @@ dev = [
     { name = "pytest-subprocess", specifier = ">=1.5.3" },
     { name = "ruff", specifier = ">=0.13.0" },
 ]
-mkdocs = [
+docs = [
     { name = "mkdocs" },
     { name = "mkdocs-autorefs" },
     { name = "mkdocs-coverage" },
