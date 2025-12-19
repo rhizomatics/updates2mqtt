@@ -16,15 +16,14 @@ jobs:
       contents: write
     steps:
     - uses: actions/checkout@v6
-    - name: uv-setup
-      # Install a specific uv version using the installer
-      run: curl -LsSf https://astral.sh/uv/install.sh | sh
+    - name: Install uv
+      uses: astral-sh/setup-uv@v7
     - name: "Set up Python"
       uses: actions/setup-python@v6
       with:
         python-version-file: "pyproject.toml"
     - name: Install dependencies
-      run: uv sync --all-extras --dev
+      run: uv sync --locked --all-extras --dev
        
     - name: Ruff
       uses:  astral-sh/ruff-action@v3
@@ -54,7 +53,7 @@ jobs:
         fi
 
     - name: Prep for mkdocs
-      run:  uv pip compile pyproject.toml -o requirements_docs.txt --group mkdocs
+      run:  uv pip compile pyproject.toml -o requirements_docs.txt --group docs
     - name: Deploy docs
       uses: mhausenblas/mkdocs-deploy-gh-pages@master
       env:

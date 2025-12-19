@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 1.5.2
+### Internal
+- Build backend changed to `uv_build`
+- GitHub Actions workflows updated, including to new uv actions
 ## 1.5.1
 - `MQTT_VERSION` environment variable added, defaults to `3.11`
 - `U2M_AUTOGEN_CONFIG` environment variable added to control auto-generation of config files and directories

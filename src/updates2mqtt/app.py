@@ -208,8 +208,6 @@ def run() -> None:
     import asyncio
     import signal
 
-    from .app import App
-
     # pyright: ignore[reportAttributeAccessIssue]
     log.debug(f"Starting updates2mqtt v{updates2mqtt.version}")  # pyright: ignore[reportAttributeAccessIssue]
     app = App()
