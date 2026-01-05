@@ -1090,15 +1090,15 @@ wheels = [
 
 [[package]]
 name = "pytest-mqtt"
-version = "0.6.0"
+version = "0.6.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "paho-mqtt" },
     { name = "pytest-docker-fixtures" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/76/04/37ad0aebafd82a8d058d69f944e208d27e8849beb9c8b9b13acad8270a02/pytest_mqtt-0.6.0.tar.gz", hash = "sha256:eeccd7fdb249e7adfd27495a374d30fd2def99fc525a1258f175390fc69c1fa1", size = 11241, upload-time = "2025-09-10T14:49:05.769Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/42/21/2a5875a7cb60d8bcf3c6b28454c70e6970848be8271bd97cadf156537b68/pytest_mqtt-0.6.2.tar.gz", hash = "sha256:8d1be4549f2b9aafc08cddaf45941082927b5f2b41508fc9c9f1f588302e9a12", size = 11356, upload-time = "2025-12-24T22:27:48.581Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/83/85/2495e11ccd06fa2b8a78c73c3cc31f69c9d4609a3a36605b18f855270f35/pytest_mqtt-0.6.0-py3-none-any.whl", hash = "sha256:aeba53ca31ddd80f93af9fcf20ba41a71f0fa3e8a1148fbc148f6ded833f3e57", size = 9761, upload-time = "2025-09-10T14:49:04.735Z" },
+    { url = "https://files.pythonhosted.org/packages/51/2d/21294ce9365cf1d1ad6378572ac0ba59f037cb771b809c30a5253e482f75/pytest_mqtt-0.6.2-py3-none-any.whl", hash = "sha256:ca62c2b18c846394482190d311de9a21e19d6e37ed62f9d573929a5c3bca07ed", size = 9949, upload-time = "2025-12-24T22:27:45.508Z" },
 ]
 
 [[package]]
