@@ -77,6 +77,10 @@ docs=[
 requires = ["uv_build>=0.9.18,<0.10.0"]
 build-backend = "uv_build"
 
+[tool.uv.build-backend]
+module-root = "src"
+module-name = "updates2mqtt"
+
 [tool.bandit]
 exclude_dirs = ["tests"]
 skips=["B404", #import subprocess
