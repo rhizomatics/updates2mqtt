@@ -193,11 +193,11 @@ class MqttPublisher:
         try:
             return json.loads(jsonish)
         except Exception:
-            log.exception("JSON decode fail (%s); %s", jsonish)
+            log.exception("JSON decode fail (%s)", jsonish)
         try:
             return json.loads(jsonish[1:-1])
         except Exception:
-            log.exception("JSON decode fail (%s): %s", jsonish[1:-1])
+            log.exception("JSON decode fail (%s)", jsonish[1:-1])
         return {}
 
     async def execute_command(

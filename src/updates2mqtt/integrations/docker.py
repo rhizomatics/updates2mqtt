@@ -1,4 +1,5 @@
 import datetime
+import re
 import subprocess
 import time
 import typing
@@ -48,6 +49,8 @@ class ContainerCustomization:
         self.picture: str | None = None
         self.relnotes: str | None = None
         self.ignore: bool = False
+        self.image_ref_include: str | None = None
+        self.image_ref_exclude: str | None = None
 
         if not container.attrs or container.attrs.get("Config") is None:
             return
@@ -319,10 +322,17 @@ class DockerProvider(ReleaseProvider):
                 and image_ref != ""
                 and (local_version != NO_KNOWN_IMAGE or latest_version != NO_KNOWN_IMAGE)
             )
+            skip_pull: bool = False
+            if can_pull:
+                if customization.image_ref_include and not re.match(customization.image_ref_include, image_ref):
+                    logger.info(f"Skipping image {image_ref} not matching include pattern")
+                    can_pull = False
+                    skip_pull = True
+                if customization.image_ref_exclude and re.match(customization.image_ref_exclude, image_ref):
+                    logger.info(f"Skipping image {image_ref} matching exclude pattern")
+                    can_pull = False
+                    skip_pull = True
             can_build: bool = self.cfg.allow_build and custom.get("git_repo_path") is not None
-            logger.debug(
-                f"REMOVE can_build: {can_build}, allow_build:{self.cfg.allow_build}, repo_path:{custom.get('git_repo_path')}"
-            )
             can_restart: bool = self.cfg.allow_restart and custom.get("compose_path") is not None
             can_update: bool = False
             if self.cfg.allow_pull and not can_pull and not can_build:
@@ -342,9 +352,12 @@ class DockerProvider(ReleaseProvider):
                 update_type: str = "Docker Image"
             elif can_build:
                 update_type = "Docker Build"
+            elif skip_pull:
+                update_type = "Skipped"
             else:
                 update_type = "Unavailable"
             custom["can_pull"] = can_pull
+            custom["skip_pull"] = skip_pull
 
             logger.debug("Analyze generated discovery", discovery_name=c.name, current_version=local_version)
             return Discovery(

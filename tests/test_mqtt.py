@@ -8,6 +8,8 @@ import paho.mqtt.client
 import pytest
 from omegaconf import OmegaConf
 from paho.mqtt.client import MQTTMessage
+from paho.mqtt.packettypes import PacketTypes
+from paho.mqtt.reasoncodes import ReasonCode
 
 from updates2mqtt.config import HomeAssistantConfig, MqttConfig, NodeConfig
 from updates2mqtt.model import Discovery, ReleaseProvider
@@ -141,3 +143,353 @@ async def test_stop(mock_mqtt_client: Mock, mock_provider: ReleaseProvider) -> N
         await asyncio.sleep(1)
         mock_mqtt_client.loop_stop.assert_called()
         mock_mqtt_client.disconnect.assert_called()
+
+
+def test_is_available_when_connected(mock_mqtt_client: Mock) -> None:
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+
+    with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
+        uut = MqttPublisher(config, node_config, hass_config)
+        uut.start()
+
+        assert uut.is_available() is True
+
+
+def test_is_available_when_not_started() -> None:
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+
+    uut = MqttPublisher(config, node_config, hass_config)
+
+    assert uut.is_available() is False
+
+
+def test_is_available_when_fatal_failure(mock_mqtt_client: Mock) -> None:
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+
+    with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
+        uut = MqttPublisher(config, node_config, hass_config)
+        uut.start()
+        uut.fatal_failure.set()
+
+        assert uut.is_available() is False
+
+
+def test_on_connect_success(mock_mqtt_client: Mock, mock_provider: ReleaseProvider) -> None:
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+
+    with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
+        uut = MqttPublisher(config, node_config, hass_config)
+        uut.start()
+        uut.subscribe_hass_command(mock_provider)
+
+        # Reset mock to track resubscription
+        mock_mqtt_client.subscribe.reset_mock()
+
+        rc = ReasonCode(PacketTypes.CONNACK, "Success")
+        uut.on_connect(mock_mqtt_client, None, Mock(), rc, None)
+
+        # Should resubscribe to all topics
+        mock_mqtt_client.subscribe.assert_called()
+
+
+def test_on_connect_not_authorized(mock_mqtt_client: Mock) -> None:
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+
+    with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
+        uut = MqttPublisher(config, node_config, hass_config)
+        uut.start()
+
+        # Simulate "Not authorized" connection failure with mock ReasonCode
+        rc = Mock()
+        rc.getName.return_value = "Not authorized"
+        uut.on_connect(mock_mqtt_client, None, Mock(), rc, None)
+
+        assert uut.fatal_failure.is_set()
+
+
+def test_on_disconnect_success(mock_mqtt_client: Mock) -> None:
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+
+    with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
+        uut = MqttPublisher(config, node_config, hass_config)
+        uut.start()
+
+        rc = ReasonCode(PacketTypes.DISCONNECT, "Success")
+        # Should not raise
+        uut.on_disconnect(mock_mqtt_client, None, Mock(), rc, None)
+
+
+def test_on_message_known_topic(mock_mqtt_client: Mock, mock_provider: ReleaseProvider) -> None:
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+    node_config.name = "testnode"
+
+    with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
+        uut = MqttPublisher(config, node_config, hass_config)
+        uut.start(event_loop=asyncio.new_event_loop())
+
+        topic = uut.subscribe_hass_command(mock_provider)
+
+        msg = Mock()
+        msg.topic = topic
+        msg.payload = b"unit_test|comp|install"
+        msg.mid = 1
+
+        with patch.object(uut, "handle_message") as mock_handle:
+            uut.on_message(mock_mqtt_client, None, msg)
+            mock_handle.assert_called_once_with(msg)
+
+
+def test_on_message_unknown_topic(mock_mqtt_client: Mock) -> None:
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+
+    with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
+        uut = MqttPublisher(config, node_config, hass_config)
+        uut.start(event_loop=asyncio.new_event_loop())
+
+        msg = Mock()
+        msg.topic = "unknown/topic"
+        msg.payload = b"some payload"
+        msg.mid = 1
+
+        with patch.object(uut, "handle_message") as mock_handle:
+            uut.on_message(mock_mqtt_client, None, msg)
+            mock_handle.assert_not_called()
+
+
+def test_safe_json_decode_valid() -> None:
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+
+    uut = MqttPublisher(config, node_config, hass_config)
+
+    result = uut.safe_json_decode('{"key": "value", "num": 42}')
+    assert result == {"key": "value", "num": 42}
+
+
+def test_safe_json_decode_bytes() -> None:
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+
+    uut = MqttPublisher(config, node_config, hass_config)
+
+    result = uut.safe_json_decode(b'{"key": "value"}')
+    assert result == {"key": "value"}
+
+
+def test_safe_json_decode_none() -> None:
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+
+    uut = MqttPublisher(config, node_config, hass_config)
+
+    result = uut.safe_json_decode(None)
+    assert result == {}
+
+
+def test_safe_json_decode_invalid() -> None:
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+
+    uut = MqttPublisher(config, node_config, hass_config)
+
+    result = uut.safe_json_decode("not valid json")
+    assert result == {}
+
+
+def test_topic_generation(mock_provider: ReleaseProvider) -> None:
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+    node_config.name = "mynode"
+
+    uut = MqttPublisher(config, node_config, hass_config)
+    discovery = Discovery(mock_provider, "mycontainer", "session123", "mynode")
+
+    assert uut.config_topic(discovery) == "homeassistant/update/mynode_unit_test_mycontainer/update/config"
+    assert uut.state_topic(discovery) == "updates2mqtt/mynode/unit_test/mycontainer"
+    assert uut.command_topic(mock_provider) == "updates2mqtt/mynode/unit_test"
+
+
+def test_publish_hass_state(mock_mqtt_client: Mock, mock_provider: ReleaseProvider) -> None:
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+    node_config.name = "statenode"
+
+    with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
+        uut = MqttPublisher(config, node_config, hass_config)
+        uut.start()
+
+        discovery = Discovery(
+            mock_provider,
+            "testpkg",
+            "sess001",
+            "statenode",
+            current_version="1.0",
+            latest_version="2.0",
+        )
+
+        uut.publish_hass_state(discovery, in_progress=True)
+
+        mock_mqtt_client.publish.assert_called()
+        call_args = mock_mqtt_client.publish.call_args
+        assert call_args[0][0] == "updates2mqtt/statenode/unit_test/testpkg"
+        payload = json.loads(call_args[1]["payload"])
+        assert payload["in_progress"] is True
+
+
+def test_publish_hass_config(mock_mqtt_client: Mock, mock_provider: ReleaseProvider) -> None:
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+    node_config.name = "confignode"
+
+    with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
+        uut = MqttPublisher(config, node_config, hass_config)
+        uut.start()
+
+        discovery = Discovery(
+            mock_provider,
+            "mypkg",
+            "sess002",
+            "confignode",
+            current_version="1.0",
+            latest_version="2.0",
+        )
+
+        uut.publish_hass_config(discovery)
+
+        mock_mqtt_client.publish.assert_called()
+        call_args = mock_mqtt_client.publish.call_args
+        assert call_args[0][0] == "homeassistant/update/confignode_unit_test_mypkg/update/config"
+
+
+def test_loop_once(mock_mqtt_client: Mock) -> None:
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+
+    with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
+        uut = MqttPublisher(config, node_config, hass_config)
+        uut.start()
+
+        uut.loop_once()
+
+        mock_mqtt_client.loop.assert_called_once()
+
+
+def test_loop_once_no_client() -> None:
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+
+    uut = MqttPublisher(config, node_config, hass_config)
+
+    # Should not raise when client is None
+    uut.loop_once()
+
+
+def test_start_connection_failure() -> None:
+    config = OmegaConf.structured(MqttConfig)
+    config.host = "invalid.host.example"
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+
+    uut = MqttPublisher(config, node_config, hass_config)
+
+    with pytest.raises(OSError, match="Connection Failure"):
+        uut.start()
+
+
+def test_subscribe_skips_duplicate(mock_mqtt_client: Mock, mock_provider: ReleaseProvider) -> None:
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+
+    with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
+        uut = MqttPublisher(config, node_config, hass_config)
+        uut.start()
+
+        # First subscription
+        topic1 = uut.subscribe_hass_command(mock_provider)
+        call_count_after_first = mock_mqtt_client.subscribe.call_count
+
+        # Second subscription should be skipped
+        topic2 = uut.subscribe_hass_command(mock_provider)
+
+        assert topic1 == topic2
+        assert mock_mqtt_client.subscribe.call_count == call_count_after_first
+
+
+def test_publish_no_client() -> None:
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+
+    uut = MqttPublisher(config, node_config, hass_config)
+
+    # Should not raise when client is None
+    uut.publish("test/topic", {"key": "value"})
+
+
+@pytest.mark.asyncio
+async def test_execute_command_invalid_payload(mock_mqtt_client: Mock, mock_provider: ReleaseProvider) -> None:
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+    node_config.name = "testnode"
+
+    with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
+        uut = MqttPublisher(config, node_config, hass_config)
+        uut.start(event_loop=asyncio.get_running_loop())
+        uut.subscribe_hass_command(mock_provider)
+
+        # Message without proper pipe-separated format
+        msg = MQTTMessage(topic=b"updates2mqtt/testnode/unit_test")
+        msg.payload = b"invalid_payload_no_pipes"
+
+        await uut.execute_command(msg, Mock(), Mock())
+
+        # Should not call provider.command with invalid payload
+        mock_provider.command.assert_not_called()  # type: ignore[attr-defined]
+
+
+@pytest.mark.asyncio
+async def test_execute_command_wrong_source_type(mock_mqtt_client: Mock, mock_provider: ReleaseProvider) -> None:
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+    node_config.name = "testnode"
+
+    with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
+        uut = MqttPublisher(config, node_config, hass_config)
+        uut.start(event_loop=asyncio.get_running_loop())
+        uut.subscribe_hass_command(mock_provider)
+
+        # Message with wrong source type
+        msg = MQTTMessage(topic=b"updates2mqtt/testnode/unit_test")
+        msg.payload = b"wrong_source|comp|install"
+
+        await uut.execute_command(msg, Mock(), Mock())
+
+        mock_provider.command.assert_not_called()  # type: ignore[attr-defined]

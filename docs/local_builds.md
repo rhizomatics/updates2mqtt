@@ -16,7 +16,7 @@ services:
       - /home/containers/mymailserver/build:/home/containers/mymailserver/build
 ```
 
-Declare the git path using the env var in ``UPD2MQTT_GIT_REPO_PATH`` in the docker container ( directly or via an ``.env`` file). The git repo at this path will be used as the source of timestamps, and an update command will carry out a 
-``git pull`` and ``docker-compose build`` rather than pulling an image.
+Declare the git path using the env var in ``UPD2MQTT_GIT_REPO_PATH`` in the docker container ( directly or via an ``.env`` file), or an
+equivalent label (see [Docker Labels](index.md#docker-labels)). The git repo at this path will be used as the source of timestamps, and an update command will carry out a ``git pull`` and ``docker-compose build`` rather than pulling an image.
 
 Note that the Updates2MQTT docker container needs access to this path declared in its volumes, and that has to be read/write if automated install required.

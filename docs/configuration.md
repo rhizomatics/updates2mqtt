@@ -15,7 +15,7 @@ The core configuration can be supplied by environment variables, everything else
 
 Startup will fail if `MQTT_USER` and `MQTT_PASSWORD` are not defined some how.
 
-The example [docker-compose.yaml](docker_compose.md) and [.env](env.md) demonstrate one way of doing this, or skip
+The example [docker-compose.yaml](examples/docker_compose.md) and [.env](examples/env.md) demonstrate one way of doing this, or skip
 the `.env` file and use an `environment` section in the Compose file.
 
 Set `U2M_AUTOGEN_CONFIG=0` in the environment to prevent a default config file being created in the local compose directory if you want to keep it zero-configuration-file.
@@ -127,12 +127,20 @@ to read and write its own topics.
 
 Individual docker containers can have customized entity pictures or release notes, using env variables, for example in the `docker-compose.yaml` or in a separate `.env` file:
 
-```
+```yaml title="docker compose snippet"
     environment:
       - UPD2MQTT_PICTURE=https://frigate.video/images/logo.svg
       - UPD2MQTT_RELNOTES=https://github.com/blakeblackshear/frigate/releases
 ```
 
+or using labels
+
+```yaml title="docker compose snippet"
+    labels:
+      org.rhizomatics.updates2mqtt.picture: https://frigate.video/images/logo.svg
+      org.rhizomatics.updates2mqtt.relnotes: https://github.com/blakeblackshear/frigate/releases
+```
+  l
 The images will show up in the *Update* section of *Settings* menu in HomeAssistant,
 as will the release notes link. SVG icons should be used.
 

@@ -43,7 +43,7 @@ To get started, read the [Installation](installation.md) and [Configuration](con
 For a quick spin, try this:
 
 ```yaml
-docker run -e MQTT_USER=user1 -e MQTT_PASS=pass1 -e MQTT_HOST=192.168.1.5 ghcr.io/rhizomatics/updates2mqtt:release
+docker run -v /var/run/docker.sock:/var/run/docker.sock -e MQTT_USER=user1 -e MQTT_PASS=pass1 -e MQTT_HOST=192.168.1.5 ghcr.io/rhizomatics/updates2mqtt:release
 ```
 
 ## Release Support
@@ -99,29 +99,36 @@ restarter:
       - UPD2MQTT_UPDATE=AUTO
 ```
 
+This can be used in conjunction with the `UPD2MQTT_IMAGE_REF_INCLUDE` and `UPD2MQTT_IMAGE_REF_EXCLUDE` to
+limit which updates get automatically applied, for example excluding nightly builds.
+
 ### Environment Variables
 
 The following environment variables can be used to configure containers for `updates2mqtt`:
 
-| Env Var                  | Description                                                                                  | Default         |
-|--------------------------|----------------------------------------------------------------------------------------------|-----------------|
-| `UPD2MQTT_UPDATE`        | Update mode, either `Passive` or `Auto`. If `Auto`, updates will be installed automatically. | `Passive`       |
-| `UPD2MQTT_PICTURE`       | URL to an icon to use in Home Assistant.                                                     | Docker logo URL |
-| `UPD2MQTT_RELNOTES`      | URL to release notes for the package.                                                        |                 |
-| `UPD2MQTT_GIT_REPO_PATH` | Relative path to a local git repo if the image is built locally.                             |                 |
-| `UPD2MQTT_IGNORE`        | If set to `True`, the container will be ignored by Updates2MQTT.                             | False           |
+| Env Var                      | Description                                                                                  | Default         |
+|------------------------------|----------------------------------------------------------------------------------------------|-----------------|
+| `UPD2MQTT_UPDATE`            | Update mode, either `Passive` or `Auto`. If `Auto`, updates will be installed automatically. | `Passive`       |
+| `UPD2MQTT_PICTURE`           | URL to an icon to use in Home Assistant.                                                     | Docker logo URL |
+| `UPD2MQTT_RELNOTES`          | URL to release notes for the package.                                                        |                 |
+| `UPD2MQTT_GIT_REPO_PATH`     | Relative path to a local git repo if the image is built locally.                             |                 |
+| `UPD2MQTT_IGNORE`            | If set to `True`, the container will be ignored by Updates2MQTT.                             | False           |
+| `UPD2MQTT_IMAGE_REF_INCLUDE` | Only recognize image refs matching this string or regular expression                         |                 |
+| `UPD2MQTT_IMAGE_REF_EXCLUDE` | Skip update if image refs matches this string or regular expression                          |                 |
 
 ### Docker Labels
 
 Alternatively, use Docker labels
 
-| Label                                        | Env Var                  |
-| ---------------------------------------------| -------------------------|
-| `org.rhizomatics.updates2mqtt.update`        | `UPD2MQTT_UPDATE`        |
-| `org.rhizomatics.updates2mqtt.picture`       | `UPD2MQTT_PCITURE`       |
-| `org.rhizomatics.updates2mqtt.relnotes`      | `UPD2MQTT_RELNOTES`      |
-| `org.rhizomatics.updates2mqtt.git_repo_path` | `UPD2MQTT_GIT_REPO_PATH` |
-| `org.rhizomatics.updates2mqtt.ignore`        | `UPD2MQTT_IGNORE`        |
+| Label                                            | Env Var                      |
+|--------------------------------------------------|------------------------------|
+| `org.rhizomatics.updates2mqtt.update`            | `UPD2MQTT_UPDATE`            |
+| `org.rhizomatics.updates2mqtt.picture`           | `UPD2MQTT_PCITURE`           |
+| `org.rhizomatics.updates2mqtt.relnotes`          | `UPD2MQTT_RELNOTES`          |
+| `org.rhizomatics.updates2mqtt.git_repo_path`     | `UPD2MQTT_GIT_REPO_PATH`     |
+| `org.rhizomatics.updates2mqtt.ignore`            | `UPD2MQTT_IGNORE`            |
+| `org.rhizomatics.updates2mqtt.image_ref_include` | `UPD2MQTT_IMAGE_REF_INCLUDE` |
+| `org.rhizomatics.updates2mqtt.image_ref_exclude` | `UPD2MQTT_IMAGE_REF_EXCLUDE` |
 
 
 ```yaml title="Example Compose Snippet"
@@ -140,6 +147,8 @@ Other apps useful for self-hosting with the help of MQTT:
 - [psmqtt](https://github.com/eschava/psmqtt) - Report system health and metrics via MQTT
 
 Find more at [awesome-mqtt](https://github.com/rhizomatics/awesome-mqtt)
+
+For a more powerful Docker update manager, try [What's Up Docker](https://getwud.github.io/wud/)
 
 ## Development
 
