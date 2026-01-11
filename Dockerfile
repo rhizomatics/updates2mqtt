@@ -3,6 +3,7 @@ FROM python:3.13-slim
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
 ENV UV_COMPILE_BYTECODE=1
+ENV UV_NO_DEV=1
 
 RUN apt-get -y update && apt-get -y upgrade
 RUN apt-get -y install git ca-certificates curl
@@ -25,7 +26,8 @@ ADD uv.lock /app/uv.lock
 ADD pyproject.toml /app/pyproject.toml
 RUN uv sync --locked --no-install-project
 
-ADD src /app
+RUN mkdir /app/src
+ADD src /app/src
 ADD scripts/healthcheck.sh /app
 RUN chmod ug+x /app/healthcheck.sh
 ADD README.md /app/README.md
