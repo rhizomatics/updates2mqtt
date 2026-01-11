@@ -8,6 +8,7 @@ from pytest_httpx import HTTPXMock
 from pytest_subprocess import FakeProcess  # type: ignore[import-not-found]
 
 import updates2mqtt.integrations.docker as mut
+from conftest import build_mock_container
 from updates2mqtt.config import DockerPackageUpdateInfo, MetadataSourceConfig
 from updates2mqtt.integrations.docker import ContainerCustomization
 from updates2mqtt.model import Discovery
@@ -146,12 +147,10 @@ def test_container_customization_label_precedence() -> None:
     assert uut.ignore is True
 
 
-async def test_scanner_skips_container_not_matching_include_pattern(mock_docker_client: DockerClient) -> None:
-    from conftest import build_mock_container
-
+async def test_scanner_container_version_excluded_by_pattern(mock_docker_client: DockerClient) -> None:
     # Add a container with an include pattern that doesn't match its image
     included_container = build_mock_container("private/internal-app:latest")
-    included_container.attrs["Config"]["Env"] = ["UPD2MQTT_IMAGE_REF_INCLUDE=^public/.*"]
+    included_container.attrs["Config"]["Env"] = ["UPD2MQTT_VERSION_EXCLUDE=999.*"]  # ty:ignore[not-subscriptable]
     mock_docker_client.containers.list.return_value = [included_container]  # type: ignore[attr-defined]
 
     with patch("docker.from_env", return_value=mock_docker_client):
@@ -159,12 +158,30 @@ async def test_scanner_skips_container_not_matching_include_pattern(mock_docker_
         session = "unit_123"
         results: list[Discovery] = [d async for d in uut.scan(session)]
 
-    # Find the container with the include pattern
-    skipped = [d for d in results if d.custom.get("image_ref") == "private/internal-app:latest"]
-    assert len(skipped) == 1
-    assert skipped[0].custom.get("skip_pull") is True
-    assert skipped[0].custom.get("can_pull") is False
-    assert skipped[0].update_type == "Skipped"
+    results = [d for d in results if d.custom.get("image_ref") == "private/internal-app:latest"]
+    assert len(results) == 1
+    assert results[0].custom.get("skip_pull") is True
+    assert results[0].custom.get("can_pull") is False
+    assert results[0].update_type == "Skipped"
+
+
+async def test_scanner_container_version_passes_pattern(mock_docker_client: DockerClient) -> None:
+    # Add a container with an include pattern that doesn't match its image
+    included_container = build_mock_container("private/internal-app:latest")
+    included_container.attrs["Config"]["Env"] = ["UPD2MQTT_VERSION_EXCLUDE=.*nightly.*"]  # ty:ignore[not-subscriptable]
+    included_container.attrs["Config"]["Env"] = ["UPD2MQTT_VERSION_INCLUDE=999.*999"]  # ty:ignore[not-subscriptable]
+    mock_docker_client.containers.list.return_value = [included_container]  # type: ignore[attr-defined]
+
+    with patch("docker.from_env", return_value=mock_docker_client):
+        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), {}, mut.NodeConfig())
+        session = "unit_123"
+        results: list[Discovery] = [d async for d in uut.scan(session)]
+
+    results = [d for d in results if d.custom.get("image_ref") == "private/internal-app:latest"]
+    assert len(results) == 1
+    assert results[0].custom.get("skip_pull") is False
+    assert results[0].custom.get("can_pull") is True
+    assert results[0].update_type == "Docker Image"
 
 
 def test_fetch_pulls_image_when_can_pull(mock_docker_client: DockerClient) -> None:

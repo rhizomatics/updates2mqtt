@@ -49,8 +49,8 @@ class ContainerCustomization:
         self.picture: str | None = None
         self.relnotes: str | None = None
         self.ignore: bool = False
-        self.image_ref_include: str | None = None
-        self.image_ref_exclude: str | None = None
+        self.version_include: str | None = None
+        self.version_exclude: str | None = None
 
         if not container.attrs or container.attrs.get("Config") is None:
             return
@@ -286,6 +286,7 @@ class DockerProvider(ReleaseProvider):
             if local_versions:
                 # might be multiple RepoDigests if image has been pulled multiple times with diff manifests
                 local_version = latest_version if latest_version in local_versions else local_versions[0]
+                log.debug(f"Setting local version to {local_version}, local_versions:{local_versions}")
 
             def save_if_set(key: str, val: datetime.datetime | str | None) -> None:
                 if val is not None:
@@ -323,13 +324,13 @@ class DockerProvider(ReleaseProvider):
                 and (local_version != NO_KNOWN_IMAGE or latest_version != NO_KNOWN_IMAGE)
             )
             skip_pull: bool = False
-            if can_pull:
-                if customization.image_ref_include and not re.match(customization.image_ref_include, image_ref):
-                    logger.info(f"Skipping image {image_ref} not matching include pattern")
+            if can_pull and latest_version:
+                if customization.version_include and not re.match(customization.version_include, latest_version):
+                    logger.info(f"Skipping version {latest_version} not matching include pattern")
                     can_pull = False
                     skip_pull = True
-                if customization.image_ref_exclude and re.match(customization.image_ref_exclude, image_ref):
-                    logger.info(f"Skipping image {image_ref} matching exclude pattern")
+                if customization.version_exclude and re.match(customization.version_exclude, latest_version):
+                    logger.info(f"Skipping version {latest_version} matching exclude pattern")
                     can_pull = False
                     skip_pull = True
             can_build: bool = self.cfg.allow_build and custom.get("git_repo_path") is not None

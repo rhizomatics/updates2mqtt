@@ -1,8 +1,8 @@
 # CHANGELOG
 
 ## 1.6.0
-- Container customization can now be by Docker labels instead of, or in addition to, env vars
-- New container config to include or exclude image updates based on a regular expression
+- Container customization can now be made by Docker labels instead of, or in addition to, env vars
+- New container config to include or exclude image updates based on a regular expression applied to new version
 ### Internal
 - Many more test cases added, focusing on Docker and MQTT integration
 ## 1.5.2

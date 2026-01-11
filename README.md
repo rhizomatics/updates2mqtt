@@ -105,7 +105,7 @@ restarter:
       - UPD2MQTT_UPDATE=AUTO
 ```
 
-This can be used in conjunction with the `UPD2MQTT_IMAGE_REF_INCLUDE` and `UPD2MQTT_IMAGE_REF_EXCLUDE` to
+This can be used in conjunction with the `UPD2MQTT_VERSION_INCLUDE` and `UPD2MQTT_VERSION_EXCLUDE` to
 limit which updates get automatically applied, for example excluding nightly builds.
 
 ### Environment Variables
@@ -119,8 +119,8 @@ The following environment variables can be used to configure containers for `upd
 | `UPD2MQTT_RELNOTES`          | URL to release notes for the package.                                                        |                 |
 | `UPD2MQTT_GIT_REPO_PATH`     | Relative path to a local git repo if the image is built locally.                             |                 |
 | `UPD2MQTT_IGNORE`            | If set to `True`, the container will be ignored by Updates2MQTT.                             | False           |
-| `UPD2MQTT_IMAGE_REF_INCLUDE` | Only recognize image refs matching this string or regular expression                         |                 |
-| `UPD2MQTT_IMAGE_REF_EXCLUDE` | Skip update if image refs matches this string or regular expression                          |                 |
+| `UPD2MQTT_VERSION_INCLUDE` | Only recognize versions matching this string or regular expression                         |                 |
+| `UPD2MQTT_VERSION_EXCLUDE` | Skip update if version matches this string or regular expression                          |                 |
 
 ### Docker Labels
 
@@ -133,8 +133,8 @@ Alternatively, use Docker labels
 | `org.rhizomatics.updates2mqtt.relnotes`          | `UPD2MQTT_RELNOTES`          |
 | `org.rhizomatics.updates2mqtt.git_repo_path`     | `UPD2MQTT_GIT_REPO_PATH`     |
 | `org.rhizomatics.updates2mqtt.ignore`            | `UPD2MQTT_IGNORE`            |
-| `org.rhizomatics.updates2mqtt.image_ref_include` | `UPD2MQTT_IMAGE_REF_INCLUDE` |
-| `org.rhizomatics.updates2mqtt.image_ref_exclude` | `UPD2MQTT_IMAGE_REF_EXCLUDE` |
+| `org.rhizomatics.updates2mqtt.version_include` | `UPD2MQTT_VERSION_INCLUDE` |
+| `org.rhizomatics.updates2mqtt.version_exclude` | `UPD2MQTT_VERSION_EXCLUDE` |
 
 
 ```yaml title="Example Compose Snippet"
