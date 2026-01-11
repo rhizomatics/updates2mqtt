@@ -65,10 +65,26 @@ class ContainerCustomization:
                 if label in container.labels:
                     # precedence to labels
                     v = container.labels.get(label)
-                    log.debug("DOCKER label %s=%s", label, v)
+                    log.debug(
+                        "%s set from label %s=%s",
+                        attr,
+                        label,
+                        v,
+                        integration="docker",
+                        container=container.name,
+                        action="customize",
+                    )
                 elif env_var in c_env:
                     v = c_env[env_var]
-                    log.debug("DOCKER env %s=%s", env_var, v)
+                    log.debug(
+                        "%s set from env var %s=%s",
+                        attr,
+                        env_var,
+                        v,
+                        integration="docker",
+                        container=container.name,
+                        action="customize",
+                    )
                 if v is not None:
                     if isinstance(getattr(self, attr), bool):
                         setattr(self, attr, v.upper() in ("TRUE", "YES", "1"))
