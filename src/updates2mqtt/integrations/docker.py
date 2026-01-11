@@ -320,6 +320,9 @@ class DockerProvider(ReleaseProvider):
                 and (local_version != NO_KNOWN_IMAGE or latest_version != NO_KNOWN_IMAGE)
             )
             can_build: bool = self.cfg.allow_build and custom.get("git_repo_path") is not None
+            logger.debug(
+                f"REMOVE can_build: {can_build}, allow_build:{self.cfg.allow_build}, repo_path:{custom.get('git_repo_path')}"
+            )
             can_restart: bool = self.cfg.allow_restart and custom.get("compose_path") is not None
             can_update: bool = False
             if self.cfg.allow_pull and not can_pull and not can_build:
