@@ -169,3 +169,12 @@ uv run --with docker python3
 ```
 
 This should output the version of the `docker` package, and the total count of local containers if the connection is good. Updates2MQTT uses at least v7.1.0 of `docker` for Python API.
+
+## Too Many Requests
+
+The Docker Registry API has a limit on how many authenticated requests, and a lower
+limit for unauthenticated requests, can be made per hour.
+
+Access to the API will back off when this is hit, and discovery will wait until
+a configurable period passed, which can be configured using `api_throttle_wait`
+in the `docker` configuration section, with a value in seconds.

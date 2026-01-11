@@ -487,3 +487,74 @@ def test_command_handles_exception(mock_docker_client: DockerClient) -> None:
         on_start.assert_called_once_with(discovery)
         # on_end should still be called with original discovery on exception
         on_end.assert_called_once_with(discovery)
+
+
+def test_analyze_throttles_on_429_error(mock_docker_client: DockerClient) -> None:
+    import time
+    from http import HTTPStatus
+    from unittest.mock import Mock
+
+    import docker.errors
+    from requests import Response
+
+    container = build_mock_container("throttled/image:latest")
+    container.name = "throttled-container"  # type: ignore[misc]
+
+    # Create a real APIError with a mock response that has status_code 429
+    mock_response = Mock(spec=Response)
+    mock_response.status_code = HTTPStatus.TOO_MANY_REQUESTS
+    mock_response.reason = "Too Many Requests"
+    error_429 = docker.errors.APIError("Rate limit exceeded", response=mock_response, explanation="Rate limit exceeded")
+
+    mock_docker_client.images.get_registry_data.side_effect = error_429  # type: ignore[attr-defined]
+
+    with patch("docker.from_env", return_value=mock_docker_client):
+        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), {}, mut.NodeConfig())
+        uut.api_throttle_pause = 60  # Set to 60 seconds for test
+
+        # First call should trigger throttling
+        result = uut.analyze(container, "test-session")
+
+        assert result is None
+        assert uut.pause_api_until is not None
+        assert uut.pause_api_until > time.time()
+
+
+def test_analyze_skips_during_throttle_period(mock_docker_client: DockerClient) -> None:
+    import time
+
+    container = build_mock_container("throttled/image:latest")
+    container.name = "throttled-container"  # type: ignore[misc]
+
+    with patch("docker.from_env", return_value=mock_docker_client):
+        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), {}, mut.NodeConfig())
+        # Set throttle to expire in the future
+        uut.pause_api_until = time.time() + 300
+
+        # Should skip analysis during throttle period
+        result = uut.analyze(container, "test-session")
+
+        assert result is None
+        # Should not have called get_registry_data since we're throttled
+        mock_docker_client.images.get_registry_data.assert_not_called()  # type: ignore[attr-defined]
+
+
+def test_analyze_resumes_after_throttle_expires(mock_docker_client: DockerClient) -> None:
+    import time
+
+    container = build_mock_container("resumed/image:latest")
+    container.name = "resumed-container"  # type: ignore[misc]
+
+    with patch("docker.from_env", return_value=mock_docker_client):
+        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), {}, mut.NodeConfig())
+        # Set throttle to have already expired
+        uut.pause_api_until = time.time() - 10
+
+        result = uut.analyze(container, "test-session")
+
+        # Throttle should be cleared
+        assert uut.pause_api_until is None
+        # Should have attempted to get registry data
+        mock_docker_client.images.get_registry_data.assert_called()  # type: ignore[unreachable]
+        # Result should be a valid discovery (not None due to throttling)
+        assert result is not None

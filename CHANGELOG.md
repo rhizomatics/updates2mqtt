@@ -3,6 +3,7 @@
 ## 1.6.0
 - Container customization can now be made by Docker labels instead of, or in addition to, env vars
 - New container config to include or exclude image updates based on a regular expression applied to new version
+- Docker API now throttled if receives 429 Too Many Requests, configurable using `api_throttle_wait`
 ### Internal
 - Many more test cases added, focusing on Docker and MQTT integration
 ## 1.5.2

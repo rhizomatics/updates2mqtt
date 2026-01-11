@@ -5,6 +5,7 @@ import time
 import typing
 from collections.abc import AsyncGenerator, Callable
 from enum import Enum
+from http import HTTPStatus
 from pathlib import Path
 from typing import Any, cast
 
@@ -106,6 +107,8 @@ class DockerProvider(ReleaseProvider):
         self.common_pkgs: dict[str, PackageUpdateInfo] = common_pkg_cfg if common_pkg_cfg else {}
         # TODO: refresh discovered packages periodically
         self.discovered_pkgs: dict[str, PackageUpdateInfo] = self.discover_metadata()
+        self.pause_api_until: float | None = None
+        self.api_throttle_pause: int = cfg.api_throttle_wait
 
     def update(self, discovery: Discovery) -> bool:
         logger: Any = self.log.bind(container=discovery.name, action="update")
@@ -213,6 +216,14 @@ class DockerProvider(ReleaseProvider):
 
     def analyze(self, c: Container, session: str, original_discovery: Discovery | None = None) -> Discovery | None:
         logger = self.log.bind(container=c.name, action="analyze")
+        if self.pause_api_until is not None:
+            if self.pause_api_until < time.time():
+                self.pause_api_until = None
+                log.info("Docker API throttling wait complete")
+            else:
+                log.debug("Docker API throttling has %s secs left", self.pause_api_until - time.time())
+                return None
+
         image_ref = None
         image_name = None
         local_versions = None
@@ -277,6 +288,10 @@ class DockerProvider(ReleaseProvider):
                         reg_data = self.client.images.get_registry_data(image_ref)
                         latest_version = reg_data.short_id[7:] if reg_data else None
                     except docker.errors.APIError as e:
+                        if e.status_code == HTTPStatus.TOO_MANY_REQUESTS:
+                            logger.warn("Docker Registry throttling requests, %s", e.explanation)
+                            self.pause_api_until = time.time() + self.api_throttle_pause
+                            return None
                         retries_left -= 1
                         if retries_left == 0 or e.is_client_error():
                             logger.warn("Failed to fetch registry data: [%s] %s", e.errno, e.explanation)

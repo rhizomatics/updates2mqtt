@@ -47,6 +47,7 @@ class DockerConfig:
     discover_metadata: dict[str, MetadataSourceConfig] = field(
         default_factory=lambda: {"linuxserver.io": MetadataSourceConfig(enabled=True)}
     )
+    api_throttle_wait: int = 60 * 15
 
 
 @dataclass
