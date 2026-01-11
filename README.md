@@ -103,13 +103,34 @@ restarter:
 
 The following environment variables can be used to configure containers for `updates2mqtt`:
 
-| Env Var | Description | Default  |
-|---------| ------------|----------|
-| `UPD2MQTT_UPDATE`  | Update mode, either `Passive` or `Auto`. If `Auto`, updates will be installed automatically. | `Passive` |
-| `UPD2MQTT_PICTURE`  | URL to an icon to use in Home Assistant.  | Docker logo URL   |
-| `UPD2MQTT_RELNOTES` | URL to release notes for the package.  |  | 
-| `UPD2MQTT_GIT_REPO_PATH` | Relative path to a local git repo if the image is built locally.  | |
-| `UPD2MQTT_IGNORE` | If set to `True`, the container will be ignored by Updates2MQTT. | False |
+| Env Var                  | Description                                                                                  | Default         |
+|--------------------------|----------------------------------------------------------------------------------------------|-----------------|
+| `UPD2MQTT_UPDATE`        | Update mode, either `Passive` or `Auto`. If `Auto`, updates will be installed automatically. | `Passive`       |
+| `UPD2MQTT_PICTURE`       | URL to an icon to use in Home Assistant.                                                     | Docker logo URL |
+| `UPD2MQTT_RELNOTES`      | URL to release notes for the package.                                                        |                 |
+| `UPD2MQTT_GIT_REPO_PATH` | Relative path to a local git repo if the image is built locally.                             |                 |
+| `UPD2MQTT_IGNORE`        | If set to `True`, the container will be ignored by Updates2MQTT.                             | False           |
+
+### Docker Labels
+
+Alternatively, use Docker labels
+
+| Label                                        | Env Var                  |
+| ---------------------------------------------| -------------------------|
+| `org.rhizomatics.updates2mqtt.update`        | `UPD2MQTT_UPDATE`        |
+| `org.rhizomatics.updates2mqtt.picture`       | `UPD2MQTT_PCITURE`       |
+| `org.rhizomatics.updates2mqtt.relnotes`      | `UPD2MQTT_RELNOTES`      |
+| `org.rhizomatics.updates2mqtt.git_repo_path` | `UPD2MQTT_GIT_REPO_PATH` |
+| `org.rhizomatics.updates2mqtt.ignore`        | `UPD2MQTT_IGNORE`        |
+
+
+```yaml title="Example Compose Snippet"
+restarter:
+    image: docker:cli
+    command: ["/bin/sh", "-c", "while true; do sleep 86400; docker restart mailserver; done"]
+    labels:
+        org.rhizomatics.updates2mqtt.relnotes: https://component.my.com/release_notes
+```
 
 
 ## Related Projects

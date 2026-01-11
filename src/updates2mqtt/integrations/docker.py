@@ -36,6 +36,46 @@ def safe_json_dt(t: float | None) -> str | None:
     return time.strftime("%Y-%m-%dT%H:%M:%S.0000", time.gmtime(t)) if t else None
 
 
+class ContainerCustomization:
+    """Local customization of a Docker container, by label or env var"""
+
+    label_prefix: str = "org.rhizomatics.updates2mqtt."
+    env_prefix: str = "UPD2MQTT_"
+
+    def __init__(self, container: Container) -> None:
+        self.update: str = "PASSIVE"
+        self.git_repo_path: str | None = None
+        self.picture: str | None = None
+        self.relnotes: str | None = None
+        self.ignore: bool = False
+
+        if not container.attrs or container.attrs.get("Config") is None:
+            return
+        env_pairs: list[str] = container.attrs.get("Config", {}).get("Env")
+        if env_pairs:
+            c_env: dict[str, str] = dict(env.split("=", maxsplit=1) for env in env_pairs if "==" not in env)
+        else:
+            c_env = {}
+
+        for attr in dir(self):
+            if "__" not in attr:
+                label = f"{self.label_prefix}{attr.lower()}"
+                env_var = f"{self.env_prefix}{attr.upper()}"
+                v: Any = None
+                if label in container.labels:
+                    # precedence to labels
+                    v = container.labels.get(label)
+                elif env_var in c_env:
+                    v = c_env[env_var]
+                if v is not None:
+                    if isinstance(getattr(self, attr), bool):
+                        setattr(self, attr, v.upper() in ("TRUE", "YES", "1"))
+                    else:
+                        setattr(self, attr, v)
+
+        self.update = self.update.upper()
+
+
 class DockerProvider(ReleaseProvider):
     def __init__(self, cfg: DockerConfig, common_pkg_cfg: dict[str, PackageUpdateInfo], node_cfg: NodeConfig) -> None:
         super().__init__("docker")
@@ -159,13 +199,8 @@ class DockerProvider(ReleaseProvider):
             logger.warn("No container name found, discovery rejected")
             return None
 
-        def env_override(env_var: str, default: Any) -> Any | None:
-            return default if c_env.get(env_var) is None else c_env.get(env_var)
-
-        env_str = c.attrs.get("Config", {}).get("Env")
-        c_env = dict(env.split("=", maxsplit=1) for env in env_str if "==" not in env)
-        ignore_container: str | None = env_override("UPD2MQTT_IGNORE", "FALSE")
-        if ignore_container and ignore_container.upper() in ("1", "TRUE"):
+        customization: ContainerCustomization = ContainerCustomization(c)
+        if customization.ignore:
             logger.info("Container ignored due to UPD2MQTT_IGNORE setting")
             return None
 
@@ -192,8 +227,8 @@ class DockerProvider(ReleaseProvider):
         pkg_info: PackageUpdateInfo = self.default_metadata(image_name, image_ref=image_ref)
 
         try:
-            picture_url = env_override("UPD2MQTT_PICTURE", pkg_info.logo_url)
-            relnotes_url = env_override("UPD2MQTT_RELNOTES", pkg_info.release_notes_url)
+            picture_url = customization.picture or pkg_info.logo_url
+            relnotes_url = customization.relnotes or pkg_info.release_notes_url
             if image is not None and image.attrs is not None:
                 platform = "/".join(
                     filter(
@@ -240,10 +275,10 @@ class DockerProvider(ReleaseProvider):
             save_if_set("compose_path", c.labels.get("com.docker.compose.project.working_dir"))
             save_if_set("compose_version", c.labels.get("com.docker.compose.version"))
             save_if_set("compose_service", c.labels.get("com.docker.compose.service"))
-            save_if_set("git_repo_path", c_env.get("UPD2MQTT_GIT_REPO_PATH"))
-            save_if_set("apt_pkgs", c_env.get("UPD2MQTT_APT_PKGS"))
+            save_if_set("git_repo_path", customization.git_repo_path)
+            # save_if_set("apt_pkgs", c_env.get("UPD2MQTT_APT_PKGS"))
 
-            if c_env.get("UPD2MQTT_UPDATE") == "AUTO":
+            if customization.update == "AUTO":
                 logger.debug("Auto update policy detected")
                 update_policy = "Auto"
             else:

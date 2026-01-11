@@ -3,11 +3,13 @@ from unittest.mock import patch
 
 import pytest
 from docker import DockerClient
+from docker.models.containers import Container
 from pytest_httpx import HTTPXMock
 from pytest_subprocess import FakeProcess  # type: ignore[import-not-found]
 
 import updates2mqtt.integrations.docker as mut
 from updates2mqtt.config import DockerPackageUpdateInfo, MetadataSourceConfig
+from updates2mqtt.integrations.docker import ContainerCustomization
 from updates2mqtt.model import Discovery
 
 
@@ -85,3 +87,60 @@ def test_build(mock_docker_client: DockerClient, fake_process: FakeProcess, tmpd
         assert uut.build(d, str(tmpdir))
         fake_process.register("docker compose build", returncode=33)
         assert not uut.build(d, str(tmpdir))
+
+
+def test_container_customization_default() -> None:
+    uut = ContainerCustomization(Container())
+    assert uut.update == "PASSIVE"
+    assert uut.git_repo_path is None
+    assert uut.picture is None
+    assert uut.relnotes is None
+    assert uut.ignore is False
+
+
+def test_container_customization_by_label() -> None:
+    uut = ContainerCustomization(
+        Container(
+            attrs={
+                "Config": {
+                    "Labels": {"org.rhizomatics.updates2mqtt.ignore": "true", "org.rhizomatics.updates2mqtt.update": "auto"}
+                }
+            }
+        )
+    )
+    assert uut.update == "AUTO"
+    assert uut.git_repo_path is None
+    assert uut.picture is None
+    assert uut.relnotes is None
+    assert uut.ignore is True
+
+
+def test_container_customization_by_env_var() -> None:
+    uut = ContainerCustomization(Container(attrs={"Config": {"Env": {"UPD2MQTT_UPDATE=auto", "UPD2MQTT_IGNORE=true"}}}))
+    assert uut.update == "AUTO"
+    assert uut.git_repo_path is None
+    assert uut.picture is None
+    assert uut.relnotes is None
+    assert uut.ignore is True
+
+
+def test_container_customization_label_precedence() -> None:
+    uut = ContainerCustomization(
+        Container(
+            attrs={
+                "Config": {
+                    "Env": {"UPD2MQTT_UPDATE=passive", "UPD2MQTT_IGNORE=false", "UPD2MQTT_RELNOTES=https://release.me"},
+                    "Labels": {
+                        "org.rhizomatics.updates2mqtt.ignore": "true",
+                        "org.rhizomatics.updates2mqtt.update": "auto",
+                        "org.rhizomatics.updates2mqtt.git_repo_path": "./build",
+                    },
+                }
+            }
+        )
+    )
+    assert uut.update == "AUTO"
+    assert uut.git_repo_path == "./build"
+    assert uut.picture is None
+    assert uut.relnotes == "https://release.me"
+    assert uut.ignore is True

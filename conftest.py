@@ -137,9 +137,11 @@ def build_mock_container(
     bare_tag = tag.split(":")[0]
     long_hash = "9e2bbca079387d7965c3a9cee6d0c53f4f4e63ff7637877a83c4c05f2a666112"
     c.image.attrs["RepoDigests"] = [f"{bare_tag}@sha256:{long_hash}"]
+    c.labels = {}
     c.attrs = {}
     c.attrs["Config"] = {}
     c.attrs["Config"]["Env"] = []
+    c.attrs["Config"]["Labels"] = c.labels
     if picture:
         c.attrs["Config"]["Env"].append(f"UPD2MQTT_PICTURE={picture}")
     if relnotes:

@@ -1,5 +1,7 @@
 # CHANGELOG
 
+## 1.6.0
+- Container customization can now be by Docker labels instead of, or in addition to, env vars
 ## 1.5.2
 ### Internal
 - Build backend changed to `uv_build`
