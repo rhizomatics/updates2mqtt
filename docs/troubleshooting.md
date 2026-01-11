@@ -34,7 +34,7 @@ or change to the directory where the `docker-compose.yaml` is installed and do `
 Update the `config.yaml` and change the log level to DEBUG, which will show much
 more diagnostic information.
 
-```yaml
+```yaml title="conf/config.yaml"
 log:
   level: DEBUG
 ```
@@ -119,7 +119,7 @@ can be checked directly from the config and log:
 The current state of this can be seen in MQTT, the config message will have two extra
 values as below:
 
-```yaml
+```json
   "command_topic": "updates2mqtt/dockernuc/docker",
   "payload_install": "docker|homarr|install"
 ```
@@ -160,7 +160,7 @@ A simple way of testing if there's a `docker-py` issue is to load the client
 directly from python. This example uses `uv` to avoid changing local Python
 environment, use `pip` or other preferred tool to install if you want instead.
 
-```yaml
+```bash
 uv run --with docker python3
 >>> import docker
 >>> docker.__version__

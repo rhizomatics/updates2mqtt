@@ -31,7 +31,7 @@ Create file `config.yaml` in `conf` directory. If the file is not present, a def
 This is a maximal config file, the minimum is no config file at all, which will generate a default config file. The only mandatory values are the MQTT user name and password, everything else can be omitted ( although
 its best to have at least a `node` `name` value so HomeAssistant doesn't show some ugly generated Docker host name).
 
-```yaml
+```yaml title="conf/config.yaml"
 
 node:
   name: docker-host-1 # Unique name for this instance, used to name MQTT entities. Defaults to O/S hostname
@@ -76,7 +76,7 @@ log:
 
 Example use of environment variables, e.g. for secrets:
 
-```
+```yaml title="conf/config.yaml"
 mqtt:
     password: ${oc.env:MQTT_PASS}
 ```
@@ -99,7 +99,7 @@ Note the `uid` that is reported here. If you don't know the `gid` for the `docke
 
 In the `docker-compose.yaml`, set the user and group using [user](https://docs.docker.com/reference/compose-file/services/#user) attribute:
 
-```yaml
+```yaml title="docker compose snippet"
 services:
   updates2mqtt:
     container_name: updates2mqtt

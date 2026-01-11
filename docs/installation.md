@@ -14,7 +14,7 @@ See `examples` directory for a working `docker-compose.yaml`.
 
 If you want to update and restart containers, then the file system paths to the location of the directory where the docker compose file lives must be available in the Updates2MQTT container. 
 
-```yaml
+```yaml title="docker compose snippet"
 volumes:
       # Must have config directory mapped
       - ./conf:/app/conf
@@ -38,13 +38,13 @@ so it can be used in any way you like - cron, systemd, your own Dockerfile, or w
 
 #### Run without installing using uv
 
-```
+```bash
 uv run --with updates2mqtt updates2mqtt
 ```
 
 #### Install and run with pip
 
-```
+```bash
 pip install updates2mqtt
 python3 -m updates2mqtt
 ```
