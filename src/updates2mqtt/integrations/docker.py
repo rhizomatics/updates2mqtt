@@ -65,8 +65,10 @@ class ContainerCustomization:
                 if label in container.labels:
                     # precedence to labels
                     v = container.labels.get(label)
+                    log.debug("DOCKER label %s=%s", label, v)
                 elif env_var in c_env:
                     v = c_env[env_var]
+                    log.debug("DOCKER env %s=%s", env_var, v)
                 if v is not None:
                     if isinstance(getattr(self, attr), bool):
                         setattr(self, attr, v.upper() in ("TRUE", "YES", "1"))
