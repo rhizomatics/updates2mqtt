@@ -375,8 +375,7 @@ class DockerProvider(ReleaseProvider):
             custom["can_pull"] = can_pull
             custom["skip_pull"] = skip_pull
 
-            logger.debug("Analyze generated discovery", discovery_name=c.name, current_version=local_version)
-            return Discovery(
+            discovery: Discovery = Discovery(
                 self,
                 c.name,
                 session,
@@ -396,6 +395,8 @@ class DockerProvider(ReleaseProvider):
                 custom=custom,
                 features=features,
             )
+            logger.debug("Analyze generated discovery", discovery)
+            return discovery
         except Exception:
             logger.exception("Docker Discovery Failure", container_attrs=c.attrs)
         logger.debug("Analyze returned empty discovery")
@@ -423,7 +424,7 @@ class DockerProvider(ReleaseProvider):
 
     def command(self, discovery_name: str, command: str, on_update_start: Callable, on_update_end: Callable) -> bool:
         logger = self.log.bind(container=discovery_name, action="command", command=command)
-        logger.info("Executing")
+        logger.info("Executing Command")
         discovery: Discovery | None = None
         updated: bool = False
         try:
