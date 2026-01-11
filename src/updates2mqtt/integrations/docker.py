@@ -128,6 +128,7 @@ class DockerProvider(ReleaseProvider):
         elif discovery.can_build:
             compose_path: str | None = discovery.custom.get("compose_path")
             git_repo_path: str | None = discovery.custom.get("git_repo_path")
+            logger.debug("can_build check", git_repo=git_repo_path)
             if not compose_path or not git_repo_path:
                 logger.warn("No compose path or git repo path configured, skipped build")
                 return
@@ -137,6 +138,8 @@ class DockerProvider(ReleaseProvider):
                 full_repo_path = Path(git_repo_path)
             if git_check_update_available(full_repo_path, Path(self.node_cfg.git_path)):
                 git_pull(full_repo_path, Path(self.node_cfg.git_path))
+            else:
+                logger.debug("Skipping git_pull, no update")
             if compose_path:
                 self.build(discovery, compose_path)
             else:
@@ -144,7 +147,7 @@ class DockerProvider(ReleaseProvider):
 
     def build(self, discovery: Discovery, compose_path: str) -> bool:
         logger = self.log.bind(container=discovery.name, action="build")
-        logger.info("Building")
+        logger.info("Building", compose_path=compose_path)
         return self.execute_compose(
             command=DockerComposeCommand.BUILD,
             args="",
