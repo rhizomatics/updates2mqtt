@@ -139,18 +139,20 @@ class DockerProvider(ReleaseProvider):
             if not compose_path or not git_repo_path:
                 logger.warn("No compose path or git repo path configured, skipped build")
                 return
-            if compose_path and not Path(git_repo_path).is_absolute():
-                full_repo_path: Path = Path(compose_path) / git_repo_path
-            else:
-                full_repo_path = Path(git_repo_path)
-            if git_check_update_available(full_repo_path, Path(self.node_cfg.git_path)):
-                git_pull(full_repo_path, Path(self.node_cfg.git_path))
+
+            full_repo_path: Path = self.full_repo_path(compose_path, git_repo_path)
+            if git_pull(full_repo_path, Path(self.node_cfg.git_path)):
+                if compose_path:
+                    self.build(discovery, compose_path)
+                else:
+                    logger.warn("No compose path configured, skipped build")
             else:
                 logger.debug("Skipping git_pull, no update")
-            if compose_path:
-                self.build(discovery, compose_path)
-            else:
-                logger.warn("No compose path configured, skipped build")
+
+    def full_repo_path(self, compose_path: str, git_repo_path: str) -> Path:
+        if compose_path and not Path(git_repo_path).is_absolute():
+            return Path(compose_path) / git_repo_path
+        return Path(git_repo_path)
 
     def build(self, discovery: Discovery, compose_path: str) -> bool:
         logger = self.log.bind(container=discovery.name, action="build")
@@ -360,8 +362,16 @@ class DockerProvider(ReleaseProvider):
                     logger.info(f"Skipping version {latest_version} matching exclude pattern")
                     can_pull = False
                     skip_pull = True
-            can_build: bool = self.cfg.allow_build and custom.get("git_repo_path") is not None
+
+            can_build: bool = False
+            if self.cfg.allow_build and custom.get("git_repo_path") is not None and custom.get("compose_path") is not None:
+                full_repo_path = self.full_repo_path(
+                    cast("str", custom.get("compose_path")), cast("str", custom.get("git_repo_path"))
+                )
+                can_build = git_check_update_available(full_repo_path, Path(self.node_cfg.git_path))
+
             can_restart: bool = self.cfg.allow_restart and custom.get("compose_path") is not None
+
             can_update: bool = False
             if self.cfg.allow_pull and not can_pull and not can_build:
                 logger.info(

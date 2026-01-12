@@ -5,6 +5,7 @@
 - New container config to include or exclude image updates based on a regular expression applied to new version
 - Docker API now throttled per registry if receives 429 Too Many Requests, configurable using `api_throttle_wait`
 - Auto update policy restricted to when there's an update to build
+- For local git repos, install update only appears if there's a pull available
 ### Internal
 - Many more test cases added, focusing on Docker and MQTT integration
 ## 1.5.2

@@ -1,6 +1,6 @@
 import time
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 import pytest
 from docker import DockerClient
@@ -11,7 +11,7 @@ from pytest_subprocess import FakeProcess  # type: ignore[import-not-found]
 import updates2mqtt.integrations.docker as mut
 from conftest import build_mock_container
 from updates2mqtt.config import DockerPackageUpdateInfo, MetadataSourceConfig
-from updates2mqtt.integrations.docker import ContainerCustomization
+from updates2mqtt.integrations.docker import ContainerCustomization, DockerComposeCommand
 from updates2mqtt.model import Discovery
 
 
@@ -219,33 +219,7 @@ def test_fetch_skips_pull_when_cannot_pull(mock_docker_client: DockerClient) -> 
         mock_docker_client.images.pull.assert_not_called()  # type: ignore[attr-defined]
 
 
-def test_fetch_builds_when_can_build(mock_docker_client: DockerClient, tmpdir: Path) -> None:
-    with patch("docker.from_env", return_value=mock_docker_client):
-        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), {}, mut.NodeConfig())
-        discovery = Discovery(
-            uut,
-            "build-container",
-            "test-session",
-            "node001",
-            can_build=True,
-            custom={
-                "can_pull": False,
-                "compose_path": str(tmpdir),
-                "git_repo_path": ".",
-            },
-        )
-
-        with (
-            patch("updates2mqtt.integrations.docker.git_check_update_available", return_value=False),
-            patch.object(uut, "build", return_value=True) as mock_build,
-        ):
-            uut.fetch(discovery)
-
-            mock_build.assert_called_once_with(discovery, str(tmpdir))
-            mock_docker_client.images.pull.assert_not_called()  # type: ignore[attr-defined]
-
-
-def test_fetch_builds_with_git_pull_when_update_available(mock_docker_client: DockerClient, tmpdir: Path) -> None:
+def test_fetch_builds_when_can_build_and_pull(mock_docker_client: DockerClient, tmpdir: Path) -> None:
     with patch("docker.from_env", return_value=mock_docker_client):
         uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), {}, mut.NodeConfig())
         discovery = Discovery(
@@ -263,13 +237,43 @@ def test_fetch_builds_with_git_pull_when_update_available(mock_docker_client: Do
 
         with (
             patch("updates2mqtt.integrations.docker.git_check_update_available", return_value=True),
-            patch("updates2mqtt.integrations.docker.git_pull") as mock_git_pull,
+            patch.object(uut, "execute_compose") as mock_compose,
+            patch("updates2mqtt.integrations.docker.git_pull", return_value=True) as mock_pull,
+        ):
+            uut.fetch(discovery)
+
+            mock_pull.assert_called_once_with(Path(tmpdir), Path("/usr/bin/git"))
+            mock_compose.assert_called_once_with(
+                command=DockerComposeCommand.BUILD, args="", service=None, cwd=tmpdir, logger=ANY
+            )
+
+            mock_docker_client.images.pull.assert_not_called()  # type: ignore[attr-defined]
+
+
+def test_fetch_skips_build_when_no_pull(mock_docker_client: DockerClient, tmpdir: Path) -> None:
+    with patch("docker.from_env", return_value=mock_docker_client):
+        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), {}, mut.NodeConfig())
+        discovery = Discovery(
+            uut,
+            "build-container",
+            "test-session",
+            "node001",
+            can_build=True,
+            custom={
+                "can_pull": False,
+                "compose_path": str(tmpdir),
+                "git_repo_path": ".",
+            },
+        )
+
+        with (
+            patch("updates2mqtt.integrations.docker.git_pull", return_value=False) as mock_git_pull,
             patch.object(uut, "build", return_value=True) as mock_build,
         ):
             uut.fetch(discovery)
 
             mock_git_pull.assert_called_once()
-            mock_build.assert_called_once_with(discovery, str(tmpdir))
+            mock_build.assert_not_called()
 
 
 def test_fetch_skips_build_when_no_compose_path(mock_docker_client: DockerClient) -> None:
