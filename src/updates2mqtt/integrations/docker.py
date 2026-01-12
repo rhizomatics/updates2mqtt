@@ -13,7 +13,6 @@ import docker
 import docker.errors
 import structlog
 from docker.models.containers import Container
-from docker.utils import parse_repository_tag
 from hishel.httpx import SyncCacheClient
 
 from updates2mqtt.config import DockerConfig, DockerPackageUpdateInfo, NodeConfig, PackageUpdateInfo
@@ -251,7 +250,6 @@ class DockerProvider(ReleaseProvider):
         if image_ref is None:
             logger.warn("No image or image attributes found")
         else:
-            log.info("REPO: %s", parse_repository_tag(image_ref))
             try:
                 image_name = image_ref.split(":")[0]
             except Exception as e:
@@ -291,6 +289,7 @@ class DockerProvider(ReleaseProvider):
                     try:
                         logger.debug("Fetching registry data", image_ref=image_ref)
                         reg_data = self.client.images.get_registry_data(image_ref)
+                        log.debug("Registry Data: %s", reg_data)
                         latest_version = reg_data.short_id[7:] if reg_data else None
                     except docker.errors.APIError as e:
                         if e.status_code == HTTPStatus.TOO_MANY_REQUESTS:
