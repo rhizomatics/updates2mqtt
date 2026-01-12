@@ -108,6 +108,9 @@ restarter:
 This can be used in conjunction with the `UPD2MQTT_VERSION_INCLUDE` and `UPD2MQTT_VERSION_EXCLUDE` to
 limit which updates get automatically applied, for example excluding nightly builds.
 
+Automated updates can also apply to local builds, where a `git_repo_path` has been defined - if there are remote
+commits available to pull, then a `git pull`, `docker compose build` and `docker compose up` will be executed.
+
 ### Environment Variables
 
 The following environment variables can be used to configure containers for `updates2mqtt`:
