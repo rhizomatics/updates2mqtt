@@ -135,7 +135,9 @@ class App:
                 elapsed: float = (
                     time.time() - discovery.update_last_attempt if discovery.update_last_attempt is not None else -1
                 )
-                if "ghcr.io/rhizomatics/updates2mqtt" in discovery.custom.get("image_ref", ""):
+                if "ghcr.io/rhizomatics/updates2mqtt" in discovery.custom.get("image_ref", "") or discovery.custom.get(
+                    "git_repo_path", ""
+                ).endswith("updates2mqtt"):
                     dlog.warning("Attempting to self-bounce")
                     self.self_bounce.set()
                 if elapsed == -1 or elapsed > UPDATE_INTERVAL:
