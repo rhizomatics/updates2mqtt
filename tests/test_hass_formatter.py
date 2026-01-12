@@ -1,3 +1,5 @@
+from typing import Any
+
 import updates2mqtt
 from conftest import Discovery
 from updates2mqtt.hass_formatter import hass_format_config
@@ -32,7 +34,7 @@ def test_formatter_includes_device(mock_discoveries: list[Discovery], monkeypatc
             "sw_version": "3.0.0",
             "support_url": "https://github.com/rhizomatics/updates2mqtt/issues",
         },
-        "custom": {},
+        "custom": {"unit_test": {}},
         "device": {
             "identifiers": ["testbed01.updates2mqtt"],
             "manufacturer": "rhizomatics",
@@ -45,7 +47,9 @@ def test_formatter_includes_device(mock_discoveries: list[Discovery], monkeypatc
 
 def test_formatter_excludes_device(mock_discoveries: list[Discovery], monkeypatch) -> None:  # noqa: ANN001
     monkeypatch.setattr(updates2mqtt, "version", "3.0.0")
-    msg = hass_format_config(mock_discoveries[0], "obj001", "state_topic_1", "command_topic_1", True, device_creation=False)
+    msg: dict[str, Any] = hass_format_config(
+        mock_discoveries[0], "obj001", "state_topic_1", "command_topic_1", True, device_creation=False
+    )
     assert msg == {
         "name": "TestRun for thing-1 on testbed01",
         "unique_id": "obj001",
@@ -64,7 +68,7 @@ def test_formatter_excludes_device(mock_discoveries: list[Discovery], monkeypatc
             "sw_version": "3.0.0",
             "support_url": "https://github.com/rhizomatics/updates2mqtt/issues",
         },
-        "custom": {},
+        "custom": {"unit_test": {}},  # type: ignore[dict-item]
     }
 
 

@@ -1,4 +1,3 @@
-import datetime
 import re
 import subprocess
 import time
@@ -320,13 +319,13 @@ class DockerProvider(ReleaseProvider):
                 local_version = latest_version if latest_version in local_versions else local_versions[0]
                 log.debug(f"Setting local version to {local_version}, local_versions:{local_versions}")
 
-            def save_if_set(key: str, val: datetime.datetime | str | None) -> None:
+            def save_if_set(key: str, val: str | None) -> None:
                 if val is not None:
                     custom[key] = val
 
             image_ref = image_ref or ""
 
-            custom: dict[str, str | datetime.datetime | bool] = {}
+            custom: dict[str, str | bool] = {}
             custom["platform"] = platform
             custom["image_ref"] = image_ref
             custom["repo_id"] = repo_id
