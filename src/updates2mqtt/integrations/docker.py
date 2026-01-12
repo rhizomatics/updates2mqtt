@@ -469,7 +469,7 @@ class DockerProvider(ReleaseProvider):
                 yield result
             else:
                 logger.debug("No result from analysis", container=c.name)
-        logger.info("Completed", container_count=containers, result_count=results)
+        logger.info("Completed", container_count=containers, throttled_count=throttled, result_count=results)
 
     def command(self, discovery_name: str, command: str, on_update_start: Callable, on_update_end: Callable) -> bool:
         logger = self.log.bind(container=discovery_name, action="command", command=command)
