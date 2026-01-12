@@ -178,3 +178,7 @@ limit for unauthenticated requests, can be made per hour.
 Access to the API will back off when this is hit, and discovery will wait until
 a configurable period passed, which can be configured using `api_throttle_wait`
 in the `docker` configuration section, with a value in seconds.
+
+The throttling is determined per registry, so if Docker is throttling it won't
+affect `gchr.io`, private registries or others. They will also throttle if needed, but
+again the throttle will only affect that specific registry, and other scans will continue.

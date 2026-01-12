@@ -1,4 +1,5 @@
 # python
+import uuid
 from collections.abc import AsyncGenerator, Callable
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
@@ -95,7 +96,7 @@ def mock_docker_client() -> DockerClient:
     coll = Mock(spec=ContainerCollection)
 
     def reg_data_select(v: str) -> RegistryData:
-        reg_data = Mock(spec=RegistryData)
+        reg_data = Mock(spec=RegistryData, image_name=v, id=uuid.uuid4(), attrs={})
         match v:
             case "testy/mctest:latest":
                 reg_data.short_id = "sha256:c5385387575"

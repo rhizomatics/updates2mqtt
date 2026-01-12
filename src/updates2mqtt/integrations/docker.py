@@ -108,7 +108,7 @@ class DockerProvider(ReleaseProvider):
         self.common_pkgs: dict[str, PackageUpdateInfo] = common_pkg_cfg if common_pkg_cfg else {}
         # TODO: refresh discovered packages periodically
         self.discovered_pkgs: dict[str, PackageUpdateInfo] = self.discover_metadata()
-        self.pause_api_until: dict[str, float | None] = {}
+        self.pause_api_until: dict[str, float] = {}
         self.api_throttle_pause: int = cfg.api_throttle_wait
 
     def update(self, discovery: Discovery) -> bool:
@@ -215,21 +215,21 @@ class DockerProvider(ReleaseProvider):
             logger.exception("Docker API error retrieving container")
         return None
 
-    def check_throttle(self) -> bool:
-        # if self.pause_api_until is not None:
-        #    if self.pause_api_until < time.time():
-        #        self.pause_api_until = None
-        #        log.info("Docker API throttling wait complete")
-        #    else:
-        #        log.debug("Docker API throttling has %s secs left", self.pause_api_until - time.time())
-        #        return True
+    def check_throttle(self, repo_id: str) -> bool:
+        if self.pause_api_until.get(repo_id) is not None:
+            if self.pause_api_until[repo_id] < time.time():
+                del self.pause_api_until[repo_id]
+                log.info("%s throttling wait complete", repo_id)
+            else:
+                log.debug("%s throttling has %s secs left", repo_id, self.pause_api_until[repo_id] - time.time())
+                return True
         return False
 
     def analyze(self, c: Container, session: str, original_discovery: Discovery | None = None) -> Discovery | None:
         logger = self.log.bind(container=c.name, action="analyze")
 
-        image_ref = None
-        image_name = None
+        image_ref: str | None = None
+        image_name: str | None = None
         local_versions = None
         if c.attrs is None or not c.attrs:
             logger.warn("No container attributes found, discovery rejected")
@@ -244,6 +244,7 @@ class DockerProvider(ReleaseProvider):
             return None
 
         image: Image | None = c.image
+        repo_id: str = "DEFAULT"
         if image is not None and image.tags and len(image.tags) > 0:
             image_ref = image.tags[0]
         else:
@@ -251,8 +252,7 @@ class DockerProvider(ReleaseProvider):
         if image_ref is None:
             logger.warn("No image or image attributes found")
         else:
-            index_name, remote_name = resolve_repository_name(image_ref)
-            log.debug("index: %s, remote: %s", index_name, remote_name)
+            repo_id, _ = resolve_repository_name(image_ref)
             try:
                 image_name = image_ref.split(":")[0]
             except Exception as e:
@@ -284,9 +284,8 @@ class DockerProvider(ReleaseProvider):
 
             reg_data: RegistryData | None = None
             latest_version: str | None = NO_KNOWN_IMAGE
-            local_version: str | None = NO_KNOWN_IMAGE
 
-            if image_ref and local_versions:
+            if image_ref and local_versions and not self.check_throttle(repo_id):
                 retries_left = 3
                 while reg_data is None and retries_left > 0 and not self.stopped.is_set():
                     try:
@@ -302,7 +301,7 @@ class DockerProvider(ReleaseProvider):
                     except docker.errors.APIError as e:
                         if e.status_code == HTTPStatus.TOO_MANY_REQUESTS:
                             logger.warn("Docker Registry throttling requests, %s", e.explanation)
-                            # self.pause_api_until = time.time() + self.api_throttle_pause
+                            self.pause_api_until[repo_id] = time.time() + self.api_throttle_pause
                             return None
                         retries_left -= 1
                         if retries_left == 0 or e.is_client_error():
@@ -310,6 +309,7 @@ class DockerProvider(ReleaseProvider):
                         else:
                             logger.debug("Failed to fetch registry data, retrying: %s", e)
 
+            local_version: str | None = NO_KNOWN_IMAGE
             if local_versions:
                 # might be multiple RepoDigests if image has been pulled multiple times with diff manifests
                 local_version = latest_version if latest_version in local_versions else local_versions[0]

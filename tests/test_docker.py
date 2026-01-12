@@ -1,3 +1,4 @@
+import time
 from pathlib import Path
 from unittest.mock import patch
 
@@ -520,12 +521,11 @@ def test_analyze_skips_during_throttle_period(mock_docker_client: DockerClient) 
     with patch("docker.from_env", return_value=mock_docker_client):
         uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), {}, mut.NodeConfig())
         # Set throttle to expire in the future
-        # uut.pause_api_until = time.time() + 300
+        uut.pause_api_until["docker.io"] = time.time() + 300
 
         # Should skip analysis during throttle period
-        result = uut.analyze(container, "test-session")
+        uut.analyze(container, "test-session")
 
-        assert result is None
         # Should not have called get_registry_data since we're throttled
         mock_docker_client.images.get_registry_data.assert_not_called()  # type: ignore[attr-defined]
 
@@ -537,13 +537,13 @@ def test_analyze_resumes_after_throttle_expires(mock_docker_client: DockerClient
     with patch("docker.from_env", return_value=mock_docker_client):
         uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), {}, mut.NodeConfig())
         # Set throttle to have already expired
-        # uut.pause_api_until = time.time() - 10
+        uut.pause_api_until["docker.io"] = time.time()
 
         result = uut.analyze(container, "test-session")
 
         # Throttle should be cleared
-        assert uut.pause_api_until is None
+        assert "docker.io" not in uut.pause_api_until
         # Should have attempted to get registry data
-        mock_docker_client.images.get_registry_data.assert_called()  # type: ignore[unreachable]
+        mock_docker_client.images.get_registry_data.assert_called()  # type: ignore[attr-defined]
         # Result should be a valid discovery (not None due to throttling)
         assert result is not None
