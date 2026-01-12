@@ -1,3 +1,6 @@
+---
+title: Integration with Home Assistant using automated MQTT Discovery and MQTT Update entities
+---
 # HomeAssistant Integration
 
  `updates2mqtt` represents each component being managed as a [MQTT Update](https://www.home-assistant.io/integrations/update.mqtt/) entity, and uses [MQTT discovery](https://www.home-assistant.io/integrations/mqtt/#mqtt-discovery) so that HomeAssistant automatically picks up components discovered by Updates2MQTT with zero configuration on HomeAssistant itself. 
