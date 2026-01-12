@@ -137,8 +137,8 @@ or using labels
 
 ```yaml title="docker compose snippet"
     labels:
-      org.rhizomatics.updates2mqtt.picture: https://frigate.video/images/logo.svg
-      org.rhizomatics.updates2mqtt.relnotes: https://github.com/blakeblackshear/frigate/releases
+      updates2mqtt.picture: https://frigate.video/images/logo.svg
+      updates2mqtt.relnotes: https://github.com/blakeblackshear/frigate/releases
 ```
   l
 The images will show up in the *Update* section of *Settings* menu in HomeAssistant,

@@ -1,3 +1,4 @@
+import json
 from abc import abstractmethod
 from collections.abc import AsyncGenerator, Callable
 from threading import Event
@@ -58,6 +59,15 @@ class Discovery:
         """Build a custom string representation"""
         return f"Discovery('{self.name}','{self.source_type}',current={self.current_version},latest={self.latest_version})"
 
+    def __str__(self) -> str:
+        """Dump the attrs"""
+
+        def stringify(v: Any) -> str | int | float | bool:
+            return str(v) if not isinstance(v, (str, int, float, bool)) else v
+
+        dump = {k: stringify(v) for k, v in self.__dict__.items()}
+        return json.dumps(dump)
+
     @property
     def title(self) -> str:
         if self.title_template:
@@ -78,6 +88,10 @@ class ReleaseProvider:
         """Stop any loops or background tasks"""
         self.log.info("Asking release provider to stop", source_type=self.source_type)
         self.stopped.set()
+
+    def __str__(self) -> str:
+        """Stringify"""
+        return f"{self.source_type} Discovery"
 
     @abstractmethod
     def update(self, discovery: Discovery) -> bool:

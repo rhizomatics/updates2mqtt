@@ -13,6 +13,7 @@ import docker
 import docker.errors
 import structlog
 from docker.models.containers import Container
+from docker.utils import parse_repository_tag
 from hishel.httpx import SyncCacheClient
 
 from updates2mqtt.config import DockerConfig, DockerPackageUpdateInfo, NodeConfig, PackageUpdateInfo
@@ -41,7 +42,7 @@ def safe_json_dt(t: float | None) -> str | None:
 class ContainerCustomization:
     """Local customization of a Docker container, by label or env var"""
 
-    label_prefix: str = "org.rhizomatics.updates2mqtt."
+    label_prefix: str = "updates2mqtt."
     env_prefix: str = "UPD2MQTT_"
 
     def __init__(self, container: Container) -> None:
@@ -107,7 +108,7 @@ class DockerProvider(ReleaseProvider):
         self.common_pkgs: dict[str, PackageUpdateInfo] = common_pkg_cfg if common_pkg_cfg else {}
         # TODO: refresh discovered packages periodically
         self.discovered_pkgs: dict[str, PackageUpdateInfo] = self.discover_metadata()
-        self.pause_api_until: float | None = None
+        self.pause_api_until: dict[str, float | None] = {}
         self.api_throttle_pause: int = cfg.api_throttle_wait
 
     def update(self, discovery: Discovery) -> bool:
@@ -124,6 +125,8 @@ class DockerProvider(ReleaseProvider):
 
         image_ref: str | None = discovery.custom.get("image_ref")
         platform: str | None = discovery.custom.get("platform")
+        if image_ref:
+            log.info("REPO: %s", parse_repository_tag(image_ref))
         if discovery.custom.get("can_pull") and image_ref:
             logger.info("Pulling", image_ref=image_ref, platform=platform)
             image: Image = self.client.images.pull(image_ref, platform=platform, all_tags=False)
@@ -214,15 +217,18 @@ class DockerProvider(ReleaseProvider):
             logger.exception("Docker API error retrieving container")
         return None
 
+    def check_throttle(self) -> bool:
+        # if self.pause_api_until is not None:
+        #    if self.pause_api_until < time.time():
+        #        self.pause_api_until = None
+        #        log.info("Docker API throttling wait complete")
+        #    else:
+        #        log.debug("Docker API throttling has %s secs left", self.pause_api_until - time.time())
+        #        return True
+        return False
+
     def analyze(self, c: Container, session: str, original_discovery: Discovery | None = None) -> Discovery | None:
         logger = self.log.bind(container=c.name, action="analyze")
-        if self.pause_api_until is not None:
-            if self.pause_api_until < time.time():
-                self.pause_api_until = None
-                log.info("Docker API throttling wait complete")
-            else:
-                log.debug("Docker API throttling has %s secs left", self.pause_api_until - time.time())
-                return None
 
         image_ref = None
         image_name = None
@@ -290,7 +296,7 @@ class DockerProvider(ReleaseProvider):
                     except docker.errors.APIError as e:
                         if e.status_code == HTTPStatus.TOO_MANY_REQUESTS:
                             logger.warn("Docker Registry throttling requests, %s", e.explanation)
-                            self.pause_api_until = time.time() + self.api_throttle_pause
+                            # self.pause_api_until = time.time() + self.api_throttle_pause
                             return None
                         retries_left -= 1
                         if retries_left == 0 or e.is_client_error():
