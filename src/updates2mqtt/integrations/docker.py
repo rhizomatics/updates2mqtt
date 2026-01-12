@@ -251,8 +251,8 @@ class DockerProvider(ReleaseProvider):
         if image_ref is None:
             logger.warn("No image or image attributes found")
         else:
-            remote_name, remote_name = resolve_repository_name(image_ref)
-            log.debug("repo: %s, other: %s", remote_name, remote_name)
+            index_name, remote_name = resolve_repository_name(image_ref)
+            log.debug("index: %s, remote: %s", index_name, remote_name)
             try:
                 image_name = image_ref.split(":")[0]
             except Exception as e:
