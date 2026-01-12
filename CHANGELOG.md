@@ -19,7 +19,7 @@
     - Install update in HA only appears if there's a pull available
 ### Internal
 - Many more test cases added, focusing on Docker and MQTT integration
-- Exit code overridden to 1 if pulling and restarting its own image or local build from cloned repo
+- Self-bounce now recognized and attempts to set exit code to 1, though container may still override that
 ## 1.5.2
 ### Internal
 - Build backend changed to `uv_build`
