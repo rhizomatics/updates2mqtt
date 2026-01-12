@@ -439,6 +439,7 @@ class DockerProvider(ReleaseProvider):
                 status=(c.status == "running" and "on") or "off",
                 custom=custom,
                 features=features,
+                throttled=registry_throttled,
             )
             logger.debug("Analyze generated discovery: %s", discovery)
             return discovery
@@ -449,7 +450,9 @@ class DockerProvider(ReleaseProvider):
 
     async def scan(self, session: str) -> AsyncGenerator[Discovery]:
         logger = self.log.bind(session=session, action="scan", source=self.source_type)
-        containers = results = 0
+        containers: int = 0
+        results: int = 0
+        throttled: int = 0
         logger.debug("Starting container scan loop")
         for c in self.client.containers.list():
             logger.debug("Analyzing container", container=c.name)
@@ -462,6 +465,7 @@ class DockerProvider(ReleaseProvider):
                 logger.debug("Analyzed container", result_name=result.name, custom=result.custom)
                 self.discoveries[result.name] = result
                 results = results + 1
+                throttled += 1 if result.throttled else 0
                 yield result
             else:
                 logger.debug("No result from analysis", container=c.name)
