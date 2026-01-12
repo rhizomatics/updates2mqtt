@@ -2,6 +2,7 @@ import datetime
 import re
 import subprocess
 from pathlib import Path
+from re import Match
 
 import structlog
 
@@ -83,7 +84,9 @@ def git_check_update_available(repo_path: Path, git_path: Path, timeout: int = 1
             timeout=timeout,
         )
         if result.returncode == 0:
-            count_match = re.match(r"Your branch is behind.*by (\d+) commit", result.stdout)
+            count_match: Match[str] | None = re.search(
+                r"Your branch is behind.*by (\d+) commit", result.stdout, flags=re.MULTILINE
+            )
             if count_match and count_match.groups():
                 log.info(
                     "Local git repo update available: %s (%s)",

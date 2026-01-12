@@ -150,6 +150,8 @@ class DockerProvider(ReleaseProvider):
                 logger.debug("Skipping git_pull, no update")
 
     def full_repo_path(self, compose_path: str, git_repo_path: str) -> Path:
+        if compose_path is None or git_repo_path is None:
+            raise ValueError("Unexpected null paths")
         if compose_path and not Path(git_repo_path).is_absolute():
             return Path(compose_path) / git_repo_path
         return Path(git_repo_path)
@@ -375,11 +377,10 @@ class DockerProvider(ReleaseProvider):
             if self.cfg.allow_build:
                 can_build = custom.get("git_repo_path") is not None and custom.get("compose_path") is not None
                 if not can_build:
-                    log.debug(
-                        "Allow build ignored because git_repo_path=%s and compose_path=%s",
-                        custom.get("git_repo_path"),
-                        custom.get("compose_path"),
-                    )
+                    if custom.get("git_repo_path") is not None:
+                        log.debug(
+                            "Local build ignored for git_repo_path=%s because no compose_path", custom.get("git_repo_path")
+                        )
                 else:
                     full_repo_path = self.full_repo_path(
                         cast("str", custom.get("compose_path")), cast("str", custom.get("git_repo_path"))

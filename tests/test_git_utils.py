@@ -43,7 +43,7 @@ def test_git_pull(fake_process: FakeProcess) -> None:
 def test_git_check_update_available(fake_process: FakeProcess) -> None:
     fake_process.register(
         "/usr/bin/git fetch;/usr/bin/git status -uno",
-        stdout="Your branch is behind 'origin/main' by 1 commit, and can be fast-forwarded.",
+        stdout="""On branch main\nYour branch is behind \'origin/main\' by 1 commit, and can be fast-forwarded.\n  (use "git pull" to update your local branch)\n\nnothing to commit (use -u to show untracked files)""",  # noqa: E501
         returncode=0,
     )
     assert git_check_update_available(Path("/my/path"), GIT_EXEC) == 1
