@@ -6,6 +6,7 @@
 - Docker API now throttled per registry if receives 429 Too Many Requests, configurable using `api_throttle_wait`
 - Auto update policy restricted to when there's an update to build
 - For local git repos, install update only appears if there's a pull available
+- Don't show update available if only restartable, only if image to pull or git repo to update
 ### Internal
 - Many more test cases added, focusing on Docker and MQTT integration
 ## 1.5.2

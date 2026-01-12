@@ -373,15 +373,17 @@ class DockerProvider(ReleaseProvider):
                     cast("str", custom.get("compose_path")), cast("str", custom.get("git_repo_path"))
                 )
                 can_build = git_check_update_available(full_repo_path, Path(self.node_cfg.git_path))
+                if not can_build:
+                    logger.debug(f"Git update not available, image_ref:{image_ref},local repo:{full_repo_path}")
 
             can_restart: bool = self.cfg.allow_restart and custom.get("compose_path") is not None
 
             can_update: bool = False
-            if self.cfg.allow_pull and not can_pull and not can_build:
-                logger.info(
+            if self.cfg.allow_pull and not can_pull:
+                logger.debug(
                     f"Pull not available, image_ref:{image_ref},local_version:{local_version},latest_version:{latest_version}"
                 )
-            if can_pull or can_build or can_restart:
+            if (can_pull or can_build) and can_restart:
                 # public install-neutral capabilities and Home Assistant features
                 can_update = True
                 features.append("INSTALL")
