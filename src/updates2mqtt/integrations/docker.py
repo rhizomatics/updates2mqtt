@@ -286,8 +286,9 @@ class DockerProvider(ReleaseProvider):
 
             reg_data: RegistryData | None = None
             latest_version: str | None = NO_KNOWN_IMAGE
+            registry_throttled = self.check_throttle(repo_id)
 
-            if image_ref and local_versions and not self.check_throttle(repo_id):
+            if image_ref and local_versions and not registry_throttled:
                 retries_left = 3
                 while reg_data is None and retries_left > 0 and not self.stopped.is_set():
                     try:
@@ -326,6 +327,9 @@ class DockerProvider(ReleaseProvider):
             custom: dict[str, str | datetime.datetime | bool] = {}
             custom["platform"] = platform
             custom["image_ref"] = image_ref
+            custom["repo_id"] = repo_id
+            if registry_throttled:
+                custom["registry_throttled"] = True
             save_if_set("compose_path", c.labels.get("com.docker.compose.project.working_dir"))
             save_if_set("compose_version", c.labels.get("com.docker.compose.version"))
             save_if_set("compose_service", c.labels.get("com.docker.compose.service"))
