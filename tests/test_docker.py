@@ -574,7 +574,7 @@ def test_analyze_with_git_repo_uses_git_local_version(mock_docker_client: Docker
             patch("updates2mqtt.integrations.docker.git_local_version", return_value="git:abc123def456789") as mock_git_ver,
             patch("updates2mqtt.integrations.docker.git_check_update_available", return_value=0),
             patch("updates2mqtt.integrations.docker.git_trust"),
-            patch("updates2mqtt.integrations.docker.git_timestamp", return_value=None),
+            patch("updates2mqtt.integrations.docker.git_iso_timestamp", return_value=None),
         ):
             result = uut.analyze(container, "test-session")
 
@@ -604,7 +604,7 @@ def test_analyze_git_repo_with_updates_available(mock_docker_client: DockerClien
             patch("updates2mqtt.integrations.docker.git_local_version", return_value="git:abc123def456789"),
             patch("updates2mqtt.integrations.docker.git_check_update_available", return_value=3),
             patch("updates2mqtt.integrations.docker.git_trust"),
-            patch("updates2mqtt.integrations.docker.git_timestamp", return_value=None),
+            patch("updates2mqtt.integrations.docker.git_iso_timestamp", return_value=None),
         ):
             result = uut.analyze(container, "test-session")
 
@@ -634,7 +634,7 @@ def test_analyze_git_local_version_returns_none(mock_docker_client: DockerClient
             patch("updates2mqtt.integrations.docker.git_local_version", return_value=None),
             patch("updates2mqtt.integrations.docker.git_check_update_available", return_value=0),
             patch("updates2mqtt.integrations.docker.git_trust"),
-            patch("updates2mqtt.integrations.docker.git_timestamp", return_value=None),
+            patch("updates2mqtt.integrations.docker.git_iso_timestamp", return_value=None),
         ):
             result = uut.analyze(container, "test-session")
 

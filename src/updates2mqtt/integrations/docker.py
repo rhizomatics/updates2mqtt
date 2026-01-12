@@ -19,7 +19,7 @@ from hishel.httpx import SyncCacheClient
 from updates2mqtt.config import DockerConfig, DockerPackageUpdateInfo, NodeConfig, PackageUpdateInfo
 from updates2mqtt.model import Discovery, ReleaseProvider
 
-from .git_utils import git_check_update_available, git_local_version, git_pull, git_timestamp, git_trust
+from .git_utils import git_check_update_available, git_iso_timestamp, git_local_version, git_pull, git_trust
 
 if typing.TYPE_CHECKING:
     from docker.models.images import Image, RegistryData
@@ -350,7 +350,7 @@ class DockerProvider(ReleaseProvider):
                 )
 
                 git_trust(full_repo_path, Path(self.node_cfg.git_path))
-                save_if_set("git_local_timestamp", git_timestamp(full_repo_path, Path(self.node_cfg.git_path)))
+                save_if_set("git_local_timestamp", git_iso_timestamp(full_repo_path, Path(self.node_cfg.git_path)))
             features: list[str] = []
             can_pull: bool = (
                 self.cfg.allow_pull

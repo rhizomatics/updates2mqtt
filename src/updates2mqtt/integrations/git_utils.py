@@ -18,7 +18,7 @@ def git_trust(repo_path: Path, git_path: Path) -> bool:
         return False
 
 
-def git_timestamp(repo_path: Path, git_path: Path) -> datetime.datetime | None:
+def git_iso_timestamp(repo_path: Path, git_path: Path) -> str | None:
     result = None
     try:
         result = subprocess.run(
@@ -29,16 +29,17 @@ def git_timestamp(repo_path: Path, git_path: Path) -> datetime.datetime | None:
             capture_output=True,
             check=True,
         )
-        return datetime.datetime.fromisoformat(result.stdout.strip())
+        # round-trip the iso format for pythony consistency
+        return datetime.datetime.fromisoformat(result.stdout.strip()).isoformat()
     except subprocess.CalledProcessError as cpe:
-        log.warn("GIT No result from git log at %s: %s", repo_path, cpe, action="git_timestamp")
+        log.warn("GIT No result from git log at %s: %s", repo_path, cpe, action="git_iso_timestamp")
     except Exception as e:
         log.error(
             "GIT Unable to parse timestamp at %s - %s: %s",
             repo_path,
             result.stdout if result else "<NO RESULT>",
             e,
-            action="git_timestamp",
+            action="git_iso_timestamp",
         )
     return None
 
