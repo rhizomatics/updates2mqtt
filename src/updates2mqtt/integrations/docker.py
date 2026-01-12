@@ -289,7 +289,13 @@ class DockerProvider(ReleaseProvider):
                     try:
                         logger.debug("Fetching registry data", image_ref=image_ref)
                         reg_data = self.client.images.get_registry_data(image_ref)
-                        log.debug("Registry Data: %s", reg_data)
+                        log.debug(
+                            "Registry Data: id:%s, image:%s, attrs:%s, collection:%s",
+                            reg_data.id,
+                            reg_data.image_name,
+                            reg_data.attrs,
+                            reg_data.collection,
+                        )
                         latest_version = reg_data.short_id[7:] if reg_data else None
                     except docker.errors.APIError as e:
                         if e.status_code == HTTPStatus.TOO_MANY_REQUESTS:
