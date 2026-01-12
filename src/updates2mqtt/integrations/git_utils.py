@@ -88,7 +88,7 @@ def git_check_update_available(repo_path: Path, git_path: Path, timeout: int = 1
                 r"Your branch is behind.*by (\d+) commit", result.stdout, flags=re.MULTILINE
             )
             if count_match and count_match.groups():
-                log.info(
+                log.debug(
                     "Local git repo update available: %s (%s)",
                     count_match.group(1),
                     result.stdout.strip(),

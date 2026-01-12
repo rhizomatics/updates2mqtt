@@ -392,8 +392,9 @@ class DockerProvider(ReleaseProvider):
                     if behind_count > 0:
                         if local_version is not None and local_version.startswith("git:"):
                             latest_version = f"{local_version}+{behind_count}"
+                            log.info("Git update available, generating version %s", latest_version)
                     else:
-                        logger.debug(f"Git update not available, image_ref:{image_ref},local repo:{full_repo_path}")
+                        logger.debug(f"Git update not available, local repo:{full_repo_path}")
 
             can_restart: bool = self.cfg.allow_restart and custom.get("compose_path") is not None
 
