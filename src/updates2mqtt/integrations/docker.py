@@ -6,6 +6,7 @@ from collections.abc import AsyncGenerator, Callable
 from enum import Enum
 from http import HTTPStatus
 from pathlib import Path
+from threading import Event
 from typing import Any, cast
 
 import docker
@@ -99,7 +100,13 @@ class ContainerCustomization:
 
 
 class DockerProvider(ReleaseProvider):
-    def __init__(self, cfg: DockerConfig, common_pkg_cfg: dict[str, PackageUpdateInfo], node_cfg: NodeConfig) -> None:
+    def __init__(
+        self,
+        cfg: DockerConfig,
+        common_pkg_cfg: dict[str, PackageUpdateInfo],
+        node_cfg: NodeConfig,
+        self_bounce: Event | None = None,
+    ) -> None:
         super().__init__("docker")
         self.client: docker.DockerClient = docker.from_env()
         self.cfg: DockerConfig = cfg
@@ -109,6 +116,7 @@ class DockerProvider(ReleaseProvider):
         self.discovered_pkgs: dict[str, PackageUpdateInfo] = self.discover_metadata()
         self.pause_api_until: dict[str, float] = {}
         self.api_throttle_pause: int = cfg.api_throttle_wait
+        self.self_bounce: Event | None = self_bounce
 
     def update(self, discovery: Discovery) -> bool:
         logger: Any = self.log.bind(container=discovery.name, action="update")
@@ -196,6 +204,12 @@ class DockerProvider(ReleaseProvider):
 
     def restart(self, discovery: Discovery) -> bool:
         logger = self.log.bind(container=discovery.name, action="restart")
+        if self.self_bounce is not None and (
+            "ghcr.io/rhizomatics/updates2mqtt" in discovery.custom.get("image_ref", "")
+            or discovery.custom.get("git_repo_path", "").endswith("updates2mqtt")
+        ):
+            logger.warning("Attempting to self-bounce")
+            self.self_bounce.set()
         compose_path = discovery.custom.get("compose_path")
         compose_service: str | None = discovery.custom.get("compose_service")
         return self.execute_compose(

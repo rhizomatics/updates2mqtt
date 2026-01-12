@@ -57,7 +57,7 @@ class App:
         self.scan_count: int = 0
         self.last_scan: str | None = None
         if self.cfg.docker.enabled:
-            self.scanners.append(DockerProvider(self.cfg.docker, self.common_pkg, self.cfg.node))
+            self.scanners.append(DockerProvider(self.cfg.docker, self.common_pkg, self.cfg.node, self.self_bounce))
         self.stopped = Event()
         self.healthcheck_topic = self.cfg.node.healthcheck.topic_template.format(node_name=self.cfg.node.name)
 
@@ -135,11 +135,6 @@ class App:
                 elapsed: float = (
                     time.time() - discovery.update_last_attempt if discovery.update_last_attempt is not None else -1
                 )
-                if "ghcr.io/rhizomatics/updates2mqtt" in discovery.custom.get("image_ref", "") or discovery.custom.get(
-                    "git_repo_path", ""
-                ).endswith("updates2mqtt"):
-                    dlog.warning("Attempting to self-bounce")
-                    self.self_bounce.set()
                 if elapsed == -1 or elapsed > UPDATE_INTERVAL:
                     dlog.info(
                         "Initiate auto update (last:%s, elapsed:%s, max:%s)",
