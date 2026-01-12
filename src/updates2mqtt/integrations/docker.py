@@ -125,8 +125,6 @@ class DockerProvider(ReleaseProvider):
 
         image_ref: str | None = discovery.custom.get("image_ref")
         platform: str | None = discovery.custom.get("platform")
-        if image_ref:
-            log.info("REPO: %s", parse_repository_tag(image_ref))
         if discovery.custom.get("can_pull") and image_ref:
             logger.info("Pulling", image_ref=image_ref, platform=platform)
             image: Image = self.client.images.pull(image_ref, platform=platform, all_tags=False)
@@ -253,6 +251,7 @@ class DockerProvider(ReleaseProvider):
         if image_ref is None:
             logger.warn("No image or image attributes found")
         else:
+            log.info("REPO: %s", parse_repository_tag(image_ref))
             try:
                 image_name = image_ref.split(":")[0]
             except Exception as e:
