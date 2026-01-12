@@ -401,7 +401,7 @@ class DockerProvider(ReleaseProvider):
                 custom=custom,
                 features=features,
             )
-            logger.debug("Analyze generated discovery", discovery)
+            logger.debug("Analyze generated discovery: %s", discovery)
             return discovery
         except Exception:
             logger.exception("Docker Discovery Failure", container_attrs=c.attrs)
