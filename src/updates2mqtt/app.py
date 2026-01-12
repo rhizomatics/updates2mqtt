@@ -125,7 +125,11 @@ class App:
                 self.publisher.publish_hass_config(discovery)
 
             self.publisher.publish_hass_state(discovery)
-            if discovery.update_policy == "Auto" and discovery.can_update:
+            if (
+                discovery.update_policy == "Auto"
+                and discovery.can_update
+                and discovery.latest_version != discovery.current_version
+            ):
                 # TODO: review auto update, trigger by version, use update interval as throttle
                 elapsed: float = (
                     time.time() - discovery.update_last_attempt if discovery.update_last_attempt is not None else -1

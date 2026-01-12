@@ -1,12 +1,20 @@
 # CHANGELOG
 
 ## 1.6.0
+### Docker Labels
 - Container customization can now be made by Docker labels instead of, or in addition to, env vars
+### Docker Image Version Restrictions
 - New container config to include or exclude image updates based on a regular expression applied to new version
+### API Throttling
 - Docker API now throttled per registry if receives 429 Too Many Requests, configurable using `api_throttle_wait`
+### Local Builds
+- General overhaul of some issues and improvements for local git repo image builds
+- Version now synthesized in place of image version
+    - `git:<short sha>` for current version
+    - `git:<short sha>+<commits behind>` for latest version
 - Auto update policy restricted to when there's an update to build
-- For local git repos, install update only appears if there's a pull available
-- Don't show update available if only restartable, only if image to pull or git repo to update
+- For local git repos, install available check made now at discovery time
+    - Install update in HA only appears if there's a pull available
 ### Internal
 - Many more test cases added, focusing on Docker and MQTT integration
 ## 1.5.2
