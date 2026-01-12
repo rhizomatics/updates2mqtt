@@ -1,4 +1,5 @@
 import datetime
+import re
 import subprocess
 from pathlib import Path
 
@@ -81,9 +82,20 @@ def git_check_update_available(repo_path: Path, git_path: Path, timeout: int = 1
             cwd=repo_path,
             timeout=timeout,
         )
-        if result.returncode == 0 and "Your branch is behind" in result.stdout:
-            log.info("Local git repo update available", action="git_check", path=repo_path, status=result.stdout.strip())
-            return True
+        if result.returncode == 0:
+            count_match = re.match(r"Your branch is behind.*by (\d+) commit", result.stdout)
+            if count_match and count_match.groups():
+                log.info(
+                    "Local git repo update available: %s",
+                    count_match.group(0),
+                    action="git_check",
+                    path=repo_path,
+                    status=result.stdout.strip(),
+                )
+                return int(count_match.group(0))
+            log.info("Local git repo no update available", action="git_check", path=repo_path, status=result.stdout.strip())
+            return 0
+
         log.debug(
             "No git update available",
             action="git_check",
@@ -94,7 +106,7 @@ def git_check_update_available(repo_path: Path, git_path: Path, timeout: int = 1
         )
     except Exception as e:
         log.warn("GIT Unable to check status %s: %s", result.stdout if result else "<NO RESULT>", e, action="git_check")
-    return False
+    return 0
 
 
 def git_pull(repo_path: Path, git_path: Path) -> bool:
