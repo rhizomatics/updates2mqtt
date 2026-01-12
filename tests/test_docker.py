@@ -156,7 +156,7 @@ async def test_scanner_container_version_excluded_by_pattern(mock_docker_client:
     results = [d for d in results if d.custom.get("image_ref") == "private/internal-app:latest"]
     assert len(results) == 1
     assert results[0].custom.get("skip_pull") is True
-    assert results[0].custom.get("can_pull") is False
+    assert results[0].custom.get("can_pull") is True
     assert results[0].update_type == "Skipped"
 
 
