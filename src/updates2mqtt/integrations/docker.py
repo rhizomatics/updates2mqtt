@@ -356,34 +356,42 @@ class DockerProvider(ReleaseProvider):
                 and image_ref != ""
                 and (local_version != NO_KNOWN_IMAGE or latest_version != NO_KNOWN_IMAGE)
             )
-            skip_pull: bool = False
-            if can_pull and latest_version:
-                if customization.version_include and not re.match(customization.version_include, latest_version):
-                    logger.info(f"Skipping version {latest_version} not matching include pattern")
-                    can_pull = False
-                    skip_pull = True
-                if customization.version_exclude and re.match(customization.version_exclude, latest_version):
-                    logger.info(f"Skipping version {latest_version} matching exclude pattern")
-                    can_pull = False
-                    skip_pull = True
-
-            can_build: bool = False
-            if self.cfg.allow_build and custom.get("git_repo_path") is not None and custom.get("compose_path") is not None:
-                full_repo_path = self.full_repo_path(
-                    cast("str", custom.get("compose_path")), cast("str", custom.get("git_repo_path"))
-                )
-                can_build = git_check_update_available(full_repo_path, Path(self.node_cfg.git_path))
-                if not can_build:
-                    logger.debug(f"Git update not available, image_ref:{image_ref},local repo:{full_repo_path}")
-
-            can_restart: bool = self.cfg.allow_restart and custom.get("compose_path") is not None
-
-            can_update: bool = False
             if self.cfg.allow_pull and not can_pull:
                 logger.debug(
                     f"Pull not available, image_ref:{image_ref},local_version:{local_version},latest_version:{latest_version}"
                 )
-            if (can_pull or can_build) and can_restart:
+            skip_pull: bool = False
+            if can_pull and latest_version is not None:
+                if customization.version_include and not re.match(customization.version_include, latest_version):
+                    logger.info(f"Skipping version {latest_version} not matching include pattern")
+                    skip_pull = True
+                    latest_version = local_version
+                if customization.version_exclude and re.match(customization.version_exclude, latest_version):  # type: ignore[arg-type]
+                    logger.info(f"Skipping version {latest_version} matching exclude pattern")
+                    skip_pull = True
+                    latest_version = local_version
+
+            can_build: bool = False
+            if self.cfg.allow_build:
+                if custom.get("git_repo_path") is not None and custom.get("compose_path") is not None:
+                    log.warn(
+                        "Allow build but git_repo_path=%s and compose_path=%s",
+                        custom.get("git_repo_path"),
+                        custom.get("compose_path"),
+                    )
+                else:
+                    full_repo_path = self.full_repo_path(
+                        cast("str", custom.get("compose_path")), cast("str", custom.get("git_repo_path"))
+                    )
+                    can_build = git_check_update_available(full_repo_path, Path(self.node_cfg.git_path))
+                    if not can_build:
+                        logger.debug(f"Git update not available, image_ref:{image_ref},local repo:{full_repo_path}")
+
+            can_restart: bool = self.cfg.allow_restart and custom.get("compose_path") is not None
+
+            can_update: bool = False
+
+            if can_pull or can_build or can_restart:
                 # public install-neutral capabilities and Home Assistant features
                 can_update = True
                 features.append("INSTALL")
@@ -392,16 +400,18 @@ class DockerProvider(ReleaseProvider):
                 logger.info(f"Update not available, can_pull:{can_pull}, can_build:{can_build},can_restart{can_restart}")
             if relnotes_url:
                 features.append("RELEASE_NOTES")
-            if can_pull:
-                update_type: str = "Docker Image"
+            if skip_pull:
+                update_type: str = "Skipped"
+            elif can_pull:
+                update_type = "Docker Image"
             elif can_build:
                 update_type = "Docker Build"
-            elif skip_pull:
-                update_type = "Skipped"
             else:
                 update_type = "Unavailable"
             custom["can_pull"] = can_pull
             custom["skip_pull"] = skip_pull
+            # can_pull,can_build etc are only info flags
+            # the HASS update process is driven by comparing current and available versions
 
             discovery: Discovery = Discovery(
                 self,
