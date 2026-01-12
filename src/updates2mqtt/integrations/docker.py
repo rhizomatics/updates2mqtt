@@ -19,7 +19,7 @@ from hishel.httpx import SyncCacheClient
 from updates2mqtt.config import DockerConfig, DockerPackageUpdateInfo, NodeConfig, PackageUpdateInfo
 from updates2mqtt.model import Discovery, ReleaseProvider
 
-from .git_utils import git_check_update_available, git_pull, git_timestamp, git_trust
+from .git_utils import git_check_update_available, git_local_version, git_pull, git_timestamp, git_trust
 
 if typing.TYPE_CHECKING:
     from docker.models.images import Image, RegistryData
@@ -374,8 +374,8 @@ class DockerProvider(ReleaseProvider):
             can_build: bool = False
             if self.cfg.allow_build:
                 if custom.get("git_repo_path") is None or custom.get("compose_path") is None:
-                    log.warn(
-                        "Allow build but git_repo_path=%s and compose_path=%s",
+                    log.debug(
+                        "Allow build ignored because git_repo_path=%s and compose_path=%s",
                         custom.get("git_repo_path"),
                         custom.get("compose_path"),
                     )
@@ -383,8 +383,14 @@ class DockerProvider(ReleaseProvider):
                     full_repo_path = self.full_repo_path(
                         cast("str", custom.get("compose_path")), cast("str", custom.get("git_repo_path"))
                     )
-                    can_build = git_check_update_available(full_repo_path, Path(self.node_cfg.git_path))
-                    if not can_build:
+                    if local_version is None or local_version == NO_KNOWN_IMAGE:
+                        local_version = git_local_version(full_repo_path, Path(self.node_cfg.git_path)) or NO_KNOWN_IMAGE
+
+                    behind_count: int = git_check_update_available(full_repo_path, Path(self.node_cfg.git_path))
+                    if behind_count > 0:
+                        if local_version is not None and local_version.startswith("git:"):
+                            latest_version = f"{local_version}+{behind_count}"
+                    else:
                         logger.debug(f"Git update not available, image_ref:{image_ref},local repo:{full_repo_path}")
 
             can_restart: bool = self.cfg.allow_restart and custom.get("compose_path") is not None

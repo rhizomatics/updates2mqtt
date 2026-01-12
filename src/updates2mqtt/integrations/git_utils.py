@@ -41,7 +41,34 @@ def git_timestamp(repo_path: Path, git_path: Path) -> datetime.datetime | None:
     return None
 
 
-def git_check_update_available(repo_path: Path, git_path: Path, timeout: int = 120) -> bool:
+def git_local_version(repo_path: Path, git_path: Path) -> str | None:
+    result = None
+    try:
+        result = subprocess.run(
+            f"{git_path} rev-parse HEAD",
+            cwd=repo_path,
+            shell=True,
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+        if result.returncode == 0:
+            log.info("Local git rev-parse", action="git_local_version", path=repo_path, version=result.stdout.strip())
+            return f"git:{result.stdout.strip()}"
+    except subprocess.CalledProcessError as cpe:
+        log.warn("GIT No result from git rev-parse at %s: %s", repo_path, cpe, action="git_local_version")
+    except Exception as e:
+        log.error(
+            "GIT Unable to retrieve version at %s - %s: %s",
+            repo_path,
+            result.stdout if result else "<NO RESULT>",
+            e,
+            action="git_local_version",
+        )
+    return None
+
+
+def git_check_update_available(repo_path: Path, git_path: Path, timeout: int = 120) -> int:
     result = None
     try:
         # check if remote repo ahead
