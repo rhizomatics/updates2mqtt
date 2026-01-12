@@ -373,7 +373,7 @@ class DockerProvider(ReleaseProvider):
 
             can_build: bool = False
             if self.cfg.allow_build:
-                if custom.get("git_repo_path") is not None and custom.get("compose_path") is not None:
+                if custom.get("git_repo_path") is None or custom.get("compose_path") is None:
                     log.warn(
                         "Allow build but git_repo_path=%s and compose_path=%s",
                         custom.get("git_repo_path"),
