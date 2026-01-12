@@ -54,7 +54,7 @@ def git_local_version(repo_path: Path, git_path: Path) -> str | None:
             check=True,
         )
         if result.returncode == 0:
-            log.info("Local git rev-parse", action="git_local_version", path=repo_path, version=result.stdout.strip())
+            log.debug("Local git rev-parse", action="git_local_version", path=repo_path, version=result.stdout.strip())
             return f"git:{result.stdout.strip()}"[:19]
     except subprocess.CalledProcessError as cpe:
         log.warn("GIT No result from git rev-parse at %s: %s", repo_path, cpe, action="git_local_version")
@@ -93,7 +93,7 @@ def git_check_update_available(repo_path: Path, git_path: Path, timeout: int = 1
                     path=repo_path,
                 )
                 return int(count_match.group(1))
-            log.info("Local git repo no update available", action="git_check", path=repo_path, status=result.stdout.strip())
+            log.debug("Local git repo no update available", action="git_check", path=repo_path, status=result.stdout.strip())
             return 0
 
         log.debug(
