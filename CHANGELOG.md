@@ -5,6 +5,8 @@
 - Container customization can now be made by Docker labels instead of, or in addition to, env vars
 ### Docker Image Version Restrictions
 - New container config to include or exclude image updates based on a regular expression applied to new version
+### MQTT Discovery Messagr
+- All custom values, mostly from Docker Registry or git repo, now added as a dict
 ### API Throttling
 - Docker API now throttled per registry if receives 429 Too Many Requests, configurable using `api_throttle_wait`
 ### Local Builds
@@ -17,6 +19,7 @@
     - Install update in HA only appears if there's a pull available
 ### Internal
 - Many more test cases added, focusing on Docker and MQTT integration
+- Exit code overridden to 1 if pulling and restarting its own image
 ## 1.5.2
 ### Internal
 - Build backend changed to `uv_build`
