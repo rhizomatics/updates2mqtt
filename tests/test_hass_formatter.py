@@ -32,6 +32,7 @@ def test_formatter_includes_device(mock_discoveries: list[Discovery], monkeypatc
             "sw_version": "3.0.0",
             "support_url": "https://github.com/rhizomatics/updates2mqtt/issues",
         },
+        "custom": {},
         "device": {
             "identifiers": ["testbed01.updates2mqtt"],
             "manufacturer": "rhizomatics",
@@ -63,6 +64,7 @@ def test_formatter_excludes_device(mock_discoveries: list[Discovery], monkeypatc
             "sw_version": "3.0.0",
             "support_url": "https://github.com/rhizomatics/updates2mqtt/issues",
         },
+        "custom": {},
     }
 
 

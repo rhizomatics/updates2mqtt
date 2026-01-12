@@ -45,6 +45,7 @@ class App:
             log.error("Exiting app")
             sys.exit(1)
         self.cfg: Config = app_config
+        self.self_bounce: Event = Event()
 
         structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(getattr(logging, str(self.cfg.log.level))))
         log.debug("Logging initialized", level=self.cfg.log.level)
@@ -134,6 +135,9 @@ class App:
                 elapsed: float = (
                     time.time() - discovery.update_last_attempt if discovery.update_last_attempt is not None else -1
                 )
+                if "ghcr.io/rhizomatics/updates2mqtt" in discovery.custom.get("image_ref", ""):
+                    dlog.warning("Attempting to self-bounce")
+                    self.self_bounce.set()
                 if elapsed == -1 or elapsed > UPDATE_INTERVAL:
                     dlog.info(
                         "Initiate auto update (last:%s, elapsed:%s, max:%s)",
@@ -161,7 +165,11 @@ class App:
         log.debug("Cancellation task completed")
 
     def shutdown(self, *args, exit_code: int = 143) -> None:  # noqa: ANN002, ARG002
-        log.info("Shutting down, exit_code: %s", exit_code)
+        if self.self_bounce.is_set():
+            exit_code = 1
+            log.info("Self bouncing, overriding exit_code: %s", exit_code)
+        else:
+            log.info("Shutting down, exit_code: %s", exit_code)
         self.stopped.set()
         for scanner in self.scanners:
             scanner.stop()

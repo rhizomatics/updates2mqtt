@@ -62,8 +62,8 @@ def hass_format_config(
         config["command_topic"] = command_topic
         if discovery.can_update:
             config["payload_install"] = f"{discovery.source_type}|{discovery.name}|install"
-    if discovery.custom.get("git_repo_path"):
-        config["git_repo_path"] = discovery.custom["git_repo_path"]
+
+    config["custom"] = discovery.custom
     config.update(discovery.provider.hass_config_format(discovery))
     return config
 
