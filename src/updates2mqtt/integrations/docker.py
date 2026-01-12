@@ -12,6 +12,7 @@ from typing import Any, cast
 import docker
 import docker.errors
 import structlog
+from docker.auth import resolve_repository_name
 from docker.models.containers import Container
 from hishel.httpx import SyncCacheClient
 
@@ -250,6 +251,8 @@ class DockerProvider(ReleaseProvider):
         if image_ref is None:
             logger.warn("No image or image attributes found")
         else:
+            remote_name, remote_name = resolve_repository_name(image_ref)
+            log.debug("repo: %s, other: %s", remote_name, remote_name)
             try:
                 image_name = image_ref.split(":")[0]
             except Exception as e:
@@ -290,11 +293,10 @@ class DockerProvider(ReleaseProvider):
                         logger.debug("Fetching registry data", image_ref=image_ref)
                         reg_data = self.client.images.get_registry_data(image_ref)
                         log.debug(
-                            "Registry Data: id:%s, image:%s, attrs:%s, collection:%s",
+                            "Registry Data: id:%s,image:%s, attrs:%s",
                             reg_data.id,
                             reg_data.image_name,
                             reg_data.attrs,
-                            reg_data.collection,
                         )
                         latest_version = reg_data.short_id[7:] if reg_data else None
                     except docker.errors.APIError as e:
