@@ -41,12 +41,12 @@ def hass_format_config(
         "update_policy": str(discovery.update_policy),
         "json_attributes_topic": state_topic,
         "json_attributes_template": """
-            { "installed_version": value_json.installed_version,
-              "latest_version": value_json.latest_version,
-              "title": value_json.title,
-              "in_progress": value_json.in_progress,
-              "release_summary":value_json.release_summary is defined and value_json.release_summary or None,
-              "release_url":value_json.release_url is defined and value_json.release_url or None
+            { "installed_version": "value_json.installed_version",
+              "latest_version": "value_json.latest_version",
+              "title": "value_json.title",
+              "in_progress": "value_json.in_progress",
+              "release_summary": "value_json.release_summary",
+              "release_url": "value_json.release_url"
         }""",
         "origin": {
             "name": f"{discovery.node} updates2mqtt",
@@ -81,11 +81,10 @@ def hass_format_state(discovery: Discovery, session: str, in_progress: bool = Fa
         "latest_version": discovery.latest_version,
         "title": discovery.title,
         "in_progress": in_progress,
+        "release_summary": discovery.release_summary,
+        "release_url": discovery.release_url,
     }
-    if discovery.release_summary:
-        state["release_summary"] = discovery.release_summary
-    if discovery.release_url:
-        state["release_url"] = discovery.release_url
+
     custom_state = discovery.provider.hass_state_format(discovery)
     if custom_state:
         state.update(custom_state)
