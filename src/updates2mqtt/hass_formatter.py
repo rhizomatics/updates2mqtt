@@ -43,7 +43,7 @@ def hass_format_config(
         "json_attributes_template": """
             { "installed_version": value_json.installed_version,
               "latest_version": value_json.latest_version,
-              "title": discovalue_jsonvery.title,
+              "title": value_json.title,
               "in_progress": value_json.in_progress,
               "release_summary":value_json.release_summary is defined and value_json.release_summary or None,
               "release_url":value_json.release_url is defined and value_json.release_url or None
