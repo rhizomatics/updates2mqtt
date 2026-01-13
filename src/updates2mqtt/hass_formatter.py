@@ -73,10 +73,11 @@ def hass_format_state(discovery: Discovery, session: str, in_progress: bool = Fa
         "latest_version": discovery.latest_version,
         "title": discovery.title,
         "in_progress": in_progress,
-        "release_summary": discovery.release_summary,
-        "release_url": discovery.release_url,
     }
-
+    if discovery.release_summary:
+        state["release_summary"] = discovery.release_summary
+    if discovery.release_url:
+        state["release_url"] = discovery.release_url
     custom_state = discovery.provider.hass_state_format(discovery)
     if custom_state:
         state.update(custom_state)
