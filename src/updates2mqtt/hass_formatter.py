@@ -63,12 +63,12 @@ def hass_format_config(
         config["command_topic"] = command_topic
         if discovery.can_update:
             config["payload_install"] = f"{discovery.source_type}|{discovery.name}|install"
-    config[discovery.source_type] = discovery.provider.hass_config_format(discovery)
+
     return config
 
 
 def hass_format_state(discovery: Discovery, session: str, in_progress: bool = False) -> dict[str, Any]:  # noqa: ARG001
-    state = {
+    state: dict[str, str | dict | list | bool | None] = {
         "installed_version": discovery.current_version,
         "latest_version": discovery.latest_version,
         "title": discovery.title,
@@ -81,8 +81,9 @@ def hass_format_state(discovery: Discovery, session: str, in_progress: bool = Fa
     custom_state = discovery.provider.hass_state_format(discovery)
     if custom_state:
         state.update(custom_state)
-    invalid_keys = [k for k in state if k not in HASS_UPDATE_SCHEMA]
-    if invalid_keys:
-        log.warning(f"Invalid keys in state: {invalid_keys}")
-        state = {k: v for k, v in state.items() if k in HASS_UPDATE_SCHEMA}
+    # invalid_keys = [k for k in state if k not in HASS_UPDATE_SCHEMA]
+    # if invalid_keys:
+    #    log.warning(f"Invalid keys in state: {invalid_keys}")
+    #    state = {k: v for k, v in state.items() if k in HASS_UPDATE_SCHEMA}
+    state[discovery.source_type] = discovery.provider.hass_config_format(discovery)
     return state
