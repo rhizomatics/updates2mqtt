@@ -53,6 +53,12 @@ common_packages:
     logo_url: https://codeberg.org/forgejo/forgejo/raw/branch/forgejo/assets/logo.svg
     release_notes_url: https://forgejo.org/releases/
 
+  pocketid:
+    docker:
+      image_name: ghcr.io/pocket-id/pocket-id
+    logo_url: https://avatars.githubusercontent.com/u/197418917?s=48&v=4
+    release_notes_url: https://github.com/pocket-id/pocket-id/releases
+
   portainer:
     docker:
       image_name: portainer/portainer-ce
