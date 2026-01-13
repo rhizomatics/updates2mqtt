@@ -5,6 +5,12 @@ common_packages:
     logo_url: https://avatars.githubusercontent.com/u/162821163?s=48&v=4
     release_notes_url: https://github.com/rhizomatics/updates2mqtt/releases
 
+  anpr2mqtt:
+    docker:
+      image_name: ghcr.io/rhizomatics/anpr2mqtt
+    logo_url: https://avatars.githubusercontent.com/u/162821163?s=48&v=4
+    release_notes_url: https://github.com/rhizomatics/anpr2mqtt/releases
+
   frigate:
     docker:
       image_name: ghcr.io/blakeblackshear/frigate
