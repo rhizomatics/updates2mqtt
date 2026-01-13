@@ -261,11 +261,14 @@ class DockerProvider(ReleaseProvider):
             return None
 
         image: Image | None = c.image
+        latest_version_tags: list[str]
         repo_id: str = "DEFAULT"
         if image is not None and image.tags and len(image.tags) > 0:
             image_ref = image.tags[0]
+            latest_version_tags = image.tags
         else:
             image_ref = c.attrs.get("Config", {}).get("Image")
+            latest_version_tags = []
         if image_ref is None:
             logger.warn("No image or image attributes found")
         else:
@@ -339,10 +342,11 @@ class DockerProvider(ReleaseProvider):
 
             image_ref = image_ref or ""
 
-            custom: dict[str, str | bool] = {}
+            custom: dict[str, str | bool | list[str]] = {}
             custom["platform"] = platform
             custom["image_ref"] = image_ref
             custom["repo_id"] = repo_id
+            custom["tags"] = latest_version_tags
             if registry_throttled:
                 custom["registry_throttled"] = True
             save_if_set("compose_path", c.labels.get("com.docker.compose.project.working_dir"))
