@@ -31,7 +31,7 @@ Create file `config.yaml` in `conf` directory. If the file is not present, a def
 This is a maximal config file, the minimum is no config file at all, which will generate a default config file. The only mandatory values are the MQTT user name and password, everything else can be omitted ( although
 its best to have at least a `node` `name` value so HomeAssistant doesn't show some ugly generated Docker host name).
 
-```yaml title="conf/config.yaml"
+```yaml title="config.yaml snippet"
 
 node:
   name: docker-host-1 # Unique name for this instance, used to name MQTT entities. Defaults to O/S hostname
@@ -76,7 +76,7 @@ log:
 
 Example use of environment variables, e.g. for secrets:
 
-```yaml title="conf/config.yaml"
+```yaml title="config.yaml snippet"
 mqtt:
     password: ${oc.env:MQTT_PASS}
 ```
@@ -144,6 +144,34 @@ or using labels
 The images will show up in the *Update* section of *Settings* menu in HomeAssistant,
 as will the release notes link. SVG icons should be used.
 
+## Silencing Containers
+
+If there are containers which are changing very frequently with development builds, or for other reasons
+shouldn't be published to Home Assistant, then use the `image_ref_select` in configuration.
+
+They will still be published to MQTT but not to the Home Assistant MQTT Discovery topic.
+
+```yaml title="config.yaml snippet"
+docker:
+  enabled: true
+  image_ref_select:
+    exclude:
+      - .*:nightly
+      - .*:dev
+```
+
+Alternatively, set `UPD2MQTT_IGNORE` flag on the container itself to completely ignore it.
+
+## API Throttling
+
+Docker API has [usage limits](https://docs.docker.com/docker-hub/usage/) which may be triggered if there are many
+containers ( and other registries will have similar).
+
+`updates2mqtt` will back off if a `429` Too Many Requests response is received, and pause for that specific registry
+for the requested number of seconds. There's a default in `docker` config of `default_api_backoff` applied if the backoff can't be
+automatically determined.
+
+The other approach can be to reduce the scan interval, or ignore some of the containers.
 
 #### Icon Sources
 

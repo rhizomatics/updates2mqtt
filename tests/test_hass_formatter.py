@@ -19,7 +19,7 @@ def test_formatter_includes_device(mock_discoveries: list[Discovery], monkeypatc
     assert msg == {
         "name": "TestRun for thing-1 on testbed01",
         "unique_id": "obj001",
-        "update_policy": None,
+        "update_policy": "Passive",
         "can_build": False,
         "can_restart": False,
         "can_update": True,
@@ -53,7 +53,7 @@ def test_formatter_excludes_device(mock_discoveries: list[Discovery], monkeypatc
     assert msg == {
         "name": "TestRun for thing-1 on testbed01",
         "unique_id": "obj001",
-        "update_policy": None,
+        "update_policy": "Passive",
         "can_build": False,
         "can_restart": False,
         "can_update": True,

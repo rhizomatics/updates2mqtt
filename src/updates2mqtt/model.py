@@ -1,10 +1,13 @@
 import json
+import re
 from abc import abstractmethod
 from collections.abc import AsyncGenerator, Callable
 from threading import Event
 from typing import Any
 
 import structlog
+
+from updates2mqtt.config import PublishPolicy, Selector, UpdatePolicy
 
 
 class Discovery:
@@ -23,8 +26,9 @@ class Discovery:
         can_build: bool = False,
         can_restart: bool = False,
         status: str = "on",
+        publish_policy: PublishPolicy = PublishPolicy.HOMEASSISTANT,
         update_type: str | None = "Update",
-        update_policy: str | None = None,
+        update_policy: UpdatePolicy = UpdatePolicy.PASSIVE,
         update_last_attempt: float | None = None,
         release_url: str | None = None,
         release_summary: str | None = None,
@@ -51,7 +55,8 @@ class Discovery:
         self.device_icon: str | None = device_icon
         self.update_type: str | None = update_type
         self.status: str = status
-        self.update_policy: str | None = update_policy
+        self.publish_policy: PublishPolicy = publish_policy
+        self.update_policy: UpdatePolicy = update_policy
         self.update_last_attempt: float | None = update_last_attempt
         self.custom: dict[str, Any] = custom or {}
         self.features: list[str] = features or []
@@ -126,3 +131,22 @@ class ReleaseProvider:
     @abstractmethod
     def resolve(self, discovery_name: str) -> Discovery | None:
         """Resolve a discovered component by name"""
+
+
+class Selection:
+    def __init__(self, selector: Selector, value: str | None) -> None:
+        self.result: bool = True
+        self.matched: str | None = None
+        if value is None:
+            self.result = selector.include is None
+            return
+        if selector.exclude is not None:
+            self.result = True
+            if any(re.search(pat, value) for pat in selector.exclude):
+                self.matched = value
+                self.result = False
+        if selector.include is not None:
+            self.result = False
+            if any(re.search(pat, value) for pat in selector.include):
+                self.matched = value
+                self.result = True

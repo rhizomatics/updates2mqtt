@@ -1,6 +1,7 @@
 import json
 from collections.abc import AsyncGenerator
 
+from updates2mqtt.config import UpdatePolicy
 from updates2mqtt.model import Discovery, ReleaseProvider
 
 
@@ -56,7 +57,7 @@ def test_discovery_with_all_fields(mock_provider: ReleaseProvider) -> None:
         can_restart=True,
         status="off",
         update_type="Docker Build",
-        update_policy="AUTO",
+        update_policy=UpdatePolicy.AUTO,
         update_last_attempt=1234567890.0,
         release_url="https://github.com/example/releases",
         release_summary="Bug fixes and improvements",
@@ -73,7 +74,7 @@ def test_discovery_with_all_fields(mock_provider: ReleaseProvider) -> None:
     assert uut.can_restart is True
     assert uut.status == "off"
     assert uut.update_type == "Docker Build"
-    assert uut.update_policy == "AUTO"
+    assert uut.update_policy == UpdatePolicy.AUTO
     assert uut.update_last_attempt == 1234567890.0
     assert uut.release_url == "https://github.com/example/releases"
     assert uut.release_summary == "Bug fixes and improvements"

@@ -1,14 +1,18 @@
 # CHANGELOG
 
 ## 1.6.0
+### Update Policy
+- New `image_ref_select` option in Docker config
+    - List of `include` strings or regular expressions, containers which don't match these won't be Home Assistant discoverable
+    - List of `exclude` strings or regular expressions, containers which match these won't be Home Assistant discoverable
+    - Containers not selected because of `image_ref_select` can still have an `Auto` update policy, so will be updated but not visible to Home Assistant
 ### Docker Labels
 - Container customization can now be made by Docker labels instead of, or in addition to, env vars
-### Docker Image Version Restrictions
-- New container config to include or exclude image updates based on a regular expression applied to new version
 ### MQTT Discovery Messagr
 - All custom values, mostly from Docker Registry or git repo, now added as a dict
 ### API Throttling
-- Docker API now throttled per registry if receives 429 Too Many Requests, configurable using `api_throttle_wait`
+- Docker API now throttled per registry if receives 429 Too Many Requests
+    - Uses `retry_after` header value, if missing or unreadable defaults to configurable `default_api_backoff`
 ### Local Builds
 - General overhaul of some issues and improvements for local git repo image builds
 - Version now synthesized in place of image version

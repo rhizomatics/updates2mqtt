@@ -95,7 +95,8 @@ file, or as `environment` options inside `docker-compose.yaml`.
 ### Automated updates
 
 If Docker containers should be immediately updated, without any confirmation
-or trigger, *e.g.* from the HomeAssistant update dialog, then set an environment variable `UPD2MQTT_UPDATE` in the target container to `Auto` ( it defaults to `Passive`)
+or trigger, *e.g.* from the HomeAssistant update dialog, then set an environment variable `UPD2MQTT_UPDATE` in the target container to `Auto` ( it defaults to `Passive`).  If you want it to update without publishing to MQTT and being
+visible to Home Assistant, then use `Silent`.
 
 ```yaml title="Example Compose Snippet"
 restarter:
@@ -104,9 +105,6 @@ restarter:
     environment:
       - UPD2MQTT_UPDATE=AUTO
 ```
-
-This can be used in conjunction with the `UPD2MQTT_VERSION_INCLUDE` and `UPD2MQTT_VERSION_EXCLUDE` to
-limit which updates get automatically applied, for example excluding nightly builds.
 
 Automated updates can also apply to local builds, where a `git_repo_path` has been defined - if there are remote
 commits available to pull, then a `git pull`, `docker compose build` and `docker compose up` will be executed.
@@ -122,8 +120,7 @@ The following environment variables can be used to configure containers for `upd
 | `UPD2MQTT_RELNOTES`        | URL to release notes for the package.                                                        |                 |
 | `UPD2MQTT_GIT_REPO_PATH`   | Relative path to a local git repo if the image is built locally.                             |                 |
 | `UPD2MQTT_IGNORE`          | If set to `True`, the container will be ignored by Updates2MQTT.                             | False           |
-| `UPD2MQTT_VERSION_INCLUDE` | Only recognize versions matching this string or regular expression                           |                 |
-| `UPD2MQTT_VERSION_EXCLUDE` | Skip update if version matches this string or regular expression                             |                 |
+                        |                 |
 
 ### Docker Labels
 
@@ -136,8 +133,6 @@ Alternatively, use Docker labels
 | `updates2mqtt.relnotes`        | `UPD2MQTT_RELNOTES`        |
 | `updates2mqtt.git_repo_path`   | `UPD2MQTT_GIT_REPO_PATH`   |
 | `updates2mqtt.ignore`          | `UPD2MQTT_IGNORE`          |
-| `updates2mqtt.version_include` | `UPD2MQTT_VERSION_INCLUDE` |
-| `updates2mqtt.version_exclude` | `UPD2MQTT_VERSION_EXCLUDE` |
 
 
 ```yaml title="Example Compose Snippet"

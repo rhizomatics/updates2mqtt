@@ -30,8 +30,15 @@ docker:
   compose_version: v2
   default_entity_picture_url: https://www.docker.com/wp-content/uploads/2022/03/Moby-logo.png
   device_icon: mdi:docker
+  default_api_backoff: 1800
   discover_metadata:
     linuxserver.io:
       enabled: true
       cache_ttl: 604800
+  image_ref_select:
+    include:
+    - .*special-dev
+    exclude:
+    - .*dev
+    - .*nightly
 scan_interval: 10800

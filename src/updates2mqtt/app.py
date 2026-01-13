@@ -14,7 +14,7 @@ import structlog
 import updates2mqtt
 from updates2mqtt.model import Discovery, ReleaseProvider
 
-from .config import Config, PackageUpdateInfo, load_app_config, load_package_info
+from .config import Config, PackageUpdateInfo, PublishPolicy, UpdatePolicy, load_app_config, load_package_info
 from .integrations.docker import DockerProvider
 from .mqtt import MqttPublisher
 
@@ -122,12 +122,14 @@ class App:
     async def on_discovery(self, discovery: Discovery) -> None:
         dlog = log.bind(name=discovery.name)
         try:
-            if self.cfg.homeassistant.discovery.enabled:
+            if discovery.publish_policy == PublishPolicy.HOMEASSISTANT and self.cfg.homeassistant.discovery.enabled:
+                # Switch off MQTT discovery if not Home Assistant enabled
                 self.publisher.publish_hass_config(discovery)
-
-            self.publisher.publish_hass_state(discovery)
+            if discovery.publish_policy in (PublishPolicy.HOMEASSISTANT, PublishPolicy.MQTT):
+                # TODO: replace with full attrs and json_attrs_topic
+                self.publisher.publish_hass_state(discovery)
             if (
-                discovery.update_policy == "Auto"
+                discovery.update_policy == UpdatePolicy.AUTO
                 and discovery.can_update
                 and discovery.latest_version != discovery.current_version
             ):

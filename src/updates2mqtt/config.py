@@ -10,6 +10,17 @@ from omegaconf import MISSING, DictConfig, MissingMandatoryValue, OmegaConf, Val
 log = structlog.get_logger()
 
 
+class UpdatePolicy(StrEnum):
+    AUTO = "Auto"
+    PASSIVE = "Passive"
+
+
+class PublishPolicy(StrEnum):
+    HOMEASSISTANT = "HomeAssistant"
+    MQTT = "MQTT"
+    SILENT = "Silent"
+
+
 class LogLevel(StrEnum):
     DEBUG = "DEBUG"
     INFO = "INFO"
@@ -35,6 +46,12 @@ class MetadataSourceConfig:
 
 
 @dataclass
+class Selector:
+    include: list[str] | None = None
+    exclude: list[str] | None = None
+
+
+@dataclass
 class DockerConfig:
     enabled: bool = True
     allow_pull: bool = True
@@ -47,7 +64,8 @@ class DockerConfig:
     discover_metadata: dict[str, MetadataSourceConfig] = field(
         default_factory=lambda: {"linuxserver.io": MetadataSourceConfig(enabled=True)}
     )
-    api_throttle_wait: int = 60 * 15
+    default_api_backoff: int = 60 * 15
+    image_ref_select: Selector = field(default_factory=lambda: Selector())
 
 
 @dataclass

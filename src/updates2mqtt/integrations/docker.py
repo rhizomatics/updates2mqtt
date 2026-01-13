@@ -1,4 +1,3 @@
-import re
 import subprocess
 import time
 import typing
@@ -16,8 +15,15 @@ from docker.auth import resolve_repository_name
 from docker.models.containers import Container
 from hishel.httpx import SyncCacheClient
 
-from updates2mqtt.config import DockerConfig, DockerPackageUpdateInfo, NodeConfig, PackageUpdateInfo
-from updates2mqtt.model import Discovery, ReleaseProvider
+from updates2mqtt.config import (
+    DockerConfig,
+    DockerPackageUpdateInfo,
+    NodeConfig,
+    PackageUpdateInfo,
+    PublishPolicy,
+    UpdatePolicy,
+)
+from updates2mqtt.model import Discovery, ReleaseProvider, Selection
 
 from .git_utils import git_check_update_available, git_iso_timestamp, git_local_version, git_pull, git_trust
 
@@ -51,8 +57,6 @@ class ContainerCustomization:
         self.picture: str | None = None
         self.relnotes: str | None = None
         self.ignore: bool = False
-        self.version_include: str | None = None
-        self.version_exclude: str | None = None
 
         if not container.attrs or container.attrs.get("Config") is None:
             return
@@ -115,7 +119,7 @@ class DockerProvider(ReleaseProvider):
         # TODO: refresh discovered packages periodically
         self.discovered_pkgs: dict[str, PackageUpdateInfo] = self.discover_metadata()
         self.pause_api_until: dict[str, float] = {}
-        self.api_throttle_pause: int = cfg.api_throttle_wait
+        self.api_throttle_pause: int = cfg.default_api_backoff
         self.self_bounce: Event | None = self_bounce
 
     def update(self, discovery: Discovery) -> bool:
@@ -281,6 +285,15 @@ class DockerProvider(ReleaseProvider):
                     logger.warn("Cannot determine local version: %s", e)
                     logger.warn("RepoDigests=%s", image.attrs.get("RepoDigests"))
 
+        selection = Selection(self.cfg.image_ref_select, image_ref)
+        publish_policy: PublishPolicy = PublishPolicy.SILENT if not selection.result else PublishPolicy.HOMEASSISTANT
+
+        if customization.update == "AUTO":
+            logger.debug("Auto update policy detected")
+            update_policy: UpdatePolicy = UpdatePolicy.AUTO
+        else:
+            update_policy = UpdatePolicy.PASSIVE
+
         platform: str = "Unknown"
         pkg_info: PackageUpdateInfo = self.default_metadata(image_name, image_ref=image_ref)
 
@@ -320,8 +333,13 @@ class DockerProvider(ReleaseProvider):
                         latest_version_tags = reg_data.attrs
                     except docker.errors.APIError as e:
                         if e.status_code == HTTPStatus.TOO_MANY_REQUESTS:
-                            logger.warn("Docker Registry throttling requests, %s", e.explanation)
-                            self.pause_api_until[repo_id] = time.time() + self.api_throttle_pause
+                            retry_secs: int
+                            try:
+                                retry_secs = int(e.response.headers.get("Retry-After", self.api_throttle_pause))  # type: ignore[union-attr]
+                            except:  # noqa: E722
+                                retry_secs = self.api_throttle_pause
+                            logger.warn("Docker Registry throttling requests for %s seconds, %s", retry_secs, e.explanation)
+                            self.pause_api_until[repo_id] = time.time() + retries_left
                             return None
                         retries_left -= 1
                         if retries_left == 0 or e.is_client_error():
@@ -354,12 +372,6 @@ class DockerProvider(ReleaseProvider):
             save_if_set("git_repo_path", customization.git_repo_path)
             # save_if_set("apt_pkgs", c_env.get("UPD2MQTT_APT_PKGS"))
 
-            if customization.update == "AUTO":
-                logger.debug("Auto update policy detected")
-                update_policy = "Auto"
-            else:
-                update_policy = "Passive"
-
             if custom.get("git_repo_path") and custom.get("compose_path"):
                 full_repo_path: Path = Path(cast("str", custom.get("compose_path"))).joinpath(
                     cast("str", custom.get("git_repo_path"))
@@ -378,16 +390,6 @@ class DockerProvider(ReleaseProvider):
                 logger.debug(
                     f"Pull not available, image_ref:{image_ref},local_version:{local_version},latest_version:{latest_version}"
                 )
-            skip_pull: bool = False
-            if can_pull and latest_version is not None:
-                if customization.version_include and not re.match(customization.version_include, latest_version):
-                    logger.info(f"Skipping version {latest_version} not matching include pattern")
-                    skip_pull = True
-                    latest_version = local_version
-                if customization.version_exclude and re.match(customization.version_exclude, latest_version):  # type: ignore[arg-type]
-                    logger.info(f"Skipping version {latest_version} matching exclude pattern")
-                    skip_pull = True
-                    latest_version = local_version
 
             can_build: bool = False
             if self.cfg.allow_build:
@@ -425,16 +427,13 @@ class DockerProvider(ReleaseProvider):
                 logger.info(f"Update not available, can_pull:{can_pull}, can_build:{can_build},can_restart{can_restart}")
             if relnotes_url:
                 features.append("RELEASE_NOTES")
-            if skip_pull:
-                update_type: str = "Skipped"
-            elif can_pull:
+            if can_pull:
                 update_type = "Docker Image"
             elif can_build:
                 update_type = "Docker Build"
             else:
                 update_type = "Unavailable"
             custom["can_pull"] = can_pull
-            custom["skip_pull"] = skip_pull
             # can_pull,can_build etc are only info flags
             # the HASS update process is driven by comparing current and available versions
 
@@ -446,6 +445,7 @@ class DockerProvider(ReleaseProvider):
                 entity_picture_url=picture_url,
                 release_url=relnotes_url,
                 current_version=local_version,
+                publish_policy=publish_policy,
                 update_policy=update_policy,
                 update_last_attempt=original_discovery.update_last_attempt if original_discovery else None,
                 latest_version=latest_version if latest_version != NO_KNOWN_IMAGE else local_version,

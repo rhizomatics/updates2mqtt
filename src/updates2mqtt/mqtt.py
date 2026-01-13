@@ -16,7 +16,7 @@ from paho.mqtt.reasoncodes import ReasonCode
 
 from updates2mqtt.model import Discovery, ReleaseProvider
 
-from .config import HomeAssistantConfig, MqttConfig, NodeConfig
+from .config import HomeAssistantConfig, MqttConfig, NodeConfig, PublishPolicy
 from .hass_formatter import hass_format_config, hass_format_state
 
 log = structlog.get_logger()
@@ -234,7 +234,7 @@ class MqttPublisher:
                 )
                 updated = provider.command(comp_name, command, on_update_start, on_update_end)
                 discovery = provider.resolve(comp_name)
-                if updated and discovery:
+                if updated and discovery and discovery.publish_policy in (PublishPolicy.HOMEASSISTANT, PublishPolicy.MQTT):
                     self.publish_hass_state(discovery)
                 else:
                     logger.debug("No change to republish after execution")
@@ -283,10 +283,12 @@ class MqttPublisher:
 
     def handle_message(self, msg: mqtt.MQTTMessage | LocalMessage) -> None:
         def update_start(discovery: Discovery) -> None:
-            self.publish_hass_state(discovery, in_progress=True)
+            if discovery.publish_policy in (PublishPolicy.HOMEASSISTANT, PublishPolicy.MQTT):
+                self.publish_hass_state(discovery, in_progress=True)
 
         def update_end(discovery: Discovery) -> None:
-            self.publish_hass_state(discovery, in_progress=False)
+            if discovery.publish_policy in (PublishPolicy.HOMEASSISTANT, PublishPolicy.MQTT):
+                self.publish_hass_state(discovery, in_progress=False)
 
         if self.event_loop is not None:
             asyncio.run_coroutine_threadsafe(self.execute_command(msg, update_start, update_end), self.event_loop)
