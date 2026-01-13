@@ -40,14 +40,6 @@ def hass_format_config(
         "can_restart": discovery.can_restart,
         "update_policy": str(discovery.update_policy),
         "json_attributes_topic": state_topic,
-        "json_attributes_template": """
-            { "installed_version": "value_json.installed_version",
-              "latest_version": "value_json.latest_version",
-              "title": "value_json.title",
-              "in_progress": "value_json.in_progress",
-              "release_summary": "value_json.release_summary",
-              "release_url": "value_json.release_url"
-        }""",
         "origin": {
             "name": f"{discovery.node} updates2mqtt",
             "sw_version": updates2mqtt.version,  # pyright: ignore[reportAttributeAccessIssue]
