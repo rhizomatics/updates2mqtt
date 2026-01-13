@@ -74,6 +74,7 @@ def mock_provider() -> ReleaseProvider:
     provider.resolve.return_value = Discovery(  # type: ignore[attr-defined]
         provider, "fooey", session="test-mqtt-123", node="node002", current_version="v2", latest_version="v2"
     )
+    provider.hass_config_format.return_value = {"test": "unit"}  # type: ignore[attr-defined]
     provider.hass_state_format.return_value = {"fixture": "test_exec"}  # type: ignore[attr-defined]
     return provider
 

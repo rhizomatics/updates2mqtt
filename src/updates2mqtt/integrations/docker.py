@@ -261,14 +261,11 @@ class DockerProvider(ReleaseProvider):
             return None
 
         image: Image | None = c.image
-        latest_version_tags: list[str]
         repo_id: str = "DEFAULT"
         if image is not None and image.tags and len(image.tags) > 0:
             image_ref = image.tags[0]
-            latest_version_tags = image.tags
         else:
             image_ref = c.attrs.get("Config", {}).get("Image")
-            latest_version_tags = []
         if image_ref is None:
             logger.warn("No image or image attributes found")
         else:
@@ -304,6 +301,7 @@ class DockerProvider(ReleaseProvider):
 
             reg_data: RegistryData | None = None
             latest_version: str | None = NO_KNOWN_IMAGE
+            latest_version_tags: list[str] | Any = []
             registry_throttled = self.check_throttle(repo_id)
 
             if image_ref and local_versions and not registry_throttled:
@@ -319,6 +317,7 @@ class DockerProvider(ReleaseProvider):
                             reg_data.attrs,
                         )
                         latest_version = reg_data.short_id[7:] if reg_data else None
+                        latest_version_tags = reg_data.attrs
                     except docker.errors.APIError as e:
                         if e.status_code == HTTPStatus.TOO_MANY_REQUESTS:
                             logger.warn("Docker Registry throttling requests, %s", e.explanation)
@@ -342,7 +341,7 @@ class DockerProvider(ReleaseProvider):
 
             image_ref = image_ref or ""
 
-            custom: dict[str, str | bool | list[str]] = {}
+            custom: dict[str, str | bool | list[str] | dict[str, Any]] = {}
             custom["platform"] = platform
             custom["image_ref"] = image_ref
             custom["repo_id"] = repo_id

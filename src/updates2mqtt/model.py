@@ -113,7 +113,7 @@ class ReleaseProvider:
 
     def hass_config_format(self, discovery: Discovery) -> dict:
         _ = discovery
-        return {}
+        return discovery.custom
 
     def hass_state_format(self, discovery: Discovery) -> dict:
         _ = discovery
