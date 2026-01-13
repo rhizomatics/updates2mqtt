@@ -32,7 +32,7 @@ def hass_format_config(
         "name": discovery.title,
         "device_class": None,  # not firmware, so defaults to null
         "unique_id": object_id,
-        "state_topic": state_topic,
+        # "state_topic": state_topic,
         "source_session": session,
         "supported_features": discovery.features,
         "can_update": discovery.can_update,
