@@ -1,7 +1,7 @@
 import json
 from collections.abc import AsyncGenerator
 
-from updates2mqtt.config import UpdatePolicy
+from updates2mqtt.config import NodeConfig, UpdatePolicy
 from updates2mqtt.model import Discovery, ReleaseProvider
 
 
@@ -44,6 +44,8 @@ def test_discovery_defaults(mock_provider: ReleaseProvider) -> None:
 
 
 def test_discovery_with_all_fields(mock_provider: ReleaseProvider) -> None:
+    previous = Discovery(mock_provider, "full-container", "sess000", "tester")
+    previous.update_last_attempt = 1234567890.0
     uut = Discovery(
         mock_provider,
         "full-container",
@@ -58,12 +60,12 @@ def test_discovery_with_all_fields(mock_provider: ReleaseProvider) -> None:
         status="off",
         update_type="Docker Build",
         update_policy=UpdatePolicy.AUTO,
-        update_last_attempt=1234567890.0,
         release_url="https://github.com/example/releases",
         release_summary="Bug fixes and improvements",
         device_icon="mdi:docker",
         custom={"image_ref": "nginx:latest", "platform": "linux/amd64"},
         features=["INSTALL", "PROGRESS", "RELEASE_NOTES"],
+        previous=previous,
     )
     assert uut.name == "full-container"
     assert uut.entity_picture_url == "https://example.com/logo.png"
@@ -131,7 +133,7 @@ def test_discovery_str_is_valid_json(mock_provider: ReleaseProvider) -> None:
     assert parsed["current_version"] == "1.0"
 
 
-def test_release_provider_stop() -> None:
+def test_release_provider_stop(node_cfg: NodeConfig) -> None:
     # Create a real ReleaseProvider to test stop()
     class TestProvider(ReleaseProvider):
         def update(self, discovery: Discovery) -> bool:  # noqa: ARG002
@@ -155,13 +157,13 @@ def test_release_provider_stop() -> None:
         def resolve(self, discovery_name: str) -> Discovery | None:  # noqa: ARG002
             return None
 
-    provider = TestProvider(source_type="test_provider")
+    provider = TestProvider(node_cfg, source_type="test_provider")
     assert not provider.stopped.is_set()
     provider.stop()
     assert provider.stopped.is_set()
 
 
-def test_release_provider_str() -> None:
+def test_release_provider_str(node_cfg: NodeConfig) -> None:
     class TestProvider(ReleaseProvider):
         def update(self, discovery: Discovery) -> bool:  # noqa: ARG002
             return False
@@ -184,5 +186,5 @@ def test_release_provider_str() -> None:
         def resolve(self, discovery_name: str) -> Discovery | None:  # noqa: ARG002
             return None
 
-    provider = TestProvider(source_type="my_source")
+    provider = TestProvider(node_cfg, source_type="my_source")
     assert str(provider) == "my_source Discovery"

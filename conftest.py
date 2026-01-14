@@ -1,4 +1,5 @@
 # python
+import asyncio
 import uuid
 from collections.abc import AsyncGenerator, Callable
 from typing import Any
@@ -16,7 +17,7 @@ from updates2mqtt.app import (
     App,  # relative import as required
     MqttPublisher,
 )
-from updates2mqtt.config import Config
+from updates2mqtt.config import Config, NodeConfig
 from updates2mqtt.model import Discovery, ReleaseProvider
 
 
@@ -43,6 +44,7 @@ def mock_discoveries(mock_provider: ReleaseProvider) -> list[Discovery]:
 def mock_discovery_generator(mock_discoveries: list[Discovery]) -> Callable[..., AsyncGenerator[Discovery, Any]]:
     async def g(*args: Any) -> AsyncGenerator[Discovery]:  # noqa: ARG001
         for d in mock_discoveries:
+            await asyncio.sleep(0.001)
             yield d
 
     return g
@@ -74,8 +76,6 @@ def mock_provider() -> ReleaseProvider:
     provider.resolve.return_value = Discovery(  # type: ignore[attr-defined]
         provider, "fooey", session="test-mqtt-123", node="node002", current_version="v2", latest_version="v2"
     )
-    provider.hass_config_format.return_value = {"test": "unit"}  # type: ignore[attr-defined]
-    provider.hass_state_format.return_value = {"fixture": "test_exec"}  # type: ignore[attr-defined]
     return provider
 
 
@@ -149,3 +149,10 @@ def build_mock_container(
     if relnotes:
         c.attrs["Config"]["Env"].append(f"UPD2MQTT_RELNOTES={relnotes}")
     return c
+
+
+@pytest.fixture
+def node_cfg() -> NodeConfig:
+    node_config = OmegaConf.structured(NodeConfig)
+    node_config.name = "TESTBED"
+    return node_config

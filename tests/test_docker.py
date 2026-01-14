@@ -33,7 +33,7 @@ async def test_scanner(mock_docker_client: DockerClient) -> None:
 async def test_common_packages(mock_docker_client: DockerClient) -> None:
     with patch("docker.from_env", return_value=mock_docker_client):
         uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), {}, mut.NodeConfig())
-        uut.common_pkgs = {
+        uut.common_pkg_cfg = {
             "common_pkg": mut.PackageUpdateInfo(
                 docker=DockerPackageUpdateInfo(image_name="common/pkg"),
                 logo_url="https://commonhub/pkg/logo",
@@ -270,16 +270,10 @@ def test_rescan_returns_updated_discovery(mock_docker_client: DockerClient) -> N
 
     with patch("docker.from_env", return_value=mock_docker_client):
         uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), {}, mut.NodeConfig())
-        original_discovery = Discovery(
-            uut,
-            "rescan-test-container",
-            "test-session",
-            "node001",
-            current_version="v1",
-            update_last_attempt=1234567890.0,
-        )
+        previous_discovery = Discovery(uut, "rescan-test-container", "test-session", "node001", current_version="v1")
+        previous_discovery.update_last_attempt = 1234567890.0
 
-        result = uut.rescan(original_discovery)
+        result = uut.rescan(previous_discovery)
 
         assert result is not None
         assert result.name == "rescan-test-container"

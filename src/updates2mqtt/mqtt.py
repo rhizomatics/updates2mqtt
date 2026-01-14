@@ -234,8 +234,11 @@ class MqttPublisher:
                 )
                 updated = provider.command(comp_name, command, on_update_start, on_update_end)
                 discovery = provider.resolve(comp_name)
-                if updated and discovery and discovery.publish_policy in (PublishPolicy.HOMEASSISTANT, PublishPolicy.MQTT):
-                    self.publish_hass_state(discovery)
+                if updated and discovery:
+                    if discovery.publish_policy in (PublishPolicy.HOMEASSISTANT, PublishPolicy.MQTT):
+                        self.publish_discovery(discovery)
+                    if discovery.publish_policy == PublishPolicy.HOMEASSISTANT:
+                        self.publish_hass_state(discovery)
                 else:
                     logger.debug("No change to republish after execution")
             logger.info("Execution ended")
@@ -300,12 +303,26 @@ class MqttPublisher:
         return f"{prefix}/update/{self.node_cfg.name}_{discovery.source_type}_{discovery.name}/update/config"
 
     def state_topic(self, discovery: Discovery) -> str:
+        return f"{self.cfg.topic_root}/{self.node_cfg.name}/{discovery.source_type}/{discovery.name}/state"
+
+    def general_topic(self, discovery: Discovery) -> str:
         return f"{self.cfg.topic_root}/{self.node_cfg.name}/{discovery.source_type}/{discovery.name}"
 
     def command_topic(self, provider: ReleaseProvider) -> str:
         return f"{self.cfg.topic_root}/{self.node_cfg.name}/{provider.source_type}"
 
+    def publish_discovery(self, discovery: Discovery, in_progress: bool = False) -> None:
+        """Comprehensive, non Home Assistant specific, base publication"""
+        if discovery.publish_policy not in (PublishPolicy.HOMEASSISTANT, PublishPolicy.MQTT):
+            return
+        self.log.debug("Discovery publish: %s", discovery)
+        payload: dict[str, Any] = discovery.as_dict()
+        payload["update"]["in_progress"] = in_progress  # ty:ignore[invalid-assignment]
+        self.publish(self.general_topic(discovery), payload)
+
     def publish_hass_state(self, discovery: Discovery, in_progress: bool = False) -> None:
+        if discovery.publish_policy != PublishPolicy.HOMEASSISTANT:
+            return
         self.log.debug("HASS State update, in progress: %s, discovery: %s", in_progress, discovery)
         self.publish(
             self.state_topic(discovery),
@@ -317,6 +334,8 @@ class MqttPublisher:
         )
 
     def publish_hass_config(self, discovery: Discovery) -> None:
+        if discovery.publish_policy != PublishPolicy.HOMEASSISTANT:
+            return
         object_id = f"{discovery.source_type}_{self.node_cfg.name}_{discovery.name}"
         self.publish(
             self.config_topic(discovery),
@@ -325,10 +344,10 @@ class MqttPublisher:
                 object_id=object_id,
                 area=self.hass_cfg.area,
                 state_topic=self.state_topic(discovery),
+                attrs_topic=self.general_topic(discovery),
                 command_topic=self.command_topic(discovery.provider),
                 force_command_topic=self.hass_cfg.force_command_topic,
                 device_creation=self.hass_cfg.device_creation,
-                session=discovery.session,
             ),
         )
 

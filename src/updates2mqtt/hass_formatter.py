@@ -23,23 +23,18 @@ def hass_format_config(
     object_id: str,
     state_topic: str,
     command_topic: str | None,
+    attrs_topic: str | None,
     force_command_topic: bool | None,
     device_creation: bool = True,
     area: str | None = None,
-    session: str | None = None,
 ) -> dict[str, Any]:
     config: dict[str, Any] = {
         "name": discovery.title,
         "device_class": None,  # not firmware, so defaults to null
         "unique_id": object_id,
-        # "state_topic": state_topic,
-        "source_session": session,
+        "state_topic": state_topic,
         "supported_features": discovery.features,
-        "can_update": discovery.can_update,
-        "can_build": discovery.can_build,
-        "can_restart": discovery.can_restart,
-        "update_policy": str(discovery.update_policy),
-        "json_attributes_topic": state_topic,
+        "json_attributes_topic": attrs_topic,
         "origin": {
             "name": f"{discovery.node} updates2mqtt",
             "sw_version": updates2mqtt.version,  # pyright: ignore[reportAttributeAccessIssue]
@@ -78,12 +73,5 @@ def hass_format_state(discovery: Discovery, session: str, in_progress: bool = Fa
         state["release_summary"] = discovery.release_summary
     if discovery.release_url:
         state["release_url"] = discovery.release_url
-    custom_state = discovery.provider.hass_state_format(discovery)
-    if custom_state:
-        state.update(custom_state)
-    # invalid_keys = [k for k in state if k not in HASS_UPDATE_SCHEMA]
-    # if invalid_keys:
-    #    log.warning(f"Invalid keys in state: {invalid_keys}")
-    #    state = {k: v for k, v in state.items() if k in HASS_UPDATE_SCHEMA}
-    state[discovery.source_type] = discovery.provider.hass_config_format(discovery)
+
     return state

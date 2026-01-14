@@ -1,13 +1,25 @@
+import datetime as dt
 import json
 import re
+import time
 from abc import abstractmethod
 from collections.abc import AsyncGenerator, Callable
 from threading import Event
 from typing import Any
 
 import structlog
+from tzlocal import get_localzone
 
-from updates2mqtt.config import PublishPolicy, Selector, UpdatePolicy
+from updates2mqtt.config import NodeConfig, PackageUpdateInfo, PublishPolicy, Selector, UpdatePolicy
+
+
+def timestamp(time_value: float | None) -> str | None:
+    if time_value is None:
+        return None
+    try:
+        return dt.datetime.fromtimestamp(time_value, tz=get_localzone()).isoformat()
+    except:  # noqa: E722
+        return None
 
 
 class Discovery:
@@ -29,7 +41,6 @@ class Discovery:
         publish_policy: PublishPolicy = PublishPolicy.HOMEASSISTANT,
         update_type: str | None = "Update",
         update_policy: UpdatePolicy = UpdatePolicy.PASSIVE,
-        update_last_attempt: float | None = None,
         release_url: str | None = None,
         release_summary: str | None = None,
         title_template: str = "{discovery.update_type} for {discovery.name} on {discovery.node}",
@@ -37,6 +48,7 @@ class Discovery:
         custom: dict[str, Any] | None = None,
         features: list[str] | None = None,
         throttled: bool = False,
+        previous: "Discovery|None" = None,
     ) -> None:
         self.provider: ReleaseProvider = provider
         self.source_type: str = provider.source_type
@@ -57,10 +69,20 @@ class Discovery:
         self.status: str = status
         self.publish_policy: PublishPolicy = publish_policy
         self.update_policy: UpdatePolicy = update_policy
-        self.update_last_attempt: float | None = update_last_attempt
+        self.update_last_attempt: float | None = None
         self.custom: dict[str, Any] = custom or {}
         self.features: list[str] = features or []
         self.throttled: bool = throttled
+        self.scan_count: int
+        self.discovered: float
+
+        if previous:
+            self.update_last_attempt = previous.update_last_attempt
+            self.discovered = previous.discovered
+            self.scan_count = previous.scan_count + 1
+        else:
+            self.discovered = time.time()
+            self.scan_count = 1
 
     def __repr__(self) -> str:
         """Build a custom string representation"""
@@ -81,13 +103,44 @@ class Discovery:
             return self.title_template.format(discovery=self)
         return self.name
 
+    def as_dict(self) -> dict[str, str | list | dict | bool | int | None]:
+        return {
+            "name": self.name,
+            "node": self.node,
+            "provider": {"source_type": self.provider.source_type},
+            "first_scan": {"timestamp": timestamp(self.discovered)},
+            "last_scan": {"session": self.session, "throttled": self.throttled},
+            "scan_count": self.scan_count,
+            "installed_version": self.current_version,
+            "latest_version": self.latest_version,
+            "title": self.title,
+            "release_summary": self.release_summary,
+            "release_url": self.release_url,
+            "entity_picture_url": self.entity_picture_url,
+            "can_update": self.can_update,
+            "can_build": self.can_build,
+            "can_restart": self.can_restart,
+            "device_icon": self.device_icon,
+            "update_type": self.update_type,
+            "status": self.status,
+            "features": self.features,
+            "update_policy": self.update_policy,
+            "publish_policy": self.publish_policy,
+            "update": {"last_attempt": timestamp(self.update_last_attempt), "in_progress": False},
+            self.source_type: self.custom,
+        }
+
 
 class ReleaseProvider:
     """Abstract base class for release providers, such as container scanners or package managers API calls"""
 
-    def __init__(self, source_type: str = "base") -> None:
+    def __init__(
+        self, node_cfg: NodeConfig, source_type: str = "base", common_pkg_cfg: dict[str, PackageUpdateInfo] | None = None
+    ) -> None:
         self.source_type: str = source_type
         self.discoveries: dict[str, Discovery] = {}
+        self.node_cfg: NodeConfig = node_cfg
+        self.common_pkg_cfg: dict[str, PackageUpdateInfo] = common_pkg_cfg or {}
         self.log: Any = structlog.get_logger().bind(integration=self.source_type)
         self.stopped = Event()
 
@@ -115,14 +168,6 @@ class ReleaseProvider:
         # force recognition as an async generator
         if False:  # type: ignore[unreachable]
             yield 0
-
-    def hass_config_format(self, discovery: Discovery) -> dict:
-        _ = discovery
-        return discovery.custom
-
-    def hass_state_format(self, discovery: Discovery) -> dict:
-        _ = discovery
-        return {}
 
     @abstractmethod
     def command(self, discovery_name: str, command: str, on_update_start: Callable, on_update_end: Callable) -> bool:

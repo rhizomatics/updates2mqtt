@@ -62,6 +62,7 @@ repos:
           - types-docker
           - hishel[httpx]
           - usingversion
+          - tzlocal
  
   - repo: https://github.com/PyCQA/bandit
     rev: '1.9.2'

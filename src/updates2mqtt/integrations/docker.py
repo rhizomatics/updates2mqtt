@@ -111,11 +111,10 @@ class DockerProvider(ReleaseProvider):
         node_cfg: NodeConfig,
         self_bounce: Event | None = None,
     ) -> None:
-        super().__init__("docker")
+        super().__init__(node_cfg, "docker", common_pkg_cfg)
         self.client: docker.DockerClient = docker.from_env()
         self.cfg: DockerConfig = cfg
-        self.node_cfg: NodeConfig = node_cfg
-        self.common_pkgs: dict[str, PackageUpdateInfo] = common_pkg_cfg if common_pkg_cfg else {}
+
         # TODO: refresh discovered packages periodically
         self.discovered_pkgs: dict[str, PackageUpdateInfo] = self.discover_metadata()
         self.pause_api_until: dict[str, float] = {}
@@ -225,7 +224,7 @@ class DockerProvider(ReleaseProvider):
         try:
             c: Container = self.client.containers.get(discovery.name)
             if c:
-                rediscovery = self.analyze(c, discovery.session, original_discovery=discovery)
+                rediscovery = self.analyze(c, discovery.session, previous_discovery=discovery)
                 if rediscovery:
                     self.discoveries[rediscovery.name] = rediscovery
                     return rediscovery
@@ -246,7 +245,7 @@ class DockerProvider(ReleaseProvider):
                 return True
         return False
 
-    def analyze(self, c: Container, session: str, original_discovery: Discovery | None = None) -> Discovery | None:
+    def analyze(self, c: Container, session: str, previous_discovery: Discovery | None = None) -> Discovery | None:
         logger = self.log.bind(container=c.name, action="analyze")
 
         image_ref: str | None = None
@@ -447,7 +446,6 @@ class DockerProvider(ReleaseProvider):
                 current_version=local_version,
                 publish_policy=publish_policy,
                 update_policy=update_policy,
-                update_last_attempt=original_discovery.update_last_attempt if original_discovery else None,
                 latest_version=latest_version if latest_version != NO_KNOWN_IMAGE else local_version,
                 device_icon=self.cfg.device_icon,
                 can_update=can_update,
@@ -458,6 +456,7 @@ class DockerProvider(ReleaseProvider):
                 custom=custom,
                 features=features,
                 throttled=registry_throttled,
+                previous=previous_discovery,
             )
             logger.debug("Analyze generated discovery: %s", discovery)
             return discovery
@@ -524,19 +523,6 @@ class DockerProvider(ReleaseProvider):
     def resolve(self, discovery_name: str) -> Discovery | None:
         return self.discoveries.get(discovery_name)
 
-    def hass_state_format(self, discovery: Discovery) -> dict:  # noqa: ARG002
-        # disable since hass mqtt update has strict json schema for message
-        return {
-            # "docker_image_ref": discovery.custom.get("image_ref"),
-            # "last_update_attempt": safe_json_dt(discovery.update_last_attempt),
-            # "can_pull": discovery.custom.get("can_pull"),
-            # "can_build": discovery.custom.get("can_build"),
-            # "can_restart": discovery.custom.get("can_restart"),
-            # "git_repo_path": discovery.custom.get("git_repo_path"),
-            # "compose_path": discovery.custom.get("compose_path"),
-            # "platform": discovery.custom.get("platform"),
-        }
-
     def default_metadata(self, image_name: str | None, image_ref: str | None) -> PackageUpdateInfo:
         def match(pkg: PackageUpdateInfo) -> bool:
             if pkg is not None and pkg.docker is not None and pkg.docker.image_name is not None:
@@ -547,7 +533,7 @@ class DockerProvider(ReleaseProvider):
             return False
 
         if image_name is not None and image_ref is not None:
-            for pkg in self.common_pkgs.values():
+            for pkg in self.common_pkg_cfg.values():
                 if match(pkg):
                     self.log.debug(
                         "Found common package",

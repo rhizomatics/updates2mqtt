@@ -20,6 +20,7 @@ dependencies = [
   "httpx>=0.28.1",
   "hishel[httpx]>=0.1.4",
   "usingversion>=0.1.2",
+  "tzlocal>=5.3.1",
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",

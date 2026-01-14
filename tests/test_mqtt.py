@@ -17,13 +17,12 @@ from updates2mqtt.mqtt import MqttPublisher
 
 
 @pytest.mark.parametrize("protocol", ["3", "3.1", "5", "?"])
-def test_publish(mock_mqtt_client: Mock, protocol: str) -> None:
+def test_publish(mock_mqtt_client: Mock, protocol: str, node_cfg: NodeConfig) -> None:
     config = MqttConfig(protocol=protocol)
     hass_config = HomeAssistantConfig()
-    node_config = NodeConfig()
 
     with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
-        uut = MqttPublisher(config, node_config, hass_config)
+        uut = MqttPublisher(config, node_cfg, hass_config)
         uut.start()
 
         uut.publish("test.topic.123", {"foo": "a8", "bar": False})
@@ -45,7 +44,6 @@ async def test_handler(mock_mqtt_client: Mock) -> None:
         provider.source_type = "unit_test"
         discovery = Discovery(provider, "qux", "test-mqtt-123", "node004")
         provider.command.return_value = discovery
-        provider.hass_state_format.return_value = {}
 
         topic_name = uut.subscribe_hass_command(provider)
         mock_message = Mock()
@@ -78,7 +76,7 @@ async def test_execute_command_remote(mock_mqtt_client: Mock, mock_provider: Rel
         await uut.execute_command(mqtt_bytes_msg, Mock(), Mock())
 
         mock_mqtt_client.publish.assert_called_with(
-            "updates2mqtt/TESTBED/unit_test/fooey",
+            "updates2mqtt/TESTBED/unit_test/fooey/state",
             payload=json.dumps(
                 {
                     "installed_version": "v2",
@@ -112,7 +110,7 @@ async def test_execute_command_local(mock_mqtt_client: Mock, mock_provider: Rele
         await asyncio.sleep(1)
 
         mock_mqtt_client.publish.assert_called_with(
-            "updates2mqtt/TESTBED/unit_test/fooey",
+            "updates2mqtt/TESTBED/unit_test/fooey/state",
             payload=json.dumps(
                 {
                     "installed_version": "v2",
@@ -326,7 +324,8 @@ def test_topic_generation(mock_provider: ReleaseProvider) -> None:
     discovery = Discovery(mock_provider, "mycontainer", "session123", "mynode")
 
     assert uut.config_topic(discovery) == "homeassistant/update/mynode_unit_test_mycontainer/update/config"
-    assert uut.state_topic(discovery) == "updates2mqtt/mynode/unit_test/mycontainer"
+    assert uut.state_topic(discovery) == "updates2mqtt/mynode/unit_test/mycontainer/state"
+    assert uut.general_topic(discovery) == "updates2mqtt/mynode/unit_test/mycontainer"
     assert uut.command_topic(mock_provider) == "updates2mqtt/mynode/unit_test"
 
 
@@ -353,7 +352,7 @@ def test_publish_hass_state(mock_mqtt_client: Mock, mock_provider: ReleaseProvid
 
         mock_mqtt_client.publish.assert_called()
         call_args = mock_mqtt_client.publish.call_args
-        assert call_args[0][0] == "updates2mqtt/statenode/unit_test/testpkg"
+        assert call_args[0][0] == "updates2mqtt/statenode/unit_test/testpkg/state"
         payload = json.loads(call_args[1]["payload"])
         assert payload["in_progress"] is True
 
