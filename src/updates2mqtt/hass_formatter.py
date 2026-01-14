@@ -34,6 +34,7 @@ def hass_format_config(
         "unique_id": object_id,
         "state_topic": state_topic,
         "supported_features": discovery.features,
+        "default_entity_id": f"update.{discovery.node}_{discovery.provider.source_type}_{discovery.name}",
         "json_attributes_topic": attrs_topic,
         "origin": {
             "name": f"{discovery.node} updates2mqtt",
