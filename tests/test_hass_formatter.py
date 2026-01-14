@@ -26,6 +26,7 @@ def test_formatter_includes_device(mock_discoveries: list[Discovery], monkeypatc
         "device_class": None,
         "payload_install": "unit_test|thing-1|install",
         "supported_features": [],
+        "default_entity_id": "update.testbed01_unit_test_thing-1",
         "origin": {
             "name": "testbed01 updates2mqtt",
             "sw_version": "3.0.0",
@@ -55,6 +56,7 @@ def test_formatter_excludes_device(mock_discoveries: list[Discovery], monkeypatc
         "device_class": None,
         "payload_install": "unit_test|thing-1|install",
         "supported_features": [],
+        "default_entity_id": "update.testbed01_unit_test_thing-1",
         "origin": {
             "name": "testbed01 updates2mqtt",
             "sw_version": "3.0.0",

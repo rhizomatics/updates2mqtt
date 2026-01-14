@@ -74,14 +74,15 @@ class Discovery:
         self.features: list[str] = features or []
         self.throttled: bool = throttled
         self.scan_count: int
-        self.discovered: float
+        self.first_timestamp: float
+        self.last_timestamp: float = time.time()
 
         if previous:
             self.update_last_attempt = previous.update_last_attempt
-            self.discovered = previous.discovered
+            self.first_timestamp = previous.first_timestamp
             self.scan_count = previous.scan_count + 1
         else:
-            self.discovered = time.time()
+            self.first_timestamp = time.time()
             self.scan_count = 1
 
     def __repr__(self) -> str:
@@ -108,8 +109,8 @@ class Discovery:
             "name": self.name,
             "node": self.node,
             "provider": {"source_type": self.provider.source_type},
-            "first_scan": {"timestamp": timestamp(self.discovered)},
-            "last_scan": {"session": self.session, "throttled": self.throttled},
+            "first_scan": {"timestamp": timestamp(self.first_timestamp)},
+            "last_scan": {"session": self.session, "timestamp": timestamp(self.last_timestamp), "throttled": self.throttled},
             "scan_count": self.scan_count,
             "installed_version": self.current_version,
             "latest_version": self.latest_version,
