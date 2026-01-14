@@ -35,13 +35,14 @@ def hass_format_config(
         "state_topic": state_topic,
         "supported_features": discovery.features,
         "default_entity_id": f"update.{discovery.node}_{discovery.provider.source_type}_{discovery.name}",
-        "json_attributes_topic": attrs_topic,
         "origin": {
             "name": f"{discovery.node} updates2mqtt",
             "sw_version": updates2mqtt.version,  # pyright: ignore[reportAttributeAccessIssue]
             "support_url": "https://github.com/rhizomatics/updates2mqtt/issues",
         },
     }
+    if attrs_topic:
+        config["json_attributes_topic"] = attrs_topic
     if discovery.entity_picture_url:
         config["entity_picture"] = discovery.entity_picture_url
     if discovery.device_icon:

@@ -22,6 +22,7 @@ homeassistant:
   area: Server Room
   device_creation: true
   force_command_topic: false
+  extra_attributes: true
 docker:
   enabled: true
   allow_pull: true

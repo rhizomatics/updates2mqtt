@@ -80,6 +80,7 @@ class HomeAssistantConfig:
     state_topic_suffix: str = "state"
     device_creation: bool = True
     force_command_topic: bool = False
+    extra_attributes: bool = True
     area: str | None = None
 
 

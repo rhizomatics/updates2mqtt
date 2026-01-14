@@ -1,15 +1,19 @@
 # CHANGELOG
 
 ## 1.6.0
-### Update Policy
+### MQTT Topics
+- Separated out generic and Home Assistant specific topics
+  - The *State*, *Command* and *Discovery* topics are strictly Home Assistant schema
+  - The full discovery attributes are now published on their own topic
+    - This can also be supplied as additional attributes to the Home Assistant Update entity
+    - These can be turned off using the `extra_attributes` flag in `homeassistant` config
+### Selective Home Assistant Discovery
 - New `image_ref_select` option in Docker config
     - List of `include` strings or regular expressions, containers which don't match these won't be Home Assistant discoverable
     - List of `exclude` strings or regular expressions, containers which match these won't be Home Assistant discoverable
     - Containers not selected because of `image_ref_select` can still have an `Auto` update policy, so will be updated but not visible to Home Assistant
 ### Docker Labels
 - Container customization can now be made by Docker labels instead of, or in addition to, env vars
-### MQTT Discovery Messagr
-- All custom values, mostly from Docker Registry or git repo, now added as a dict
 ### API Throttling
 - Docker API now throttled per registry if receives 429 Too Many Requests
     - Uses `retry_after` header value, if missing or unreadable defaults to configurable `default_api_backoff`

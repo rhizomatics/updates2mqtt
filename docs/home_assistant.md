@@ -28,17 +28,19 @@ a `suggested_area` for the device.
 
 ## MQTT Topics
 
-There are 3 separate types of MQTT topic used for HomeAssisstant integration:
+There are 44 separate types of MQTT topic used for HomeAssisstant integration:
 
 - *Config* to support auto discovery. 
     - A topic is created per component, with a name like `homeassistant/update/dockernuc_docker_jellyfin/update/config`. 
     - This can be disabled in the config file, and the `homeassistant` topic prefix can also be configured.
 - *State* to report the current version and the latest version available
-    - One topic per component, like `updates2mqtt/dockernuc/docker/jellyfin`.
+    - One topic per component, like `updates2mqtt/dockernuc/docker/jellyfin/state`.
 - *Command* to support triggering an update. 
     - These will be created on the fly by HomeAssistant when an update is requested
-    - Updates2mqtt subscribes to pick up the changes, so you won't typically see these if browsing MQTT topics. 
+    - Updates2MQTT subscribes to pick up the changes, so you won't typically see these if browsing MQTT topics. 
     - Only one is needed per Updates2MQTT agent, with a name like `updates2mqtt/dockernuc/docker`
+- *JSON Attributes* sources extra attributes from the main `updates2mqtt` discovery topic
+    - Switch this behaviour off using `extra_attributes` flag in HomeAssistant config
 
 If the package supports automated update, then *Skip* and *Install* buttons will appear on the Home Assistant interface, and the package can be remotely fetched and the component restarted.
 

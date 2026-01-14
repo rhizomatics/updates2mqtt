@@ -110,7 +110,7 @@ class Discovery:
             "node": self.node,
             "provider": {"source_type": self.provider.source_type},
             "first_scan": {"timestamp": timestamp(self.first_timestamp)},
-            "last_scan": {"session": self.session, "timestamp": timestamp(self.last_timestamp), "throttled": self.throttled},
+            "last_scan": {"timestamp": timestamp(self.last_timestamp), "session": self.session, "throttled": self.throttled},
             "scan_count": self.scan_count,
             "installed_version": self.current_version,
             "latest_version": self.latest_version,

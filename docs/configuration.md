@@ -52,6 +52,10 @@ homeassistant:
     prefix: homeassistant # Matches the default MQTT discovery prefix in Home Assistant
     enabled: true
   state_topic_suffix: state
+  device_creation: true # create a Home Assistant device and associate it with each update entity
+  area: "Server Room" # suggest an area for Home Assistant to give to the Device
+  extra_attributes: true # use `json_attributes_topic` feature in Home Assistant to source state attributes from discover
+  force_command_creation: # create a command topic even if there's no support for automated update
 docker:
   enabled: true
   allow_pull: true # if true, will do a `docker pull` if an update is available
@@ -65,6 +69,12 @@ docker:
     linuxserver.io:
       enabled: true
       cache_ttl: 604800 # cache metadata for 1 week
+  image_ref_select: # limit the containers which will be published to Home Assistant
+    include:
+    - .*special-dev
+    exclude:
+    - .*dev
+    - .*nightly
 scan_interval: 10800 # sleep interval between scan runs, in seconds
 log:
   level: INFO

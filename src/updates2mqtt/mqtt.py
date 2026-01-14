@@ -344,7 +344,7 @@ class MqttPublisher:
                 object_id=object_id,
                 area=self.hass_cfg.area,
                 state_topic=self.state_topic(discovery),
-                attrs_topic=self.general_topic(discovery),
+                attrs_topic=self.general_topic(discovery) if self.hass_cfg.extra_attributes else None,
                 command_topic=self.command_topic(discovery.provider),
                 force_command_topic=self.hass_cfg.force_command_topic,
                 device_creation=self.hass_cfg.device_creation,

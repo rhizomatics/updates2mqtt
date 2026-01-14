@@ -285,7 +285,7 @@ class DockerProvider(ReleaseProvider):
                     logger.warn("RepoDigests=%s", image.attrs.get("RepoDigests"))
 
         selection = Selection(self.cfg.image_ref_select, image_ref)
-        publish_policy: PublishPolicy = PublishPolicy.SILENT if not selection.result else PublishPolicy.HOMEASSISTANT
+        publish_policy: PublishPolicy = PublishPolicy.MQTT if not selection.result else PublishPolicy.HOMEASSISTANT
 
         if customization.update == "AUTO":
             logger.debug("Auto update policy detected")
