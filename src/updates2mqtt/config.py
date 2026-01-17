@@ -29,6 +29,13 @@ class LogLevel(StrEnum):
     CRITICAL = "CRITICAL"
 
 
+class VersionType:
+    SHORT_SHA = "short_sha"
+    FULL_SHA = "full_sha"
+    VERSION_REVISION = "version_revision"
+    VERSION = "version"
+
+
 @dataclass
 class MqttConfig:
     host: str = "${oc.env:MQTT_HOST,localhost}"

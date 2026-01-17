@@ -85,7 +85,7 @@ common_packages:
   
   immich-machine-learning:
     docker:
-      image_name: ghcr.io/immich-app/immich-machine-learnin
+      image_name: ghcr.io/immich-app/immich-machine-learning
     logo_url: https://raw.githubusercontent.com/immich-app/immich/6474a78b8be31cf6a3c2fabf2f3177ffd40624e1/design/immich-logo.svg
     release_notes_url: https://github.com/immich-app/immich/releases
 

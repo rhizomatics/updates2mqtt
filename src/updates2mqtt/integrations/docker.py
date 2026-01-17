@@ -14,6 +14,7 @@ import structlog
 from docker.auth import resolve_repository_name
 from docker.models.containers import Container
 from hishel.httpx import SyncCacheClient
+from httpx import Response
 
 from updates2mqtt.config import (
     DockerConfig,
@@ -297,8 +298,11 @@ class DockerProvider(ReleaseProvider):
         pkg_info: PackageUpdateInfo = self.default_metadata(image_name, image_ref=image_ref)
 
         try:
-            picture_url = customization.picture or pkg_info.logo_url
-            relnotes_url = customization.relnotes or pkg_info.release_notes_url
+            picture_url: str | None = customization.picture or pkg_info.logo_url
+            relnotes_url: str | None = customization.relnotes or pkg_info.release_notes_url
+            net_score: int | None = None
+            release_summary: str | None = None
+
             if image is not None and image.attrs is not None:
                 platform = "/".join(
                     filter(
@@ -358,7 +362,7 @@ class DockerProvider(ReleaseProvider):
 
             image_ref = image_ref or ""
 
-            custom: dict[str, str | bool | list[str] | dict[str, Any]] = {}
+            custom: dict[str, str | bool | int | list[str] | dict[str, Any] | None] = {}
             custom["platform"] = platform
             custom["image_ref"] = image_ref
             custom["repo_id"] = repo_id
@@ -368,7 +372,35 @@ class DockerProvider(ReleaseProvider):
             save_if_set("compose_path", c.labels.get("com.docker.compose.project.working_dir"))
             save_if_set("compose_version", c.labels.get("com.docker.compose.version"))
             save_if_set("compose_service", c.labels.get("com.docker.compose.service"))
+            save_if_set("documentation_url", c.labels.get("org.opencontainers.image.documentation"))
+            save_if_set("description", c.labels.get("org.opencontainers.image.description"))
+            save_if_set("created", c.labels.get("opencontainers.image.created"))
+            image_version: str = c.labels.get("org.opencontainers.image.version")
+            image_revision: str = c.labels.get("org.opencontainers.image.revision")
+            source = c.labels.get("org.opencontainers.image.source")
+            if source and image_revision and "github.com" in source:
+                diff_url = f"{source}/commit/{image_revision}"
+                if self.validate_url(diff_url):
+                    save_if_set("diff_url", diff_url)
+                release_url = f"{source}/releases/tag/{image_version}"
+                if self.validate_url(release_url):
+                    save_if_set("release_url", release_url)
+                    if customization.relnotes is None:
+                        # override default pkg info with more precise release notes
+                        relnotes_url = release_url
+                    base_api = source.replace("https://github.com", "https://api.github.com")
+                    api_response: Response | None = self.fetch_url(f"{base_api}/releases/tags/{image_version}")
+                    if api_response:
+                        api_results = api_response.json()
+                        release_summary = api_results.get("body")
+                        reactions = api_results.get("reactions")
+                        if reactions:
+                            net_score = reactions.get("+1", 0) - reactions.get("-1", 0)
+
+            save_if_set("image_version", image_version)
             save_if_set("git_repo_path", customization.git_repo_path)
+            custom["net_score"] = net_score
+
             # save_if_set("apt_pkgs", c_env.get("UPD2MQTT_APT_PKGS"))
 
             if custom.get("git_repo_path") and custom.get("compose_path"):
@@ -443,6 +475,7 @@ class DockerProvider(ReleaseProvider):
                 node=self.node_cfg.name,
                 entity_picture_url=picture_url,
                 release_url=relnotes_url,
+                release_summary=release_summary,
                 current_version=local_version,
                 publish_policy=publish_policy,
                 update_policy=update_policy,
@@ -464,6 +497,24 @@ class DockerProvider(ReleaseProvider):
             logger.exception("Docker Discovery Failure", container_attrs=c.attrs)
         logger.debug("Analyze returned empty discovery")
         return None
+
+    # def version(self, c: Container, version_type: str):
+    #    metadata_version: str = c.labels.get("org.opencontainers.image.version")
+    #    metadata_revision: str = c.labels.get("org.opencontainers.image.revision")
+
+    def fetch_url(self, url: str, cache_ttl: int = 300) -> Response | None:
+        try:
+            with SyncCacheClient(headers=[("cache-control", f"max-age={cache_ttl}")]) as client:
+                log.debug(f"Fetching URL {url}, cache_ttl={cache_ttl}")
+            response: Response = client.get(url)
+            return response
+        except Exception as e:
+            log.debug("URL %s failed to fetch: %s", url, e)
+        return None
+
+    def validate_url(self, url: str, cache_ttl: int = 300) -> bool:
+        response = self.fetch_url(url, cache_ttl=cache_ttl)
+        return response is None or not response.is_success
 
     async def scan(self, session: str) -> AsyncGenerator[Discovery]:
         logger = self.log.bind(session=session, action="scan", source=self.source_type)

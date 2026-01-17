@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 1.6.1
+### Docker Image Info
+- Metadata from `org.opencontainers` labels published where available
+
 ## 1.6.0
 ### MQTT Topics
 - Separated out generic and Home Assistant specific topics
