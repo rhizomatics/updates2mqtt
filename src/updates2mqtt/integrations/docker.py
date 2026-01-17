@@ -382,6 +382,7 @@ class DockerProvider(ReleaseProvider):
                 diff_url = f"{source}/commit/{image_revision}"
                 if self.validate_url(diff_url):
                     save_if_set("diff_url", diff_url)
+            if source and image_version and "github.com" in source:
                 release_url = f"{source}/releases/tag/{image_version}"
                 if self.validate_url(release_url):
                     save_if_set("release_url", release_url)
