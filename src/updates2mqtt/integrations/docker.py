@@ -514,7 +514,7 @@ class DockerProvider(ReleaseProvider):
 
     def validate_url(self, url: str, cache_ttl: int = 300) -> bool:
         response = self.fetch_url(url, cache_ttl=cache_ttl)
-        return response is None or not response.is_success
+        return response is not None and response.is_success
 
     async def scan(self, session: str) -> AsyncGenerator[Discovery]:
         logger = self.log.bind(session=session, action="scan", source=self.source_type)
