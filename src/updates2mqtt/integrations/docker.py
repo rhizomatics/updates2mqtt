@@ -388,7 +388,7 @@ class DockerProvider(ReleaseProvider):
                     if customization.relnotes is None:
                         # override default pkg info with more precise release notes
                         relnotes_url = release_url
-                    base_api = source.replace("https://github.com", "https://api.github.com/repos/")
+                    base_api = source.replace("https://github.com", "https://api.github.com/repos")
                     api_response: Response | None = self.fetch_url(f"{base_api}/releases/tags/{image_version}")
                     if api_response:
                         api_results = api_response.json()
