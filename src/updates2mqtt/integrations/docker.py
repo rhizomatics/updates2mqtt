@@ -506,7 +506,7 @@ class DockerProvider(ReleaseProvider):
         try:
             with SyncCacheClient(headers=[("cache-control", f"max-age={cache_ttl}")]) as client:
                 log.debug(f"Fetching URL {url}, cache_ttl={cache_ttl}")
-            response: Response = client.get(url)
+                response: Response = client.get(url)
             return response
         except Exception as e:
             log.debug("URL %s failed to fetch: %s", url, e)
