@@ -278,7 +278,7 @@ class LabelEnricher:
             )
             return None
         index = response.json()
-        log.debug("MANIFEST %s", index)
+        log.debug("%s INDEX %s manifests, %s annotations", img_name, len(index.get("manifests", [])), index.get("annotations"))
         for m in index.get("manifests", []):
             platform_info = m.get("platform", {})
             if platform_info.get("os") == os and platform_info.get("architecture") == arch:
@@ -291,7 +291,14 @@ class LabelEnricher:
                     response_type=media_type,
                 )
                 if response and response.is_success:
-                    return response.json()
+                    api_data = httpx_json_content(response, {})
+                    log.debug(
+                        "%s MANIFEST %s layers, %s annotations",
+                        img_name,
+                        len(index.get("layers", [])),
+                        index.get("annotations"),
+                    )
+                    return api_data
         return None
 
 
