@@ -399,23 +399,24 @@ class DockerProvider(ReleaseProvider):
             save_if_set("current_image_version", c.labels.get("opencontainers.image.version"))
             installed_version = c.labels.get("opencontainers.image.version")
 
-            # save_if_set("apt_pkgs", c_env.get("UPD2MQTT_APT_PKGS"))
-            os, arch = platform.split("/")[:2] if "/" in platform else (platform, "Unknown")
-            try:
-                new_manifest = self.label_enricher.fetch_manifest(image_ref, os, arch)
-            except AuthError as e:
-                logger.warning("Authentication error prevented Docker Registry entichment: %s", e)
-                new_manifest = None
+            if latest_digest is not None:
+                # save_if_set("apt_pkgs", c_env.get("UPD2MQTT_APT_PKGS"))
+                os, arch = platform.split("/")[:2] if "/" in platform else (platform, "Unknown")
+                try:
+                    new_manifest = self.label_enricher.fetch_manifest(image_ref, os, arch)
+                except AuthError as e:
+                    logger.warning("Authentication error prevented Docker Registry entichment: %s", e)
+                    new_manifest = None
 
-            if new_manifest:
-                annotations = new_manifest.get("annotations", {})
-                save_if_set("latest_image_created", annotations.get("opencontainers.image.created"))
-                save_if_set("source", annotations.get("org.opencontainers.image.source"))
-                save_if_set("documentation_url", annotations.get("org.opencontainers.image.documentation"))
-                save_if_set("description", annotations.get("org.opencontainers.image.description"))
-                save_if_set("latest_image_version", annotations.get("opencontainers.image.version"))
-                latest_version = annotations.get("org.opencontainers.image.version")
-                custom["release"] = self.release_enricher.enrich(annotations, log)
+                if new_manifest:
+                    annotations = new_manifest.get("annotations", {})
+                    save_if_set("latest_image_created", annotations.get("opencontainers.image.created"))
+                    save_if_set("source", annotations.get("org.opencontainers.image.source"))
+                    save_if_set("documentation_url", annotations.get("org.opencontainers.image.documentation"))
+                    save_if_set("description", annotations.get("org.opencontainers.image.description"))
+                    save_if_set("latest_image_version", annotations.get("opencontainers.image.version"))
+                    latest_version = annotations.get("org.opencontainers.image.version")
+                    custom["release"] = self.release_enricher.enrich(annotations, log)
 
             if custom.get("git_repo_path") and custom.get("compose_path"):
                 full_repo_path: Path = Path(cast("str", custom.get("compose_path"))).joinpath(
