@@ -259,6 +259,7 @@ class LabelEnricher:
             token = None
 
         img_tag = ref.split(":")[1] if ":" in ref else "latest"
+        img_tag = img_tag.split("@")[0] if "@" in img_tag else img_tag
         response: Response | None = fetch_url(
             f"https://{api_host}/v2/{img_name}/manifests/{img_tag}",
             cache_ttl=mutable_cache_ttl,
