@@ -399,7 +399,7 @@ class DockerProvider(ReleaseProvider):
             save_if_set("current_image_version", c.labels.get("opencontainers.image.version"))
             installed_version = c.labels.get("opencontainers.image.version")
 
-            if latest_digest is not None:
+            if latest_digest is not None and latest_digest != NO_KNOWN_IMAGE:
                 # save_if_set("apt_pkgs", c_env.get("UPD2MQTT_APT_PKGS"))
                 os, arch = platform.split("/")[:2] if "/" in platform else (platform, "Unknown")
                 try:
