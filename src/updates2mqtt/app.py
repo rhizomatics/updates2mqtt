@@ -14,7 +14,7 @@ import structlog
 import updates2mqtt
 from updates2mqtt.model import Discovery, ReleaseProvider
 
-from .config import Config, PackageUpdateInfo, PublishPolicy, UpdatePolicy, load_app_config, load_package_info
+from .config import Config, PublishPolicy, UpdatePolicy, load_app_config
 from .integrations.docker import DockerProvider
 from .mqtt import MqttPublisher
 
@@ -49,7 +49,6 @@ class App:
 
         structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(getattr(logging, str(self.cfg.log.level))))
         log.debug("Logging initialized", level=self.cfg.log.level)
-        self.common_pkg: dict[str, PackageUpdateInfo] = load_package_info(PKG_INFO_FILE)
 
         self.publisher = MqttPublisher(self.cfg.mqtt, self.cfg.node, self.cfg.homeassistant)
 
@@ -57,7 +56,7 @@ class App:
         self.scan_count: int = 0
         self.last_scan: str | None = None
         if self.cfg.docker.enabled:
-            self.scanners.append(DockerProvider(self.cfg.docker, self.common_pkg, self.cfg.node, self.self_bounce))
+            self.scanners.append(DockerProvider(self.cfg.docker, self.cfg.node, self.self_bounce))
         self.stopped = Event()
         self.healthcheck_topic = self.cfg.node.healthcheck.topic_template.format(node_name=self.cfg.node.name)
 
@@ -104,6 +103,7 @@ class App:
             )
 
         for scanner in self.scanners:
+            scanner.initialize()
             self.publisher.subscribe_hass_command(scanner)
 
         while not self.stopped.is_set() and self.publisher.is_available():

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from pytest_subprocess import FakeProcess  # type: ignore[import-not-found]
+from pytest_subprocess import FakeProcess
 
 from updates2mqtt.integrations.git_utils import (
     git_check_update_available,

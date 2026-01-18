@@ -9,6 +9,9 @@ from omegaconf import MISSING, DictConfig, MissingMandatoryValue, OmegaConf, Val
 
 log = structlog.get_logger()
 
+PKG_INFO_FILE = Path("./common_packages.yaml")
+NO_KNOWN_IMAGE = "UNKNOWN"
+
 
 class UpdatePolicy(StrEnum):
     AUTO = "Auto"
@@ -139,24 +142,6 @@ class UpdateInfoConfig:
 
 class IncompleteConfigException(BaseException):
     pass
-
-
-def load_package_info(pkginfo_file_path: Path) -> dict[str, PackageUpdateInfo]:
-    if pkginfo_file_path.exists():
-        log.debug("Loading common package update info", path=pkginfo_file_path)
-        cfg = OmegaConf.load(pkginfo_file_path)
-    else:
-        log.warn("No common package update info found", path=pkginfo_file_path)
-        cfg = OmegaConf.structured(UpdateInfoConfig)
-    try:
-        # omegaconf broken-ness on optional fields and converting to backclasses
-        pkg_conf: dict[str, PackageUpdateInfo] = {
-            pkg: PackageUpdateInfo(**pkg_cfg) for pkg, pkg_cfg in cfg.common_packages.items()
-        }
-        return pkg_conf
-    except (MissingMandatoryValue, ValidationError) as e:
-        log.error("Configuration error %s", e, path=pkginfo_file_path.as_posix())
-        raise
 
 
 def is_autogen_config() -> bool:

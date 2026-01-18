@@ -12,6 +12,7 @@ repos:
       - id: check-yaml
         name: Check for un-parseable yaml
         args: [--allow-multiple-documents]
+        exclude: mkdocs.yml
       - id: check-executables-have-shebangs
         name: Check shell script for shebang lines
       - id: check-shebang-scripts-are-executable
@@ -57,6 +58,7 @@ repos:
           - structlog
           - pytest
           - pytest-httpx
+          - pytest-subprocess
           - paho-mqtt
           - omegaconf
           - types-docker

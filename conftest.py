@@ -2,7 +2,7 @@
 import asyncio
 import uuid
 from collections.abc import AsyncGenerator, Callable
-from typing import Any
+from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import paho.mqtt.client
@@ -19,6 +19,24 @@ from updates2mqtt.app import (
 )
 from updates2mqtt.config import Config, NodeConfig
 from updates2mqtt.model import Discovery, ReleaseProvider
+
+
+def pytest_addoption(parser) -> None:  # noqa: ANN001
+    parser.addoption("--runslow", action="store_true", default=False, help="run slow tests")
+
+
+def pytest_configure(config) -> None:  # noqa: ANN001
+    config.addinivalue_line("markers", "slow: mark test as slow to run")
+
+
+def pytest_collection_modifyitems(config, items) -> None:  # noqa: ANN001
+    if config.getoption("--runslow"):
+        # --runslow given in cli: do not skip slow tests
+        return
+    skip_slow = pytest.mark.skip(reason="need --runslow option to run")
+    for item in items:
+        if "slow" in item.keywords:
+            item.add_marker(skip_slow)
 
 
 @pytest.fixture
@@ -53,8 +71,8 @@ def mock_discovery_generator(mock_discoveries: list[Discovery]) -> Callable[...,
 @pytest.fixture
 def mock_provider_class(mock_provider: ReleaseProvider) -> type:
     class MockReleaseProvider(ReleaseProvider):
-        def __new__(cls, *args: Any, **kwargs: Any) -> ReleaseProvider:  # type: ignore[misc] # noqa: ARG004
-            return mock_provider
+        def __new__(cls, *args: Any, **kwargs: Any) -> "MockReleaseProvider":  # noqa: ARG004
+            return cast("MockReleaseProvider", mock_provider)
 
     return MockReleaseProvider
 
@@ -62,8 +80,8 @@ def mock_provider_class(mock_provider: ReleaseProvider) -> type:
 @pytest.fixture
 def mock_publisher_class(mock_publisher: MqttPublisher) -> type:
     class MockPublisher(MqttPublisher):
-        def __new__(cls, *args: Any, **kwargs: Any) -> MqttPublisher:  # type: ignore[misc] # noqa: ARG004
-            return mock_publisher
+        def __new__(cls, *args: Any, **kwargs: Any) -> "MockPublisher":  # noqa: ARG004
+            return cast("MockPublisher", mock_publisher)
 
     return MockPublisher
 

@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 import pytest
 from omegaconf import OmegaConf
 
-from updates2mqtt.config import LogLevel, MqttConfig, PackageUpdateInfo, load_app_config, load_package_info
+from updates2mqtt.config import LogLevel, MqttConfig, load_app_config
 
 EXAMPLES_ROOT = "examples"
 examples = [str(p.name) for p in Path(EXAMPLES_ROOT).iterdir() if p.name.startswith("config")]
@@ -85,15 +85,3 @@ def test_env_only_config() -> None:
     assert generated_config.node.name == "xunit003a"
     assert generated_config.log.level == LogLevel.WARNING
     assert not Path("no_such_dir").exists()
-
-
-def test_package_config() -> None:
-    validated_pkg_info: dict[str, PackageUpdateInfo] = load_package_info(Path("common_packages.yaml"))
-    assert validated_pkg_info is not None
-    assert len(validated_pkg_info) > 0
-    for pkg_name, pkg in validated_pkg_info.items():
-        assert pkg_name
-        assert pkg.docker is not None
-        assert pkg.docker.image_name
-        assert pkg.logo_url or pkg.logo_url is None
-        assert pkg.release_notes_url or pkg.release_notes_url is None

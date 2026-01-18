@@ -37,6 +37,7 @@ plugins:
   - autorefs
   - pagetree
   - optimize
+  - mermaid2
   - tags:
       tags: false
   - git-revision-date-localized:
@@ -77,5 +78,10 @@ markdown_extensions:
   - sane_lists
   - pymdownx.snippets:
       check_paths: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:mermaid2.fence_mermaid_custom
 
 

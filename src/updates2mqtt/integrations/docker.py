@@ -13,18 +13,24 @@ import docker.errors
 import structlog
 from docker.auth import resolve_repository_name
 from docker.models.containers import Container
-from hishel.httpx import SyncCacheClient
-from httpx import Response
 
 from updates2mqtt.config import (
+    NO_KNOWN_IMAGE,
     DockerConfig,
-    DockerPackageUpdateInfo,
     NodeConfig,
     PackageUpdateInfo,
     PublishPolicy,
     UpdatePolicy,
 )
-from updates2mqtt.model import Discovery, ReleaseProvider, Selection
+from updates2mqtt.integrations.docker_enrich import (
+    CommonPackageEnricher,
+    DefaultPackageEnricher,
+    LabelEnricher,
+    LinuxServerIOPackageEnricher,
+    PackageEnricher,
+    SourceReleaseEnricher,
+)
+from updates2mqtt.model import Discovery, ReleaseProvider, Selection, VersionPolicy, select_version
 
 from .git_utils import git_check_update_available, git_iso_timestamp, git_local_version, git_pull, git_trust
 
@@ -34,7 +40,6 @@ if typing.TYPE_CHECKING:
 # distinguish docker build from docker pull?
 
 log = structlog.get_logger()
-NO_KNOWN_IMAGE = "UNKNOWN"
 
 
 class DockerComposeCommand(Enum):
@@ -58,6 +63,7 @@ class ContainerCustomization:
         self.picture: str | None = None
         self.relnotes: str | None = None
         self.ignore: bool = False
+        self.version_policy: VersionPolicy | None = None
 
         if not container.attrs or container.attrs.get("Config") is None:
             return
@@ -98,6 +104,8 @@ class ContainerCustomization:
                 if v is not None:
                     if isinstance(getattr(self, attr), bool):
                         setattr(self, attr, v.upper() in ("TRUE", "YES", "1"))
+                    elif isinstance(getattr(self, attr), VersionPolicy):
+                        setattr(self, attr, VersionPolicy[v.upper()])
                     else:
                         setattr(self, attr, v)
 
@@ -108,19 +116,28 @@ class DockerProvider(ReleaseProvider):
     def __init__(
         self,
         cfg: DockerConfig,
-        common_pkg_cfg: dict[str, PackageUpdateInfo],
         node_cfg: NodeConfig,
         self_bounce: Event | None = None,
     ) -> None:
-        super().__init__(node_cfg, "docker", common_pkg_cfg)
+        super().__init__(node_cfg, "docker")
         self.client: docker.DockerClient = docker.from_env()
         self.cfg: DockerConfig = cfg
 
         # TODO: refresh discovered packages periodically
-        self.discovered_pkgs: dict[str, PackageUpdateInfo] = self.discover_metadata()
         self.pause_api_until: dict[str, float] = {}
         self.api_throttle_pause: int = cfg.default_api_backoff
         self.self_bounce: Event | None = self_bounce
+        self.pkg_enrichers: list[PackageEnricher] = [
+            CommonPackageEnricher(self.cfg),
+            LinuxServerIOPackageEnricher(self.cfg),
+            DefaultPackageEnricher(self.cfg),
+        ]
+        self.label_enricher = LabelEnricher()
+        self.release_enricher = SourceReleaseEnricher()
+
+    def initialize(self) -> None:
+        for enricher in self.pkg_enrichers:
+            enricher.initialize()
 
     def update(self, discovery: Discovery) -> bool:
         logger: Any = self.log.bind(container=discovery.name, action="update")
@@ -287,6 +304,7 @@ class DockerProvider(ReleaseProvider):
 
         selection = Selection(self.cfg.image_ref_select, image_ref)
         publish_policy: PublishPolicy = PublishPolicy.MQTT if not selection.result else PublishPolicy.HOMEASSISTANT
+        version_policy: VersionPolicy = VersionPolicy.AUTO if not customization.version_policy else customization.version_policy
 
         if customization.update == "AUTO":
             logger.debug("Auto update policy detected")
@@ -300,7 +318,6 @@ class DockerProvider(ReleaseProvider):
         try:
             picture_url: str | None = customization.picture or pkg_info.logo_url
             relnotes_url: str | None = customization.relnotes or pkg_info.release_notes_url
-            net_score: int | None = None
             release_summary: str | None = None
 
             if image is not None and image.attrs is not None:
@@ -316,8 +333,9 @@ class DockerProvider(ReleaseProvider):
                 )
 
             reg_data: RegistryData | None = None
-            latest_version: str | None = NO_KNOWN_IMAGE
-            latest_version_tags: list[str] | Any = []
+            latest_digest: str | None = NO_KNOWN_IMAGE
+            latest_version: str | None = None
+
             registry_throttled = self.check_throttle(repo_id)
 
             if image_ref and local_versions and not registry_throttled:
@@ -332,8 +350,8 @@ class DockerProvider(ReleaseProvider):
                             reg_data.image_name,
                             reg_data.attrs,
                         )
-                        latest_version = reg_data.short_id[7:] if reg_data else None
-                        latest_version_tags = reg_data.attrs
+                        latest_digest = reg_data.short_id[7:] if reg_data else None
+
                     except docker.errors.APIError as e:
                         if e.status_code == HTTPStatus.TOO_MANY_REQUESTS:
                             retry_secs: int
@@ -350,11 +368,12 @@ class DockerProvider(ReleaseProvider):
                         else:
                             logger.debug("Failed to fetch registry data, retrying: %s", e)
 
-            local_version: str | None = NO_KNOWN_IMAGE
+            installed_digest: str | None = NO_KNOWN_IMAGE
+            installed_version: str | None = None
             if local_versions:
                 # might be multiple RepoDigests if image has been pulled multiple times with diff manifests
-                local_version = latest_version if latest_version in local_versions else local_versions[0]
-                log.debug(f"Setting local version to {local_version}, local_versions:{local_versions}")
+                installed_digest = latest_digest if latest_digest in local_versions else local_versions[0]
+                log.debug(f"Setting local digest to {installed_digest}, local_versions:{local_versions}")
 
             def save_if_set(key: str, val: str | None) -> None:
                 if val is not None:
@@ -366,7 +385,8 @@ class DockerProvider(ReleaseProvider):
             custom["platform"] = platform
             custom["image_ref"] = image_ref
             custom["repo_id"] = repo_id
-            custom["tags"] = latest_version_tags
+            custom["git_repo_path"] = customization.git_repo_path
+
             if registry_throttled:
                 custom["registry_throttled"] = True
             save_if_set("compose_path", c.labels.get("com.docker.compose.project.working_dir"))
@@ -374,35 +394,22 @@ class DockerProvider(ReleaseProvider):
             save_if_set("compose_service", c.labels.get("com.docker.compose.service"))
             save_if_set("documentation_url", c.labels.get("org.opencontainers.image.documentation"))
             save_if_set("description", c.labels.get("org.opencontainers.image.description"))
-            save_if_set("created", c.labels.get("opencontainers.image.created"))
-            image_version: str = c.labels.get("org.opencontainers.image.version")
-            image_revision: str = c.labels.get("org.opencontainers.image.revision")
-            source = c.labels.get("org.opencontainers.image.source")
-            if source and image_revision and "github.com" in source:
-                diff_url = f"{source}/commit/{image_revision}"
-                if self.validate_url(diff_url):
-                    save_if_set("diff_url", diff_url)
-            if source and image_version and "github.com" in source:
-                release_url = f"{source}/releases/tag/{image_version}"
-                if self.validate_url(release_url):
-                    save_if_set("release_url", release_url)
-                    if customization.relnotes is None:
-                        # override default pkg info with more precise release notes
-                        relnotes_url = release_url
-                    base_api = source.replace("https://github.com", "https://api.github.com/repos")
-                    api_response: Response | None = self.fetch_url(f"{base_api}/releases/tags/{image_version}")
-                    if api_response:
-                        api_results = api_response.json()
-                        release_summary = api_results.get("body")
-                        reactions = api_results.get("reactions")
-                        if reactions:
-                            net_score = reactions.get("+1", 0) - reactions.get("-1", 0)
-
-            save_if_set("image_version", image_version)
-            save_if_set("git_repo_path", customization.git_repo_path)
-            custom["net_score"] = net_score
+            save_if_set("current_image_created", c.labels.get("opencontainers.image.created"))
+            save_if_set("current_image_version", c.labels.get("opencontainers.image.version"))
+            installed_version = c.labels.get("opencontainers.image.version")
 
             # save_if_set("apt_pkgs", c_env.get("UPD2MQTT_APT_PKGS"))
+            os, arch = platform.split("/")[:2] if "/" in platform else (platform, "Unknown")
+            new_manifest = self.label_enricher.fetch_manifest(image_ref, os, arch)
+            if new_manifest:
+                annotations = new_manifest.get("annotations", {})
+                save_if_set("latest_image_created", annotations.get("opencontainers.image.created"))
+                save_if_set("source", annotations.get("org.opencontainers.image.source"))
+                save_if_set("documentation_url", annotations.get("org.opencontainers.image.documentation"))
+                save_if_set("description", annotations.get("org.opencontainers.image.description"))
+                save_if_set("latest_image_version", annotations.get("opencontainers.image.version"))
+                latest_version = annotations.get("org.opencontainers.image.version")
+                custom["release"] = self.release_enricher.enrich(annotations, log)
 
             if custom.get("git_repo_path") and custom.get("compose_path"):
                 full_repo_path: Path = Path(cast("str", custom.get("compose_path"))).joinpath(
@@ -416,11 +423,11 @@ class DockerProvider(ReleaseProvider):
                 self.cfg.allow_pull
                 and image_ref is not None
                 and image_ref != ""
-                and (local_version != NO_KNOWN_IMAGE or latest_version != NO_KNOWN_IMAGE)
+                and (installed_digest != NO_KNOWN_IMAGE or latest_digest != NO_KNOWN_IMAGE)
             )
             if self.cfg.allow_pull and not can_pull:
                 logger.debug(
-                    f"Pull not available, image_ref:{image_ref},local_version:{local_version},latest_version:{latest_version}"
+                    f"Pull unavailable, image_ref:{image_ref},installed_digest:{installed_digest},latest_digest:{latest_digest}"
                 )
 
             can_build: bool = False
@@ -435,14 +442,14 @@ class DockerProvider(ReleaseProvider):
                     full_repo_path = self.full_repo_path(
                         cast("str", custom.get("compose_path")), cast("str", custom.get("git_repo_path"))
                     )
-                    if local_version is None or local_version == NO_KNOWN_IMAGE:
-                        local_version = git_local_version(full_repo_path, Path(self.node_cfg.git_path)) or NO_KNOWN_IMAGE
+                    if installed_digest is None or installed_digest == NO_KNOWN_IMAGE:
+                        installed_digest = git_local_version(full_repo_path, Path(self.node_cfg.git_path)) or NO_KNOWN_IMAGE
 
                     behind_count: int = git_check_update_available(full_repo_path, Path(self.node_cfg.git_path))
                     if behind_count > 0:
-                        if local_version is not None and local_version.startswith("git:"):
-                            latest_version = f"{local_version}+{behind_count}"
-                            log.info("Git update available, generating version %s", latest_version)
+                        if installed_digest is not None and installed_digest.startswith("git:"):
+                            latest_digest = f"{installed_digest}+{behind_count}"
+                            log.info("Git update available, generating version %s", latest_digest)
                     else:
                         logger.debug(f"Git update not available, local repo:{full_repo_path}")
 
@@ -469,6 +476,9 @@ class DockerProvider(ReleaseProvider):
             # can_pull,can_build etc are only info flags
             # the HASS update process is driven by comparing current and available versions
 
+            installed_version = select_version(version_policy, installed_version, installed_digest)
+            latest_version = select_version(version_policy, latest_version, latest_digest, default=installed_version)
+
             discovery: Discovery = Discovery(
                 self,
                 c.name,
@@ -477,10 +487,10 @@ class DockerProvider(ReleaseProvider):
                 entity_picture_url=picture_url,
                 release_url=relnotes_url,
                 release_summary=release_summary,
-                current_version=local_version,
+                current_version=installed_version,
                 publish_policy=publish_policy,
                 update_policy=update_policy,
-                latest_version=latest_version if latest_version != NO_KNOWN_IMAGE else local_version,
+                latest_version=latest_version if latest_version != NO_KNOWN_IMAGE else installed_version,
                 device_icon=self.cfg.device_icon,
                 can_update=can_update,
                 update_type=update_type,
@@ -502,20 +512,6 @@ class DockerProvider(ReleaseProvider):
     # def version(self, c: Container, version_type: str):
     #    metadata_version: str = c.labels.get("org.opencontainers.image.version")
     #    metadata_revision: str = c.labels.get("org.opencontainers.image.revision")
-
-    def fetch_url(self, url: str, cache_ttl: int = 300) -> Response | None:
-        try:
-            with SyncCacheClient(headers=[("cache-control", f"max-age={cache_ttl}")]) as client:
-                log.debug(f"Fetching URL {url}, cache_ttl={cache_ttl}")
-                response: Response = client.get(url)
-            return response
-        except Exception as e:
-            log.debug("URL %s failed to fetch: %s", url, e)
-        return None
-
-    def validate_url(self, url: str, cache_ttl: int = 300) -> bool:
-        response = self.fetch_url(url, cache_ttl=cache_ttl)
-        return response is not None and response.is_success
 
     async def scan(self, session: str) -> AsyncGenerator[Discovery]:
         logger = self.log.bind(session=session, action="scan", source=self.source_type)
@@ -576,73 +572,8 @@ class DockerProvider(ReleaseProvider):
         return self.discoveries.get(discovery_name)
 
     def default_metadata(self, image_name: str | None, image_ref: str | None) -> PackageUpdateInfo:
-        def match(pkg: PackageUpdateInfo) -> bool:
-            if pkg is not None and pkg.docker is not None and pkg.docker.image_name is not None:
-                if image_name is not None and image_name == pkg.docker.image_name:
-                    return True
-                if image_ref is not None and image_ref == pkg.docker.image_name:
-                    return True
-            return False
-
-        if image_name is not None and image_ref is not None:
-            for pkg in self.common_pkg_cfg.values():
-                if match(pkg):
-                    self.log.debug(
-                        "Found common package",
-                        image_name=pkg.docker.image_name,  # type: ignore [union-attr]
-                        logo_url=pkg.logo_url,
-                        relnotes_url=pkg.release_notes_url,
-                    )
-                    return pkg
-            for pkg in self.discovered_pkgs.values():
-                if match(pkg):
-                    self.log.debug(
-                        "Found discovered package",
-                        pkg=pkg.docker.image_name,  # type: ignore [union-attr]
-                        logo_url=pkg.logo_url,
-                        relnotes_url=pkg.release_notes_url,
-                    )
-                    return pkg
-
-        self.log.debug("No common or discovered package found", image_name=image_name)
-        return PackageUpdateInfo(
-            DockerPackageUpdateInfo(image_name or NO_KNOWN_IMAGE),
-            logo_url=self.cfg.default_entity_picture_url,
-            release_notes_url=None,
-        )
-
-    def discover_metadata(self) -> dict[str, PackageUpdateInfo]:
-        pkgs: dict[str, PackageUpdateInfo] = {}
-        cfg = self.cfg.discover_metadata.get("linuxserver.io")
-        if cfg and cfg.enabled:
-            linuxserver_metadata(pkgs, cache_ttl=cfg.cache_ttl)
-        return pkgs
-
-
-def linuxserver_metadata_api(cache_ttl: int) -> dict:
-    """Fetch and cache linuxserver.io API call for image metadata"""
-    try:
-        with SyncCacheClient(headers=[("cache-control", f"max-age={cache_ttl}")]) as client:
-            log.debug(f"Fetching linuxserver.io metadata from API, cache_ttl={cache_ttl}")
-            req = client.get("https://api.linuxserver.io/api/v1/images?include_config=false&include_deprecated=false")
-            return req.json()
-    except Exception:
-        log.exception("Failed to fetch linuxserver.io metadata")
-        return {}
-
-
-def linuxserver_metadata(discovered_pkgs: dict[str, PackageUpdateInfo], cache_ttl: int) -> None:
-    """Fetch linuxserver.io metadata for all their images via their API"""
-    repos: list = linuxserver_metadata_api(cache_ttl).get("data", {}).get("repositories", {}).get("linuxserver", [])
-    added = 0
-    for repo in repos:
-        image_name = repo.get("name")
-        if image_name and image_name not in discovered_pkgs:
-            discovered_pkgs[image_name] = PackageUpdateInfo(
-                DockerPackageUpdateInfo(f"lscr.io/linuxserver/{image_name}"),
-                logo_url=repo["project_logo"],
-                release_notes_url=f"{repo['github_url']}/releases",
-            )
-            added += 1
-            log.debug("Added linuxserver.io package", pkg=image_name)
-    log.info(f"Added {added} linuxserver.io package details")
+        for enricher in self.pkg_enrichers:
+            pkg_info = enricher.enrich(image_name, image_ref, self.log)
+            if pkg_info is not None:
+                return pkg_info
+        raise ValueError("No enricher could provide metadata, not even default enricher")

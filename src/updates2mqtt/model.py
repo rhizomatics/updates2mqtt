@@ -4,13 +4,14 @@ import re
 import time
 from abc import abstractmethod
 from collections.abc import AsyncGenerator, Callable
+from enum import StrEnum
 from threading import Event
 from typing import Any
 
 import structlog
 from tzlocal import get_localzone
 
-from updates2mqtt.config import NodeConfig, PackageUpdateInfo, PublishPolicy, Selector, UpdatePolicy
+from updates2mqtt.config import NO_KNOWN_IMAGE, NodeConfig, PublishPolicy, Selector, UpdatePolicy
 
 
 def timestamp(time_value: float | None) -> str | None:
@@ -135,15 +136,16 @@ class Discovery:
 class ReleaseProvider:
     """Abstract base class for release providers, such as container scanners or package managers API calls"""
 
-    def __init__(
-        self, node_cfg: NodeConfig, source_type: str = "base", common_pkg_cfg: dict[str, PackageUpdateInfo] | None = None
-    ) -> None:
+    def __init__(self, node_cfg: NodeConfig, source_type: str = "base") -> None:
         self.source_type: str = source_type
         self.discoveries: dict[str, Discovery] = {}
         self.node_cfg: NodeConfig = node_cfg
-        self.common_pkg_cfg: dict[str, PackageUpdateInfo] = common_pkg_cfg or {}
         self.log: Any = structlog.get_logger().bind(integration=self.source_type)
         self.stopped = Event()
+
+    def initialize(self) -> None:
+        """Initialize any loops or background tasks, make any startup API calls"""
+        pass
 
     def stop(self) -> None:
         """Stop any loops or background tasks"""
@@ -165,10 +167,9 @@ class ReleaseProvider:
     @abstractmethod
     async def scan(self, session: str) -> AsyncGenerator[Discovery]:
         """Scan for components to monitor"""
-        raise NotImplementedError
         # force recognition as an async generator
-        if False:  # type: ignore[unreachable]
-            yield 0
+        if False:
+            yield 0  # type: ignore[unreachable]
 
     @abstractmethod
     def command(self, discovery_name: str, command: str, on_update_start: Callable, on_update_end: Callable) -> bool:
@@ -196,3 +197,28 @@ class Selection:
             if any(re.search(pat, value) for pat in selector.include):
                 self.matched = value
                 self.result = True
+
+
+class VersionPolicy(StrEnum):
+    AUTO = "AUTO"
+    VERSION = "VERSION"
+    DIGEST = "DIGEST"
+    VERSION_DIGEST = "VERSION_DIGEST"
+
+
+def select_version(version_policy: VersionPolicy, version: str | None, digest: str | None, default: str | None = None) -> str:
+    if version_policy == VersionPolicy.VERSION and version:
+        return version
+    if version_policy == VersionPolicy.DIGEST and digest:
+        return digest
+    if version_policy == VersionPolicy.VERSION_DIGEST and version and digest:
+        return f"{version} ({digest})"
+    # AUTO or fallback
+    if version and digest:
+        return f"{version}:({digest})"
+    if version:
+        return version
+    if digest:
+        return digest
+
+    return default or NO_KNOWN_IMAGE
