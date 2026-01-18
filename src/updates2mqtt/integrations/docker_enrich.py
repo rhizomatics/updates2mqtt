@@ -278,6 +278,7 @@ class LabelEnricher:
             )
             return None
         index = response.json()
+        log.debug("MANIFEST %s", index)
         for m in index.get("manifests", []):
             platform_info = m.get("platform", {})
             if platform_info.get("os") == os and platform_info.get("architecture") == arch:
