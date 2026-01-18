@@ -23,6 +23,7 @@ from updates2mqtt.config import (
     UpdatePolicy,
 )
 from updates2mqtt.integrations.docker_enrich import (
+    AuthError,
     CommonPackageEnricher,
     DefaultPackageEnricher,
     LabelEnricher,
@@ -344,7 +345,7 @@ class DockerProvider(ReleaseProvider):
                     try:
                         logger.debug("Fetching registry data", image_ref=image_ref)
                         reg_data = self.client.images.get_registry_data(image_ref)
-                        log.debug(
+                        logger.debug(
                             "Registry Data: id:%s,image:%s, attrs:%s",
                             reg_data.id,
                             reg_data.image_name,
@@ -373,7 +374,7 @@ class DockerProvider(ReleaseProvider):
             if local_versions:
                 # might be multiple RepoDigests if image has been pulled multiple times with diff manifests
                 installed_digest = latest_digest if latest_digest in local_versions else local_versions[0]
-                log.debug(f"Setting local digest to {installed_digest}, local_versions:{local_versions}")
+                logger.debug(f"Setting local digest to {installed_digest}, local_versions:{local_versions}")
 
             def save_if_set(key: str, val: str | None) -> None:
                 if val is not None:
@@ -400,7 +401,12 @@ class DockerProvider(ReleaseProvider):
 
             # save_if_set("apt_pkgs", c_env.get("UPD2MQTT_APT_PKGS"))
             os, arch = platform.split("/")[:2] if "/" in platform else (platform, "Unknown")
-            new_manifest = self.label_enricher.fetch_manifest(image_ref, os, arch)
+            try:
+                new_manifest = self.label_enricher.fetch_manifest(image_ref, os, arch)
+            except AuthError as e:
+                logger.warning("Authentication error prevented Docker Registry entichment: %s", e)
+                new_manifest = None
+
             if new_manifest:
                 annotations = new_manifest.get("annotations", {})
                 save_if_set("latest_image_created", annotations.get("opencontainers.image.created"))
@@ -435,7 +441,7 @@ class DockerProvider(ReleaseProvider):
                 can_build = custom.get("git_repo_path") is not None and custom.get("compose_path") is not None
                 if not can_build:
                     if custom.get("git_repo_path") is not None:
-                        log.debug(
+                        logger.debug(
                             "Local build ignored for git_repo_path=%s because no compose_path", custom.get("git_repo_path")
                         )
                 else:
@@ -449,7 +455,7 @@ class DockerProvider(ReleaseProvider):
                     if behind_count > 0:
                         if installed_digest is not None and installed_digest.startswith("git:"):
                             latest_digest = f"{installed_digest}+{behind_count}"
-                            log.info("Git update available, generating version %s", latest_digest)
+                            logger.info("Git update available, generating version %s", latest_digest)
                     else:
                         logger.debug(f"Git update not available, local repo:{full_repo_path}")
 
