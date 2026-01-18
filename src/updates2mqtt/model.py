@@ -23,6 +23,13 @@ def timestamp(time_value: float | None) -> str | None:
         return None
 
 
+class VersionPolicy(StrEnum):
+    AUTO = "AUTO"
+    VERSION = "VERSION"
+    DIGEST = "DIGEST"
+    VERSION_DIGEST = "VERSION_DIGEST"
+
+
 class Discovery:
     """Discovered component from a scan"""
 
@@ -42,6 +49,7 @@ class Discovery:
         publish_policy: PublishPolicy = PublishPolicy.HOMEASSISTANT,
         update_type: str | None = "Update",
         update_policy: UpdatePolicy = UpdatePolicy.PASSIVE,
+        version_policy: VersionPolicy = VersionPolicy.AUTO,
         release_url: str | None = None,
         release_summary: str | None = None,
         title_template: str = "{discovery.update_type} for {discovery.name} on {discovery.node}",
@@ -70,6 +78,7 @@ class Discovery:
         self.status: str = status
         self.publish_policy: PublishPolicy = publish_policy
         self.update_policy: UpdatePolicy = update_policy
+        self.version_policy: VersionPolicy = version_policy
         self.update_last_attempt: float | None = None
         self.custom: dict[str, Any] = custom or {}
         self.features: list[str] = features or []
@@ -128,6 +137,7 @@ class Discovery:
             "features": self.features,
             "update_policy": self.update_policy,
             "publish_policy": self.publish_policy,
+            "version_policy": self.version_policy,
             "update": {"last_attempt": timestamp(self.update_last_attempt), "in_progress": False},
             self.source_type: self.custom,
         }
@@ -199,26 +209,19 @@ class Selection:
                 self.result = True
 
 
-class VersionPolicy(StrEnum):
-    AUTO = "AUTO"
-    VERSION = "VERSION"
-    DIGEST = "DIGEST"
-    VERSION_DIGEST = "VERSION_DIGEST"
-
-
 def select_version(version_policy: VersionPolicy, version: str | None, digest: str | None, default: str | None = None) -> str:
     if version_policy == VersionPolicy.VERSION and version:
         return version
-    if version_policy == VersionPolicy.DIGEST and digest:
+    if version_policy == VersionPolicy.DIGEST and digest and digest != NO_KNOWN_IMAGE:
         return digest
-    if version_policy == VersionPolicy.VERSION_DIGEST and version and digest:
+    if version_policy == VersionPolicy.VERSION_DIGEST and version and digest and digest != NO_KNOWN_IMAGE:
         return f"{version} ({digest})"
     # AUTO or fallback
-    if version and digest:
+    if version and digest and digest != NO_KNOWN_IMAGE:
         return f"{version}:({digest})"
     if version:
         return version
-    if digest:
+    if digest and digest != NO_KNOWN_IMAGE:
         return digest
 
     return default or NO_KNOWN_IMAGE

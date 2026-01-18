@@ -497,6 +497,7 @@ class DockerProvider(ReleaseProvider):
                 current_version=installed_version,
                 publish_policy=publish_policy,
                 update_policy=update_policy,
+                version_policy=version_policy,
                 latest_version=latest_version if latest_version != NO_KNOWN_IMAGE else installed_version,
                 device_icon=self.cfg.device_icon,
                 can_update=can_update,
