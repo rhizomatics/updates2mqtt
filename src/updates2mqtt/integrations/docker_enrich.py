@@ -194,23 +194,32 @@ REGISTRIES = {
 }
 
 
+def httpx_json_content(response: Response, default: Any = None) -> Any | None:
+    if response and response.headers.get("content-type") == "application/json":
+        try:
+            return response.json()
+        except Exception:
+            log.debug("Failed to parse JSON response: %s", response.text)
+    return default
+
+
 class LabelEnricher:
     def fetch_token(self, auth_host: str, service: str, image_name: str) -> str | None:
         auth_url: str = f"https://{auth_host}/token?scope=repository:{image_name}:pull&service={service}"
         response: Response | None = fetch_url(auth_url, cache_ttl=30)
-        if response and response.is_success and response.headers.get("content-type") == "application/json":
-            try:
-                token_data = response.json()
-                return token_data.get("token")
-            except Exception as e:
-                log.debug("Failed to parse token response for image_ref %s:%s", image_name, response.text)
-                raise AuthError(f"Failed to parse token response for {image_name}") from e
-        else:
-            log.debug(
-                "Non-success response fetching token for image_ref %s: %s",
-                image_name,
-                (response and response.status_code) or None,
-            )
+        if response and response.is_success:
+            api_data = httpx_json_content(response, {})
+            token: str | None = api_data.get("token") if api_data else None
+            if token:
+                return token
+            log.warning("No token found in response for image %s", image_name)
+            raise AuthError(f"No token found in response for {image_name}")
+
+        log.debug(
+            "Non-success response fetching token for image_ref %s: %s",
+            image_name,
+            (response and response.status_code) or None,
+        )
         if response and response.status_code == 404:
             response = fetch_url(f"https://{auth_host}/v2/")
         if response and response.status_code == 401:
@@ -256,9 +265,16 @@ class LabelEnricher:
             bearer_token=token,
             response_type="application/vnd.oci.image.index.v1+json",
         )
-        if response is None or not response.is_success:
-            errors = (response and response.content and response.json()["errors"]) or []
-            log.debug("Failed to fetch manifest for image_ref %s: %s", image_ref, errors)
+        if response is None:
+            log.debug("Empty response for manifest for image %s", image_ref)
+            return None
+        if not response.is_success:
+            api_data = httpx_json_content(response, {})
+            log.debug(
+                "Failed to fetch manifest for image_ref %s: %s",
+                image_ref,
+                api_data.get("errors") if api_data else response.text,
+            )
             return None
         index = response.json()
         for m in index.get("manifests", []):
