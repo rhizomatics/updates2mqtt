@@ -290,8 +290,11 @@ class LabelEnricher:
             response = fetch_url(auth_url)
             if response and response.is_success:
                 token_data = response.json()
-                logger.debug("Fetched registry token")
+                logger.debug("Fetched registry token from %s", auth_url)
                 return token_data.get("token")
+            logger.debug(
+                "Alternative auth %s with status %s has no token", auth_url, (response and response.status_code) or None
+            )
 
         logger.debug("Failed to fetch registry token")
         raise AuthError(f"Failed to fetch token for {image_name} at {auth_url}")
