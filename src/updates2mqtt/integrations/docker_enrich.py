@@ -22,9 +22,11 @@ SOURCE_PLATFORM_GITHUB = "GitHub"
 SOURCE_PLATFORM_CODEBERG = "CodeBerg"
 SOURCE_PLATFORMS = {SOURCE_PLATFORM_GITHUB: r"https://github.com/.*"}
 DIFF_URL_TEMPLATES = {
-    SOURCE_PLATFORM_GITHUB: "{source}/commit/{revision}",
+    SOURCE_PLATFORM_GITHUB: "{repo}/commit/{revision}",
 }
-RELEASE_URL_TEMPLATES = {SOURCE_PLATFORM_GITHUB: "{source}/releases/tag/{version}"}
+RELEASE_URL_TEMPLATES = {SOURCE_PLATFORM_GITHUB: "{repo}/releases/tag/{version}"}
+UNKNOWN_RELEASE_URL_TEMPLATES = {SOURCE_PLATFORM_GITHUB: "{repo}/releases"}
+MISSING_VAL = "**MISSING**"
 
 
 def id_source_platform(source: str | None) -> str | None:
@@ -89,10 +91,6 @@ class CommonPackageEnricher(PackageEnricher):
         except (MissingMandatoryValue, ValidationError) as e:
             log.error("Configuration error %s", e, path=PKG_INFO_FILE.as_posix())
             raise
-        for pkg in self.pkgs.values():
-            # TODO: with proper model for source repo platform
-            if pkg.source_platform is None and pkg.release_notes_url is not None:
-                pkg.source_platform = id_source_platform(pkg.release_notes_url)
 
 
 class LinuxServerIOPackageEnricher(PackageEnricher):
@@ -152,43 +150,72 @@ def fetch_url(
 
 def validate_url(url: str, cache_ttl: int = 300) -> bool:
     response: Response | None = fetch_url(url, cache_ttl=cache_ttl)
-    return response is not None and response.is_success
+    return response is not None and response.status_code != 404
 
 
 class SourceReleaseEnricher:
     def __init__(self) -> None:
         self.log: Any = structlog.get_logger().bind(integration="docker")
 
-    def enrich(self, annotations: dict[str, str], source_platform: str | None = None) -> dict[str, str]:
+    def record(self, results: dict[str, str], k: str, v: str | None) -> None:
+        if v is not None:
+            results[k] = v
+
+    def enrich(
+        self, annotations: dict[str, str], source_repo_url: str | None = None, release_url: str | None = None
+    ) -> dict[str, str]:
         results: dict[str, str] = {}
-        image_version: str | None = annotations.get("org.opencontainers.image.version")
-        image_digest: str | None = annotations.get("org.opencontainers.image.revision")
-        source = annotations.get("org.opencontainers.image.source")
-        source_platform = source_platform or id_source_platform(source)
+
+        self.record(results, "latest_image_created", annotations.get("org.opencontainers.image.created"))
+        self.record(results, "documentation_url", annotations.get("org.opencontainers.image.documentation"))
+        self.record(results, "description", annotations.get("org.opencontainers.image.description"))
+        self.record(results, "vendor", annotations.get("org.opencontainers.image.vendor"))
+
+        release_version: str | None = annotations.get("org.opencontainers.image.version")
+        self.record(results, "latest_image_version", release_version)
+        release_revision: str | None = annotations.get("org.opencontainers.image.revision")
+        self.record(results, "latest_release_revision", release_revision)
+        release_source = annotations.get("org.opencontainers.image.source", source_repo_url)
+        self.record(results, "source", release_source)
+
+        release_source_simple: str | None = release_source
+        if release_source and "#" in release_source:
+            release_source_simple = release_source.split("#", 1)[0]
+
+        source_platform = id_source_platform(release_source)
         if not source_platform:
-            self.log.debug("No known source platform found on container", source=source)
+            self.log.debug("No known source platform found on container", source=release_source)
             return results
+        if not source_platform:
+            return results
+
         results["source_platform"] = source_platform
 
-        if source:
-            template_vars: dict[str, str | None] = {
-                "source": source,
-                "version": image_version,
-                "revision": image_digest,
-            }
-            diff_url = DIFF_URL_TEMPLATES[source_platform].format(**template_vars)
-            if validate_url(diff_url):
-                results["diff_url"] = diff_url
+        template_vars: dict[str, str | None] = {
+            "version": release_version or MISSING_VAL,
+            "revision": release_revision or MISSING_VAL,
+            "repo": release_source_simple or MISSING_VAL,
+            "source": release_source or MISSING_VAL,
+        }
 
+        diff_url = DIFF_URL_TEMPLATES[source_platform].format(**template_vars)
+        if MISSING_VAL not in diff_url and validate_url(diff_url):
+            results["diff_url"] = diff_url
+
+        if release_url is None:
             release_url = RELEASE_URL_TEMPLATES[source_platform].format(**template_vars)
 
-            if validate_url(release_url):
-                results["release_url"] = release_url
+            if MISSING_VAL in release_url or not validate_url(release_url):
+                release_url = UNKNOWN_RELEASE_URL_TEMPLATES[source_platform].format(**template_vars)
+                if MISSING_VAL in release_url or not validate_url(release_url):
+                    release_url = None
 
-        if source_platform == SOURCE_PLATFORM_GITHUB and source:
-            base_api = source.replace("https://github.com", "https://api.github.com/repos")
+        self.record(results, "release_url", release_url)
 
-            api_response: Response | None = fetch_url(f"{base_api}/releases/tags/{image_version}")
+        if source_platform == SOURCE_PLATFORM_GITHUB and release_source:
+            base_api = release_source.replace("https://github.com", "https://api.github.com/repos")
+
+            api_response: Response | None = fetch_url(f"{base_api}/releases/tags/{release_version}")
             if api_response and api_response.is_success:
                 api_results: Any = httpx_json_content(api_response, {})
                 results["release_summary"] = api_results.get("body")  # ty:ignore[possibly-missing-attribute]
@@ -198,7 +225,7 @@ class SourceReleaseEnricher:
             else:
                 self.log.debug(
                     "Failed to fetch GitHub release info",
-                    url=f"{base_api}/releases/tags/{image_version}",
+                    url=f"{base_api}/releases/tags/{release_version}",
                     status_code=(api_response and api_response.status_code) or None,
                 )
         return results

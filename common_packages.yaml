@@ -9,43 +9,43 @@ common_packages:
     docker:
       image_name: ghcr.io/rhizomatics/anpr2mqtt
     logo_url: https://avatars.githubusercontent.com/u/162821163?s=48&v=4
-    release_notes_url: https://github.com/rhizomatics/anpr2mqtt/releases
+    source_repo_url: https://github.com/rhizomatics/anpr2mqtt
 
   frigate:
     docker:
       image_name: ghcr.io/blakeblackshear/frigate
     logo_url: https://frigate.video/images/logo.svg
-    release_notes_url: https://github.com/blakeblackshear/frigate/releases
+    source_repo_url: https://github.com/blakeblackshear/frigate
 
   librenms:
     docker:
       image_name: librenms/librenms
     logo_url: https://www.librenms.org/images/LibreNMS-Logo.svg
-    release_notes_url: https://github.com/librenms/docker/releases
+    source_repo_url: https://github.com/librenms/docker
 
   unifi-jacobalberty:
     docker:
       image_name: jacobalberty/unifi
     logo_url: https://pbs.twimg.com/profile_images/1610157462321254402/tMCv8T-y_400x400.png
-    release_notes_url: https://github.com/jacobalberty/unifi-docker/releases
+    source_repo_url: https://github.com/jacobalberty/unifi-docker
 
   caddy:
     docker:
       image_name: caddy
     logo_url: https://avatars.githubusercontent.com/u/12955528?s=48&v=4
-    release_notes_url: https://github.com/caddyserver/caddy/releases
+    source_repo_url: https://github.com/caddyserver/caddy
 
   uptime-kuma:
     docker:
       image_name: louislam/uptime-kuma
     logo_url: https://raw.githubusercontent.com/louislam/uptime-kuma/0d846be10e4334bc5ac565c9dd9a95eec545fa3c/public/icon.svg
-    release_notes_url: https://github.com/louislam/uptime-kuma/releases
+    source_repo_url: https://github.com/louislam/uptime-kuma
 
   gitea:
     docker:
       image_name: gitea/gitea
     logo_url: https://raw.githubusercontent.com/go-gitea/gitea/47b878858ada27fc4c74eeadcc1e467d2da90e04/assets/logo.svg
-    release_notes_url: https://github.com/go-gitea/gitea/releases
+    source_repo_url: https://github.com/go-gitea/gitea
 
   forejo:
     docker:
@@ -57,13 +57,13 @@ common_packages:
     docker:
       image_name: ghcr.io/pocket-id/pocket-id
     logo_url: https://avatars.githubusercontent.com/u/197418917?s=48&v=4
-    release_notes_url: https://github.com/pocket-id/pocket-id/releases
+    source_repo_url: https://github.com/pocket-id/pocket-id
 
   portainer:
     docker:
       image_name: portainer/portainer-ce
     logo_url: https://raw.githubusercontent.com/portainer/portainer/develop/build/docker-extension/portainer.svg
-    release_notes_url: https://github.com/portainer/portainer/releases
+    source_repo_url: https://github.com/portainer/portainer
 
   graylog:
     docker:
@@ -75,49 +75,49 @@ common_packages:
     docker:
       image_name: influxdb
     logo_url: https://raw.githubusercontent.com/gilbarbara/logos/refs/heads/main/logos/influxdb.svg
-    release_notes_url: https://github.com/influxdata/influxdb/releases
+    source_repo_url: https://github.com/influxdata/influxdb
 
   immich-server:
     docker:
       image_name: ghcr.io/immich-app/immich-server
     logo_url: https://raw.githubusercontent.com/immich-app/immich/6474a78b8be31cf6a3c2fabf2f3177ffd40624e1/design/immich-logo.svg
-    release_notes_url: https://github.com/immich-app/immich/releases
+    source_repo_url: https://github.com/immich-app/immich
   
   immich-machine-learning:
     docker:
       image_name: ghcr.io/immich-app/immich-machine-learning
     logo_url: https://raw.githubusercontent.com/immich-app/immich/6474a78b8be31cf6a3c2fabf2f3177ffd40624e1/design/immich-logo.svg
-    release_notes_url: https://github.com/immich-app/immich/releases
+    source_repo_url: https://github.com/immich-app/immich
 
   jellyfin:
     docker:
       image_name: jellyfin/jellyfin
     logo_url: https://avatars.githubusercontent.com/u/45698031?s=48&v=4
-    release_notes_url: https://github.com/jellyfin/jellyfin/releases
+    source_repo_url: https://github.com/jellyfin/jellyfin
 
   owntone:
     docker:
       image_name: owntone/owntone
     logo_url: https://raw.githubusercontent.com/owntone/owntone-server/443fb684871e005a7e442a08cc4d610208abbe6c/docs/assets/logo.svg
-    release_notes_url: https://github.com/owntone/owntone-server/releases
+    source_repo_url: https://github.com/owntone/owntone-server
 
   homarr:
     docker:
       image_name: ghcr.io/homarr-labs/homarr
     logo_url: https://github.com/homarr-labs/homarr/blob/dev/docs/img/logo/2340450-2-title.png?raw=true
-    release_notes_url: https://github.com/homarr-labs/homarr/releases
+    source_repo_url: https://github.com/homarr-labs/homarr
 
   nextcloud:
     docker:
       image_name: nextcloud
     logo_url: https://avatars.githubusercontent.com/u/19211038?s=48&v=4
-    release_notes_url: https://github.com/nextcloud/docker/releases
+    source_repo_url: https://github.com/nextcloud/docker
 
   n8n:
     docker:
       image_name: docker.n8n.io/n8nio/n8n
     logo_url: https://avatars.githubusercontent.com/u/45487711?s=48&v=4
-    release_notes_url: https://github.com/n8n-io/n8n/releases
+    source_repo_url: https://github.com/n8n-io/n8n
 
   docker_cli:
     docker:
@@ -128,4 +128,4 @@ common_packages:
   rtl_433:
     docker: 
       image_name: hertzg/rtl_433
-    release_notes_url: https://github.com/merbanan/rtl_433/releases
+    source_repo_url: https://github.com/merbanan/rtl_433
