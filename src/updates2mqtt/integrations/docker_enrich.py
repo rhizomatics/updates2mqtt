@@ -266,7 +266,7 @@ class LabelEnricher:
             token: str | None = api_data.get("token") if api_data else None
             if token:
                 return token
-            logger.warning("No token found in response")
+            logger.warning("No token found in response for %s", auth_url)
             raise AuthError(f"No token found in response for {image_name}")
 
         logger.debug(
@@ -278,11 +278,11 @@ class LabelEnricher:
         if response and response.status_code == 401:
             auth = response.headers.get("www-authenticate")
             if not auth:
-                logger.debug("No www-authenticate header found in 401 response")
+                logger.warning("No www-authenticate header found in 401 response for %s", auth_url)
                 raise AuthError(f"No www-authenticate header found on 401 for {image_name}")
             match = re.search(r'realm="([^"]+)",service="([^"]+)",scope="([^"]+)"', auth)
             if not match:
-                logger.debug("No realm/service/scope found in www-authenticate header")
+                logger.warning("No realm/service/scope found in www-authenticate header for %s", auth_url)
                 raise AuthError(f"No realm/service/scope found on 401 headers for {image_name}")
 
             realm, service, scope = match.groups()
@@ -294,7 +294,7 @@ class LabelEnricher:
                 return token_data.get("token")
 
         logger.debug("Failed to fetch registry token")
-        raise AuthError(f"Failed to fetch token for {image_name}")
+        raise AuthError(f"Failed to fetch token for {image_name} at {auth_url}")
 
     def fetch_annotations(
         self,
