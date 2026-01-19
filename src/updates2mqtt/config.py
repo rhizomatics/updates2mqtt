@@ -76,6 +76,7 @@ class DockerConfig:
     )
     default_api_backoff: int = 60 * 15
     image_ref_select: Selector = field(default_factory=lambda: Selector())
+    version_select: Selector = field(default_factory=lambda: Selector())
 
 
 @dataclass

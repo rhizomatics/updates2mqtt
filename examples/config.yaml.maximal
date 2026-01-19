@@ -42,4 +42,9 @@ docker:
     exclude:
     - .*dev
     - .*nightly
+  version_select:
+     exclude: 
+     - .*-beta.*
+     include:
+     -  1\..*
 scan_interval: 10800

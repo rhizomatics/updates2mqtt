@@ -64,6 +64,7 @@ docker:
   compose_version: v2 # Controls whether to use `docker-compose` (v1) or `docker compose` (v2) command
   default_entity_picture_url: https://www.docker.com/wp-content/uploads/2022/03/Moby-logo.png # Picture for update dialog
   device_icon: mdi:docker # Material Design Icon to use when browsing entities in Home Assistant
+  default_api_backoff: 600 # Default time to back off container registry APIs
   # device_icon: mdi:train-car-container # Alternative icon if you don't like Docker branding
   discover_metadata:
     linuxserver.io:
@@ -75,6 +76,11 @@ docker:
     exclude:
     - .*dev
     - .*nightly
+  version_select:  # limit the containers which will be published to Home Assistant
+     exclude:
+     -  .*-beta.*
+     include: 
+     - 1\..*
 scan_interval: 10800 # sleep interval between scan runs, in seconds
 log:
   level: INFO

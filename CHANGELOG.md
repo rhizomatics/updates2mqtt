@@ -22,7 +22,8 @@ Github source repo releases and passed onto Home Assistant
 ### Local Docker Image Enrichment
 - Metadata from local `org.opencontainers` labels published where available
 - Added more packages to common-packages, vector and greptime
-
+### Selective Home Assistant Discovery
+- New `version_select` option in Docker config works like `image_ref_select` but on the reported version instead
 
 ## 1.6.0
 ### MQTT Topics

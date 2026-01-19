@@ -121,6 +121,8 @@ The following environment variables can be used to configure containers for `upd
 | `UPD2MQTT_GIT_REPO_PATH`   | Relative path to a local git repo if the image is built locally.                             |                 |
 | `UPD2MQTT_IGNORE`          | If set to `True`, the container will be ignored by Updates2MQTT.                             | False           |
                         |                 |
+| `UPD2MQTT_VERSION_POLICY` | Change how version derived from container label or image hash, `Version`,`Digest`,`Version_Digest` with default of `Auto`|
+| `UPD2MQTT_REGISTRY_TOKEN` | Access token for authentication to container distribution API, as alternative to making a call to `token` service |
 
 ### Docker Labels
 
@@ -133,6 +135,9 @@ Alternatively, use Docker labels
 | `updates2mqtt.relnotes`        | `UPD2MQTT_RELNOTES`        |
 | `updates2mqtt.git_repo_path`   | `UPD2MQTT_GIT_REPO_PATH`   |
 | `updates2mqtt.ignore`          | `UPD2MQTT_IGNORE`          |
+| `updates2mqtt.version_policy`  | `UPD2MQTT_VERSION_POLICY` |
+| `updates2mqtt.registry_token`  | `UPD2MQTT_REGISTRY_TOKEN` |
+
 
 
 ```yaml title="Example Compose Snippet"

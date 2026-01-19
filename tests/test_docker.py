@@ -8,7 +8,7 @@ from pytest_subprocess import FakeProcess
 
 import updates2mqtt.integrations.docker as mut
 from conftest import build_mock_container
-from updates2mqtt.config import DockerPackageUpdateInfo
+from updates2mqtt.config import DockerPackageUpdateInfo, UpdatePolicy
 from updates2mqtt.integrations.docker import ContainerCustomization, DockerComposeCommand
 from updates2mqtt.model import Discovery
 
@@ -60,7 +60,7 @@ def test_build(mock_docker_client: DockerClient, fake_process: FakeProcess, tmpd
 
 def test_container_customization_default() -> None:
     uut = ContainerCustomization(Container())
-    assert uut.update == "PASSIVE"
+    assert uut.update == UpdatePolicy.PASSIVE
     assert uut.git_repo_path is None
     assert uut.picture is None
     assert uut.relnotes is None
@@ -71,7 +71,7 @@ def test_container_customization_by_label() -> None:
     uut = ContainerCustomization(
         Container(attrs={"Config": {"Labels": {"updates2mqtt.ignore": "true", "updates2mqtt.update": "auto"}}})
     )
-    assert uut.update == "AUTO"
+    assert uut.update == UpdatePolicy.AUTO
     assert uut.git_repo_path is None
     assert uut.picture is None
     assert uut.relnotes is None
@@ -80,7 +80,7 @@ def test_container_customization_by_label() -> None:
 
 def test_container_customization_by_env_var() -> None:
     uut = ContainerCustomization(Container(attrs={"Config": {"Env": {"UPD2MQTT_UPDATE=auto", "UPD2MQTT_IGNORE=true"}}}))
-    assert uut.update == "AUTO"
+    assert uut.update == UpdatePolicy.AUTO
     assert uut.git_repo_path is None
     assert uut.picture is None
     assert uut.relnotes is None
@@ -102,7 +102,7 @@ def test_container_customization_label_precedence() -> None:
             }
         )
     )
-    assert uut.update == "AUTO"
+    assert uut.update == UpdatePolicy.AUTO
     assert uut.git_repo_path == "./build"
     assert uut.picture is None
     assert uut.relnotes == "https://release.me"

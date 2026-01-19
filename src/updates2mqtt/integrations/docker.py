@@ -59,7 +59,7 @@ class ContainerCustomization:
     env_prefix: str = "UPD2MQTT_"
 
     def __init__(self, container: Container) -> None:
-        self.update: str = "PASSIVE"
+        self.update: UpdatePolicy = UpdatePolicy.PASSIVE  # was known as UPD2MQTT_UPDATE before policies and labels
         self.git_repo_path: str | None = None
         self.picture: str | None = None
         self.relnotes: str | None = None
@@ -108,10 +108,10 @@ class ContainerCustomization:
                         setattr(self, attr, v.upper() in ("TRUE", "YES", "1"))
                     elif isinstance(getattr(self, attr), VersionPolicy):
                         setattr(self, attr, VersionPolicy[v.upper()])
+                    elif isinstance(getattr(self, attr), UpdatePolicy):
+                        setattr(self, attr, UpdatePolicy[v.upper()])
                     else:
                         setattr(self, attr, v)
-
-        self.update = self.update.upper()
 
 
 class DockerProvider(ReleaseProvider):
@@ -304,15 +304,11 @@ class DockerProvider(ReleaseProvider):
                     logger.warn("Cannot determine local version: %s", e)
                     logger.warn("RepoDigests=%s", image.attrs.get("RepoDigests"))
 
-        selection = Selection(self.cfg.image_ref_select, image_ref)
-        publish_policy: PublishPolicy = PublishPolicy.MQTT if not selection.result else PublishPolicy.HOMEASSISTANT
         version_policy: VersionPolicy = VersionPolicy.AUTO if not customization.version_policy else customization.version_policy
 
-        if customization.update == "AUTO":
+        if customization.update == UpdatePolicy.AUTO:
             logger.debug("Auto update policy detected")
-            update_policy: UpdatePolicy = UpdatePolicy.AUTO
-        else:
-            update_policy = UpdatePolicy.PASSIVE
+        update_policy: UpdatePolicy = customization.update or UpdatePolicy.PASSIVE
 
         platform: str = "Unknown"
         pkg_info: PackageUpdateInfo = self.default_metadata(image_name, image_ref=image_ref)
@@ -514,6 +510,13 @@ class DockerProvider(ReleaseProvider):
                     other_version=installed_version,
                     other_digest=installed_digest,
                 )
+
+            publish_policy: PublishPolicy = PublishPolicy.HOMEASSISTANT
+            img_ref_selection = Selection(self.cfg.image_ref_select, image_ref)
+            version_selection = Selection(self.cfg.version_select, latest_version)
+            if not img_ref_selection or not version_selection:
+                self.log.info("Excluding from HA Discovery for include/exclude rule: %s, %s", image_ref, latest_version)
+                publish_policy = PublishPolicy.MQTT
 
             discovery: Discovery = Discovery(
                 self,

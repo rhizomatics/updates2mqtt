@@ -135,9 +135,9 @@ class Discovery:
             "update_type": self.update_type,
             "status": self.status,
             "features": self.features,
-            "update_policy": self.update_policy,
-            "publish_policy": self.publish_policy,
-            "version_policy": self.version_policy,
+            "update_policy": str(self.update_policy),
+            "publish_policy": str(self.publish_policy),
+            "version_policy": str(self.version_policy),
             "update": {"last_attempt": timestamp(self.update_last_attempt), "in_progress": False},
             self.source_type: self.custom,
         }
