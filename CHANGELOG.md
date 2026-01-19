@@ -23,6 +23,7 @@ Github source repo releases and passed onto Home Assistant
 - Metadata from local `org.opencontainers` labels published where available
 - Added more packages to common-packages, vector and greptime
 
+
 ## 1.6.0
 ### MQTT Topics
 - Separated out generic and Home Assistant specific topics
