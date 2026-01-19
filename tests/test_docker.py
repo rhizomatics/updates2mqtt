@@ -438,8 +438,7 @@ def test_analyze_throttles_on_429_error(mock_docker_client: DockerClient) -> Non
         result = uut.analyze(container, "test-session")
 
         assert result is None
-        assert uut.pause_api_until is not None
-        # assert uut.pause_api_until > time.time()
+        assert uut.pause_api_until["docker.io"] > time.time() - 180
 
 
 def test_analyze_skips_during_throttle_period(mock_docker_client: DockerClient) -> None:

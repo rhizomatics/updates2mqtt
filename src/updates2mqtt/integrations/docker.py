@@ -265,6 +265,11 @@ class DockerProvider(ReleaseProvider):
                 return True
         return False
 
+    def throttle(self, repo_id: str, retry_secs: int, explanation: str | None = None) -> None:
+        retry_secs = self.api_throttle_pause if retry_secs <= 0 else retry_secs
+        self.log.warn("%s throttling requests for %s seconds, %s", repo_id, retry_secs, explanation)
+        self.pause_api_until[repo_id] = time.time() + retry_secs
+
     def analyze(self, c: Container, session: str, previous_discovery: Discovery | None = None) -> Discovery | None:
         logger = self.log.bind(container=c.name, action="analyze")
 
@@ -354,11 +359,10 @@ class DockerProvider(ReleaseProvider):
                         if e.status_code == HTTPStatus.TOO_MANY_REQUESTS:
                             retry_secs: int
                             try:
-                                retry_secs = int(e.response.headers.get("Retry-After", self.api_throttle_pause))  # type: ignore[union-attr]
+                                retry_secs = int(e.response.headers.get("Retry-After", -1))  # type: ignore[union-attr]
                             except:  # noqa: E722
                                 retry_secs = self.api_throttle_pause
-                            logger.warn("Docker Registry throttling requests for %s seconds, %s", retry_secs, e.explanation)
-                            self.pause_api_until[repo_id] = time.time() + retries_left
+                            self.throttle(repo_id, retry_secs, e.explanation)
                             registry_throttled = True
                             return None
                         retries_left -= 1
