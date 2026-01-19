@@ -254,7 +254,7 @@ class LabelEnricher:
         os: str,
         arch: str,
         token: str | None = None,
-        mutable_cache_ttl: int = 300,
+        mutable_cache_ttl: int = 600,
         immutable_cache_ttl: int = 86400,
     ) -> dict[str, str]:
         logger = self.log.bind(image_ref=image_ref, action="enrich_registry")

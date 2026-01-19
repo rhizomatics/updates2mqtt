@@ -218,7 +218,7 @@ def select_version(version_policy: VersionPolicy, version: str | None, digest: s
         return f"{version} ({digest})"
     # AUTO or fallback
     if version and digest and digest != NO_KNOWN_IMAGE:
-        return f"{version}:({digest})"
+        return f"{version}:{digest}"
     if version:
         return version
     if digest and digest != NO_KNOWN_IMAGE:
