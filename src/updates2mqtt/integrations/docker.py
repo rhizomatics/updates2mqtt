@@ -405,6 +405,7 @@ class DockerProvider(ReleaseProvider):
                 logger.debug("No annotations found on local container")
                 # save_if_set("apt_pkgs", c_env.get("UPD2MQTT_APT_PKGS"))
 
+            annotations: dict[str, str] = {}
             if latest_digest is None or latest_digest == NO_KNOWN_IMAGE or registry_throttled:
                 logger.debug(
                     "Skipping image manifest enrichment",
@@ -416,25 +417,23 @@ class DockerProvider(ReleaseProvider):
             else:
                 os, arch = platform.split("/")[:2] if "/" in platform else (platform, "Unknown")
                 try:
-                    annotations: dict[str, str] = self.label_enricher.fetch_annotations(
-                        image_ref, os, arch, token=customization.registry_token
-                    )
+                    annotations = self.label_enricher.fetch_annotations(image_ref, os, arch, token=customization.registry_token)
                 except AuthError as e:
-                    logger.warning("Authentication error prevented Docker Registry entichment: %s", e)
-                    annotations = {}
+                    logger.warning("Authentication error prevented Docker Registry enrichment: %s", e)
 
                 if annotations:
                     latest_version = annotations.get("org.opencontainers.image.version")
-                    release_info: dict[str, str] = self.release_enricher.enrich(
-                        annotations, source_repo_url=pkg_info.source_repo_url, release_url=relnotes_url
-                    )
-                    logger.debug("Enriched release info: %s", release_info)
 
-                    if release_info.get("release_url") and customization.relnotes is None:
-                        relnotes_url = release_info.pop("release_url")
-                    if release_info.get("release_summary"):
-                        release_summary = release_info.pop("release_summary")
-                    custom.update(release_info)
+            release_info: dict[str, str] = self.release_enricher.enrich(
+                annotations, source_repo_url=pkg_info.source_repo_url, release_url=relnotes_url
+            )
+            logger.debug("Enriched release info: %s", release_info)
+
+            if release_info.get("release_url") and customization.relnotes is None:
+                relnotes_url = release_info.pop("release_url")
+            if release_info.get("release_summary"):
+                release_summary = release_info.pop("release_summary")
+            custom.update(release_info)
 
             if custom.get("git_repo_path") and custom.get("compose_path"):
                 full_repo_path: Path = Path(cast("str", custom.get("compose_path"))).joinpath(
