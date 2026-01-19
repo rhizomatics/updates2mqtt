@@ -297,8 +297,9 @@ class LabelEnricher:
             logger.warning(
                 "Alternative auth %s with status %s has no token", auth_url, (response and response.status_code) or None
             )
+        elif response:
+            logger.warning("Auth %s failed with status %", auth_url, (response and response.status_code) or None)
 
-        logger.debug("Failed to fetch registry token")
         raise AuthError(f"Failed to fetch token for {image_name} at {auth_url}")
 
     def fetch_annotations(
