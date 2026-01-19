@@ -195,7 +195,7 @@ REGISTRIES = {
 
 
 def httpx_json_content(response: Response, default: Any = None) -> Any | None:
-    if response and response.headers.get("content-type") == "application/json":
+    if response and "json" in response.headers.get("content-type"):
         try:
             return response.json()
         except Exception:
@@ -302,7 +302,7 @@ class LabelEnricher:
                     response_type=media_type,
                 )
                 if response and response.is_success:
-                    api_data = httpx_json_content(response, {})
+                    api_data = httpx_json_content(response, None)
                     if api_data:
                         log.debug(
                             "%s MANIFEST %s layers, %s annotations",
