@@ -2,7 +2,13 @@ import pytest
 from pytest_httpx import HTTPXMock
 
 from updates2mqtt.config import DockerConfig
-from updates2mqtt.integrations.docker_enrich import CommonPackageEnricher, LabelEnricher, LinuxServerIOPackageEnricher
+from updates2mqtt.integrations.docker_enrich import (
+    SOURCE_PLATFORM_GITHUB,
+    CommonPackageEnricher,
+    LabelEnricher,
+    LinuxServerIOPackageEnricher,
+    id_source_platform,
+)
 
 
 def test_common_enricher() -> None:
@@ -10,12 +16,17 @@ def test_common_enricher() -> None:
     uut.initialize()
 
     assert len(uut.pkgs) > 0
+    source_repos = 0
     for pkg_name, pkg in uut.pkgs.items():
         assert pkg_name
         assert pkg.docker is not None
         assert pkg.docker.image_name
         assert pkg.logo_url or pkg.logo_url is None
         assert pkg.release_notes_url or pkg.release_notes_url is None
+        assert pkg.source_repo_url or pkg.source_repo_url is None
+        if pkg.source_repo_url:
+            source_repos += 1
+    assert source_repos > 0
 
 
 @pytest.mark.httpx_mock(assert_all_requests_were_expected=False)
@@ -65,3 +76,8 @@ def test_label_enricher_vanilla_docker() -> None:
     uut = LabelEnricher()
     annotations = uut.fetch_annotations("jellyfin/jellyfin", "linux", "amd64")
     assert annotations is not None
+
+
+def test_id_source_platform() -> None:
+    assert id_source_platform("https://my.home.server/repo.git") is None
+    assert id_source_platform("https://github.com/immich-app/immich") == SOURCE_PLATFORM_GITHUB

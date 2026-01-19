@@ -36,6 +36,7 @@ async def test_common_packages(mock_docker_client: DockerClient) -> None:
                 docker=DockerPackageUpdateInfo(image_name="common/pkg"),
                 logo_url="https://commonhub/pkg/logo",
                 release_notes_url="https://commonhub/pkg/logo",
+                source_repo_url="https://commonhub/pkg/",
             )
         }
         session = "unit_123"

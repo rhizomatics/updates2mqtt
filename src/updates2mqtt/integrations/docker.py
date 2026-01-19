@@ -428,8 +428,9 @@ class DockerProvider(ReleaseProvider):
                     release_info: dict[str, str] = self.release_enricher.enrich(
                         annotations, source_repo_url=pkg_info.source_repo_url, release_url=relnotes_url
                     )
+                    logger.debug("Enriched release info: %s", release_info)
 
-                    if release_info.get("release_url"):
+                    if release_info.get("release_url") and customization.relnotes is None:
                         relnotes_url = release_info.pop("release_url")
                     if release_info.get("release_summary"):
                         release_summary = release_info.pop("release_summary")

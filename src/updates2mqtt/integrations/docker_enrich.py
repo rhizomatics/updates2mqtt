@@ -175,18 +175,17 @@ class SourceReleaseEnricher:
         self.record(results, "latest_image_version", release_version)
         release_revision: str | None = annotations.get("org.opencontainers.image.revision")
         self.record(results, "latest_release_revision", release_revision)
-        release_source = annotations.get("org.opencontainers.image.source", source_repo_url)
+        release_source: str | None = annotations.get("org.opencontainers.image.source") or source_repo_url
         self.record(results, "source", release_source)
 
         release_source_simple: str | None = release_source
         if release_source and "#" in release_source:
             release_source_simple = release_source.split("#", 1)[0]
+            self.log.debug("Simplifying %s from %s", release_source_simple, release_source)
 
         source_platform = id_source_platform(release_source)
         if not source_platform:
             self.log.debug("No known source platform found on container", source=release_source)
-            return results
-        if not source_platform:
             return results
 
         results["source_platform"] = source_platform
