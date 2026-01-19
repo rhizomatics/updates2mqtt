@@ -301,13 +301,16 @@ class LabelEnricher:
                 )
                 if response and response.is_success:
                     api_data = httpx_json_content(response, {})
-                    log.debug(
-                        "%s MANIFEST %s layers, %s annotations",
-                        img_name,
-                        len(index.get("layers", [])),
-                        len(index.get("annotations", [])),
-                    )
-                    return api_data
+                    if api_data:
+                        log.debug(
+                            "%s MANIFEST %s layers, %s annotations",
+                            img_name,
+                            len(api_data.get("layers", [])),
+                            len(api_data.get("annotations", [])),
+                        )
+                        return api_data
+                    log.debug("Empty manifest for image %s digest %s", image_ref, digest)
+
         return None
 
 
