@@ -209,7 +209,16 @@ class Selection:
                 self.result = True
 
 
-def select_version(version_policy: VersionPolicy, version: str | None, digest: str | None, default: str | None = None) -> str:
+VERSION_RE = r"[vV]?[0-9]+(\.[0-9]+)*"
+
+
+def select_version(
+    version_policy: VersionPolicy,
+    version: str | None,
+    digest: str | None,
+    other_version: str | None = None,
+    other_digest: str | None = None,
+) -> str:
     if version_policy == VersionPolicy.VERSION and version:
         return version
     if version_policy == VersionPolicy.DIGEST and digest and digest != NO_KNOWN_IMAGE:
@@ -217,6 +226,16 @@ def select_version(version_policy: VersionPolicy, version: str | None, digest: s
     if version_policy == VersionPolicy.VERSION_DIGEST and version and digest and digest != NO_KNOWN_IMAGE:
         return f"{version} ({digest})"
     # AUTO or fallback
+    if version_policy == VersionPolicy.AUTO and version and re.match(VERSION_RE, version or ""):
+        # Smells like semver
+        if other_version is None and other_digest is None:
+            return version
+        if re.match(VERSION_RE, other_version or "") and (
+            (version == other_version and digest == other_digest) or (version != other_version and digest != other_digest)
+        ):
+            # Only semver if versions and digest consistently same or different
+            return version
+
     if version and digest and digest != NO_KNOWN_IMAGE:
         return f"{version}:{digest}"
     if version:
@@ -224,4 +243,4 @@ def select_version(version_policy: VersionPolicy, version: str | None, digest: s
     if digest and digest != NO_KNOWN_IMAGE:
         return digest
 
-    return default or NO_KNOWN_IMAGE
+    return other_version or other_version or NO_KNOWN_IMAGE

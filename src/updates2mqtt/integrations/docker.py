@@ -498,8 +498,12 @@ class DockerProvider(ReleaseProvider):
             # can_pull,can_build etc are only info flags
             # the HASS update process is driven by comparing current and available versions
 
-            installed_version = select_version(version_policy, installed_version, installed_digest)
-            latest_version = select_version(version_policy, latest_version, latest_digest, default=installed_version)
+            public_installed_version = select_version(
+                version_policy, installed_version, installed_digest, other_version=latest_version, other_digest=latest_digest
+            )
+            public_latest_version = select_version(
+                version_policy, latest_version, latest_digest, other_version=installed_version, other_digest=installed_digest
+            )
 
             discovery: Discovery = Discovery(
                 self,
@@ -509,11 +513,11 @@ class DockerProvider(ReleaseProvider):
                 entity_picture_url=picture_url,
                 release_url=relnotes_url,
                 release_summary=release_summary,
-                current_version=installed_version,
+                current_version=public_installed_version,
                 publish_policy=publish_policy,
                 update_policy=update_policy,
                 version_policy=version_policy,
-                latest_version=latest_version if latest_version != NO_KNOWN_IMAGE else installed_version,
+                latest_version=public_latest_version,
                 device_icon=self.cfg.device_icon,
                 can_update=can_update,
                 update_type=update_type,
