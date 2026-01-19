@@ -261,7 +261,7 @@ class DockerProvider(ReleaseProvider):
                 del self.pause_api_until[repo_id]
                 self.log.info("%s throttling wait complete", repo_id)
             else:
-                self.log.debug("%s throttling has %s secs left", repo_id, self.pause_api_until[repo_id] - time.time())
+                self.log.debug("%s throttling has %0.3f secs left", repo_id, self.pause_api_until[repo_id] - time.time())
                 return True
         return False
 
