@@ -425,16 +425,15 @@ class DockerProvider(ReleaseProvider):
 
                 if annotations:
                     latest_version = annotations.get("org.opencontainers.image.version")
-                    custom.update(
-                        self.release_enricher.enrich(
-                            annotations, source_repo_url=pkg_info.source_repo_url, release_url=relnotes_url
-                        )
-                        or {}
+                    release_info: dict[str, str] = self.release_enricher.enrich(
+                        annotations, source_repo_url=pkg_info.source_repo_url, release_url=relnotes_url
                     )
-                    if "release_url" in custom:
-                        relnotes_url = custom.pop("release_url")  # type: ignore[assignment]
-                    if "release_summary" in custom:
-                        release_summary = custom.pop("release_summary")  # type: ignore[assignment]
+
+                    if release_info.get("release_url"):
+                        relnotes_url = release_info.pop("release_url")
+                    if release_info.get("release_summary"):
+                        release_summary = release_info.pop("release_summary")
+                    custom.update(release_info)
 
             if custom.get("git_repo_path") and custom.get("compose_path"):
                 full_repo_path: Path = Path(cast("str", custom.get("compose_path"))).joinpath(
