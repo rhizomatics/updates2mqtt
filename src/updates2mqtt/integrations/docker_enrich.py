@@ -270,7 +270,8 @@ class LabelEnricher:
             raise AuthError(f"No token found in response for {image_name}")
 
         logger.debug(
-            "Non-success response fetching token: %s",
+            "Non-success response at %s fetching token: %s",
+            auth_url,
             (response and response.status_code) or None,
         )
         if response and response.status_code == 404:
