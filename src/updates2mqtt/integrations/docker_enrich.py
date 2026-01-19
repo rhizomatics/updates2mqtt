@@ -327,7 +327,10 @@ class LabelEnricher:
                             len(api_data.get("layers", [])),
                             len(api_data.get("annotations", [])),
                         )
-                        annotations.update(api_data.get("annotations", {}))
+                        if api_data.get("annotations"):
+                            annotations.update(api_data.get("annotations", {}))
+                        else:
+                            logger.debug("No annotations found in manifest: %s", api_data)
 
         if not annotations:
             logger.debug("No annotations found from registry data")

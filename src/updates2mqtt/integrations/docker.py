@@ -399,6 +399,7 @@ class DockerProvider(ReleaseProvider):
                 save_if_set("description", c.labels.get("org.opencontainers.image.description"))
                 save_if_set("current_image_created", c.labels.get("org.opencontainers.image.created"))
                 save_if_set("current_image_version", c.labels.get("org.opencontainers.image.version"))
+                save_if_set("vendor", c.labels.get("org.opencontainers.image.vendor"))
                 installed_version = c.labels.get("org.opencontainers.image.version")
             else:
                 logger.debug("No annotations found on local container")
@@ -428,6 +429,7 @@ class DockerProvider(ReleaseProvider):
                     save_if_set("documentation_url", annotations.get("org.opencontainers.image.documentation"))
                     save_if_set("description", annotations.get("org.opencontainers.image.description"))
                     save_if_set("latest_image_version", annotations.get("org.opencontainers.image.version"))
+                    save_if_set("vendor", annotations.get("org.opencontainers.image.vendor"))
                     latest_version = annotations.get("org.opencontainers.image.version")
                     custom.update(self.release_enricher.enrich(annotations) or {})
 
