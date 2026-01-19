@@ -187,10 +187,12 @@ class AuthError(Exception):
 
 
 REGISTRIES = {
+    # registry: (auth_host, api_host, service)
     "docker.io": ("auth.docker.io", "registry-1.docker.io", "registry.docker.io"),
     "mcr.microsoft.com": (None, "mcr.microsoft.com", "mcr.microsoft.com"),
     "ghcr.io": ("ghcr.io", "ghcr.io", "ghcr.io"),
     "lscr.io": ("ghcr.io", "lscr.io", "ghcr.io"),
+    "codeberg.org": ("codeberg.org", "codeberg.org", "container_registry"),
 }
 
 
