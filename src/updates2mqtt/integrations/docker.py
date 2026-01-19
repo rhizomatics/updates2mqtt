@@ -431,6 +431,10 @@ class DockerProvider(ReleaseProvider):
                         )
                         or {}
                     )
+                    if "release_url" in custom:
+                        relnotes_url = custom.pop("release_url")  # type: ignore[assignment]
+                    if "release_summary" in custom:
+                        release_summary = custom.pop("release_summary")  # type: ignore[assignment]
 
             if custom.get("git_repo_path") and custom.get("compose_path"):
                 full_repo_path: Path = Path(cast("str", custom.get("compose_path"))).joinpath(
