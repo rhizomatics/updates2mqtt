@@ -429,7 +429,7 @@ class DockerProvider(ReleaseProvider):
                     save_if_set("description", annotations.get("org.opencontainers.image.description"))
                     save_if_set("latest_image_version", annotations.get("org.opencontainers.image.version"))
                     latest_version = annotations.get("org.opencontainers.image.version")
-                    custom.update(self.release_enricher.enrich(annotations, log) or {})
+                    custom.update(self.release_enricher.enrich(annotations) or {})
 
             if custom.get("git_repo_path") and custom.get("compose_path"):
                 full_repo_path: Path = Path(cast("str", custom.get("compose_path"))).joinpath(

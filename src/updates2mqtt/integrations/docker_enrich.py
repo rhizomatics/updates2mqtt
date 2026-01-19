@@ -22,8 +22,8 @@ log = structlog.get_logger()
 class PackageEnricher:
     def __init__(self, docker_cfg: DockerConfig) -> None:
         self.pkgs: dict[str, PackageUpdateInfo] = {}
-        self.log: Any = log
         self.cfg: DockerConfig = docker_cfg
+        self.log: Any = structlog.get_logger().bind(integration="docker")
 
     def initialize(self) -> None:
         pass
@@ -125,33 +125,39 @@ def fetch_url(
         with SyncCacheClient(headers=headers) as client:
             log.debug(f"Fetching URL {url}, cache_ttl={cache_ttl}")
             response: Response = client.get(url)
-        return response
+            if not response.is_success:
+                log.debug("URL %s fetch returned non-success status: %s", url, response.status_code)
+            return response
     except Exception as e:
         log.debug("URL %s failed to fetch: %s", url, e)
     return None
 
 
 def validate_url(url: str, cache_ttl: int = 300) -> bool:
-    response = fetch_url(url, cache_ttl=cache_ttl)
+    response: Response | None = fetch_url(url, cache_ttl=cache_ttl)
     return response is not None and response.is_success
 
 
-SOURCE_PLATFORMS = {"GitHub": r"https://github.com/.*"}
+SOURCE_PLATFORM_GITHUB = "GitHub"
+SOURCE_PLATFORMS = {SOURCE_PLATFORM_GITHUB: r"https://github.com/.*"}
 DIFF_URL_TEMPLATES = {
-    "GitHub": "{source}/commit/{revision}",
+    SOURCE_PLATFORM_GITHUB: "{source}/commit/{revision}",
 }
-RELEASE_URL_TEMPLATES = {"GitHub": "{source}/releases/tag/{version}"}
+RELEASE_URL_TEMPLATES = {SOURCE_PLATFORM_GITHUB: "{source}/releases/tag/{version}"}
 
 
 class SourceReleaseEnricher:
-    def enrich(self, annotations: dict[str, str], log: Any) -> dict[str, str]:
+    def __init__(self) -> None:
+        self.log: Any = structlog.get_logger().bind(integration="docker")
+
+    def enrich(self, annotations: dict[str, str]) -> dict[str, str]:
         results: dict[str, str] = {}
         image_version: str | None = annotations.get("org.opencontainers.image.version")
         image_digest: str | None = annotations.get("org.opencontainers.image.revision")
         source = annotations.get("org.opencontainers.image.source")
         source_platforms = [platform for platform, pattern in SOURCE_PLATFORMS.items() if re.match(pattern, source or "")]
         if not source_platforms:
-            log.debug("No known source platform found on container", source=source)
+            self.log.debug("No known source platform found on container", source=source)
             return results
         source_platform = source_platforms[0]
 
@@ -170,15 +176,21 @@ class SourceReleaseEnricher:
             if validate_url(release_url):
                 results["release_url"] = release_url
 
-        if source_platform == "GitHub" and source:
+        if source_platform == SOURCE_PLATFORM_GITHUB and source:
             base_api = source.replace("https://github.com", "https://api.github.com/repos")
             api_response: Response | None = fetch_url(f"{base_api}/releases/tags/{image_version}")
-            if api_response:
-                api_results = api_response.json()
-                results["release_summary"] = api_results.get("body")
-                reactions = api_results.get("reactions")
+            if api_response and api_response.is_success:
+                api_results: Any = httpx_json_content(api_response, {})
+                results["release_summary"] = api_results.get("body")  # ty:ignore[possibly-missing-attribute]
+                reactions = api_results.get("reactions")  # ty:ignore[possibly-missing-attribute]
                 if reactions:
                     results["net_score"] = reactions.get("+1", 0) - reactions.get("-1", 0)
+            else:
+                self.log.debug(
+                    "Failed to fetch GitHub release info",
+                    url=f"{base_api}/releases/tags/{image_version}",
+                    status_code=(api_response and api_response.status_code) or None,
+                )
         return results
 
 
