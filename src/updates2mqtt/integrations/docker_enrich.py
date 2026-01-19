@@ -274,6 +274,7 @@ class LabelEnricher:
             (response and response.status_code) or None,
         )
         if response and response.status_code == 404:
+            logger.debug("Default token URL %s not found, calling /v2 endpoint to validate OCI API and provoke auth", auth_url)
             response = fetch_url(f"https://{auth_host}/v2/")
         if response and response.status_code == 401:
             auth = response.headers.get("www-authenticate")
@@ -292,7 +293,7 @@ class LabelEnricher:
                 token_data = response.json()
                 logger.debug("Fetched registry token from %s", auth_url)
                 return token_data.get("token")
-            logger.debug(
+            logger.warning(
                 "Alternative auth %s with status %s has no token", auth_url, (response and response.status_code) or None
             )
 
