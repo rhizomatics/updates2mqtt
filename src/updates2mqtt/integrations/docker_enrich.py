@@ -18,6 +18,19 @@ from updates2mqtt.config import (
 
 log = structlog.get_logger()
 
+SOURCE_PLATFORM_GITHUB = "GitHub"
+SOURCE_PLATFORM_CODEBERG = "CodeBerg"
+SOURCE_PLATFORMS = {SOURCE_PLATFORM_GITHUB: r"https://github.com/.*"}
+DIFF_URL_TEMPLATES = {
+    SOURCE_PLATFORM_GITHUB: "{source}/commit/{revision}",
+}
+RELEASE_URL_TEMPLATES = {SOURCE_PLATFORM_GITHUB: "{source}/releases/tag/{version}"}
+
+
+def id_source_platform(source: str | None) -> str | None:
+    candidates: list[str] = [platform for platform, pattern in SOURCE_PLATFORMS.items() if re.match(pattern, source or "")]
+    return candidates[0] if candidates else None
+
 
 class PackageEnricher:
     def __init__(self, docker_cfg: DockerConfig) -> None:
@@ -76,6 +89,10 @@ class CommonPackageEnricher(PackageEnricher):
         except (MissingMandatoryValue, ValidationError) as e:
             log.error("Configuration error %s", e, path=PKG_INFO_FILE.as_posix())
             raise
+        for pkg in self.pkgs.values():
+            # TODO: with proper model for source repo platform
+            if pkg.source_platform is None and pkg.release_notes_url is not None:
+                pkg.source_platform = id_source_platform(pkg.release_notes_url)
 
 
 class LinuxServerIOPackageEnricher(PackageEnricher):
@@ -138,28 +155,20 @@ def validate_url(url: str, cache_ttl: int = 300) -> bool:
     return response is not None and response.is_success
 
 
-SOURCE_PLATFORM_GITHUB = "GitHub"
-SOURCE_PLATFORMS = {SOURCE_PLATFORM_GITHUB: r"https://github.com/.*"}
-DIFF_URL_TEMPLATES = {
-    SOURCE_PLATFORM_GITHUB: "{source}/commit/{revision}",
-}
-RELEASE_URL_TEMPLATES = {SOURCE_PLATFORM_GITHUB: "{source}/releases/tag/{version}"}
-
-
 class SourceReleaseEnricher:
     def __init__(self) -> None:
         self.log: Any = structlog.get_logger().bind(integration="docker")
 
-    def enrich(self, annotations: dict[str, str]) -> dict[str, str]:
+    def enrich(self, annotations: dict[str, str], source_platform: str | None = None) -> dict[str, str]:
         results: dict[str, str] = {}
         image_version: str | None = annotations.get("org.opencontainers.image.version")
         image_digest: str | None = annotations.get("org.opencontainers.image.revision")
         source = annotations.get("org.opencontainers.image.source")
-        source_platforms = [platform for platform, pattern in SOURCE_PLATFORMS.items() if re.match(pattern, source or "")]
-        if not source_platforms:
+        source_platform = source_platform or id_source_platform(source)
+        if not source_platform:
             self.log.debug("No known source platform found on container", source=source)
             return results
-        source_platform = source_platforms[0]
+        results["source_platform"] = source_platform
 
         if source:
             template_vars: dict[str, str | None] = {
@@ -178,6 +187,7 @@ class SourceReleaseEnricher:
 
         if source_platform == SOURCE_PLATFORM_GITHUB and source:
             base_api = source.replace("https://github.com", "https://api.github.com/repos")
+
             api_response: Response | None = fetch_url(f"{base_api}/releases/tags/{image_version}")
             if api_response and api_response.is_success:
                 api_results: Any = httpx_json_content(api_response, {})

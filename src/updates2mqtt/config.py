@@ -133,6 +133,7 @@ class PackageUpdateInfo:
     docker: DockerPackageUpdateInfo | None = field(default_factory=DockerPackageUpdateInfo)
     logo_url: str | None = None
     release_notes_url: str | None = None
+    source_platform: str | None = None
 
 
 @dataclass
