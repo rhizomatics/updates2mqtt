@@ -49,26 +49,19 @@ def test_discover_metadata(httpx_mock: HTTPXMock) -> None:
 @pytest.mark.slow
 def test_label_enricher_ghcr() -> None:
     uut = LabelEnricher()
-    manifest = uut.fetch_manifest("ghcr.io/rhizomatics/updates2mqtt:1.6.0", "linux", "amd64")
-    assert manifest is not None
-    assert manifest["mediaType"] == "application/vnd.oci.image.manifest.v1+json"
-    assert manifest["annotations"]["org.opencontainers.image.documentation"] == "https://updates2mqtt.rhizomatics.org.uk"
+    manifest = uut.fetch_annotations("ghcr.io/rhizomatics/updates2mqtt:1.6.0", "linux", "amd64")
+    assert manifest["org.opencontainers.image.documentation"] == "https://updates2mqtt.rhizomatics.org.uk"
 
 
 @pytest.mark.slow
 def test_label_enricher_unqualified_docker() -> None:
     uut = LabelEnricher()
-    manifest = uut.fetch_manifest("docker:cli", "linux", "amd64")
-    assert manifest is not None
-    assert manifest["mediaType"] == "application/vnd.oci.image.manifest.v1+json"
-    assert manifest["annotations"]["org.opencontainers.image.url"] == "https://hub.docker.com/_/docker"
+    manifest = uut.fetch_annotations("docker:cli", "linux", "amd64")
+    assert manifest["org.opencontainers.image.url"] == "https://hub.docker.com/_/docker"
 
 
 @pytest.mark.slow
 def test_label_enricher_vanilla_docker() -> None:
     uut = LabelEnricher()
-    manifest = uut.fetch_manifest("jellyfin/jellyfin", "linux", "amd64")
-    assert manifest is not None
-    assert manifest["mediaType"] == "application/vnd.docker.distribution.manifest.v2+json"
-    assert "config" in manifest
-    assert "layers" in manifest
+    annotations = uut.fetch_annotations("jellyfin/jellyfin", "linux", "amd64")
+    assert annotations is not None

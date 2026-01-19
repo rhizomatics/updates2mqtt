@@ -206,7 +206,11 @@ def httpx_json_content(response: Response, default: Any = None) -> Any | None:
 
 
 class LabelEnricher:
+    def __init__(self) -> None:
+        self.log: Any = structlog.get_logger().bind(integration="docker")
+
     def fetch_token(self, auth_host: str, service: str, image_name: str) -> str | None:
+        logger = self.log.bind(image_name=image_name, action="auth_registry")
         auth_url: str = f"https://{auth_host}/token?scope=repository:{image_name}:pull&service={service}"
         response: Response | None = fetch_url(auth_url, cache_ttl=30)
         if response and response.is_success:
@@ -214,12 +218,11 @@ class LabelEnricher:
             token: str | None = api_data.get("token") if api_data else None
             if token:
                 return token
-            log.warning("No token found in response for image %s", image_name)
+            logger.warning("No token found in response")
             raise AuthError(f"No token found in response for {image_name}")
 
-        log.debug(
-            "Non-success response fetching token for image_ref %s: %s",
-            image_name,
+        logger.debug(
+            "Non-success response fetching token: %s",
             (response and response.status_code) or None,
         )
         if response and response.status_code == 404:
@@ -227,11 +230,11 @@ class LabelEnricher:
         if response and response.status_code == 401:
             auth = response.headers.get("www-authenticate")
             if not auth:
-                log.debug("No www-authenticate header found in 401 response for image %s", image_name)
+                logger.debug("No www-authenticate header found in 401 response")
                 raise AuthError(f"No www-authenticate header found on 401 for {image_name}")
             match = re.search(r'realm="([^"]+)",service="([^"]+)",scope="([^"]+)"', auth)
             if not match:
-                log.debug("No realm/service/scope found in www-authenticate header for image %s", image_name)
+                logger.debug("No realm/service/scope found in www-authenticate header")
                 raise AuthError(f"No realm/service/scope found on 401 headers for {image_name}")
 
             realm, service, scope = match.groups()
@@ -239,13 +242,13 @@ class LabelEnricher:
             response = fetch_url(auth_url)
             if response and response.is_success:
                 token_data = response.json()
-                log.debug("Fetched registry token for image %s", image_name)
+                logger.debug("Fetched registry token")
                 return token_data.get("token")
 
-        log.debug("Failed to fetch registry token for image %s", image_name)
+        logger.debug("Failed to fetch registry token")
         raise AuthError(f"Failed to fetch token for {image_name}")
 
-    def fetch_manifest(
+    def fetch_annotations(
         self,
         image_ref: str,
         os: str,
@@ -253,9 +256,11 @@ class LabelEnricher:
         token: str | None = None,
         mutable_cache_ttl: int = 300,
         immutable_cache_ttl: int = 86400,
-    ) -> Any | None:
+    ) -> dict[str, str]:
+        logger = self.log.bind(image_ref=image_ref, action="enrich_registry")
+        annotations: dict[str, str] = {}
         if token:
-            log.debug("Using provided token to fetch manifest for image %s", image_ref)
+            logger.debug("Using provided token to fetch manifest for image %s", image_ref)
         registry, ref = resolve_repository_name(image_ref)
         default_host = (registry, registry, registry)
         auth_host: str | None = REGISTRIES.get(registry, default_host)[0]
@@ -275,23 +280,22 @@ class LabelEnricher:
             response_type="application/vnd.oci.image.index.v1+json",
         )
         if response is None:
-            log.debug("Empty response for manifest for image %s", image_ref)
-            return None
+            logger.debug("Empty response for manifest for image")
+            return annotations
         if not response.is_success:
             api_data = httpx_json_content(response, {})
-            log.debug(
-                "Failed to fetch manifest for image_ref %s: %s",
-                image_ref,
+            logger.warning(
+                "Failed to fetch manifest: %s",
                 api_data.get("errors") if api_data else response.text,
             )
-            return None
+            return annotations
         index = response.json()
-        log.debug(
-            "%s INDEX %s manifests, %s annotations",
-            img_name,
+        logger.debug(
+            "INDEX %s manifests, %s annotations",
             len(index.get("manifests", [])),
             len(index.get("annotations", [])),
         )
+        annotations = index.get("annotations", {})
         for m in index.get("manifests", []):
             platform_info = m.get("platform", {})
             if platform_info.get("os") == os and platform_info.get("architecture") == arch:
@@ -306,16 +310,16 @@ class LabelEnricher:
                 if response and response.is_success:
                     api_data = httpx_json_content(response, None)
                     if api_data:
-                        log.debug(
-                            "%s MANIFEST %s layers, %s annotations",
-                            img_name,
+                        logger.debug(
+                            "MANIFEST %s layers, %s annotations",
                             len(api_data.get("layers", [])),
                             len(api_data.get("annotations", [])),
                         )
-                        return api_data
-                    log.debug("Empty manifest for image %s digest %s", image_ref, digest)
+                        annotations.update(api_data.get("annotations", {}))
 
-        return None
+        if not annotations:
+            logger.debug("No annotations found from registry data")
+        return annotations
 
 
 r"""

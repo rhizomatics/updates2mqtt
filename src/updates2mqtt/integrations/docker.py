@@ -415,13 +415,14 @@ class DockerProvider(ReleaseProvider):
             else:
                 os, arch = platform.split("/")[:2] if "/" in platform else (platform, "Unknown")
                 try:
-                    new_manifest = self.label_enricher.fetch_manifest(image_ref, os, arch, token=customization.registry_token)
+                    annotations: dict[str, str] = self.label_enricher.fetch_annotations(
+                        image_ref, os, arch, token=customization.registry_token
+                    )
                 except AuthError as e:
                     logger.warning("Authentication error prevented Docker Registry entichment: %s", e)
-                    new_manifest = None
+                    annotations = {}
 
-                if new_manifest:
-                    annotations = new_manifest.get("annotations", {})
+                if annotations:
                     save_if_set("latest_image_created", annotations.get("org.opencontainers.image.created"))
                     save_if_set("source", annotations.get("org.opencontainers.image.source"))
                     save_if_set("documentation_url", annotations.get("org.opencontainers.image.documentation"))
