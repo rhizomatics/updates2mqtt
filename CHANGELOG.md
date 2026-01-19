@@ -6,6 +6,7 @@
 a meaningful version ) using the OCI Distriubtion API
   - Docker, GitHub GHCR and Codeberg explicitly supported
   - Authentication logic to automatically adapt and retry for other platforms
+  - Annotations will be sourced from the Index or Manifest, with priority for the (platform-specific) manifest
 ### GitHub Release Enrichment
 - Where an annotation points to a source URL and hash, this can be used to derive a 
 `diff_url`, a direct link to the actual release notes, and a release summary pulled from the
