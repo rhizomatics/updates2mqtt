@@ -229,7 +229,7 @@ class DockerProvider(ReleaseProvider):
         logger = self.log.bind(container=discovery.name, action="restart")
         if self.self_bounce is not None and (
             "ghcr.io/rhizomatics/updates2mqtt" in discovery.custom.get("image_ref", "")
-            or discovery.custom.get("git_repo_path", "").endswith("updates2mqtt")
+            or (discovery.custom.get("git_repo_path") and discovery.custom.get("git_repo_path", "").endswith("updates2mqtt"))
         ):
             logger.warning("Attempting to self-bounce")
             self.self_bounce.set()
