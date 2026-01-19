@@ -230,7 +230,7 @@ def select_version(
     if version_policy == VersionPolicy.DIGEST and digest and digest != NO_KNOWN_IMAGE:
         return digest
     if version_policy == VersionPolicy.VERSION_DIGEST and version and digest and digest != NO_KNOWN_IMAGE:
-        return f"{version} ({digest})"
+        return f"{version}:{digest}"
     # AUTO or fallback
     if version_policy == VersionPolicy.AUTO and version and re.match(VERSION_RE, version or ""):
         # Smells like semver
