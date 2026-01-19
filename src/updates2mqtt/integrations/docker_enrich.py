@@ -331,19 +331,21 @@ class LabelEnricher:
 
         img_tag = ref.split(":")[1] if ":" in ref else "latest"
         img_tag = img_tag.split("@")[0] if "@" in img_tag else img_tag
+        api_url: str = f"https://{api_host}/v2/{img_name}/manifests/{img_tag}"
         response: Response | None = fetch_url(
-            f"https://{api_host}/v2/{img_name}/manifests/{img_tag}",
+            api_url,
             cache_ttl=mutable_cache_ttl,
             bearer_token=token,
             response_type="application/vnd.oci.image.index.v1+json",
         )
         if response is None:
-            logger.debug("Empty response for manifest for image")
+            logger.warning("Empty response for manifest for image at %s", api_url)
             return annotations
         if not response.is_success:
             api_data = httpx_json_content(response, {})
             logger.warning(
-                "Failed to fetch manifest: %s",
+                "Failed to fetch manifest from %s: %s",
+                api_url,
                 api_data.get("errors") if api_data else response.text,
             )
             return annotations
