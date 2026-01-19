@@ -500,7 +500,7 @@ class DockerProvider(ReleaseProvider):
             public_installed_version = select_version(
                 version_policy, installed_version, installed_digest, other_version=latest_version, other_digest=latest_digest
             )
-            if registry_throttled or latest_digest == installed_digest:
+            if latest_digest in (installed_digest, NO_KNOWN_IMAGE) or registry_throttled:
                 public_latest_version = public_installed_version
             else:
                 public_latest_version = select_version(
