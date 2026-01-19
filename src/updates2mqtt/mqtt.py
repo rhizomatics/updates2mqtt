@@ -235,6 +235,8 @@ class MqttPublisher:
                 updated = provider.command(comp_name, command, on_update_start, on_update_end)
                 discovery = provider.resolve(comp_name)
                 if updated and discovery:
+                    if discovery.publish_policy == PublishPolicy.HOMEASSISTANT and self.hass_cfg.discovery.enabled:
+                        self.publish_hass_config(discovery)
                     if discovery.publish_policy in (PublishPolicy.HOMEASSISTANT, PublishPolicy.MQTT):
                         self.publish_discovery(discovery)
                     if discovery.publish_policy == PublishPolicy.HOMEASSISTANT:
@@ -337,6 +339,8 @@ class MqttPublisher:
         if discovery.publish_policy != PublishPolicy.HOMEASSISTANT:
             return
         object_id = f"{discovery.source_type}_{self.node_cfg.name}_{discovery.name}"
+        self.log.debug("HASS Config: %s", object_id)
+
         self.publish(
             self.config_topic(discovery),
             hass_format_config(
