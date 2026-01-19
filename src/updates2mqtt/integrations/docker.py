@@ -386,6 +386,8 @@ class DockerProvider(ReleaseProvider):
             custom: dict[str, str | bool | int | list[str] | dict[str, Any] | None] = {}
             custom["platform"] = platform
             custom["image_ref"] = image_ref
+            custom["installed_digest"] = installed_digest
+            custom["latest_digest"] = latest_digest
             custom["repo_id"] = repo_id
             custom["git_repo_path"] = customization.git_repo_path
 

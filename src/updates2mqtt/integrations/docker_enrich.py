@@ -252,6 +252,8 @@ class LabelEnricher:
         mutable_cache_ttl: int = 300,
         immutable_cache_ttl: int = 86400,
     ) -> Any | None:
+        if token:
+            log.debug("Using provided token to fetch manifest for image %s", image_ref)
         registry, ref = resolve_repository_name(image_ref)
         default_host = (registry, registry, registry)
         auth_host: str | None = REGISTRIES.get(registry, default_host)[0]
