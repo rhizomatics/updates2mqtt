@@ -501,9 +501,16 @@ class DockerProvider(ReleaseProvider):
             public_installed_version = select_version(
                 version_policy, installed_version, installed_digest, other_version=latest_version, other_digest=latest_digest
             )
-            public_latest_version = select_version(
-                version_policy, latest_version, latest_digest, other_version=installed_version, other_digest=installed_digest
-            )
+            if registry_throttled:
+                public_latest_version = public_installed_version
+            else:
+                public_latest_version = select_version(
+                    version_policy,
+                    latest_version,
+                    latest_digest,
+                    other_version=installed_version,
+                    other_digest=installed_digest,
+                )
 
             discovery: Discovery = Discovery(
                 self,
