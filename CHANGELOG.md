@@ -12,6 +12,7 @@ a meaningful version ) using the OCI Distriubtion API
 `diff_url`, a direct link to the actual release notes, and a release summary pulled from the
 Github source repo releases and passed onto Home Assistant
 - A token can be provided, e.g. a Personal Access Token, at container level using `UPD2MQTT_REGISTRY_TOKEN`
+- Common packages now have a `source_repo_url` and don't need a release notes URL too if on GitHub
 ### Version Policies
 - Version policies available to make use of meaningful versions from annotations
    - `AUTO` will detect what looks like a SemVer and report only the meaningful version to HA
