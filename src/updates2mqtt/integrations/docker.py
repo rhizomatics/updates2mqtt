@@ -363,6 +363,7 @@ class DockerProvider(ReleaseProvider):
                                 retry_secs = self.api_throttle_pause
                             logger.warn("Docker Registry throttling requests for %s seconds, %s", retry_secs, e.explanation)
                             self.pause_api_until[repo_id] = time.time() + retries_left
+                            registry_throttled = True
                             return None
                         retries_left -= 1
                         if retries_left == 0 or e.is_client_error():
