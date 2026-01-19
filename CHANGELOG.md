@@ -1,8 +1,24 @@
 # CHANGELOG
 
-## 1.6.1
-### Docker Image Info
-- Metadata from `org.opencontainers` labels published where available
+## 1.7.0
+### Container Registry Enrichment
+- Container registry will be accessed where available to pull in annotations ( including 
+a meaningful version ) using the OCI Distriubtion API
+  - Docker, GitHub GHCR and Codeberg explicitly supported
+  - Authentication logic to automatically adapt and retry for other platforms
+### GitHub Release Enrichment
+- Where an annotation points to a source URL and hash, this can be used to derive a 
+`diff_url`, a direct link to the actual release notes, and a release summary pulled from the
+Github source repo releases and passed onto Home Assistant
+- A token can be provided, e.g. a Personal Access Token, at container level using `UPD2MQTT_REGISTRY_TOKEN`
+### Version Policies
+- Version policies available to make use of meaningful versions from annotations
+   - `AUTO` will detect what looks like a SemVer and report only the meaningful version to HA
+   - `VERSION`,`DIGEST` and `VERSION_DIGEST` can be used to fix on which fields to use
+   - If the chosen option isn't available, next preference is for `version:digest` qualified version, falling back to whatever else is available
+   - Version policy can be set at container level using `UPD2MQTT_VERSION_POLICY` env var or corresponding label
+### Local Docker Image Enrichment
+- Metadata from local `org.opencontainers` labels published where available
 
 ## 1.6.0
 ### MQTT Topics
