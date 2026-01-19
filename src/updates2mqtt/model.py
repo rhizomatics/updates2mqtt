@@ -209,7 +209,9 @@ class Selection:
                 self.result = True
 
 
-VERSION_RE = r"[vV]?[0-9]+(\.[0-9]+)*"
+VERSION_RE = r"[vVr]?[0-9]+(\.[0-9]+)*"
+# source: https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
+SEMVER_RE = r"^(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$"  # noqa: E501
 
 
 def select_version(
@@ -219,6 +221,10 @@ def select_version(
     other_version: str | None = None,
     other_digest: str | None = None,
 ) -> str:
+    """Pick the best version string to display based on the version policy and available data
+
+    Falls back to digest if version not reliable or not consistent with current/available version
+    """
     if version_policy == VersionPolicy.VERSION and version:
         return version
     if version_policy == VersionPolicy.DIGEST and digest and digest != NO_KNOWN_IMAGE:
@@ -230,17 +236,22 @@ def select_version(
         # Smells like semver
         if other_version is None and other_digest is None:
             return version
-        if re.match(VERSION_RE, other_version or "") and (
+        if any((re.match(VERSION_RE, other_version or ""), re.match(SEMVER_RE, other_version or ""))) and (
             (version == other_version and digest == other_digest) or (version != other_version and digest != other_digest)
         ):
             # Only semver if versions and digest consistently same or different
             return version
 
-    if version and digest and digest != NO_KNOWN_IMAGE:
+    if (
+        version
+        and digest
+        and digest != NO_KNOWN_IMAGE
+        and ((other_digest is None and other_version is None) or (other_digest is not None and other_version is not None))
+    ):
         return f"{version}:{digest}"
-    if version:
+    if version and other_version:
         return version
     if digest and digest != NO_KNOWN_IMAGE:
         return digest
 
-    return other_version or other_version or NO_KNOWN_IMAGE
+    return other_digest or NO_KNOWN_IMAGE
