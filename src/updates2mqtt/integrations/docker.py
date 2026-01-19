@@ -65,6 +65,7 @@ class ContainerCustomization:
         self.relnotes: str | None = None
         self.ignore: bool = False
         self.version_policy: VersionPolicy | None = None
+        self.registry_token: str | None = None
 
         if not container.attrs or container.attrs.get("Config") is None:
             return
@@ -403,7 +404,7 @@ class DockerProvider(ReleaseProvider):
                 # save_if_set("apt_pkgs", c_env.get("UPD2MQTT_APT_PKGS"))
                 os, arch = platform.split("/")[:2] if "/" in platform else (platform, "Unknown")
                 try:
-                    new_manifest = self.label_enricher.fetch_manifest(image_ref, os, arch)
+                    new_manifest = self.label_enricher.fetch_manifest(image_ref, os, arch, token=customization.registry_token)
                 except AuthError as e:
                     logger.warning("Authentication error prevented Docker Registry entichment: %s", e)
                     new_manifest = None

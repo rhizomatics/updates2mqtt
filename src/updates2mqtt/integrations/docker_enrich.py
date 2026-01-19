@@ -244,7 +244,13 @@ class LabelEnricher:
         raise AuthError(f"Failed to fetch token for {image_name}")
 
     def fetch_manifest(
-        self, image_ref: str, os: str, arch: str, mutable_cache_ttl: int = 300, immutable_cache_ttl: int = 86400
+        self,
+        image_ref: str,
+        os: str,
+        arch: str,
+        token: str | None = None,
+        mutable_cache_ttl: int = 300,
+        immutable_cache_ttl: int = 86400,
     ) -> Any | None:
         registry, ref = resolve_repository_name(image_ref)
         default_host = (registry, registry, registry)
@@ -253,10 +259,8 @@ class LabelEnricher:
         service: str = REGISTRIES.get(registry, default_host)[2]
         img_name = ref.split(":")[0] if ":" in ref else ref
         img_name = img_name if "/" in img_name else f"library/{img_name}"
-        if auth_host is not None:
-            token: str | None = self.fetch_token(auth_host, service, img_name)
-        else:
-            token = None
+        if auth_host is not None and token is None:
+            token = self.fetch_token(auth_host, service, img_name)
 
         img_tag = ref.split(":")[1] if ":" in ref else "latest"
         img_tag = img_tag.split("@")[0] if "@" in img_tag else img_tag
@@ -278,7 +282,12 @@ class LabelEnricher:
             )
             return None
         index = response.json()
-        log.debug("%s INDEX %s manifests, %s annotations", img_name, len(index.get("manifests", [])), index.get("annotations"))
+        log.debug(
+            "%s INDEX %s manifests, %s annotations",
+            img_name,
+            len(index.get("manifests", [])),
+            len(index.get("annotations", [])),
+        )
         for m in index.get("manifests", []):
             platform_info = m.get("platform", {})
             if platform_info.get("os") == os and platform_info.get("architecture") == arch:
@@ -296,7 +305,7 @@ class LabelEnricher:
                         "%s MANIFEST %s layers, %s annotations",
                         img_name,
                         len(index.get("layers", [])),
-                        index.get("annotations"),
+                        len(index.get("annotations", [])),
                     )
                     return api_data
         return None
