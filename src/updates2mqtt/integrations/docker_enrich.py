@@ -129,7 +129,11 @@ class LinuxServerIOPackageEnricher(PackageEnricher):
 
 
 def fetch_url(
-    url: str, cache_ttl: int = 300, bearer_token: str | None = None, response_type: str | None = None
+    url: str,
+    cache_ttl: int = 300,
+    bearer_token: str | None = None,
+    response_type: str | None = None,
+    follow_redirects: bool = False,
 ) -> Response | None:
     try:
         headers = [("cache-control", f"max-age={cache_ttl}")]
@@ -137,7 +141,7 @@ def fetch_url(
             headers.append(("Authorization", f"Bearer {bearer_token}"))
         if response_type:
             headers.append(("Accept", response_type))
-        with SyncCacheClient(headers=headers) as client:
+        with SyncCacheClient(headers=headers, follow_redirects=follow_redirects) as client:
             log.debug(f"Fetching URL {url}, cache_ttl={cache_ttl}")
             response: Response = client.get(url)
             if not response.is_success:
@@ -260,7 +264,7 @@ class LabelEnricher:
     def fetch_token(self, auth_host: str, service: str, image_name: str) -> str | None:
         logger = self.log.bind(image_name=image_name, action="auth_registry")
         auth_url: str = f"https://{auth_host}/token?scope=repository:{image_name}:pull&service={service}"
-        response: Response | None = fetch_url(auth_url, cache_ttl=30)
+        response: Response | None = fetch_url(auth_url, cache_ttl=30, follow_redirects=True)
         if response and response.is_success:
             api_data = httpx_json_content(response, {})
             token: str | None = api_data.get("token") if api_data else None
@@ -276,7 +280,7 @@ class LabelEnricher:
         )
         if response and response.status_code == 404:
             logger.debug("Default token URL %s not found, calling /v2 endpoint to validate OCI API and provoke auth", auth_url)
-            response = fetch_url(f"https://{auth_host}/v2/")
+            response = fetch_url(f"https://{auth_host}/v2/", follow_redirects=True)
         if response and response.status_code == 401:
             auth = response.headers.get("www-authenticate")
             if not auth:
@@ -289,7 +293,7 @@ class LabelEnricher:
 
             realm, service, scope = match.groups()
             auth_url = f"{realm}?service={service}&scope={scope}"
-            response = fetch_url(auth_url)
+            response = fetch_url(auth_url, follow_redirects=True)
             if response and response.is_success:
                 token_data = response.json()
                 logger.debug("Fetched registry token from %s", auth_url)
@@ -298,7 +302,7 @@ class LabelEnricher:
                 "Alternative auth %s with status %s has no token", auth_url, (response and response.status_code) or None
             )
         elif response:
-            logger.warning("Auth %s failed with status %", auth_url, (response and response.status_code) or None)
+            logger.warning("Auth %s failed with status %s", auth_url, (response and response.status_code) or None)
 
         raise AuthError(f"Failed to fetch token for {image_name} at {auth_url}")
 
