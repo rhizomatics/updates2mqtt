@@ -178,10 +178,10 @@ class SourceReleaseEnricher:
         release_source: str | None = annotations.get("org.opencontainers.image.source") or source_repo_url
         self.record(results, "source", release_source)
 
-        release_source_simple: str | None = release_source
+        release_source_deep: str | None = release_source
         if release_source and "#" in release_source:
-            release_source_simple = release_source.split("#", 1)[0]
-            self.log.debug("Simplifying %s from %s", release_source_simple, release_source)
+            release_source = release_source.split("#", 1)[0]
+            self.log.debug("Simplifying %s from %s", release_source, release_source_deep)
 
         source_platform = id_source_platform(release_source)
         if not source_platform:
@@ -193,8 +193,8 @@ class SourceReleaseEnricher:
         template_vars: dict[str, str | None] = {
             "version": release_version or MISSING_VAL,
             "revision": release_revision or MISSING_VAL,
-            "repo": release_source_simple or MISSING_VAL,
-            "source": release_source or MISSING_VAL,
+            "repo": release_source or MISSING_VAL,
+            "source": release_source_deep or MISSING_VAL,
         }
 
         diff_url = DIFF_URL_TEMPLATES[source_platform].format(**template_vars)
