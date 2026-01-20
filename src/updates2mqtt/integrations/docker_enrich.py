@@ -28,6 +28,22 @@ RELEASE_URL_TEMPLATES = {SOURCE_PLATFORM_GITHUB: "{repo}/releases/tag/{version}"
 UNKNOWN_RELEASE_URL_TEMPLATES = {SOURCE_PLATFORM_GITHUB: "{repo}/releases"}
 MISSING_VAL = "**MISSING**"
 
+TOKEN_URL_TEMPLATE = "https://{auth_host}/token?scope=repository:{image_name}:pull&service={service}"  # noqa: S105 # nosec
+REGISTRIES = {
+    # registry: (auth_host, api_host, service, url_template)
+    "docker.io": ("auth.docker.io", "registry-1.docker.io", "registry.docker.io", TOKEN_URL_TEMPLATE),
+    "mcr.microsoft.com": (None, "mcr.microsoft.com", "mcr.microsoft.com", TOKEN_URL_TEMPLATE),
+    "ghcr.io": ("ghcr.io", "ghcr.io", "ghcr.io", TOKEN_URL_TEMPLATE),
+    "lscr.io": ("ghcr.io", "lscr.io", "ghcr.io", TOKEN_URL_TEMPLATE),
+    "codeberg.org": ("codeberg.org", "codeberg.org", "container_registry", TOKEN_URL_TEMPLATE),
+    "registry.gitlab.com": (
+        "www.gitlab.com",
+        "registry.gitlab.com",
+        "container_registry",
+        "https://{auth_host}/jwt/auth?service={service}&scope=repository:{image_name}:pull&offline_token=true&client_id=docker",
+    ),
+}
+
 
 def id_source_platform(source: str | None) -> str | None:
     candidates: list[str] = [platform for platform, pattern in SOURCE_PLATFORMS.items() if re.match(pattern, source or "")]
@@ -238,16 +254,6 @@ class AuthError(Exception):
     pass
 
 
-REGISTRIES = {
-    # registry: (auth_host, api_host, service)
-    "docker.io": ("auth.docker.io", "registry-1.docker.io", "registry.docker.io"),
-    "mcr.microsoft.com": (None, "mcr.microsoft.com", "mcr.microsoft.com"),
-    "ghcr.io": ("ghcr.io", "ghcr.io", "ghcr.io"),
-    "lscr.io": ("ghcr.io", "lscr.io", "ghcr.io"),
-    "codeberg.org": ("codeberg.org", "codeberg.org", "container_registry"),
-}
-
-
 def httpx_json_content(response: Response, default: Any = None) -> Any | None:
     if response and "json" in response.headers.get("content-type"):
         try:
@@ -261,9 +267,17 @@ class LabelEnricher:
     def __init__(self) -> None:
         self.log: Any = structlog.get_logger().bind(integration="docker")
 
-    def fetch_token(self, auth_host: str, service: str, image_name: str) -> str | None:
+    def fetch_token(self, registry: str, image_name: str) -> str | None:
         logger = self.log.bind(image_name=image_name, action="auth_registry")
-        auth_url: str = f"https://{auth_host}/token?scope=repository:{image_name}:pull&service={service}"
+
+        default_host: tuple[str, str, str, str] = (registry, registry, registry, TOKEN_URL_TEMPLATE)
+        auth_host: str | None = REGISTRIES.get(registry, default_host)[0]
+        if auth_host is None:
+            return None
+
+        service: str = REGISTRIES.get(registry, default_host)[2]
+        url_template: str = REGISTRIES.get(registry, default_host)[3]
+        auth_url: str = url_template.format(auth_host=auth_host, image_name=image_name, service=service)
         response: Response | None = fetch_url(auth_url, cache_ttl=30, follow_redirects=True)
         if response and response.is_success:
             api_data = httpx_json_content(response, {})
@@ -320,17 +334,15 @@ class LabelEnricher:
         if token:
             logger.debug("Using provided token to fetch manifest for image %s", image_ref)
         registry, ref = resolve_repository_name(image_ref)
-        default_host = (registry, registry, registry)
-        auth_host: str | None = REGISTRIES.get(registry, default_host)[0]
-        api_host: str | None = REGISTRIES.get(registry, default_host)[1]
-        service: str = REGISTRIES.get(registry, default_host)[2]
+
         img_name = ref.split(":")[0] if ":" in ref else ref
         img_name = img_name if "/" in img_name else f"library/{img_name}"
-        if auth_host is not None and token is None:
-            token = self.fetch_token(auth_host, service, img_name)
+        if token is None:
+            token = self.fetch_token(registry, img_name)
 
         img_tag = ref.split(":")[1] if ":" in ref else "latest"
         img_tag = img_tag.split("@")[0] if "@" in img_tag else img_tag
+        api_host: str | None = REGISTRIES.get(registry, (registry, registry))[1]
         api_url: str = f"https://{api_host}/v2/{img_name}/manifests/{img_tag}"
         response: Response | None = fetch_url(
             api_url,

@@ -83,6 +83,13 @@ def test_label_enricher_vanilla_docker() -> None:
     assert annotations is not None
 
 
+@pytest.mark.slow
+def test_label_enricher_custom_url() -> None:
+    uut = LabelEnricher()
+    annotations = uut.fetch_annotations("registry.gitlab.com/elad.bar/dahuavto2mqtt", "linux", "amd64")
+    assert annotations is not None
+
+
 def test_id_source_platform() -> None:
     assert id_source_platform("https://my.home.server/repo.git") is None
     assert id_source_platform("https://github.com/immich-app/immich") == SOURCE_PLATFORM_GITHUB

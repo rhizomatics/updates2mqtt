@@ -54,6 +54,7 @@ dev = [
     "pytest-asyncio>=1.2.0",
     "pytest-cov>=7.0.0",
     "pytest-httpx",
+    "pytest-xdist",
     "pytest-mqtt>=0.6.0",
     "pytest-subprocess>=1.5.3",
     "coverage",
