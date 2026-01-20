@@ -395,10 +395,3 @@ class LabelEnricher:
         if not annotations:
             logger.debug("No annotations found from registry data")
         return annotations
-
-
-r"""
-https://ghcr.io/token\?scope\="repository:rhizomatics/updates2mqtt:pull"
-https://ghcr.io/v2/rhizomatics/updates2mqtt/manifests/sha256:2c8edc1f9400ef02a93c3b754d4419082ceb5d049178c3a3968e3fd56caf7f29 Accept:application/vnd.oci.image.index.v1+json Accept:application/vnd.oci.image.manifest.v1+json Accept:application/vnd.docker.distribution.manifest.v2+json
-https://ghcr.io/v2/rhizomatics/updates2mqtt/manifests/latest Accept:application/vnd.oci.image.index.v1+json Accept:application/vnd.oci.image.manifest.v1+json Accept:appli
-"""  # noqa: E501
