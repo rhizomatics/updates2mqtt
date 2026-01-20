@@ -23,7 +23,10 @@ Github source repo releases and passed onto Home Assistant
 - Metadata from local `org.opencontainers` labels published where available
 - Added more packages to common-packages, vector and greptime
 ### Selective Home Assistant Discovery
-- New `version_select` option in Docker config works like `image_ref_select` but on the reported version instead
+- New `version_select` option in Docker config works like `image_ref_select` using the reported version instead
+### API Throttling
+- Throttling fixed for TTL taken from remote API
+- Docker provider shuffles the list of containers it scans so if there is aggressive throttling there isn't the same set of containers always getting scanned before the rate limit hits
 
 ## 1.6.0
 ### MQTT Topics

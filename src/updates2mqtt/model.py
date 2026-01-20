@@ -86,6 +86,7 @@ class Discovery:
         self.scan_count: int
         self.first_timestamp: float
         self.last_timestamp: float = time.time()
+        self.check_timestamp: float | None = time.time()
 
         if previous:
             self.update_last_attempt = previous.update_last_attempt
@@ -94,6 +95,11 @@ class Discovery:
         else:
             self.first_timestamp = time.time()
             self.scan_count = 1
+        if throttled and previous:
+            # roll forward last non-throttled check
+            self.check_timestamp = previous.check_timestamp
+        elif not throttled:
+            self.check_timestamp = time.time()
 
     def __repr__(self) -> str:
         """Build a custom string representation"""
@@ -207,6 +213,10 @@ class Selection:
             if any(re.search(pat, value) for pat in selector.include):
                 self.matched = value
                 self.result = True
+
+    def __bool__(self) -> bool:
+        """Expose the actual boolean so objects can be appropriately truthy"""
+        return self.result
 
 
 VERSION_RE = r"[vVr]?[0-9]+(\.[0-9]+)*"

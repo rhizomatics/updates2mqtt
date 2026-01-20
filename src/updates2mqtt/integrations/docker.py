@@ -1,3 +1,4 @@
+import random
 import subprocess
 import time
 import typing
@@ -557,13 +558,17 @@ class DockerProvider(ReleaseProvider):
     #    metadata_version: str = c.labels.get("org.opencontainers.image.version")
     #    metadata_revision: str = c.labels.get("org.opencontainers.image.revision")
 
-    async def scan(self, session: str) -> AsyncGenerator[Discovery]:
+    async def scan(self, session: str, shuffle: bool = True) -> AsyncGenerator[Discovery]:
         logger = self.log.bind(session=session, action="scan", source=self.source_type)
         containers: int = 0
         results: int = 0
         throttled: int = 0
-        logger.debug("Starting container scan loop")
-        for c in self.client.containers.list():
+
+        targets: list[Container] = self.client.containers.list()
+        if shuffle:
+            random.shuffle(targets)
+        logger.debug("Starting scanning %s containers", len(targets))
+        for c in targets:
             logger.debug("Analyzing container", container=c.name)
             if self.stopped.is_set():
                 logger.info(f"Shutdown detected, aborting scan at {c}")
