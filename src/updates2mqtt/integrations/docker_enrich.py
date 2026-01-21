@@ -515,7 +515,6 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
         token: str | None = None,
         mutable_cache_ttl: int = 600,
         immutable_cache_ttl: int = 86400,
-        minimal: bool = False,
         **kwargs,  # noqa: ANN003, ARG002
     ) -> DockerImageInfo:
         logger = self.log.bind(image_ref=local_image_info.ref, action="enrich_registry")
@@ -573,28 +572,31 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
                     and ("Variant" not in platform_info or platform_info.get("Variant") == local_image_info.variant)
                 ):
                     digest = m.get("digest")
-                    result.digest = result.condense_digest(digest, short=False)
-                    result.short_digest = result.condense_digest(digest)
-                    if not minimal:
-                        media_type = m.get("mediaType")
-                        response = fetch_url(
-                            f"https://{api_host}/v2/{local_image_info.name}/manifests/{digest}",
-                            cache_ttl=immutable_cache_ttl,
-                            bearer_token=token,
-                            response_type=media_type,
-                        )
-                        if response and response.is_success:
-                            api_data = httpx_json_content(response, None)
-                            if api_data:
-                                logger.debug(
-                                    "MANIFEST %s layers, %s annotations",
-                                    len(api_data.get("layers", [])),
-                                    len(api_data.get("annotations", [])),
-                                )
-                                if api_data.get("annotations"):
-                                    result.annotations.update(api_data.get("annotations", {}))
-                                else:
-                                    logger.debug("No annotations found in manifest: %s", api_data)
+                    media_type = m.get("mediaType")
+                    api_url = f"https://{api_host}/v2/{local_image_info.name}/manifests/{digest}"
+                    response = fetch_url(
+                        api_url,
+                        cache_ttl=immutable_cache_ttl,
+                        bearer_token=token,
+                        response_type=media_type,
+                    )
+                    if response and response.is_success:
+                        api_data = httpx_json_content(response, None)
+                        if api_data:
+                            digest = api_data.get("config", {}).get("digest")
+                            logger.debug(
+                                "MANIFEST %s, %s layers, %s annotations",
+                                digest,
+                                len(api_data.get("layers", [])),
+                                len(api_data.get("annotations", [])),
+                            )
+                            result.digest = result.condense_digest(digest, short=False)
+                            result.short_digest = result.condense_digest(digest)
+
+                            if api_data.get("annotations"):
+                                result.annotations.update(api_data.get("annotations", {}))
+                            else:
+                                logger.debug("No annotations found in manifest: %s", api_data)
 
         if not result.annotations:
             logger.debug("No annotations found from registry data")

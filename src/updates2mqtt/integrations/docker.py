@@ -302,10 +302,6 @@ class DockerProvider(ReleaseProvider):
                     latest_info = self.docker_client_image_lookup.lookup(local_info)
                 elif self.cfg.registry_access == RegistryAccessPolicy.OCI_V2:
                     latest_info = self.registry_image_lookup.lookup(local_info, token=customization.registry_token)
-                elif self.cfg.registry_access == RegistryAccessPolicy.OCI_V2_MINIMAL:
-                    latest_info = self.registry_image_lookup.lookup(
-                        local_info, token=customization.registry_token, minimal=True
-                    )
                 else:  # assuming RegistryAccessPolicy.DISABLED
                     logger.debug(f"Skipping registry check, disabled in config {self.cfg.registry_access}")
                     latest_info = DockerImageInfo(local_info.ref)

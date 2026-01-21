@@ -137,8 +137,11 @@ def mock_registry(httpx_mock: HTTPXMock) -> HTTPXMock:
             )
         m = re.match(r"/v2/([A-Za-z0-9/]+/manifests/(sha256:[0-9]+))", request.url.path)
         if m:
-            if m.group(2) == digest_for_ref(m.group(1), short=False):
-                return httpx.Response(status_code=200, json={"annotations": {"test.type": "unit"}})
+            if m.group(2) == f"{digest_for_ref(m.group(1), short=False)}111":
+                return httpx.Response(
+                    status_code=200,
+                    json={"config": {"digest": digest_for_ref(m.group(1), short=False)}, "annotations": {"test.type": "unit"}},
+                )
             return httpx.Response(status_code=404)
         m = re.match(r"/v2/([A-Za-z0-9/]+/manifests/([A-Za-z0-9:]+))", request.url.path)
         if m:
@@ -149,12 +152,12 @@ def mock_registry(httpx_mock: HTTPXMock) -> HTTPXMock:
                         {
                             "platform": {"os": "linux", "architecture": "arm64"},
                             "mediaType": "test_manifest",
-                            "digest": digest_for_ref(m.group(1), short=False),
+                            "digest": f"{digest_for_ref(m.group(1), short=False)}111",
                         },
                         {
                             "platform": {"os": "macos", "architecture": "arm64"},
                             "mediaType": "test_manifest",
-                            "digest": digest_for_ref(m.group(1), short=False),
+                            "digest": f"{digest_for_ref(m.group(1), short=False)}111",
                         },
                     ]
                 },

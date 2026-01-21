@@ -1,7 +1,9 @@
+import docker
 import pytest
 from pytest_httpx import HTTPXMock
 
 from updates2mqtt.config import DockerConfig, DockerPackageUpdateInfo, PackageUpdateInfo
+from updates2mqtt.integrations.docker import Throttler
 from updates2mqtt.integrations.docker_enrich import (
     DIFF_URL_TEMPLATES,
     RELEASE_URL_TEMPLATES,
@@ -9,6 +11,7 @@ from updates2mqtt.integrations.docker_enrich import (
     CommonPackageEnricher,
     ContainerDistributionAPIVersionLookup,
     DefaultPackageEnricher,
+    DockerClientVersionLookup,
     DockerImageInfo,
     LinuxServerIOPackageEnricher,
     PackageEnricher,
@@ -114,6 +117,13 @@ def test_label_enricher_unqualified_docker() -> None:
 @pytest.mark.slow
 def test_label_enricher_vanilla_docker() -> None:
     uut = ContainerDistributionAPIVersionLookup()
+    v: DockerImageInfo = uut.lookup(DockerImageInfo("jellyfin/jellyfin", attributes={"Os": "linux", "Architecture": "amd64"}))
+    assert v.annotations is not None
+
+
+@pytest.mark.slow
+def test_label_enricher_vanilla_docker_v1() -> None:
+    uut = DockerClientVersionLookup(docker.from_env(), Throttler())
     v: DockerImageInfo = uut.lookup(DockerImageInfo("jellyfin/jellyfin", attributes={"Os": "linux", "Architecture": "amd64"}))
     assert v.annotations is not None
 

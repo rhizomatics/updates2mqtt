@@ -16,9 +16,7 @@ from updates2mqtt.model import Discovery
 
 
 @pytest.mark.httpx_mock(assert_all_requests_were_expected=False)
-@pytest.mark.parametrize(
-    "registry_access", [RegistryAccessPolicy.OCI_V2, RegistryAccessPolicy.DOCKER_CLIENT, RegistryAccessPolicy.OCI_V2_MINIMAL]
-)
+@pytest.mark.parametrize("registry_access", [RegistryAccessPolicy.OCI_V2, RegistryAccessPolicy.DOCKER_CLIENT])
 async def test_scanner(
     mock_docker_client: DockerClient, mock_registry: HTTPXMock, registry_access: RegistryAccessPolicy
 ) -> None:
