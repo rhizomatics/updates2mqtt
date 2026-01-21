@@ -418,6 +418,9 @@ class DockerProvider(ReleaseProvider):
             # can_pull,can_build etc are only info flags
             # the HASS update process is driven by comparing current and available versions
 
+            if latest_info.short_digest in (local_info.short_digest, NO_KNOWN_IMAGE) or latest_info.throttled:
+                latest_info.short_digest = local_info.short_digest
+                latest_info.version = local_info.version
             public_installed_version = select_version(
                 version_policy,
                 local_info.version,
@@ -425,16 +428,13 @@ class DockerProvider(ReleaseProvider):
                 other_version=latest_info.version,
                 other_digest=latest_info.short_digest,
             )
-            if latest_info.short_digest in (local_info.short_digest, NO_KNOWN_IMAGE) or latest_info.throttled:
-                public_latest_version = public_installed_version
-            else:
-                public_latest_version = select_version(
-                    version_policy,
-                    latest_info.version,
-                    latest_info.short_digest,
-                    other_version=local_info.version,
-                    other_digest=local_info.short_digest,
-                )
+            public_latest_version = select_version(
+                version_policy,
+                latest_info.version,
+                latest_info.short_digest,
+                other_version=local_info.version,
+                other_digest=local_info.short_digest,
+            )
 
             publish_policy: PublishPolicy = PublishPolicy.HOMEASSISTANT
             img_ref_selection = Selection(self.cfg.image_ref_select, local_info.ref)
