@@ -224,7 +224,7 @@ class LocalContainerInfo:
             image_ref = container.attrs.get("Config", {}).get("Image")
         image_ref = image_ref or ""
         digest: str = NO_KNOWN_IMAGE
-        if self.registry_access == RegistryAccessPolicy.DOCKER_CLIENT:
+        if self.registry_access == RegistryAccessPolicy.OCI_V2:
             digest = container.attrs.get("Image", digest)
         else:
             repo_digests = container.image.attrs.get("RepoDigests", []) if container.image else []
