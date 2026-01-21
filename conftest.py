@@ -213,6 +213,7 @@ def build_mock_container(
     c.labels = {}
     c.attrs = {}
     c.attrs["Config"] = {}
+    c.attrs["Image"] = f"{bare_tag}@sha256:{long_hash}"
     c.attrs["Config"]["Env"] = []
     c.attrs["Config"]["Labels"] = c.labels
     if picture:

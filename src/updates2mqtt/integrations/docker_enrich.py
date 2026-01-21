@@ -25,6 +25,7 @@ from updates2mqtt.config import (
     DockerConfig,
     DockerPackageUpdateInfo,
     PackageUpdateInfo,
+    RegistryAccessPolicy,
     UpdateInfoConfig,
 )
 
@@ -74,13 +75,14 @@ class DockerImageInfo:
     def __init__(
         self,
         ref: str,  # ref with optional index name and tag or digest, index:name:tag_or_digest
+        digest: str | None = None,
         tags: list[str] | None = None,
         attributes: dict[str, Any] | None = None,
         annotations: dict[str, Any] | None = None,
     ) -> None:
         self.ref: str = ref
         self.version: str | None = None
-        self.digest: str | None = None
+        self.digest: str | None = digest
         self.short_digest: str | None = None
         self.index_name: str | None = None
         self.name: str | None = None
@@ -124,11 +126,8 @@ class DockerImageInfo:
                     [self.os, self.arch, self.variant],
                 ),
             )
-        if not self.local_build:
-            choice: list[str] = self.attributes.get("RepoDigests", [])
-            if choice:
-                self.digest = choice[0]
 
+        self.digest = self.condense_digest(self.digest, short=False) if self.digest is not None else None
         self.short_digest = self.condense_digest(self.digest) if self.digest is not None else NO_KNOWN_IMAGE
 
     @property
@@ -214,6 +213,9 @@ def cherrypick_annotations(local_info: DockerImageInfo | None, registry_info: Do
 
 
 class LocalContainerInfo:
+    def __init__(self, registry_access: RegistryAccessPolicy) -> None:
+        self.registry_access: RegistryAccessPolicy = registry_access
+
     def build_image_info(self, container: Container) -> DockerImageInfo:
         """Image contents equiv to `docker inspect image <image_ref>`"""
         if container.image is not None and container.image.tags and len(container.image.tags) > 0:
@@ -221,8 +223,17 @@ class LocalContainerInfo:
         else:
             image_ref = container.attrs.get("Config", {}).get("Image")
         image_ref = image_ref or ""
+        digest: str = NO_KNOWN_IMAGE
+        if self.registry_access == RegistryAccessPolicy.DOCKER_CLIENT:
+            digest = container.attrs.get("Image", digest)
+        else:
+            repo_digests = container.image.attrs.get("RepoDigests", []) if container.image else []
+            if len(repo_digests) > 0:
+                digest = repo_digests[0]
+
         image_info: DockerImageInfo = DockerImageInfo(
             image_ref,
+            digest=digest,
             tags=container.image.tags if container and container.image else None,
             annotations=container.image.labels if container.image else None,
             attributes=container.image.attrs if container.image else None,

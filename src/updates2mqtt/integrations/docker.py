@@ -140,7 +140,7 @@ class DockerProvider(ReleaseProvider):
         self.docker_client_image_lookup = DockerClientVersionLookup(self.client, self.throttler, self.cfg.default_api_backoff)
         self.registry_image_lookup = ContainerDistributionAPIVersionLookup()
         self.release_enricher = SourceReleaseEnricher()
-        self.local_info_builder = LocalContainerInfo()
+        self.local_info_builder = LocalContainerInfo(self.cfg.registry_access)
 
     def initialize(self) -> None:
         for enricher in self.pkg_enrichers:
@@ -306,7 +306,7 @@ class DockerProvider(ReleaseProvider):
                     logger.debug(f"Skipping registry check, disabled in config {self.cfg.registry_access}")
                     latest_info = DockerImageInfo(local_info.ref)
 
-                if latest_info.short_digest:
+                if latest_info.short_digest and self.cfg.registry_access == RegistryAccessPolicy.DOCKER_CLIENT:
                     # local image might have multiple RepoDigests if image has been pulled multiple times with diff manifests
                     local_info.force_digest_match(latest_info.short_digest)
 
