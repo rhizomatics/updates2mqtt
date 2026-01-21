@@ -2,20 +2,30 @@ import time
 from pathlib import Path
 from unittest.mock import ANY, patch
 
+import pytest
 from docker import DockerClient
 from docker.models.containers import Container
+from pytest_httpx import HTTPXMock
 from pytest_subprocess import FakeProcess
 
 import updates2mqtt.integrations.docker as mut
 from conftest import build_mock_container
-from updates2mqtt.config import DockerPackageUpdateInfo, UpdatePolicy
+from updates2mqtt.config import DockerPackageUpdateInfo, RegistryAccessPolicy, UpdatePolicy
 from updates2mqtt.integrations.docker import ContainerCustomization, DockerComposeCommand
 from updates2mqtt.model import Discovery
 
 
-async def test_scanner(mock_docker_client: DockerClient) -> None:
+@pytest.mark.httpx_mock(assert_all_requests_were_expected=False)
+@pytest.mark.parametrize(
+    "registry_access", [RegistryAccessPolicy.OCI_V2, RegistryAccessPolicy.DOCKER_CLIENT, RegistryAccessPolicy.OCI_V2_MINIMAL]
+)
+async def test_scanner(
+    mock_docker_client: DockerClient, mock_registry: HTTPXMock, registry_access: RegistryAccessPolicy
+) -> None:
+    if registry_access == RegistryAccessPolicy.DOCKER_CLIENT:
+        mock_registry.reset()
     with patch("docker.from_env", return_value=mock_docker_client):
-        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.NodeConfig())
+        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}, registry_access=registry_access), mut.NodeConfig())
         session = "unit_123"
         results: list[Discovery] = [d async for d in uut.scan(session)]
 
@@ -433,7 +443,9 @@ def test_analyze_throttles_on_429_error(mock_docker_client: DockerClient) -> Non
 
     with patch("docker.from_env", return_value=mock_docker_client):
         node_cfg = mut.NodeConfig()
-        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), node_cfg)
+        uut = mut.DockerProvider(
+            mut.DockerConfig(discover_metadata={}, registry_access=RegistryAccessPolicy.DOCKER_CLIENT), node_cfg
+        )
         uut.throttler.api_throttle_pause = 60  # Set to 60 seconds for test
 
         # First call should trigger throttling
@@ -447,7 +459,9 @@ def test_analyze_skips_during_throttle_period(mock_docker_client: DockerClient) 
     container.name = "throttled-container"  # type: ignore[misc]
 
     with patch("docker.from_env", return_value=mock_docker_client):
-        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.NodeConfig())
+        uut = mut.DockerProvider(
+            mut.DockerConfig(discover_metadata={}, registry_access=RegistryAccessPolicy.DOCKER_CLIENT), mut.NodeConfig()
+        )
         # Set throttle to expire in the future
         uut.throttler.pause_api_until["docker.io"] = time.time() + 300
 
@@ -463,7 +477,9 @@ def test_analyze_resumes_after_throttle_expires(mock_docker_client: DockerClient
     container.name = "resumed-container"  # type: ignore[misc]
 
     with patch("docker.from_env", return_value=mock_docker_client):
-        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.NodeConfig())
+        uut = mut.DockerProvider(
+            mut.DockerConfig(discover_metadata={}, registry_access=RegistryAccessPolicy.DOCKER_CLIENT), mut.NodeConfig()
+        )
         # Set throttle to have already expired
         uut.throttler.pause_api_until["docker.io"] = time.time()
 

@@ -32,6 +32,13 @@ class LogLevel(StrEnum):
     CRITICAL = "CRITICAL"
 
 
+class RegistryAccessPolicy(StrEnum):
+    OCI_V2 = "OCI_V2"
+    OCI_V2_MINIMAL = "OCI_V2_MINIMAL"
+    DOCKER_CLIENT = "DOCKER_CLIENT"
+    DISABLED = "DISABLED"
+
+
 class VersionType:
     SHORT_SHA = "short_sha"
     FULL_SHA = "full_sha"
@@ -77,7 +84,8 @@ class DockerConfig:
     default_api_backoff: int = 60 * 15
     image_ref_select: Selector = field(default_factory=lambda: Selector())
     version_select: Selector = field(default_factory=lambda: Selector())
-    registry_metadata_select: Selector = field(default_factory=lambda: Selector())
+    registry_select: Selector = field(default_factory=lambda: Selector())
+    registry_access: RegistryAccessPolicy = RegistryAccessPolicy.OCI_V2
 
 
 class VersionPolicy(StrEnum):
@@ -134,7 +142,7 @@ class Config:
 
 @dataclass
 class DockerPackageUpdateInfo:
-    image_name: str = MISSING
+    image_name: str = MISSING  # untagged image ref
 
 
 @dataclass

@@ -17,6 +17,38 @@ from updates2mqtt.integrations.docker_enrich import (
 )
 
 
+def test_docker_image_info_bare_default() -> None:
+    uut = DockerImageInfo("test")
+    assert uut.index_name == "docker.io"
+    assert uut.tag_or_digest == "latest"
+    assert uut.name == "library/test"
+    assert uut.untagged_ref == "test"
+
+
+def test_docker_image_info_non_docker_unqualified() -> None:
+    uut = DockerImageInfo("myreg.io/test")
+    assert uut.index_name == "myreg.io"
+    assert uut.tag_or_digest == "latest"
+    assert uut.name == "test"
+    assert uut.untagged_ref == "myreg.io/test"
+
+
+def test_docker_image_info_with_tag() -> None:
+    uut = DockerImageInfo("test/unit:nightly")
+    assert uut.index_name == "docker.io"
+    assert uut.tag_or_digest == "nightly"
+    assert uut.name == "test/unit"
+    assert uut.untagged_ref == "test/unit"
+
+
+def test_docker_image_info_with_digest_qualifier() -> None:
+    uut = DockerImageInfo("test/unit:8553535@sha2030")
+    assert uut.index_name == "docker.io"
+    assert uut.tag_or_digest == "8553535"
+    assert uut.name == "test/unit"
+    assert uut.untagged_ref == "test/unit"
+
+
 def test_common_enricher() -> None:
     uut = CommonPackageEnricher(DockerConfig())
     uut.initialize()
@@ -290,18 +322,6 @@ def test_source_release_enricher_uses_provided_release_url() -> None:
     result = enricher.enrich(DockerImageInfo("test", annotations=annotations), release_url="https://custom.release.url")
 
     assert result.get("release_url") == "https://custom.release.url"
-
-
-def test_source_release_enricher_record_helper() -> None:
-    """SourceReleaseEnricher.record should only add non-None values"""
-    enricher = SourceReleaseEnricher()
-    results: dict[str, str | None] = {}
-
-    enricher.record(results, "key1", "value1")
-    enricher.record(results, "key2", None)
-
-    assert results == {"key1": "value1"}
-    assert "key2" not in results
 
 
 # === URL Template Tests ===

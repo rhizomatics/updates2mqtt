@@ -98,19 +98,19 @@ class Throttler:
         self.api_throttle_pause: int = api_throttle_pause
         self.semaphore = semaphore
 
-    def check_throttle(self, repo_id: str) -> bool:
+    def check_throttle(self, index_name: str) -> bool:
         if self.semaphore and self.semaphore.is_set():
             return True
-        if self.pause_api_until.get(repo_id) is not None:
-            if self.pause_api_until[repo_id] < time.time():
-                del self.pause_api_until[repo_id]
-                self.log.info("%s throttling wait complete", repo_id)
+        if self.pause_api_until.get(index_name) is not None:
+            if self.pause_api_until[index_name] < time.time():
+                del self.pause_api_until[index_name]
+                self.log.info("%s throttling wait complete", index_name)
             else:
-                self.log.debug("%s throttling has %0.3f secs left", repo_id, self.pause_api_until[repo_id] - time.time())
+                self.log.debug("%s throttling has %0.3f secs left", index_name, self.pause_api_until[index_name] - time.time())
                 return True
         return False
 
-    def throttle(self, repo_id: str, retry_secs: int | None = None, explanation: str | None = None) -> None:
+    def throttle(self, index_name: str, retry_secs: int | None = None, explanation: str | None = None) -> None:
         retry_secs = retry_secs if retry_secs and retry_secs > 0 else self.api_throttle_pause
-        self.log.warn("%s throttling requests for %s seconds, %s", repo_id, retry_secs, explanation)
-        self.pause_api_until[repo_id] = time.time() + retry_secs
+        self.log.warn("%s throttling requests for %s seconds, %s", index_name, retry_secs, explanation)
+        self.pause_api_until[index_name] = time.time() + retry_secs

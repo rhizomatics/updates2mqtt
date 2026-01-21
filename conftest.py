@@ -1,16 +1,19 @@
 # python
 import asyncio
+import re
 import uuid
 from collections.abc import AsyncGenerator, Callable
 from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
+import httpx
 import paho.mqtt.client
 import pytest
 from docker import DockerClient
 from docker.models.containers import Container, ContainerCollection
 from docker.models.images import Image, RegistryData
 from omegaconf import DictConfig, OmegaConf
+from pytest_httpx import HTTPXMock
 
 import updates2mqtt.app
 from updates2mqtt.app import (
@@ -109,6 +112,60 @@ def mock_mqtt_client() -> paho.mqtt.client.Client:
     return MagicMock(spec=paho.mqtt.client.Client, name="MQTT Client Fixture")
 
 
+def digest_for_ref(v: str, short: bool = True) -> str:
+    d: str
+    match v:
+        case "testy/mctest:latest":
+            d = "sha256:c53853875750"
+        case "testy/mctest":
+            d = "sha256:9e2bbca079382"
+        case "ubuntu":
+            d = "sha256:85a5385853bd3"
+        case _:
+            d = "sha256:9999999999999"
+    return d if short else f"{d}{'0' * 52}"
+
+
+@pytest.fixture
+def mock_registry(httpx_mock: HTTPXMock) -> HTTPXMock:
+    # TODO: finish
+    def custom_response(request: httpx.Request) -> httpx.Response:
+        if "/token" in request.url.path:
+            return httpx.Response(
+                status_code=200,
+                json={"token": "fooey"},  # nosec
+            )
+        m = re.match(r"/v2/([A-Za-z0-9/]+/manifests/(sha256:[0-9]+))", request.url.path)
+        if m:
+            if m.group(2) == digest_for_ref(m.group(1), short=False):
+                return httpx.Response(status_code=200, json={"annotations": {"test.type": "unit"}})
+            return httpx.Response(status_code=404)
+        m = re.match(r"/v2/([A-Za-z0-9/]+/manifests/([A-Za-z0-9:]+))", request.url.path)
+        if m:
+            return httpx.Response(
+                status_code=200,
+                json={
+                    "manifests": [
+                        {
+                            "platform": {"os": "linux", "architecture": "arm64"},
+                            "mediaType": "test_manifest",
+                            "digest": digest_for_ref(m.group(1), short=False),
+                        },
+                        {
+                            "platform": {"os": "macos", "architecture": "arm64"},
+                            "mediaType": "test_manifest",
+                            "digest": digest_for_ref(m.group(1), short=False),
+                        },
+                    ]
+                },
+            )
+
+        return httpx.Response(status_code=404)
+
+    httpx_mock.add_callback(custom_response, is_reusable=True)
+    return httpx_mock
+
+
 @pytest.fixture
 def mock_docker_client() -> DockerClient:
     client = Mock(spec=DockerClient)
@@ -116,15 +173,7 @@ def mock_docker_client() -> DockerClient:
 
     def reg_data_select(v: str) -> RegistryData:
         reg_data = Mock(spec=RegistryData, image_name=v, id=uuid.uuid4(), attrs={})
-        match v:
-            case "testy/mctest:latest":
-                reg_data.short_id = "sha256:c5385387575"
-            case "testy/mctest":
-                reg_data.short_id = "sha256:9e2bbca07938"
-            case "ubuntu":
-                reg_data.short_id = "sha256:85a5385853bd"
-            case _:
-                reg_data.short_id = "sha256:999999999999"
+        reg_data.short_id = digest_for_ref(v)
         return reg_data
 
     client.images.get_registry_data = Mock(side_effect=reg_data_select)

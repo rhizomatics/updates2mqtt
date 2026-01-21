@@ -19,12 +19,12 @@ from updates2mqtt.config import (
     NodeConfig,
     PackageUpdateInfo,
     PublishPolicy,
+    RegistryAccessPolicy,
     UpdatePolicy,
     VersionPolicy,
 )
 from updates2mqtt.helpers import Selection, Throttler, select_version
 from updates2mqtt.integrations.docker_enrich import (
-    AuthError,
     CommonPackageEnricher,
     ContainerDistributionAPIVersionLookup,
     DefaultPackageEnricher,
@@ -137,10 +137,10 @@ class DockerProvider(ReleaseProvider):
             LinuxServerIOPackageEnricher(self.cfg),
             DefaultPackageEnricher(self.cfg),
         ]
-        self.local_image_lookup = DockerClientVersionLookup(self.client, self.throttler, self.cfg.default_api_backoff)
+        self.docker_client_image_lookup = DockerClientVersionLookup(self.client, self.throttler, self.cfg.default_api_backoff)
+        self.registry_image_lookup = ContainerDistributionAPIVersionLookup()
         self.release_enricher = SourceReleaseEnricher()
         self.local_info_builder = LocalContainerInfo()
-        self.registry_image_lookup = ContainerDistributionAPIVersionLookup()
 
     def initialize(self) -> None:
         for enricher in self.pkg_enrichers:
@@ -287,56 +287,42 @@ class DockerProvider(ReleaseProvider):
             relnotes_url: str | None = customization.relnotes or pkg_info.release_notes_url
             release_summary: str | None = None
 
-            if local_info.ref and not local_info.local_build:
-                latest_info: DockerImageInfo = self.local_image_lookup.lookup(local_info)
-            elif local_info.local_build:
-                # assume its a locally built image if no RepoDigests available
-                latest_info = DockerImageInfo(local_info.ref, local_info.repo_id)
-            else:
-                latest_info = DockerImageInfo(NO_KNOWN_IMAGE)
-
-            if latest_info.short_digest:
-                # might be multiple RepoDigests if image has been pulled multiple times with diff manifests
-                local_info.force_digest_match(latest_info.short_digest)
-
-            def save_if_set(key: str, val: str | None) -> None:
-                if val is not None:
-                    custom[key] = val
-
             custom: dict[str, str | bool | int | list[str] | dict[str, Any] | None] = {}
             custom.update(local_info.custom)
-            custom.update(latest_info.custom)
+
             custom["platform"] = local_info.platform
             custom["image_ref"] = local_info.ref
-            custom["installed_digest"] = local_info.short_digest
-            custom["latest_digest"] = latest_info.short_digest
-            custom["repo_id"] = latest_info.repo_id
+            custom["index_name"] = local_info.index_name
             custom["git_repo_path"] = customization.git_repo_path
 
-            annotations: dict[str, str] = {}
-            if latest_info.short_digest is None or latest_info.short_digest == NO_KNOWN_IMAGE or latest_info.throttled:
-                logger.debug(
-                    "Skipping image manifest enrichment",
-                    latest_digest=latest_info.short_digest,
-                    image_ref=latest_info.ref,
-                    platform=latest_info.platform,
-                    throttled=latest_info.throttled,
-                )
-            else:
-                registry_selection = Selection(self.cfg.registry_metadata_select, latest_info.repo_id)
-                if registry_selection:
-                    try:
-                        label_info: DockerImageInfo = self.registry_image_lookup.lookup(
-                            local_info, token=customization.registry_token
-                        )
-                        annotations = label_info.attributes
-                    except AuthError as e:
-                        logger.warning("Authentication error prevented Docker Registry enrichment: %s", e)
+            registry_selection = Selection(self.cfg.registry_select, local_info.index_name)
+            latest_info: DockerImageInfo
+            if registry_selection and local_info.ref and not local_info.local_build:
+                if self.cfg.registry_access == RegistryAccessPolicy.DOCKER_CLIENT:
+                    latest_info = self.docker_client_image_lookup.lookup(local_info)
+                elif self.cfg.registry_access == RegistryAccessPolicy.OCI_V2:
+                    latest_info = self.registry_image_lookup.lookup(local_info, token=customization.registry_token)
+                elif self.cfg.registry_access == RegistryAccessPolicy.OCI_V2_MINIMAL:
+                    latest_info = self.registry_image_lookup.lookup(
+                        local_info, token=customization.registry_token, minimal=True
+                    )
+                else:  # assuming RegistryAccessPolicy.DISABLED
+                    logger.debug(f"Skipping registry check, disabled in config {self.cfg.registry_access}")
+                    latest_info = DockerImageInfo(local_info.ref)
 
-                    if annotations:
-                        latest_info.version = annotations.get("org.opencontainers.image.version")
-                else:
-                    logger.debug("Registry selection rules suppressed metadata lookup")
+                if latest_info.short_digest:
+                    # local image might have multiple RepoDigests if image has been pulled multiple times with diff manifests
+                    local_info.force_digest_match(latest_info.short_digest)
+
+            elif local_info.local_build:
+                # assume its a locally built image if no RepoDigests available
+                latest_info = DockerImageInfo(local_info.ref)
+                custom["git_repo_path"] = customization.git_repo_path
+            else:
+                logger.debug("Registry selection rules suppressed metadata lookup")
+                latest_info = DockerImageInfo(local_info.ref)
+
+            custom.update(latest_info.custom)
 
             release_info: dict[str, str | None] = self.release_enricher.enrich(
                 latest_info, source_repo_url=pkg_info.source_repo_url, release_url=relnotes_url
@@ -347,6 +333,7 @@ class DockerProvider(ReleaseProvider):
                 relnotes_url = release_info.pop("release_url")
             if release_info.get("release_summary"):
                 release_summary = release_info.pop("release_summary")
+
             custom.update(release_info)
 
             if custom.get("git_repo_path") and custom.get("compose_path"):
@@ -355,7 +342,7 @@ class DockerProvider(ReleaseProvider):
                 )
 
                 git_trust(full_repo_path, Path(self.node_cfg.git_path))
-                save_if_set("git_local_timestamp", git_iso_timestamp(full_repo_path, Path(self.node_cfg.git_path)))
+                custom["git_local_timestamp"] = git_iso_timestamp(full_repo_path, Path(self.node_cfg.git_path))
 
             features: list[str] = []
             can_pull: bool = (
