@@ -1,33 +1,14 @@
-import datetime as dt
 import json
-import re
 import time
 from abc import abstractmethod
 from collections.abc import AsyncGenerator, Callable
-from enum import StrEnum
 from threading import Event
 from typing import Any
 
 import structlog
-from tzlocal import get_localzone
 
-from updates2mqtt.config import NO_KNOWN_IMAGE, NodeConfig, PublishPolicy, Selector, UpdatePolicy
-
-
-def timestamp(time_value: float | None) -> str | None:
-    if time_value is None:
-        return None
-    try:
-        return dt.datetime.fromtimestamp(time_value, tz=get_localzone()).isoformat()
-    except:  # noqa: E722
-        return None
-
-
-class VersionPolicy(StrEnum):
-    AUTO = "AUTO"
-    VERSION = "VERSION"
-    DIGEST = "DIGEST"
-    VERSION_DIGEST = "VERSION_DIGEST"
+from updates2mqtt.config import NodeConfig, PublishPolicy, UpdatePolicy, VersionPolicy
+from updates2mqtt.helpers import timestamp
 
 
 class Discovery:
@@ -194,74 +175,3 @@ class ReleaseProvider:
     @abstractmethod
     def resolve(self, discovery_name: str) -> Discovery | None:
         """Resolve a discovered component by name"""
-
-
-class Selection:
-    def __init__(self, selector: Selector, value: str | None) -> None:
-        self.result: bool = True
-        self.matched: str | None = None
-        if value is None:
-            self.result = selector.include is None
-            return
-        if selector.exclude is not None:
-            self.result = True
-            if any(re.search(pat, value) for pat in selector.exclude):
-                self.matched = value
-                self.result = False
-        if selector.include is not None:
-            self.result = False
-            if any(re.search(pat, value) for pat in selector.include):
-                self.matched = value
-                self.result = True
-
-    def __bool__(self) -> bool:
-        """Expose the actual boolean so objects can be appropriately truthy"""
-        return self.result
-
-
-VERSION_RE = r"[vVr]?[0-9]+(\.[0-9]+)*"
-# source: https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
-SEMVER_RE = r"^(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$"  # noqa: E501
-
-
-def select_version(
-    version_policy: VersionPolicy,
-    version: str | None,
-    digest: str | None,
-    other_version: str | None = None,
-    other_digest: str | None = None,
-) -> str:
-    """Pick the best version string to display based on the version policy and available data
-
-    Falls back to digest if version not reliable or not consistent with current/available version
-    """
-    if version_policy == VersionPolicy.VERSION and version:
-        return version
-    if version_policy == VersionPolicy.DIGEST and digest and digest != NO_KNOWN_IMAGE:
-        return digest
-    if version_policy == VersionPolicy.VERSION_DIGEST and version and digest and digest != NO_KNOWN_IMAGE:
-        return f"{version}:{digest}"
-    # AUTO or fallback
-    if version_policy == VersionPolicy.AUTO and version and re.match(VERSION_RE, version or ""):
-        # Smells like semver
-        if other_version is None and other_digest is None:
-            return version
-        if any((re.match(VERSION_RE, other_version or ""), re.match(SEMVER_RE, other_version or ""))) and (
-            (version == other_version and digest == other_digest) or (version != other_version and digest != other_digest)
-        ):
-            # Only semver if versions and digest consistently same or different
-            return version
-
-    if (
-        version
-        and digest
-        and digest != NO_KNOWN_IMAGE
-        and ((other_digest is None and other_version is None) or (other_digest is not None and other_version is not None))
-    ):
-        return f"{version}:{digest}"
-    if version and other_version:
-        return version
-    if digest and digest != NO_KNOWN_IMAGE:
-        return digest
-
-    return other_digest or NO_KNOWN_IMAGE

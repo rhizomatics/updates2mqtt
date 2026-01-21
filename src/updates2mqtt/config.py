@@ -77,6 +77,14 @@ class DockerConfig:
     default_api_backoff: int = 60 * 15
     image_ref_select: Selector = field(default_factory=lambda: Selector())
     version_select: Selector = field(default_factory=lambda: Selector())
+    registry_metadata_select: Selector = field(default_factory=lambda: Selector())
+
+
+class VersionPolicy(StrEnum):
+    AUTO = "AUTO"
+    VERSION = "VERSION"
+    DIGEST = "DIGEST"
+    VERSION_DIGEST = "VERSION_DIGEST"
 
 
 @dataclass

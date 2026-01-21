@@ -151,6 +151,7 @@ def build_mock_container(
     c = Mock(spec=Container)
     c.image = Mock(spec=Image)
     c.image.tags = [tag]
+    c.image.labels = {}
     c.image.attrs = {}
     c.image.attrs["Os"] = opsys
     c.image.attrs["Architecture"] = arch

@@ -7,8 +7,9 @@ from updates2mqtt.integrations.docker_enrich import (
     RELEASE_URL_TEMPLATES,
     SOURCE_PLATFORM_GITHUB,
     CommonPackageEnricher,
+    ContainerDistributionAPIVersionLookup,
     DefaultPackageEnricher,
-    LabelEnricher,
+    DockerImageInfo,
     LinuxServerIOPackageEnricher,
     PackageEnricher,
     SourceReleaseEnricher,
@@ -64,30 +65,34 @@ def test_discover_metadata(httpx_mock: HTTPXMock) -> None:
 
 @pytest.mark.slow
 def test_label_enricher_ghcr() -> None:
-    uut = LabelEnricher()
-    manifest = uut.fetch_annotations("ghcr.io/rhizomatics/updates2mqtt:1.6.0", "linux", "amd64")
-    assert manifest["org.opencontainers.image.documentation"] == "https://updates2mqtt.rhizomatics.org.uk"
+    uut = ContainerDistributionAPIVersionLookup()
+    v: DockerImageInfo = uut.lookup(
+        DockerImageInfo("ghcr.io/rhizomatics/updates2mqtt:1.6.0", attributes={"Os": "linux", "Architecture": "amd64"})
+    )
+    assert v.annotations["org.opencontainers.image.documentation"] == "https://updates2mqtt.rhizomatics.org.uk"
 
 
 @pytest.mark.slow
 def test_label_enricher_unqualified_docker() -> None:
-    uut = LabelEnricher()
-    manifest = uut.fetch_annotations("docker:cli", "linux", "amd64")
-    assert manifest["org.opencontainers.image.url"] == "https://hub.docker.com/_/docker"
+    uut = ContainerDistributionAPIVersionLookup()
+    v: DockerImageInfo = uut.lookup(DockerImageInfo("docker:cli", attributes={"Os": "linux", "Architecture": "amd64"}))
+    assert v.annotations["org.opencontainers.image.url"] == "https://hub.docker.com/_/docker"
 
 
 @pytest.mark.slow
 def test_label_enricher_vanilla_docker() -> None:
-    uut = LabelEnricher()
-    annotations = uut.fetch_annotations("jellyfin/jellyfin", "linux", "amd64")
-    assert annotations is not None
+    uut = ContainerDistributionAPIVersionLookup()
+    v: DockerImageInfo = uut.lookup(DockerImageInfo("jellyfin/jellyfin", attributes={"Os": "linux", "Architecture": "amd64"}))
+    assert v.annotations is not None
 
 
 @pytest.mark.slow
-def test_label_enricher_custom_url() -> None:
-    uut = LabelEnricher()
-    annotations = uut.fetch_annotations("registry.gitlab.com/elad.bar/dahuavto2mqtt", "linux", "amd64")
-    assert annotations is not None
+def test_label_enricher_gitlab() -> None:
+    uut = ContainerDistributionAPIVersionLookup()
+    v: DockerImageInfo = uut.lookup(
+        DockerImageInfo("registry.gitlab.com/elad.bar/dahuavto2mqtt", attributes={"Os": "linux", "Architecture": "amd64"})
+    )
+    assert v.annotations is not None
 
 
 def test_id_source_platform() -> None:
@@ -120,7 +125,7 @@ def test_default_enricher_returns_package_info() -> None:
     cfg = DockerConfig()
     enricher = DefaultPackageEnricher(cfg)
 
-    result = enricher.enrich("nginx", "nginx:latest", enricher.log)
+    result = enricher.enrich(DockerImageInfo(ref="nginx:latest"))
 
     assert result is not None
     assert result.docker is not None
@@ -134,11 +139,11 @@ def test_default_enricher_with_none_image_name() -> None:
     cfg = DockerConfig()
     enricher = DefaultPackageEnricher(cfg)
 
-    result = enricher.enrich(None, "image:tag", enricher.log)
+    result: PackageUpdateInfo | None = enricher.enrich(DockerImageInfo("image:tag"))
 
     assert result is not None
     assert result.docker is not None
-    assert result.docker.image_name == "UNKNOWN"
+    assert result.docker.image_name == "image"
 
 
 # === PackageEnricher Base Tests ===
@@ -154,7 +159,7 @@ def test_package_enricher_match_by_image_name() -> None:
         release_notes_url="https://notes",
     )
 
-    result = enricher.enrich("test/image", "test/image:latest", enricher.log)
+    result = enricher.enrich(DockerImageInfo(ref="test/image:latest"))
 
     assert result is not None
     assert result.logo_url == "https://logo.png"
@@ -169,7 +174,7 @@ def test_package_enricher_match_by_image_ref() -> None:
         logo_url="https://logo.png",
     )
 
-    result = enricher.enrich("some-name", "ghcr.io/org/app:latest", enricher.log)
+    result = enricher.enrich(DockerImageInfo(ref="ghcr.io/org/app:latest"))
 
     assert result is not None
     assert result.logo_url == "https://logo.png"
@@ -183,19 +188,9 @@ def test_package_enricher_no_match() -> None:
         docker=DockerPackageUpdateInfo(image_name="other/image"),
     )
 
-    result = enricher.enrich("test/image", "test/image:latest", enricher.log)
+    result = enricher.enrich(DockerImageInfo(ref="test/image:latest"))
 
     assert result is None
-
-
-def test_package_enricher_none_inputs() -> None:
-    """PackageEnricher.enrich should return None for None inputs"""
-    cfg = DockerConfig()
-    enricher = PackageEnricher(cfg)
-
-    assert enricher.enrich(None, None, enricher.log) is None
-    assert enricher.enrich("name", None, enricher.log) is None
-    assert enricher.enrich(None, "ref", enricher.log) is None
 
 
 # === SourceReleaseEnricher Tests ===
@@ -213,21 +208,21 @@ def test_source_release_enricher_basic_annotations() -> None:
         "org.opencontainers.image.revision": "abc123def",
     }
 
-    result = enricher.enrich(annotations)
+    result = enricher.enrich(DockerImageInfo("test", annotations=annotations))
 
     assert result["latest_image_created"] == "2024-01-15T10:00:00Z"
     assert result["documentation_url"] == "https://docs.example.com"
     assert result["description"] == "A test image"
     assert result["vendor"] == "Test Vendor"
     assert result["latest_image_version"] == "1.2.3"
-    assert result["latest_release_revision"] == "abc123def"
+    assert result["latest_image_revision"] == "abc123def"
 
 
 def test_source_release_enricher_empty_annotations() -> None:
     """SourceReleaseEnricher should handle empty annotations"""
     enricher = SourceReleaseEnricher()
 
-    result = enricher.enrich({})
+    result = enricher.enrich(DockerImageInfo("test"))
 
     assert result == {}
 
@@ -240,7 +235,7 @@ def test_source_release_enricher_github_source() -> None:
         "org.opencontainers.image.version": "1.0.0",
     }
 
-    result = enricher.enrich(annotations)
+    result = enricher.enrich(DockerImageInfo("test", annotations=annotations))
 
     assert result.get("source_platform") == SOURCE_PLATFORM_GITHUB
     assert result.get("source") == "https://github.com/myorg/myrepo"
@@ -253,7 +248,7 @@ def test_source_release_enricher_strips_hash_from_source() -> None:
         "org.opencontainers.image.source": "https://github.com/myorg/myrepo#branch-name",
     }
 
-    result = enricher.enrich(annotations)
+    result = enricher.enrich(DockerImageInfo("test", annotations=annotations))
 
     # Source is stored with fragment, but platform detection uses stripped URL
     assert result.get("source") == "https://github.com/myorg/myrepo#branch-name"
@@ -267,7 +262,7 @@ def test_source_release_enricher_no_known_platform() -> None:
         "org.opencontainers.image.source": "https://gitlab.com/myorg/myrepo",
     }
 
-    result = enricher.enrich(annotations)
+    result = enricher.enrich(DockerImageInfo("test", annotations=annotations))
 
     assert "source_platform" not in result
     assert result.get("source") == "https://gitlab.com/myorg/myrepo"
@@ -278,9 +273,10 @@ def test_source_release_enricher_uses_provided_source_repo_url() -> None:
     enricher = SourceReleaseEnricher()
     annotations: dict[str, str] = {}  # No source in annotations
 
-    result = enricher.enrich(annotations, source_repo_url="https://github.com/fallback/repo")
+    result = enricher.enrich(
+        DockerImageInfo("test", annotations=annotations), source_repo_url="https://github.com/fallback/repo"
+    )
 
-    assert result.get("source") == "https://github.com/fallback/repo"
     assert result.get("source_platform") == SOURCE_PLATFORM_GITHUB
 
 
@@ -291,7 +287,7 @@ def test_source_release_enricher_uses_provided_release_url() -> None:
         "org.opencontainers.image.source": "https://github.com/myorg/myrepo",
     }
 
-    result = enricher.enrich(annotations, release_url="https://custom.release.url")
+    result = enricher.enrich(DockerImageInfo("test", annotations=annotations), release_url="https://custom.release.url")
 
     assert result.get("release_url") == "https://custom.release.url"
 
@@ -299,7 +295,7 @@ def test_source_release_enricher_uses_provided_release_url() -> None:
 def test_source_release_enricher_record_helper() -> None:
     """SourceReleaseEnricher.record should only add non-None values"""
     enricher = SourceReleaseEnricher()
-    results: dict[str, str] = {}
+    results: dict[str, str | None] = {}
 
     enricher.record(results, "key1", "value1")
     enricher.record(results, "key2", None)

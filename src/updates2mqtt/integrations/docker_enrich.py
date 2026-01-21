@@ -1,11 +1,23 @@
 import re
+import typing
+from abc import abstractmethod
 from typing import Any
 
 import structlog
-from docker.auth import resolve_repository_name
+from docker.auth import resolve_repository_name, split_repo_name
+from docker.models.containers import Container
 from hishel.httpx import SyncCacheClient
 from httpx import Response
 from omegaconf import MissingMandatoryValue, OmegaConf, ValidationError
+
+from updates2mqtt.helpers import Throttler
+
+if typing.TYPE_CHECKING:
+    from docker.models.images import RegistryData
+from http import HTTPStatus
+
+import docker
+import docker.errors
 
 from updates2mqtt.config import (
     NO_KNOWN_IMAGE,
@@ -27,6 +39,7 @@ DIFF_URL_TEMPLATES = {
 RELEASE_URL_TEMPLATES = {SOURCE_PLATFORM_GITHUB: "{repo}/releases/tag/{version}"}
 UNKNOWN_RELEASE_URL_TEMPLATES = {SOURCE_PLATFORM_GITHUB: "{repo}/releases"}
 MISSING_VAL = "**MISSING**"
+UNKNOWN_REGISTRY = "**UNKNOWN_REGISTRY**"
 
 TOKEN_URL_TEMPLATE = "https://{auth_host}/token?scope=repository:{image_name}:pull&service={service}"  # noqa: S105 # nosec
 REGISTRIES = {
@@ -44,10 +57,186 @@ REGISTRIES = {
     ),
 }
 
+# source: https://specs.opencontainers.org/distribution-spec/?v=v1.0.0#pull
+OCI_NAME_RE = r"[a-z0-9]+((\.|_|__|-+)[a-z0-9]+)*(\/[a-z0-9]+((\.|_|__|-+)[a-z0-9]+)*)*"
+OCI_TAG_RE = r"[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}"
+
+
+class DockerImageInfo:
+    """Normalize and shlep around the bits of an image def
+
+    repo_id: aka index_name, e.g. ghcr.io
+    name: image ref without index name or tag, e.g. nginx, or librenms/librenms
+    tag: tag or digest
+    untagged_ref:  combined index name and package name
+    """
+
+    def __init__(
+        self,
+        ref: str,  # ref with optional index name and tag or digest, index:name:tag_or_digest
+        version: str | None = None,
+        digest: str | None = None,
+        short_digest: str | None = None,
+        tags: list[str] | None = None,
+        attributes: dict[str, Any] | None = None,
+        annotations: dict[str, Any] | None = None,
+        throttled: bool = False,
+        error: str | None = None,
+        platform: str | None = None,
+    ) -> None:
+        self.ref: str = ref
+        self.version: str | None = version
+        self.digest: str | None = digest
+        self.short_digest: str | None = short_digest
+        self.tags = tags
+        self.attributes: dict[str, Any] = attributes or {}
+        self.annotations: dict[str, Any] = annotations or {}
+        self.throttled: bool = throttled
+        self.error: str | None = error
+        self.platform: str | None = platform
+        self.custom: dict[str, str | None] = {}
+
+        self.local_build: bool = len(self.attributes.get("RepoDigests", [])) == 0
+
+        self.repo_id, _ = resolve_repository_name(self.ref)
+
+        try:
+            self.untagged_ref = ref.split(":")[0] if ":" in ref else ref
+            _, self.name = split_repo_name(self.untagged_ref)
+            # "official Docker images have an abbreviated library/foo name"
+            if self.repo_id == "docker.io" and "/" not in self.name:
+                self.name = f"library/{self.name}"
+        except Exception as e:
+            log.warning("Can't make image name from %s : %s", ref, e)
+
+        if self.name is not None and not re.match(OCI_NAME_RE, self.name):
+            log.warning("Invalid OCI image name: %s", self.name)
+        self.tag = ref.split(":")[1] if ":" in ref else "latest"
+        self.tag = self.tag.split("@")[0] if "@" in self.tag else self.tag
+        if not re.match(OCI_TAG_RE, self.tag):
+            log.warning("Invalid OCI image tag: %s", self.tag)
+
+        if platform is None and self.os and self.arch:
+            self.platform = "/".join(
+                filter(
+                    None,
+                    [self.os, self.arch, self.variant],
+                ),
+            )
+        if short_digest is None and digest is None and not self.local_build:
+            choice: list[str] = self.attributes.get("RepoDigests", [])
+            if choice:
+                self.digest = choice[0]
+        if short_digest is None and self.digest is not None:
+            self.short_digest = self.condense_digest(self.digest)
+        self.short_digest = self.short_digest or NO_KNOWN_IMAGE
+
+    @property
+    def os(self) -> str | None:
+        return self.attributes.get("Os")
+
+    @property
+    def arch(self) -> str | None:
+        return self.attributes.get("Architecture")
+
+    @property
+    def variant(self) -> str | None:
+        return self.attributes.get("Variant")
+
+    def condense_digest(self, digest: str) -> str | None:
+        try:
+            return digest.split("@")[1][7:19]
+        except Exception:
+            return None
+
+    def force_digest_match(self, registry_digest: str) -> None:
+        for local_digest in self.attributes.get("RepoDigests", []):
+            short_local: str | None = self.condense_digest(local_digest)
+            if short_local is not None and short_local == registry_digest and short_local != self.short_digest:
+                log.debug(f"Setting local digest from {self.short_digest} to {registry_digest} to match remote digest")
+                self.short_digest = short_local
+                self.digest = local_digest
+
 
 def id_source_platform(source: str | None) -> str | None:
     candidates: list[str] = [platform for platform, pattern in SOURCE_PLATFORMS.items() if re.match(pattern, source or "")]
     return candidates[0] if candidates else None
+
+
+def _select_annotation(
+    name: str, key: str, local_info: DockerImageInfo | None = None, registry_info: DockerImageInfo | None = None
+) -> dict[str, str | None]:
+    result: dict[str, str | None] = {}
+    if registry_info:
+        v: Any | None = registry_info.annotations.get(key)
+        if v is not None:
+            result[name] = v
+    elif local_info:
+        v = local_info.annotations.get(key)
+        if v is not None:
+            result[name] = v
+    return result
+
+
+def cherrypick_annotations(local_info: DockerImageInfo | None, registry_info: DockerImageInfo | None) -> dict[str, str | None]:
+    """https://github.com/opencontainers/image-spec/blob/main/annotations.md"""
+    results: dict[str, str | None] = {}
+    for local_name, local_label in [
+        ("current_image_created", "org.opencontainers.image.created"),
+        ("current_image_version", "org.opencontainers.image.version"),
+        ("current_image_revision", "org.opencontainers.image.revision"),
+    ]:
+        results.update(_select_annotation(local_name, local_label, local_info))
+    for either_name, either_label in [
+        ("documentation_url", "org.opencontainers.image.documentation"),
+        ("description", "org.opencontainers.image.description"),
+        ("title", "org.opencontainers.image.title"),
+        ("vendor", "org.opencontainers.image.vendor"),
+        ("licences", "org.opencontainers.image.licenses"),
+        ("current_image_base", "org.opencontainers.image.base.name"),
+    ]:
+        results.update(_select_annotation(either_name, either_label, local_info, registry_info))
+
+    for reg_name, reg_label in [
+        ("latest_image_created", "org.opencontainers.image.created"),
+        ("latest_image_version", "org.opencontainers.image.version"),
+        ("latest_image_revision", "org.opencontainers.image.revision"),
+        ("latest_image_base", "org.opencontainers.image.base.name"),
+        ("source", "org.opencontainers.image.source"),
+    ]:
+        results.update(_select_annotation(reg_name, reg_label, registry_info))
+
+    return results
+
+
+class LocalContainerInfo:
+    def build_image_info(self, container: Container) -> DockerImageInfo:
+        """Image contents equiv to `docker inspect image <image_ref>`"""
+        if container.image is not None and container.image.tags and len(container.image.tags) > 0:
+            image_ref = container.image.tags[0]
+        else:
+            image_ref = container.attrs.get("Config", {}).get("Image")
+        image_ref = image_ref or ""
+
+        repo_id, _ = resolve_repository_name(image_ref)
+
+        image_info: DockerImageInfo = DockerImageInfo(
+            image_ref,
+            repo_id,
+            tags=container.image.tags if container and container.image else None,
+            annotations=container.image.labels if container.image else None,
+            attributes=container.image.attrs if container.image else None,
+        )
+
+        custom: dict[str, str | None] = cherrypick_annotations(image_info, None)
+        # capture container labels/annotations, not image ones
+        custom["compose_path"] = container.labels.get("com.docker.compose.project.working_dir")
+        custom["compose_version"] = container.labels.get("com.docker.compose.version")
+        custom["compose_service"] = container.labels.get("com.docker.compose.service")
+        custom["container_name"] = container.name
+        image_info.custom = custom
+        image_info.version = custom.get("current_image_version")
+        return image_info
 
 
 class PackageEnricher:
@@ -59,19 +248,19 @@ class PackageEnricher:
     def initialize(self) -> None:
         pass
 
-    def enrich(self, image_name: str | None, image_ref: str | None, log: Any) -> PackageUpdateInfo | None:
+    def enrich(self, image_info: DockerImageInfo) -> PackageUpdateInfo | None:
         def match(pkg: PackageUpdateInfo) -> bool:
             if pkg is not None and pkg.docker is not None and pkg.docker.image_name is not None:
-                if image_name is not None and image_name == pkg.docker.image_name:
+                if image_info.untagged_ref is not None and image_info.untagged_ref == pkg.docker.image_name:
                     return True
-                if image_ref is not None and image_ref == pkg.docker.image_name:
+                if image_info.ref is not None and image_info.ref == pkg.docker.image_name:
                     return True
             return False
 
-        if image_name is not None and image_ref is not None:
+        if image_info.untagged_ref is not None and image_info.ref is not None:
             for pkg in self.pkgs.values():
                 if match(pkg):
-                    log.debug(
+                    self.log.debug(
                         "Found common package",
                         image_name=pkg.docker.image_name,  # type: ignore [union-attr]
                         logo_url=pkg.logo_url,
@@ -82,10 +271,10 @@ class PackageEnricher:
 
 
 class DefaultPackageEnricher(PackageEnricher):
-    def enrich(self, image_name: str | None, image_ref: str | None, log: Any) -> PackageUpdateInfo | None:
-        log.debug("Default pkg info", image_name=image_name, image_ref=image_ref)
+    def enrich(self, image_info: DockerImageInfo) -> PackageUpdateInfo | None:
+        self.log.debug("Default pkg info", image_name=image_info.untagged_ref, image_ref=image_info.ref)
         return PackageUpdateInfo(
-            DockerPackageUpdateInfo(image_name or NO_KNOWN_IMAGE),
+            DockerPackageUpdateInfo(image_info.untagged_ref),
             logo_url=self.cfg.default_entity_picture_url,
             release_notes_url=None,
         )
@@ -177,26 +366,18 @@ class SourceReleaseEnricher:
     def __init__(self) -> None:
         self.log: Any = structlog.get_logger().bind(integration="docker")
 
-    def record(self, results: dict[str, str], k: str, v: str | None) -> None:
+    def record(self, results: dict[str, str | None], k: str, v: str | None) -> None:
         if v is not None:
             results[k] = v
 
     def enrich(
-        self, annotations: dict[str, str], source_repo_url: str | None = None, release_url: str | None = None
-    ) -> dict[str, str]:
-        results: dict[str, str] = {}
+        self, registry_info: DockerImageInfo, source_repo_url: str | None = None, release_url: str | None = None
+    ) -> dict[str, str | None]:
+        results: dict[str, str | None] = cherrypick_annotations(None, registry_info=registry_info)
 
-        self.record(results, "latest_image_created", annotations.get("org.opencontainers.image.created"))
-        self.record(results, "documentation_url", annotations.get("org.opencontainers.image.documentation"))
-        self.record(results, "description", annotations.get("org.opencontainers.image.description"))
-        self.record(results, "vendor", annotations.get("org.opencontainers.image.vendor"))
-
-        release_version: str | None = annotations.get("org.opencontainers.image.version")
-        self.record(results, "latest_image_version", release_version)
-        release_revision: str | None = annotations.get("org.opencontainers.image.revision")
-        self.record(results, "latest_release_revision", release_revision)
-        release_source: str | None = annotations.get("org.opencontainers.image.source") or source_repo_url
-        self.record(results, "source", release_source)
+        release_version: str | None = registry_info.annotations.get("org.opencontainers.image.version")
+        release_revision: str | None = registry_info.annotations.get("org.opencontainers.image.revision")
+        release_source: str | None = registry_info.annotations.get("org.opencontainers.image.source") or source_repo_url
 
         release_source_deep: str | None = release_source
         if release_source and "#" in release_source:
@@ -263,10 +444,16 @@ def httpx_json_content(response: Response, default: Any = None) -> Any | None:
     return default
 
 
-class LabelEnricher:
+class VersionLookup:
     def __init__(self) -> None:
-        self.log: Any = structlog.get_logger().bind(integration="docker")
+        self.log: Any = structlog.get_logger().bind(integration="docker", tool="version_lookup")
 
+    @abstractmethod
+    def lookup(self, local_image_info: DockerImageInfo, **kwargs) -> DockerImageInfo:  # noqa: ANN003
+        pass
+
+
+class ContainerDistributionAPIVersionLookup(VersionLookup):
     def fetch_token(self, registry: str, image_name: str) -> str | None:
         logger = self.log.bind(image_name=image_name, action="auth_registry")
 
@@ -320,30 +507,27 @@ class LabelEnricher:
 
         raise AuthError(f"Failed to fetch token for {image_name} at {auth_url}")
 
-    def fetch_annotations(
+    def lookup(
         self,
-        image_ref: str,
-        os: str,
-        arch: str,
+        local_image_info: DockerImageInfo,
         token: str | None = None,
         mutable_cache_ttl: int = 600,
         immutable_cache_ttl: int = 86400,
-    ) -> dict[str, str]:
-        logger = self.log.bind(image_ref=image_ref, action="enrich_registry")
-        annotations: dict[str, str] = {}
+        **kwargs,  # noqa: ANN003, ARG002
+    ) -> DockerImageInfo:
+        logger = self.log.bind(image_ref=local_image_info.ref, action="enrich_registry")
+
+        result: DockerImageInfo = DockerImageInfo(local_image_info.ref, local_image_info.repo_id)
+        if not local_image_info.name:
+            return result
+
         if token:
-            logger.debug("Using provided token to fetch manifest for image %s", image_ref)
-        registry, ref = resolve_repository_name(image_ref)
+            logger.debug("Using provided token to fetch manifest for image %s", local_image_info.ref)
+        else:
+            token = self.fetch_token(local_image_info.repo_id, local_image_info.name)
 
-        img_name = ref.split(":")[0] if ":" in ref else ref
-        img_name = img_name if "/" in img_name else f"library/{img_name}"
-        if token is None:
-            token = self.fetch_token(registry, img_name)
-
-        img_tag = ref.split(":")[1] if ":" in ref else "latest"
-        img_tag = img_tag.split("@")[0] if "@" in img_tag else img_tag
-        api_host: str | None = REGISTRIES.get(registry, (registry, registry))[1]
-        api_url: str = f"https://{api_host}/v2/{img_name}/manifests/{img_tag}"
+        api_host: str | None = REGISTRIES.get(local_image_info.repo_id, (local_image_info.repo_id, local_image_info.repo_id))[1]
+        api_url: str = f"https://{api_host}/v2/{local_image_info.name}/manifests/{local_image_info.tag}"
         response: Response | None = fetch_url(
             api_url,
             cache_ttl=mutable_cache_ttl,
@@ -352,46 +536,116 @@ class LabelEnricher:
         )
         if response is None:
             logger.warning("Empty response for manifest for image at %s", api_url)
-            return annotations
-        if not response.is_success:
+        elif response.status_code == 429:
+            # TODO: integrate Throttler
+            result.throttled = True
+        elif not response.is_success:
             api_data = httpx_json_content(response, {})
             logger.warning(
                 "Failed to fetch manifest from %s: %s",
                 api_url,
                 api_data.get("errors") if api_data else response.text,
             )
-            return annotations
-        index = response.json()
-        logger.debug(
-            "INDEX %s manifests, %s annotations",
-            len(index.get("manifests", [])),
-            len(index.get("annotations", [])),
-        )
-        annotations = index.get("annotations", {})
-        for m in index.get("manifests", []):
-            platform_info = m.get("platform", {})
-            if platform_info.get("os") == os and platform_info.get("architecture") == arch:
-                digest = m.get("digest")
-                media_type = m.get("mediaType")
-                response = fetch_url(
-                    f"https://{api_host}/v2/{img_name}/manifests/{digest}",
-                    cache_ttl=immutable_cache_ttl,
-                    bearer_token=token,
-                    response_type=media_type,
-                )
-                if response and response.is_success:
-                    api_data = httpx_json_content(response, None)
-                    if api_data:
-                        logger.debug(
-                            "MANIFEST %s layers, %s annotations",
-                            len(api_data.get("layers", [])),
-                            len(api_data.get("annotations", [])),
-                        )
-                        if api_data.get("annotations"):
-                            annotations.update(api_data.get("annotations", {}))
-                        else:
-                            logger.debug("No annotations found in manifest: %s", api_data)
+        else:
+            index = response.json()
+            logger.debug(
+                "INDEX %s manifests, %s annotations",
+                len(index.get("manifests", [])),
+                len(index.get("annotations", [])),
+            )
+            result.annotations = index.get("annotations", {})
+            for m in index.get("manifests", []):
+                platform_info = m.get("platform", {})
+                if (
+                    platform_info.get("os") == local_image_info.os
+                    and platform_info.get("architecture") == local_image_info.arch
+                    and ("Variant" not in platform_info or platform_info.get("Variant") == local_image_info.variant)
+                ):
+                    digest = m.get("digest")
+                    media_type = m.get("mediaType")
+                    response = fetch_url(
+                        f"https://{api_host}/v2/{local_image_info.name}/manifests/{digest}",
+                        cache_ttl=immutable_cache_ttl,
+                        bearer_token=token,
+                        response_type=media_type,
+                    )
+                    if response and response.is_success:
+                        api_data = httpx_json_content(response, None)
+                        if api_data:
+                            logger.debug(
+                                "MANIFEST %s layers, %s annotations",
+                                len(api_data.get("layers", [])),
+                                len(api_data.get("annotations", [])),
+                            )
+                            if api_data.get("annotations"):
+                                result.annotations.update(api_data.get("annotations", {}))
+                            else:
+                                logger.debug("No annotations found in manifest: %s", api_data)
 
-        if not annotations:
+        if not result.annotations:
             logger.debug("No annotations found from registry data")
-        return annotations
+        custom: dict[str, str | None] = cherrypick_annotations(local_image_info, result)
+        result.custom = custom
+        result.version = custom.get("latest_image_version")
+        return result
+
+
+class DockerClientVersionLookup(VersionLookup):
+    """Query remote registry via local Docker API
+
+    No auth needed, however uses the old v1 APIs, and only Index available via API
+    """
+
+    def __init__(self, client: docker.DockerClient, throttler: Throttler, api_backoff: int = 30) -> None:
+        self.client: docker.DockerClient = client
+        self.throttler: Throttler = throttler
+        self.api_backoff: int = api_backoff
+        self.log: Any = structlog.get_logger().bind(integration="docker", tool="version_lookup")
+
+    def lookup(self, local_image_info: DockerImageInfo, retries: int = 3, **kwargs) -> DockerImageInfo:  # noqa: ANN003, ARG002
+        retries_left = retries
+        retry_secs: int = self.api_backoff
+        reg_data: RegistryData | None = None
+
+        result = DockerImageInfo(local_image_info.ref, local_image_info.repo_id)
+        while reg_data is None and retries_left > 0:
+            if self.throttler.check_throttle(local_image_info.repo_id):
+                result.throttled = True
+                break
+            try:
+                self.log.debug("Fetching registry data", image_ref=local_image_info.ref)
+                reg_data = self.client.images.get_registry_data(local_image_info.ref)
+                self.log.debug(
+                    "Registry Data: id:%s,image:%s, attrs:%s",
+                    reg_data.id,
+                    reg_data.image_name,
+                    reg_data.attrs,
+                )
+                result.short_digest = reg_data.short_id[7:] if reg_data else None
+                result.digest = reg_data.id
+                result.name = reg_data.image_name
+                result.attributes = reg_data.attrs
+                result.annotations = reg_data.attrs.get("Config", {}).get("Labels") or {}
+                result.error = None
+
+            except docker.errors.APIError as e:
+                if e.status_code == HTTPStatus.TOO_MANY_REQUESTS:
+                    retry_secs = round(retry_secs**1.5)
+                    try:
+                        retry_secs = int(e.response.headers.get("Retry-After", -1))  # type: ignore[union-attr]
+                    except Exception as e2:
+                        self.log.debug("Failed to access headers for retry info: %s", e2)
+                    self.throttler.throttle(local_image_info.repo_id, retry_secs, e.explanation)
+                    result.throttled = True
+                    return result
+                result.error = str(e)
+                retries_left -= 1
+                if retries_left == 0 or e.is_client_error():
+                    self.log.warn("Failed to fetch registry data: [%s] %s", e.errno, e.explanation)
+                else:
+                    self.log.debug("Failed to fetch registry data, retrying: %s", e)
+
+        custom: dict[str, str | None] = cherrypick_annotations(local_image_info, result)
+        result.custom = custom
+        result.version = custom.get("latest_image_version")
+        return result

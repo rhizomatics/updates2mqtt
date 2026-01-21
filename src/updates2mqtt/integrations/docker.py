@@ -4,7 +4,6 @@ import time
 import typing
 from collections.abc import AsyncGenerator, Callable
 from enum import Enum
-from http import HTTPStatus
 from pathlib import Path
 from threading import Event
 from typing import Any, cast
@@ -12,7 +11,6 @@ from typing import Any, cast
 import docker
 import docker.errors
 import structlog
-from docker.auth import resolve_repository_name
 from docker.models.containers import Container
 
 from updates2mqtt.config import (
@@ -22,22 +20,27 @@ from updates2mqtt.config import (
     PackageUpdateInfo,
     PublishPolicy,
     UpdatePolicy,
+    VersionPolicy,
 )
+from updates2mqtt.helpers import Selection, Throttler, select_version
 from updates2mqtt.integrations.docker_enrich import (
     AuthError,
     CommonPackageEnricher,
+    ContainerDistributionAPIVersionLookup,
     DefaultPackageEnricher,
-    LabelEnricher,
+    DockerClientVersionLookup,
+    DockerImageInfo,
     LinuxServerIOPackageEnricher,
+    LocalContainerInfo,
     PackageEnricher,
     SourceReleaseEnricher,
 )
-from updates2mqtt.model import Discovery, ReleaseProvider, Selection, VersionPolicy, select_version
+from updates2mqtt.model import Discovery, ReleaseProvider
 
 from .git_utils import git_check_update_available, git_iso_timestamp, git_local_version, git_pull, git_trust
 
 if typing.TYPE_CHECKING:
-    from docker.models.images import Image, RegistryData
+    from docker.models.images import Image
 
 # distinguish docker build from docker pull?
 
@@ -127,16 +130,17 @@ class DockerProvider(ReleaseProvider):
         self.cfg: DockerConfig = cfg
 
         # TODO: refresh discovered packages periodically
-        self.pause_api_until: dict[str, float] = {}
-        self.api_throttle_pause: int = cfg.default_api_backoff
+        self.throttler = Throttler(self.cfg.default_api_backoff, self.log, self.stopped)
         self.self_bounce: Event | None = self_bounce
         self.pkg_enrichers: list[PackageEnricher] = [
             CommonPackageEnricher(self.cfg),
             LinuxServerIOPackageEnricher(self.cfg),
             DefaultPackageEnricher(self.cfg),
         ]
-        self.label_enricher = LabelEnricher()
+        self.local_image_lookup = DockerClientVersionLookup(self.client, self.throttler, self.cfg.default_api_backoff)
         self.release_enricher = SourceReleaseEnricher()
+        self.local_info_builder = LocalContainerInfo()
+        self.registry_image_lookup = ContainerDistributionAPIVersionLookup()
 
     def initialize(self) -> None:
         for enricher in self.pkg_enrichers:
@@ -256,27 +260,9 @@ class DockerProvider(ReleaseProvider):
             logger.exception("Docker API error retrieving container")
         return None
 
-    def check_throttle(self, repo_id: str) -> bool:
-        if self.pause_api_until.get(repo_id) is not None:
-            if self.pause_api_until[repo_id] < time.time():
-                del self.pause_api_until[repo_id]
-                self.log.info("%s throttling wait complete", repo_id)
-            else:
-                self.log.debug("%s throttling has %0.3f secs left", repo_id, self.pause_api_until[repo_id] - time.time())
-                return True
-        return False
-
-    def throttle(self, repo_id: str, retry_secs: int, explanation: str | None = None) -> None:
-        retry_secs = self.api_throttle_pause if retry_secs <= 0 else retry_secs
-        self.log.warn("%s throttling requests for %s seconds, %s", repo_id, retry_secs, explanation)
-        self.pause_api_until[repo_id] = time.time() + retry_secs
-
     def analyze(self, c: Container, session: str, previous_discovery: Discovery | None = None) -> Discovery | None:
         logger = self.log.bind(container=c.name, action="analyze")
 
-        image_ref: str | None = None
-        image_name: str | None = None
-        local_versions = None
         if c.attrs is None or not c.attrs:
             logger.warn("No container attributes found, discovery rejected")
             return None
@@ -288,146 +274,72 @@ class DockerProvider(ReleaseProvider):
         if customization.ignore:
             logger.info("Container ignored due to UPD2MQTT_IGNORE setting")
             return None
-
-        image: Image | None = c.image
-        repo_id: str = "DEFAULT"
-        if image is not None and image.tags and len(image.tags) > 0:
-            image_ref = image.tags[0]
-        else:
-            image_ref = c.attrs.get("Config", {}).get("Image")
-        if image_ref is None:
-            logger.warn("No image or image attributes found")
-        else:
-            repo_id, _ = resolve_repository_name(image_ref)
-            try:
-                image_name = image_ref.split(":")[0]
-            except Exception as e:
-                logger.warn("No tags found (%s) : %s", image, e)
-            if image is not None and image.attrs is not None:
-                try:
-                    local_versions = [i.split("@")[1][7:19] for i in image.attrs["RepoDigests"]]
-                except Exception as e:
-                    logger.warn("Cannot determine local version: %s", e)
-                    logger.warn("RepoDigests=%s", image.attrs.get("RepoDigests"))
-
         version_policy: VersionPolicy = VersionPolicy.AUTO if not customization.version_policy else customization.version_policy
-
         if customization.update == UpdatePolicy.AUTO:
             logger.debug("Auto update policy detected")
         update_policy: UpdatePolicy = customization.update or UpdatePolicy.PASSIVE
 
-        platform: str = "Unknown"
-        pkg_info: PackageUpdateInfo = self.default_metadata(image_name, image_ref=image_ref)
+        local_info: DockerImageInfo = self.local_info_builder.build_image_info(c)
+        pkg_info: PackageUpdateInfo = self.default_metadata(local_info)
 
         try:
             picture_url: str | None = customization.picture or pkg_info.logo_url
             relnotes_url: str | None = customization.relnotes or pkg_info.release_notes_url
             release_summary: str | None = None
 
-            if image is not None and image.attrs is not None:
-                platform = "/".join(
-                    filter(
-                        None,
-                        [
-                            image.attrs["Os"],
-                            image.attrs["Architecture"],
-                            image.attrs.get("Variant"),
-                        ],
-                    ),
-                )
+            if local_info.ref and not local_info.local_build:
+                latest_info: DockerImageInfo = self.local_image_lookup.lookup(local_info)
+            elif local_info.local_build:
+                # assume its a locally built image if no RepoDigests available
+                latest_info = DockerImageInfo(local_info.ref, local_info.repo_id)
+            else:
+                latest_info = DockerImageInfo(NO_KNOWN_IMAGE)
 
-            reg_data: RegistryData | None = None
-            latest_digest: str | None = NO_KNOWN_IMAGE
-            latest_version: str | None = None
-
-            registry_throttled: bool = self.check_throttle(repo_id)
-
-            if image_ref and local_versions and not registry_throttled:
-                retries_left = 3
-                while reg_data is None and retries_left > 0 and not self.stopped.is_set():
-                    try:
-                        logger.debug("Fetching registry data", image_ref=image_ref)
-                        reg_data = self.client.images.get_registry_data(image_ref)
-                        logger.debug(
-                            "Registry Data: id:%s,image:%s, attrs:%s",
-                            reg_data.id,
-                            reg_data.image_name,
-                            reg_data.attrs,
-                        )
-                        latest_digest = reg_data.short_id[7:] if reg_data else None
-
-                    except docker.errors.APIError as e:
-                        if e.status_code == HTTPStatus.TOO_MANY_REQUESTS:
-                            retry_secs: int
-                            try:
-                                retry_secs = int(e.response.headers.get("Retry-After", -1))  # type: ignore[union-attr]
-                            except:  # noqa: E722
-                                retry_secs = self.api_throttle_pause
-                            self.throttle(repo_id, retry_secs, e.explanation)
-                            registry_throttled = True
-                            return None
-                        retries_left -= 1
-                        if retries_left == 0 or e.is_client_error():
-                            logger.warn("Failed to fetch registry data: [%s] %s", e.errno, e.explanation)
-                        else:
-                            logger.debug("Failed to fetch registry data, retrying: %s", e)
-
-            installed_digest: str | None = NO_KNOWN_IMAGE
-            installed_version: str | None = None
-            if local_versions:
+            if latest_info.short_digest:
                 # might be multiple RepoDigests if image has been pulled multiple times with diff manifests
-                installed_digest = latest_digest if latest_digest in local_versions else local_versions[0]
-                logger.debug(f"Setting local digest to {installed_digest}, local_versions:{local_versions}")
+                local_info.force_digest_match(latest_info.short_digest)
 
             def save_if_set(key: str, val: str | None) -> None:
                 if val is not None:
                     custom[key] = val
 
-            image_ref = image_ref or ""
-
             custom: dict[str, str | bool | int | list[str] | dict[str, Any] | None] = {}
-            custom["platform"] = platform
-            custom["image_ref"] = image_ref
-            custom["installed_digest"] = installed_digest
-            custom["latest_digest"] = latest_digest
-            custom["repo_id"] = repo_id
+            custom.update(local_info.custom)
+            custom.update(latest_info.custom)
+            custom["platform"] = local_info.platform
+            custom["image_ref"] = local_info.ref
+            custom["installed_digest"] = local_info.short_digest
+            custom["latest_digest"] = latest_info.short_digest
+            custom["repo_id"] = latest_info.repo_id
             custom["git_repo_path"] = customization.git_repo_path
 
-            if c.labels:
-                save_if_set("compose_path", c.labels.get("com.docker.compose.project.working_dir"))
-                save_if_set("compose_version", c.labels.get("com.docker.compose.version"))
-                save_if_set("compose_service", c.labels.get("com.docker.compose.service"))
-                save_if_set("documentation_url", c.labels.get("org.opencontainers.image.documentation"))
-                save_if_set("description", c.labels.get("org.opencontainers.image.description"))
-                save_if_set("current_image_created", c.labels.get("org.opencontainers.image.created"))
-                save_if_set("current_image_version", c.labels.get("org.opencontainers.image.version"))
-                save_if_set("vendor", c.labels.get("org.opencontainers.image.vendor"))
-                installed_version = c.labels.get("org.opencontainers.image.version")
-            else:
-                logger.debug("No annotations found on local container")
-                # save_if_set("apt_pkgs", c_env.get("UPD2MQTT_APT_PKGS"))
-
             annotations: dict[str, str] = {}
-            if latest_digest is None or latest_digest == NO_KNOWN_IMAGE or registry_throttled:
+            if latest_info.short_digest is None or latest_info.short_digest == NO_KNOWN_IMAGE or latest_info.throttled:
                 logger.debug(
                     "Skipping image manifest enrichment",
-                    latest_digest=latest_digest,
-                    image_ref=image_ref,
-                    platform=platform,
-                    throttled=registry_throttled,
+                    latest_digest=latest_info.short_digest,
+                    image_ref=latest_info.ref,
+                    platform=latest_info.platform,
+                    throttled=latest_info.throttled,
                 )
             else:
-                os, arch = platform.split("/")[:2] if "/" in platform else (platform, "Unknown")
-                try:
-                    annotations = self.label_enricher.fetch_annotations(image_ref, os, arch, token=customization.registry_token)
-                except AuthError as e:
-                    logger.warning("Authentication error prevented Docker Registry enrichment: %s", e)
+                registry_selection = Selection(self.cfg.registry_metadata_select, latest_info.repo_id)
+                if registry_selection:
+                    try:
+                        label_info: DockerImageInfo = self.registry_image_lookup.lookup(
+                            local_info, token=customization.registry_token
+                        )
+                        annotations = label_info.attributes
+                    except AuthError as e:
+                        logger.warning("Authentication error prevented Docker Registry enrichment: %s", e)
 
-                if annotations:
-                    latest_version = annotations.get("org.opencontainers.image.version")
+                    if annotations:
+                        latest_info.version = annotations.get("org.opencontainers.image.version")
+                else:
+                    logger.debug("Registry selection rules suppressed metadata lookup")
 
-            release_info: dict[str, str] = self.release_enricher.enrich(
-                annotations, source_repo_url=pkg_info.source_repo_url, release_url=relnotes_url
+            release_info: dict[str, str | None] = self.release_enricher.enrich(
+                latest_info, source_repo_url=pkg_info.source_repo_url, release_url=relnotes_url
             )
             logger.debug("Enriched release info: %s", release_info)
 
@@ -444,16 +356,18 @@ class DockerProvider(ReleaseProvider):
 
                 git_trust(full_repo_path, Path(self.node_cfg.git_path))
                 save_if_set("git_local_timestamp", git_iso_timestamp(full_repo_path, Path(self.node_cfg.git_path)))
+
             features: list[str] = []
             can_pull: bool = (
                 self.cfg.allow_pull
-                and image_ref is not None
-                and image_ref != ""
-                and (installed_digest != NO_KNOWN_IMAGE or latest_digest != NO_KNOWN_IMAGE)
+                and not local_info.local_build
+                and local_info.ref is not None
+                and local_info.ref != ""
+                and (local_info.short_digest != NO_KNOWN_IMAGE or latest_info.short_digest != NO_KNOWN_IMAGE)
             )
             if self.cfg.allow_pull and not can_pull:
                 logger.debug(
-                    f"Pull unavailable, image_ref:{image_ref},installed_digest:{installed_digest},latest_digest:{latest_digest}"
+                    f"Pull unavailable, ref:{local_info.ref},local:{local_info.short_digest},latest:{latest_info.short_digest}"
                 )
 
             can_build: bool = False
@@ -468,16 +382,18 @@ class DockerProvider(ReleaseProvider):
                     full_repo_path = self.full_repo_path(
                         cast("str", custom.get("compose_path")), cast("str", custom.get("git_repo_path"))
                     )
-                    if installed_digest is None or installed_digest == NO_KNOWN_IMAGE:
-                        installed_digest = git_local_version(full_repo_path, Path(self.node_cfg.git_path)) or NO_KNOWN_IMAGE
+                    if local_info.local_build and full_repo_path:
+                        local_info.short_digest = (
+                            git_local_version(full_repo_path, Path(self.node_cfg.git_path)) or NO_KNOWN_IMAGE
+                        )
 
-                    behind_count: int = git_check_update_available(full_repo_path, Path(self.node_cfg.git_path))
-                    if behind_count > 0:
-                        if installed_digest is not None and installed_digest.startswith("git:"):
-                            latest_digest = f"{installed_digest}+{behind_count}"
-                            logger.info("Git update available, generating version %s", latest_digest)
-                    else:
-                        logger.debug(f"Git update not available, local repo:{full_repo_path}")
+                        behind_count: int = git_check_update_available(full_repo_path, Path(self.node_cfg.git_path))
+                        if behind_count > 0:
+                            if local_info.short_digest is not None and local_info.short_digest.startswith("git:"):
+                                latest_info.short_digest = f"{local_info.short_digest}+{behind_count}"
+                                logger.info("Git update available, generating version %s", latest_info.short_digest)
+                        else:
+                            logger.debug(f"Git update not available, local repo:{full_repo_path}")
 
             can_restart: bool = self.cfg.allow_restart and custom.get("compose_path") is not None
 
@@ -503,24 +419,30 @@ class DockerProvider(ReleaseProvider):
             # the HASS update process is driven by comparing current and available versions
 
             public_installed_version = select_version(
-                version_policy, installed_version, installed_digest, other_version=latest_version, other_digest=latest_digest
+                version_policy,
+                local_info.version,
+                local_info.short_digest,
+                other_version=latest_info.version,
+                other_digest=latest_info.short_digest,
             )
-            if latest_digest in (installed_digest, NO_KNOWN_IMAGE) or registry_throttled:
+            if latest_info.short_digest in (local_info.short_digest, NO_KNOWN_IMAGE) or latest_info.throttled:
                 public_latest_version = public_installed_version
             else:
                 public_latest_version = select_version(
                     version_policy,
-                    latest_version,
-                    latest_digest,
-                    other_version=installed_version,
-                    other_digest=installed_digest,
+                    latest_info.version,
+                    latest_info.short_digest,
+                    other_version=local_info.version,
+                    other_digest=local_info.short_digest,
                 )
 
             publish_policy: PublishPolicy = PublishPolicy.HOMEASSISTANT
-            img_ref_selection = Selection(self.cfg.image_ref_select, image_ref)
-            version_selection = Selection(self.cfg.version_select, latest_version)
+            img_ref_selection = Selection(self.cfg.image_ref_select, local_info.ref)
+            version_selection = Selection(self.cfg.version_select, latest_info.version)
             if not img_ref_selection or not version_selection:
-                self.log.info("Excluding from HA Discovery for include/exclude rule: %s, %s", image_ref, latest_version)
+                self.log.info(
+                    "Excluding from HA Discovery for include/exclude rule: %s, %s", local_info.ref, latest_info.version
+                )
                 publish_policy = PublishPolicy.MQTT
 
             discovery: Discovery = Discovery(
@@ -544,7 +466,7 @@ class DockerProvider(ReleaseProvider):
                 status=(c.status == "running" and "on") or "off",
                 custom=custom,
                 features=features,
-                throttled=registry_throttled,
+                throttled=latest_info.throttled,
                 previous=previous_discovery,
             )
             logger.debug("Analyze generated discovery: %s", discovery)
@@ -620,9 +542,9 @@ class DockerProvider(ReleaseProvider):
     def resolve(self, discovery_name: str) -> Discovery | None:
         return self.discoveries.get(discovery_name)
 
-    def default_metadata(self, image_name: str | None, image_ref: str | None) -> PackageUpdateInfo:
+    def default_metadata(self, image_info: DockerImageInfo) -> PackageUpdateInfo:
         for enricher in self.pkg_enrichers:
-            pkg_info = enricher.enrich(image_name, image_ref, self.log)
+            pkg_info = enricher.enrich(image_info)
             if pkg_info is not None:
                 return pkg_info
         raise ValueError("No enricher could provide metadata, not even default enricher")

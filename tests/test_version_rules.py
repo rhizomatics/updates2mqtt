@@ -1,4 +1,5 @@
-from updates2mqtt.model import VersionPolicy, select_version
+from updates2mqtt.config import VersionPolicy
+from updates2mqtt.helpers import select_version
 
 
 def test_good_version_and_digest_matching() -> None:
