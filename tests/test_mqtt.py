@@ -21,7 +21,10 @@ def test_publish(mock_mqtt_client: Mock, protocol: str, node_cfg: NodeConfig) ->
     config = MqttConfig(protocol=protocol)
     hass_config = HomeAssistantConfig()
 
-    with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
+    with (
+        patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client),
+        patch("asyncio.get_event_loop"),
+    ):
         uut = MqttPublisher(config, node_cfg, hass_config)
         uut.start()
 
@@ -148,7 +151,10 @@ def test_is_available_when_connected(mock_mqtt_client: Mock) -> None:
     hass_config = OmegaConf.structured(HomeAssistantConfig)
     node_config = OmegaConf.structured(NodeConfig)
 
-    with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
+    with (
+        patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client),
+        patch("asyncio.get_event_loop"),
+    ):
         uut = MqttPublisher(config, node_config, hass_config)
         uut.start()
 
@@ -170,7 +176,10 @@ def test_is_available_when_fatal_failure(mock_mqtt_client: Mock) -> None:
     hass_config = OmegaConf.structured(HomeAssistantConfig)
     node_config = OmegaConf.structured(NodeConfig)
 
-    with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
+    with (
+        patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client),
+        patch("asyncio.get_event_loop"),
+    ):
         uut = MqttPublisher(config, node_config, hass_config)
         uut.start()
         uut.fatal_failure.set()
@@ -183,7 +192,10 @@ def test_on_connect_success(mock_mqtt_client: Mock, mock_provider: ReleaseProvid
     hass_config = OmegaConf.structured(HomeAssistantConfig)
     node_config = OmegaConf.structured(NodeConfig)
 
-    with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
+    with (
+        patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client),
+        patch("asyncio.get_event_loop"),
+    ):
         uut = MqttPublisher(config, node_config, hass_config)
         uut.start()
         uut.subscribe_hass_command(mock_provider)
@@ -203,7 +215,10 @@ def test_on_connect_not_authorized(mock_mqtt_client: Mock) -> None:
     hass_config = OmegaConf.structured(HomeAssistantConfig)
     node_config = OmegaConf.structured(NodeConfig)
 
-    with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
+    with (
+        patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client),
+        patch("asyncio.get_event_loop"),
+    ):
         uut = MqttPublisher(config, node_config, hass_config)
         uut.start()
 
@@ -220,7 +235,10 @@ def test_on_disconnect_success(mock_mqtt_client: Mock) -> None:
     hass_config = OmegaConf.structured(HomeAssistantConfig)
     node_config = OmegaConf.structured(NodeConfig)
 
-    with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
+    with (
+        patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client),
+        patch("asyncio.get_event_loop"),
+    ):
         uut = MqttPublisher(config, node_config, hass_config)
         uut.start()
 
@@ -235,7 +253,10 @@ def test_on_message_known_topic(mock_mqtt_client: Mock, mock_provider: ReleasePr
     node_config = OmegaConf.structured(NodeConfig)
     node_config.name = "testnode"
 
-    with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
+    with (
+        patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client),
+        patch("asyncio.get_event_loop"),
+    ):
         uut = MqttPublisher(config, node_config, hass_config)
         uut.start(event_loop=asyncio.new_event_loop())
 
@@ -335,7 +356,10 @@ def test_publish_hass_state(mock_mqtt_client: Mock, mock_provider: ReleaseProvid
     node_config = OmegaConf.structured(NodeConfig)
     node_config.name = "statenode"
 
-    with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
+    with (
+        patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client),
+        patch("asyncio.get_event_loop"),
+    ):
         uut = MqttPublisher(config, node_config, hass_config)
         uut.start()
 
@@ -363,7 +387,10 @@ def test_publish_hass_config(mock_mqtt_client: Mock, mock_provider: ReleaseProvi
     node_config = OmegaConf.structured(NodeConfig)
     node_config.name = "confignode"
 
-    with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
+    with (
+        patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client),
+        patch("asyncio.get_event_loop"),
+    ):
         uut = MqttPublisher(config, node_config, hass_config)
         uut.start()
 
@@ -388,7 +415,10 @@ def test_loop_once(mock_mqtt_client: Mock) -> None:
     hass_config = OmegaConf.structured(HomeAssistantConfig)
     node_config = OmegaConf.structured(NodeConfig)
 
-    with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
+    with (
+        patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client),
+        patch("asyncio.get_event_loop"),
+    ):
         uut = MqttPublisher(config, node_config, hass_config)
         uut.start()
 
@@ -425,7 +455,10 @@ def test_subscribe_skips_duplicate(mock_mqtt_client: Mock, mock_provider: Releas
     hass_config = OmegaConf.structured(HomeAssistantConfig)
     node_config = OmegaConf.structured(NodeConfig)
 
-    with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
+    with (
+        patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client),
+        patch("asyncio.get_event_loop"),
+    ):
         uut = MqttPublisher(config, node_config, hass_config)
         uut.start()
 

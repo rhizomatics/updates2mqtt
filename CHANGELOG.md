@@ -1,6 +1,9 @@
 # CHANGELOG
 
 ## 1.7.0
+### py3.14
+- Image now built with python 3.14 by default
+- Tests update for py3.14 mock async changes
 ### OCI Container Registry APIs
 - By default now uses the OCI v2 Distribution APIs rather than old Docker APIs via Docker SDK
    - Older method can be switched back on using `registry_access: docker_client` in Docker configuration section
