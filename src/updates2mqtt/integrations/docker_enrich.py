@@ -41,8 +41,8 @@ UNKNOWN_RELEASE_URL_TEMPLATES = {SOURCE_PLATFORM_GITHUB: "{repo}/releases"}
 MISSING_VAL = "**MISSING**"
 UNKNOWN_REGISTRY = "**UNKNOWN_REGISTRY**"
 
-HEADER_DOCKER_DIGEST = "sha256:2c8edc1f9400ef02a93c3b754d4419082ceb5d049178c3a3968e3fd56caf7f29"
-HEADER_DOCKER_API = "Docker-Distribution-Api-Version"
+HEADER_DOCKER_DIGEST = "docker-content-digest"
+HEADER_DOCKER_API = "docker-distribution-api-version"
 
 TOKEN_URL_TEMPLATE = "https://{auth_host}/token?scope=repository:{image_name}:pull&service={service}"  # noqa: S105 # nosec
 REGISTRIES = {
@@ -400,7 +400,7 @@ def fetch_url(
                     response.headers.get(HEADER_DOCKER_API),
                     response.headers.get(HEADER_DOCKER_DIGEST),
                 )
-                log.debug(response.headers)  # REMOVE !!!!!!!!!!!!!!
+
             if force_docker_headers and response and HEADER_DOCKER_DIGEST not in response.headers:
                 header_response = client.head(url)
                 if header_response and header_response.is_success:
