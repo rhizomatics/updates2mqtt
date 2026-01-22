@@ -378,6 +378,7 @@ def fetch_url(
     bearer_token: str | None = None,
     response_type: str | list[str] | None = None,
     follow_redirects: bool = False,
+    docker_headers: bool = False,
 ) -> Response | None:
     try:
         headers = [("cache-control", f"max-age={cache_ttl}")]
@@ -392,6 +393,22 @@ def fetch_url(
             response: Response = client.get(url)
             if not response.is_success:
                 log.debug("URL %s fetch returned non-success status: %s", url, response.status_code)
+            elif docker_headers and response and HEADER_DOCKER_DIGEST in response.headers:
+                log.debug(
+                    "Docker headers on GET: API %s, Digest %s",
+                    response.headers.get(HEADER_DOCKER_API),
+                    response.headers.get(HEADER_DOCKER_DIGEST),
+                )
+            elif docker_headers and response and HEADER_DOCKER_DIGEST not in response.headers:
+                header_response = client.head(url)
+                if header_response and header_response.is_success:
+                    log.debug(
+                        "Docker headers on HEAD: API %s, Digest %s",
+                        header_response.headers.get(HEADER_DOCKER_API),
+                        header_response.headers.get(HEADER_DOCKER_DIGEST),
+                    )
+                else:
+                    log.debug("Docker headers HEAD failed: %s", response.status_code if response else "NO RESPONSE")
             return response
     except Exception as e:
         log.debug("URL %s failed to fetch: %s", url, e)
@@ -559,7 +576,11 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
     ) -> Any | None:
         api_url: str = f"https://{api_host}/v2/{local_image_info.name}/manifests/{local_image_info.tag_or_digest}"
         response: Response | None = fetch_url(
-            api_url, cache_ttl=mutable_cache_ttl, bearer_token=token, response_type=["application/vnd.oci.image.index.v1+json"]
+            api_url,
+            cache_ttl=mutable_cache_ttl,
+            bearer_token=token,
+            docker_headers=True,
+            response_type=["application/vnd.oci.image.index.v1+json"],
         )
         if response is None:
             self.log.warning("Empty response for manifest for image at %s", api_url)
