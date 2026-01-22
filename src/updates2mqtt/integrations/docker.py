@@ -545,22 +545,22 @@ def select_versions(version_policy: VersionPolicy, installed: DockerImageInfo, l
     # shortcircuit the logic if there's nothing to compare
     if latest.throttled:
         log.debug("Flattening versions for throttled update %s", installed.ref)
-        shortcircuit = "T"
+        shortcircuit = "THR"
         latest = installed
     elif not any((latest.short_digest, latest.repo_digest, latest.git_digest, latest.version)):
         log.debug("Flattening versions for empty update %s", installed.ref)
-        shortcircuit = "E"
+        shortcircuit = "NUP"
         latest = installed
     elif latest.short_digest == installed.short_digest and latest.short_digest is not None:
         log.debug("Flattening versions for identical update %s", installed.ref)
-        shortcircuit = "M"
+        shortcircuit = "SDM"
         latest = installed
     elif installed.image_digest in latest.repo_digests or latest.image_digest in installed.repo_digests:
         # TODO: avoid this by better adaptations for different registries and single/multi manifests
         log.debug(
             "Switching round repo and image digests to cope with %s inconsistencies %s", installed.index_name, installed.name
         )
-        shortcircuit = "H"
+        shortcircuit = "FDG"
         latest = installed
 
     if version_policy == VersionPolicy.VERSION and installed.version and latest.version:
