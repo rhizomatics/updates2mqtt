@@ -152,9 +152,7 @@ class DockerImageInfo:
                     [self.os, self.arch, self.variant],
                 ),
             )
-        self.initialize_digests()
 
-    def initialize_digests(self) -> None:
         if self.image_digest is not None:
             self.image_digest = self.condense_digest(self.image_digest, short=False)
             self.short_digest = self.condense_digest(self.image_digest)  # type: ignore[arg-type]
@@ -691,7 +689,9 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
                 ):
                     if index_digest:
                         result.image_digest = index_digest
-                        result.initialize_digests()
+                        result.short_digest = result.condense_digest(index_digest)
+                        log.debug("Setting image digest %s for %s", result.short_digest, result.name)
+
                     digest: str | None = m.get("digest")
                     media_type = m.get("mediaType")
                     manifest: Any | None = None
@@ -724,9 +724,9 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
         result.origin = "OCI_V2"
 
         self.log.debug(
-            "Lookup for %s: image_digest:%s, repo_digest:%s, version: %s",
-            local_image_info.ref,
-            result.image_digest,
+            "OCI_V2 Lookup for %s: short_digest:%s, repo_digest:%s, version: %s",
+            local_image_info.name,
+            result.short_digest,
             result.repo_digest,
             result.version,
         )
