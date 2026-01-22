@@ -297,6 +297,8 @@ class DockerProvider(ReleaseProvider):
             custom["image_ref"] = local_info.ref
             custom["index_name"] = local_info.index_name
             custom["git_repo_path"] = customization.git_repo_path
+            if local_info.repo_digest:
+                custom["installed_repo_digest"] = local_info.repo_digest
 
             registry_selection = Selection(self.cfg.registry_select, local_info.index_name)
             latest_info: DockerImageInfo
@@ -322,6 +324,9 @@ class DockerProvider(ReleaseProvider):
                 latest_info = local_info.reuse()
 
             custom.update(latest_info.custom)
+            custom["latest_origin"] = latest_info.origin
+            if latest_info.repo_digest:
+                custom["latest_repo_digest"] = local_info.repo_digest
 
             release_info: dict[str, str | None] = self.release_enricher.enrich(
                 latest_info, source_repo_url=pkg_info.source_repo_url, release_url=relnotes_url
