@@ -378,7 +378,7 @@ def fetch_url(
     bearer_token: str | None = None,
     response_type: str | list[str] | None = None,
     follow_redirects: bool = False,
-    docker_headers: bool = False,
+    force_docker_headers: bool = False,
 ) -> Response | None:
     try:
         headers = [("cache-control", f"max-age={cache_ttl}")]
@@ -393,13 +393,14 @@ def fetch_url(
             response: Response = client.get(url)
             if not response.is_success:
                 log.debug("URL %s fetch returned non-success status: %s", url, response.status_code)
-            elif response and HEADER_DOCKER_DIGEST in response.headers:
+            elif response:
                 log.debug(
-                    "Docker headers on GET: API %s, Digest %s",
+                    "Registry response: content_type: %s, Docker API %s, Digest %s",
+                    response.headers.get("Content-Type"),
                     response.headers.get(HEADER_DOCKER_API),
                     response.headers.get(HEADER_DOCKER_DIGEST),
                 )
-            elif docker_headers and response and HEADER_DOCKER_DIGEST not in response.headers:
+            if force_docker_headers and response and HEADER_DOCKER_DIGEST not in response.headers:
                 header_response = client.head(url)
                 if header_response and header_response.is_success:
                     log.debug(
@@ -579,8 +580,10 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
             api_url,
             cache_ttl=mutable_cache_ttl,
             bearer_token=token,
-            docker_headers=True,
-            response_type=["application/vnd.oci.image.index.v1+json"],
+            response_type=[
+                "application/vnd.oci.image.index.v1+json",
+                "application/vnd.docker.distribution.manifest.list.v2+json",
+            ],
         )
         if response is None:
             self.log.warning("Empty response for manifest for image at %s", api_url)
