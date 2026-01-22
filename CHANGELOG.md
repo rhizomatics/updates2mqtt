@@ -29,6 +29,8 @@ Github source repo releases and passed onto Home Assistant
 - Added more packages to common-packages, vector and greptime
 ### Selective Home Assistant Discovery
 - New `version_select` option in Docker config works like `image_ref_select` using the reported version instead
+### Pinned Digests
+- Better handling of tags with a pinned digest, e.g. `ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0@sha256:41eacbe83eca995561fe43814fd4891e16e39632806253848efaf04d3c8a8b84`
 ### API Throttling
 - Throttling fixed for TTL taken from remote API
 - Docker provider shuffles the list of containers it scans so if there is aggressive throttling there isn't the same set of containers always getting scanned before the rate limit hits
