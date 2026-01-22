@@ -159,6 +159,8 @@ class DockerImageInfo:
 
     @property
     def repo_digests(self) -> list[str]:
+        if self.repo_digest:
+            return [self.repo_digest]
         # RepoDigest in image inspect, Registry Config object
         digests = [v.split("@", 1)[1] if "@" in v else v for v in self.attributes.get("RepoDigests", [])]
         return digests or []

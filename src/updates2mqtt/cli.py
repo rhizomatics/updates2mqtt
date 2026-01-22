@@ -7,6 +7,14 @@ from updates2mqtt.model import Discovery
 
 log = structlog.get_logger()
 
+"""
+Super simple CLI
+
+python updates2mqtt.cli container=frigate
+
+python updates2mqtt.cli container=frigate registry_access=docker_client
+"""
+
 
 def run_once_docker() -> None:
     # will be a cli someday
