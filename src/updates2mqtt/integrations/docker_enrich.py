@@ -152,7 +152,9 @@ class DockerImageInfo:
                     [self.os, self.arch, self.variant],
                 ),
             )
+        self.initialize_digests()
 
+    def initialize_digests(self) -> None:
         if self.image_digest is not None:
             self.image_digest = self.condense_digest(self.image_digest, short=False)
             self.short_digest = self.condense_digest(self.image_digest)  # type: ignore[arg-type]
@@ -689,6 +691,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
                 ):
                     if index_digest:
                         result.image_digest = index_digest
+                        result.initialize_digests()
                     digest: str | None = m.get("digest")
                     media_type = m.get("mediaType")
                     manifest: Any | None = None
@@ -714,10 +717,19 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
 
         if not result.annotations:
             self.log.debug("No annotations found from registry data")
+
         custom: dict[str, str | None] = cherrypick_annotations(local_image_info, result)
         result.custom = custom
         result.version = custom.get("latest_image_version")
         result.origin = "OCI_V2"
+
+        self.log.debug(
+            "Lookup for %s: image_digest:%s, repo_digest:%s, version: %s",
+            local_image_info.ref,
+            result.image_digest,
+            result.repo_digest,
+            result.version,
+        )
         return result
 
 
