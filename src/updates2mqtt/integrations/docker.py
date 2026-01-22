@@ -557,7 +557,9 @@ def select_versions(version_policy: VersionPolicy, installed: DockerImageInfo, l
         latest = installed
     elif installed.image_digest in latest.repo_digests or latest.image_digest in installed.repo_digests:
         # TODO: avoid this by better adaptations for different registries and single/multi manifests
-        log.info("Switching round repo and image digests to cope with registry inconsistencies %s", installed.name)
+        log.info(
+            "Switching round repo and image digests to cope with %s inconsistencies %s", installed.index_name, installed.name
+        )
         shortcircuit = "H"
         latest = installed
 
