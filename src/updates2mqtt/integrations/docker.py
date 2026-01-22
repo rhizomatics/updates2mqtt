@@ -15,8 +15,8 @@ import structlog
 from docker.models.containers import Container
 
 from updates2mqtt.config import (
-    NO_KNOWN_IMAGE,
     SEMVER_RE,
+    UNKNOWN_VERSION,
     VERSION_RE,
     DockerConfig,
     NodeConfig,
@@ -298,7 +298,7 @@ class DockerProvider(ReleaseProvider):
             custom["index_name"] = local_info.index_name
             custom["git_repo_path"] = customization.git_repo_path
             if local_info.repo_digest:
-                custom["installed_repo_digest"] = local_info.repo_digest
+                custom["installed_repo_digest"] = local_info.repo_digest[:19]
 
             registry_selection = Selection(self.cfg.registry_select, local_info.index_name)
             latest_info: DockerImageInfo
@@ -326,7 +326,7 @@ class DockerProvider(ReleaseProvider):
             custom.update(latest_info.custom)
             custom["latest_origin"] = latest_info.origin
             if latest_info.repo_digest:
-                custom["latest_repo_digest"] = local_info.repo_digest
+                custom["latest_repo_digest"] = latest_info.repo_digest[:19]
 
             release_info: dict[str, str | None] = self.release_enricher.enrich(
                 latest_info, source_repo_url=pkg_info.source_repo_url, release_url=relnotes_url
@@ -354,7 +354,7 @@ class DockerProvider(ReleaseProvider):
                 and not local_info.local_build
                 and local_info.ref is not None
                 and local_info.ref != ""
-                and (local_info.short_digest != NO_KNOWN_IMAGE or latest_info.short_digest != NO_KNOWN_IMAGE)
+                and (local_info.short_digest is not None or latest_info.short_digest is not None)
             )
             if self.cfg.allow_pull and not can_pull:
                 logger.debug(
@@ -397,7 +397,7 @@ class DockerProvider(ReleaseProvider):
                 features.append("INSTALL")
                 features.append("PROGRESS")
             elif any((self.cfg.allow_build, self.cfg.allow_restart, self.cfg.allow_pull)):
-                logger.info(f"Update not available, can_pull:{can_pull}, can_build:{can_build},can_restart{can_restart}")
+                logger.info(f"Update not available, can_pull:{can_pull}, can_build:{can_build},can_restart:{can_restart}")
             if relnotes_url:
                 features.append("RELEASE_NOTES")
             if can_pull:
@@ -538,18 +538,18 @@ def select_versions(version_policy: VersionPolicy, installed: DockerImageInfo, l
     if latest.throttled:
         log.debug("Flattening versions for throttled update %s", installed.ref)
         latest = installed
-    if latest.short_digest == NO_KNOWN_IMAGE and not latest.repo_digest and not latest.version:
+    if not any((latest.short_digest, latest.repo_digest, latest.git_digest, latest.version)):
         log.debug("Flattening versions for empty update %s", installed.ref)
         latest = installed
-    if latest.short_digest != NO_KNOWN_IMAGE and latest.short_digest == installed.short_digest:
+    if latest.short_digest == installed.short_digest and latest.short_digest is not None:
         log.debug("Flattening versions for identical update %s", installed.ref)
         latest = installed
 
     if version_policy == VersionPolicy.VERSION and installed.version and latest.version:
         return installed.version, latest.version
 
-    installed_digest_available: bool = installed.short_digest is not None and installed.short_digest not in ("", NO_KNOWN_IMAGE)
-    latest_digest_available: bool = latest.short_digest is not None and latest.short_digest not in ("", NO_KNOWN_IMAGE)
+    installed_digest_available: bool = installed.short_digest is not None and installed.short_digest != ""
+    latest_digest_available: bool = latest.short_digest is not None and latest.short_digest != ""
 
     if version_policy == VersionPolicy.DIGEST and installed_digest_available and latest_digest_available:
         return installed.short_digest, latest.short_digest  # type: ignore[return-value]
@@ -624,4 +624,5 @@ def select_versions(version_policy: VersionPolicy, installed: DockerImageInfo, l
     if installed_digest_available and not latest_digest_available:
         return installed.short_digest, latest.short_digest  # type: ignore[return-value]
 
-    return NO_KNOWN_IMAGE, NO_KNOWN_IMAGE
+    log.warn("No versions can be determined for %s", installed.ref)
+    return UNKNOWN_VERSION, UNKNOWN_VERSION

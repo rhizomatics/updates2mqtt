@@ -498,7 +498,7 @@ def test_analyze_with_git_repo_uses_git_local_digest(mock_docker_client: DockerC
     # Set labels via c.labels to maintain consistency with build_mock_container
     container.labels["updates2mqtt.git_repo_path"] = "."
     container.labels["com.docker.compose.project.working_dir"] = str(tmpdir)
-    # Clear RepoDigests so local_version becomes NO_KNOWN_IMAGE, triggering git_local_digest
+    # Clear RepoDigests so local_version marked as local build, triggering git_local_digest
     container.image.attrs["RepoDigests"] = []  # type: ignore[union-attr]
 
     with patch("docker.from_env", return_value=mock_docker_client):
@@ -576,4 +576,4 @@ def test_analyze_git_local_digest_returns_none(mock_docker_client: DockerClient,
         assert result is not None
         # no new version so version forced to current version to not trigger updates
         assert result.current_version is not None
-        assert result.current_version != result.latest_version
+        assert result.current_version == result.latest_version

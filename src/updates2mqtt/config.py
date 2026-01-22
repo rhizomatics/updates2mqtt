@@ -10,7 +10,7 @@ from omegaconf import MISSING, DictConfig, MissingMandatoryValue, OmegaConf, Val
 log = structlog.get_logger()
 
 PKG_INFO_FILE = Path("./common_packages.yaml")
-NO_KNOWN_IMAGE = "UNKNOWN"
+UNKNOWN_VERSION = "UNKNOWN"
 VERSION_RE = r"[vVr]?[0-9]+(\.[0-9]+)*"
 # source: https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
 SEMVER_RE = r"^(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$"  # noqa: E501

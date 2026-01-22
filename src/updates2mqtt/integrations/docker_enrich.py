@@ -20,7 +20,6 @@ import docker
 import docker.errors
 
 from updates2mqtt.config import (
-    NO_KNOWN_IMAGE,
     PKG_INFO_FILE,
     DockerConfig,
     DockerPackageUpdateInfo,
@@ -151,8 +150,9 @@ class DockerImageInfo:
                 ),
             )
 
-        self.image_digest = self.condense_digest(self.image_digest, short=False) if self.image_digest is not None else None
-        self.short_digest = self.condense_digest(self.image_digest) if self.image_digest is not None else NO_KNOWN_IMAGE
+        if self.image_digest is not None:
+            self.image_digest = self.condense_digest(self.image_digest, short=False)
+            self.short_digest = self.condense_digest(self.image_digest)  # type: ignore[arg-type]
 
     @property
     def repo_digests(self) -> str | None:
@@ -249,8 +249,7 @@ class LocalContainerInfo:
         # so although this could be sourced from image, like `container.image.tags[0]`
         # use the container ref instead, which survives monkeying about with images
         image_ref: str = container.attrs.get("Config", {}).get("Image") or ""
-        digest: str = NO_KNOWN_IMAGE
-        image_digest = container.attrs.get("Image", digest)
+        image_digest = container.attrs.get("Image")
 
         image_info: DockerImageInfo = DockerImageInfo(
             image_ref,
@@ -710,7 +709,7 @@ class DockerClientVersionLookup(VersionLookup):
         reg_data: RegistryData | None = None
 
         result = DockerImageInfo(local_image_info.ref)
-        if local_image_info.index_name is None or local_image_info.ref == NO_KNOWN_IMAGE:
+        if local_image_info.index_name is None or local_image_info.ref is None:
             return result
 
         while reg_data is None and retries_left > 0:
