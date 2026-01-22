@@ -44,7 +44,7 @@ def git_iso_timestamp(repo_path: Path, git_path: Path) -> str | None:
     return None
 
 
-def git_local_version(repo_path: Path, git_path: Path) -> str | None:
+def git_local_digest(repo_path: Path, git_path: Path) -> str | None:
     result = None
     try:
         result = subprocess.run(
@@ -56,17 +56,17 @@ def git_local_version(repo_path: Path, git_path: Path) -> str | None:
             check=True,
         )
         if result.returncode == 0:
-            log.debug("Local git rev-parse", action="git_local_version", path=repo_path, version=result.stdout.strip())
-            return f"git:{result.stdout.strip()}"[:19]
+            log.debug("Local git rev-parse", action="git_local_digest", path=repo_path, version=result.stdout.strip())
+            return result.stdout.strip()[:15]
     except subprocess.CalledProcessError as cpe:
-        log.warn("GIT No result from git rev-parse at %s: %s", repo_path, cpe, action="git_local_version")
+        log.warn("GIT No result from git rev-parse at %s: %s", repo_path, cpe, action="git_local_digest")
     except Exception as e:
         log.error(
             "GIT Unable to retrieve version at %s - %s: %s",
             repo_path,
             result.stdout if result else "<NO RESULT>",
             e,
-            action="git_local_version",
+            action="git_local_digest",
         )
     return None
 

@@ -7,11 +7,7 @@ from typing import Any
 import structlog
 from tzlocal import get_localzone
 
-from updates2mqtt.config import NO_KNOWN_IMAGE, Selector, VersionPolicy
-
-VERSION_RE = r"[vVr]?[0-9]+(\.[0-9]+)*"
-# source: https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
-SEMVER_RE = r"^(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$"  # noqa: E501
+from updates2mqtt.config import Selector
 
 log = structlog.get_logger()
 
@@ -23,49 +19,6 @@ def timestamp(time_value: float | None) -> str | None:
         return dt.datetime.fromtimestamp(time_value, tz=get_localzone()).isoformat()
     except:  # noqa: E722
         return None
-
-
-def select_version(
-    version_policy: VersionPolicy,
-    version: str | None,
-    digest: str | None,
-    other_version: str | None = None,
-    other_digest: str | None = None,
-) -> str:
-    """Pick the best version string to display based on the version policy and available data
-
-    Falls back to digest if version not reliable or not consistent with current/available version
-    """
-    if version_policy == VersionPolicy.VERSION and version:
-        return version
-    if version_policy == VersionPolicy.DIGEST and digest and digest != NO_KNOWN_IMAGE:
-        return digest
-    if version_policy == VersionPolicy.VERSION_DIGEST and version and digest and digest != NO_KNOWN_IMAGE:
-        return f"{version}:{digest}"
-    # AUTO or fallback
-    if version_policy == VersionPolicy.AUTO and version and re.match(VERSION_RE, version or ""):
-        # Smells like semver
-        if other_version is None and other_digest is None:
-            return version
-        if any((re.match(VERSION_RE, other_version or ""), re.match(SEMVER_RE, other_version or ""))) and (
-            (version == other_version and digest == other_digest) or (version != other_version and digest != other_digest)
-        ):
-            # Only semver if versions and digest consistently same or different
-            return version
-
-    if (
-        version
-        and digest
-        and digest != NO_KNOWN_IMAGE
-        and ((other_digest is None and other_version is None) or (other_digest is not None and other_version is not None))
-    ):
-        return f"{version}:{digest}"
-    if version and other_version:
-        return version
-    if digest and digest != NO_KNOWN_IMAGE:
-        return digest
-
-    return other_digest or NO_KNOWN_IMAGE
 
 
 class Selection:
@@ -91,16 +44,25 @@ class Selection:
         return self.result
 
 
+class ThrottledError(Exception):
+    def __init__(self, message: str, retry_secs: int) -> None:
+        super().__init__(message)
+        self.retry_secs = retry_secs
+
+
 class Throttler:
+    DEFAULT_SITE = "DEFAULT_SITE"
+
     def __init__(self, api_throttle_pause: int = 30, logger: Any | None = None, semaphore: Event | None = None) -> None:
         self.log: Any = logger or log
         self.pause_api_until: dict[str, float] = {}
         self.api_throttle_pause: int = api_throttle_pause
         self.semaphore = semaphore
 
-    def check_throttle(self, index_name: str) -> bool:
+    def check_throttle(self, index_name: str | None = None) -> bool:
         if self.semaphore and self.semaphore.is_set():
             return True
+        index_name = index_name or self.DEFAULT_SITE
         if self.pause_api_until.get(index_name) is not None:
             if self.pause_api_until[index_name] < time.time():
                 del self.pause_api_until[index_name]
@@ -110,7 +72,16 @@ class Throttler:
                 return True
         return False
 
-    def throttle(self, index_name: str, retry_secs: int | None = None, explanation: str | None = None) -> None:
+    def throttle(
+        self,
+        index_name: str | None = None,
+        retry_secs: int | None = None,
+        explanation: str | None = None,
+        raise_exception: bool = False,
+    ) -> None:
+        index_name = index_name or self.DEFAULT_SITE
         retry_secs = retry_secs if retry_secs and retry_secs > 0 else self.api_throttle_pause
         self.log.warn("%s throttling requests for %s seconds, %s", index_name, retry_secs, explanation)
         self.pause_api_until[index_name] = time.time() + retry_secs
+        if raise_exception:
+            raise ThrottledError(explanation or f"{index_name} throttled request", retry_secs)

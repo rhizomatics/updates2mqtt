@@ -491,14 +491,14 @@ def test_analyze_resumes_after_throttle_expires(mock_docker_client: DockerClient
         assert result is not None
 
 
-def test_analyze_with_git_repo_uses_git_local_version(mock_docker_client: DockerClient, tmpdir: Path) -> None:
-    """Test that analyze() calls git_local_version when container has git_repo_path."""
+def test_analyze_with_git_repo_uses_git_local_digest(mock_docker_client: DockerClient, tmpdir: Path) -> None:
+    """Test that analyze() calls git_local_digest when container has git_repo_path."""
     container = build_mock_container("custom/build:latest")
     container.name = "git-build-container"  # type: ignore[misc]
     # Set labels via c.labels to maintain consistency with build_mock_container
     container.labels["updates2mqtt.git_repo_path"] = "."
     container.labels["com.docker.compose.project.working_dir"] = str(tmpdir)
-    # Clear RepoDigests so local_version becomes NO_KNOWN_IMAGE, triggering git_local_version
+    # Clear RepoDigests so local_version becomes NO_KNOWN_IMAGE, triggering git_local_digest
     container.image.attrs["RepoDigests"] = []  # type: ignore[union-attr]
 
     with patch("docker.from_env", return_value=mock_docker_client):
@@ -508,7 +508,7 @@ def test_analyze_with_git_repo_uses_git_local_version(mock_docker_client: Docker
         )
 
         with (
-            patch("updates2mqtt.integrations.docker.git_local_version", return_value="git:abc123def456789") as mock_git_ver,
+            patch("updates2mqtt.integrations.docker.git_local_digest", return_value="abc123def456789") as mock_git_ver,
             patch("updates2mqtt.integrations.docker.git_check_update_available", return_value=0),
             patch("updates2mqtt.integrations.docker.git_trust"),
             patch("updates2mqtt.integrations.docker.git_iso_timestamp", return_value=None),
@@ -537,7 +537,7 @@ def test_analyze_git_repo_with_updates_available(mock_docker_client: DockerClien
         )
 
         with (
-            patch("updates2mqtt.integrations.docker.git_local_version", return_value="git:abc123def456789"),
+            patch("updates2mqtt.integrations.docker.git_local_digest", return_value="abc123def456789"),
             patch("updates2mqtt.integrations.docker.git_check_update_available", return_value=3),
             patch("updates2mqtt.integrations.docker.git_trust"),
             patch("updates2mqtt.integrations.docker.git_iso_timestamp", return_value=None),
@@ -551,9 +551,9 @@ def test_analyze_git_repo_with_updates_available(mock_docker_client: DockerClien
         assert result.update_type == "Docker Build"
 
 
-def test_analyze_git_local_version_returns_none(mock_docker_client: DockerClient, tmpdir: Path) -> None:
-    """Test that analyze() handles git_local_version returning None."""
-    container = build_mock_container("custom/build:latest")
+def test_analyze_git_local_digest_returns_none(mock_docker_client: DockerClient, tmpdir: Path) -> None:
+    """Test that analyze() handles git_local_digest returning None."""
+    container: Container = build_mock_container("custom/build:latest")
     container.name = "git-none-container"  # type: ignore[misc]
     container.labels["updates2mqtt.git_repo_path"] = "."
     container.labels["com.docker.compose.project.working_dir"] = str(tmpdir)
@@ -566,7 +566,7 @@ def test_analyze_git_local_version_returns_none(mock_docker_client: DockerClient
         )
 
         with (
-            patch("updates2mqtt.integrations.docker.git_local_version", return_value=None),
+            patch("updates2mqtt.integrations.docker.git_local_digest", return_value=None),
             patch("updates2mqtt.integrations.docker.git_check_update_available", return_value=0),
             patch("updates2mqtt.integrations.docker.git_trust"),
             patch("updates2mqtt.integrations.docker.git_iso_timestamp", return_value=None),
@@ -574,5 +574,6 @@ def test_analyze_git_local_version_returns_none(mock_docker_client: DockerClient
             result = uut.analyze(container, "test-session")
 
         assert result is not None
-        # Should fall back to NO_KNOWN_IMAGE which gets normalized
-        assert result.current_version == mut.NO_KNOWN_IMAGE
+        # no new version so version forced to current version to not trigger updates
+        assert result.current_version is not None
+        assert result.current_version != result.latest_version

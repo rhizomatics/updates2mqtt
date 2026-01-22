@@ -10,7 +10,7 @@ from hishel.httpx import SyncCacheClient
 from httpx import Response
 from omegaconf import MissingMandatoryValue, OmegaConf, ValidationError
 
-from updates2mqtt.helpers import Throttler
+from updates2mqtt.helpers import ThrottledError, Throttler
 
 if typing.TYPE_CHECKING:
     from docker.models.images import RegistryData
@@ -75,17 +75,23 @@ class DockerImageInfo:
     def __init__(
         self,
         ref: str,  # ref with optional index name and tag or digest, index:name:tag_or_digest
-        digest: str | None = None,
+        image_digest: str | None = None,
         tags: list[str] | None = None,
         attributes: dict[str, Any] | None = None,
         annotations: dict[str, Any] | None = None,
+        version: str | None = None,  # test harness simplification
     ) -> None:
         self.ref: str = ref
-        self.version: str | None = None
-        self.digest: str | None = digest
+        self.version: str | None = version
+        self.image_digest: str | None = image_digest
         self.short_digest: str | None = None
+        self.repo_digest: str | None = None  # the single RepoDigest known to match registry
+        self.git_digest: str | None = None
         self.index_name: str | None = None
         self.name: str | None = None
+        self.tag: str | None = None
+        self.pinned_digest: str | None = None
+        # untagged ref using combined index and remote name used only for pattern matching common pkg info
         self.untagged_ref: str | None = None  # index_name/remote_name used for pkg match
         self.tag_or_digest: str | None = None  # index_name/remote_name:**tag_or_digest**
         self.tags = tags
@@ -97,27 +103,45 @@ class DockerImageInfo:
         self.platform: str | None = None
         self.custom: dict[str, str | None] = {}
 
-        self.local_build: bool = len(self.attributes.get("RepoDigests", [])) == 0
-        self.index_name, self.name = resolve_repository_name(ref)
+        self.local_build: bool = self.repo_digests is None
+        self.index_name, remote_name = resolve_repository_name(ref)
 
-        # untagged ref used only for pattern matching common pkg info
-        self.untagged_ref = ref.split(":", 1)[0] if ":" in ref else ref
-        if ":" in self.name:
-            self.name = self.name.split(":", 1)[0]
-        # "official Docker images have an abbreviated library/foo name"
+        self.name = remote_name
+
+        if remote_name and ":" in remote_name and ("@" not in remote_name or remote_name.index("@") > remote_name.index(":")):
+            # name:tag format
+            self.name, self.tag_or_digest = remote_name.split(":", 1)
+            self.untagged_ref = ref.split(":", 1)[0]
+            self.tag = self.tag_or_digest
+
+        elif remote_name and "@" in remote_name:
+            # name@digest format
+            self.name, self.tag_or_digest = remote_name.split("@", 1)
+            self.untagged_ref = ref.split("@", 1)[0]
+            self.pinned_digest = self.tag_or_digest
+
+        if self.tag and "@" in self.tag:
+            # name:tag@digest format
+            # for pinned tags, care only about the digest part
+            self.tag, self.tag_or_digest = self.tag.split("@", 1)
+            self.pinned_digest = self.tag_or_digest
+        if self.tag_or_digest is None:
+            self.tag_or_digest = "latest"
+            self.untagged_ref = ref
+            self.tag = self.tag_or_digest
+
+        if self.repo_digest is None and self.repo_digests and len(self.repo_digests) == 1:
+            # definite known RepoDigest
+            # if its ambiguous, the final version selection will handle it
+            self.repo_digest = self.repo_digests[0]
+
         if self.index_name == "docker.io" and "/" not in self.name:
+            # "official Docker images have an abbreviated library/foo name"
             self.name = f"library/{self.name}"
         if self.name is not None and not re.match(OCI_NAME_RE, self.name):
             log.warning("Invalid OCI image name: %s", self.name)
-
-        if ref and ":" in ref:
-            self.tag_or_digest = ref.split(":", 1)[1]
-            if "@" in self.tag_or_digest:
-                self.tag_or_digest = self.tag_or_digest.split("@")[0]
-            if not re.match(OCI_TAG_RE, self.tag_or_digest):
-                log.warning("Invalid OCI image tag: %s", self.tag_or_digest)
-        else:
-            self.tag_or_digest = "latest"
+        if self.tag and not re.match(OCI_TAG_RE, self.tag):
+            log.warning("Invalid OCI image tag: %s", self.tag)
 
         if self.os and self.arch:
             self.platform = "/".join(
@@ -127,8 +151,14 @@ class DockerImageInfo:
                 ),
             )
 
-        self.digest = self.condense_digest(self.digest, short=False) if self.digest is not None else None
-        self.short_digest = self.condense_digest(self.digest) if self.digest is not None else NO_KNOWN_IMAGE
+        self.image_digest = self.condense_digest(self.image_digest, short=False) if self.image_digest is not None else None
+        self.short_digest = self.condense_digest(self.image_digest) if self.image_digest is not None else NO_KNOWN_IMAGE
+
+    @property
+    def repo_digests(self) -> str | None:
+        # RepoDigest in image inspect, Registry Config object
+        v = self.attributes.get("RepoDigests")
+        return v if v else None  # don't return empty list
 
     @property
     def os(self) -> str | None:
@@ -152,13 +182,10 @@ class DockerImageInfo:
         except Exception:
             return None
 
-    def force_digest_match(self, registry_digest: str) -> None:
-        for local_digest in self.attributes.get("RepoDigests", []):
-            short_local: str | None = self.condense_digest(local_digest)
-            if short_local is not None and short_local == registry_digest and short_local != self.short_digest:
-                log.debug(f"Setting local digest from {self.short_digest} to {registry_digest} to match remote digest")
-                self.short_digest = short_local
-                self.digest = local_digest
+    def reuse(self) -> "DockerImageInfo":
+        cloned = DockerImageInfo(self.ref, self.image_digest, self.tags, self.attributes, self.annotations, self.version)
+        cloned.origin = "REUSED"
+        return cloned
 
 
 def id_source_platform(source: str | None) -> str | None:
@@ -218,22 +245,16 @@ class LocalContainerInfo:
 
     def build_image_info(self, container: Container) -> DockerImageInfo:
         """Image contents equiv to `docker inspect image <image_ref>`"""
-        if container.image is not None and container.image.tags and len(container.image.tags) > 0:
-            image_ref = container.image.tags[0]
-        else:
-            image_ref = container.attrs.get("Config", {}).get("Image")
-        image_ref = image_ref or ""
+        # container image can be none if someone ran `docker rmi -f`
+        # so although this could be sourced from image, like `container.image.tags[0]`
+        # use the container ref instead, which survives monkeying about with images
+        image_ref: str = container.attrs.get("Config", {}).get("Image") or ""
         digest: str = NO_KNOWN_IMAGE
-        if self.registry_access == RegistryAccessPolicy.OCI_V2:
-            digest = container.attrs.get("Image", digest)
-        else:
-            repo_digests = container.image.attrs.get("RepoDigests", []) if container.image else []
-            if len(repo_digests) > 0:
-                digest = repo_digests[0]
+        image_digest = container.attrs.get("Image", digest)
 
         image_info: DockerImageInfo = DockerImageInfo(
             image_ref,
-            digest=digest,
+            image_digest=image_digest,
             tags=container.image.tags if container and container.image else None,
             annotations=container.image.labels if container.image else None,
             attributes=container.image.attrs if container.image else None,
@@ -348,7 +369,7 @@ def fetch_url(
     url: str,
     cache_ttl: int = 300,
     bearer_token: str | None = None,
-    response_type: str | None = None,
+    response_type: str | list[str] | None = None,
     follow_redirects: bool = False,
 ) -> Response | None:
     try:
@@ -356,7 +377,9 @@ def fetch_url(
         if bearer_token:
             headers.append(("Authorization", f"Bearer {bearer_token}"))
         if response_type:
-            headers.append(("Accept", response_type))
+            response_type = [response_type] if isinstance(response_type, str) else response_type
+            if response_type and isinstance(response_type, (tuple, list)):
+                headers.extend(("Accept", mime_type) for mime_type in response_type)
         with SyncCacheClient(headers=headers, follow_redirects=follow_redirects) as client:
             log.debug(f"Fetching URL {url}, cache_ttl={cache_ttl}")
             response: Response = client.get(url)
@@ -448,7 +471,7 @@ class AuthError(Exception):
 
 
 def httpx_json_content(response: Response, default: Any = None) -> Any | None:
-    if response and "json" in response.headers.get("content-type"):
+    if response and "json" in response.headers.get("content-type", ""):
         try:
             return response.json()
         except Exception:
@@ -466,9 +489,11 @@ class VersionLookup:
 
 
 class ContainerDistributionAPIVersionLookup(VersionLookup):
-    def fetch_token(self, registry: str, image_name: str) -> str | None:
-        logger = self.log.bind(image_name=image_name, action="auth_registry")
+    def __init__(self, throttler: Throttler) -> None:
+        self.throttler: Throttler = throttler
+        self.log: Any = structlog.get_logger().bind(integration="docker", tool="version_lookup")
 
+    def fetch_token(self, registry: str, image_name: str) -> str | None:
         default_host: tuple[str, str, str, str] = (registry, registry, registry, TOKEN_URL_TEMPLATE)
         auth_host: str | None = REGISTRIES.get(registry, default_host)[0]
         if auth_host is None:
@@ -483,26 +508,28 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
             token: str | None = api_data.get("token") if api_data else None
             if token:
                 return token
-            logger.warning("No token found in response for %s", auth_url)
+            self.log.warning("No token found in response for %s", auth_url)
             raise AuthError(f"No token found in response for {image_name}")
 
-        logger.debug(
+        self.log.debug(
             "Non-success response at %s fetching token: %s",
             auth_url,
             (response and response.status_code) or None,
         )
         if response and response.status_code == 404:
-            logger.debug("Default token URL %s not found, calling /v2 endpoint to validate OCI API and provoke auth", auth_url)
+            self.log.debug(
+                "Default token URL %s not found, calling /v2 endpoint to validate OCI API and provoke auth", auth_url
+            )
             response = fetch_url(f"https://{auth_host}/v2", follow_redirects=True)
 
         if response and response.status_code == 401:
             auth = response.headers.get("www-authenticate")
             if not auth:
-                logger.warning("No www-authenticate header found in 401 response for %s", auth_url)
+                self.log.warning("No www-authenticate header found in 401 response for %s", auth_url)
                 raise AuthError(f"No www-authenticate header found on 401 for {image_name}")
             match = re.search(r'realm="([^"]+)",service="([^"]+)",scope="([^"]+)"', auth)
             if not match:
-                logger.warning("No realm/service/scope found in www-authenticate header for %s", auth_url)
+                self.log.warning("No realm/service/scope found in www-authenticate header for %s", auth_url)
                 raise AuthError(f"No realm/service/scope found on 401 headers for {image_name}")
 
             realm, service, scope = match.groups()
@@ -510,15 +537,80 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
             response = fetch_url(auth_url, follow_redirects=True)
             if response and response.is_success:
                 token_data = response.json()
-                logger.debug("Fetched registry token from %s", auth_url)
+                self.log.debug("Fetched registry token from %s", auth_url)
                 return token_data.get("token")
-            logger.warning(
+            self.log.warning(
                 "Alternative auth %s with status %s has no token", auth_url, (response and response.status_code) or None
             )
         elif response:
-            logger.warning("Auth %s failed with status %s", auth_url, (response and response.status_code) or None)
+            self.log.warning("Auth %s failed with status %s", auth_url, (response and response.status_code) or None)
 
         raise AuthError(f"Failed to fetch token for {image_name} at {auth_url}")
+
+    def fetch_index(
+        self, api_host: str, local_image_info: DockerImageInfo, token: str | None, mutable_cache_ttl: int = 600
+    ) -> Any | None:
+        api_url: str = f"https://{api_host}/v2/{local_image_info.name}/manifests/{local_image_info.tag_or_digest}"
+        response: Response | None = fetch_url(
+            api_url, cache_ttl=mutable_cache_ttl, bearer_token=token, response_type=["application/vnd.oci.image.index.v1+json"]
+        )
+        if response is None:
+            self.log.warning("Empty response for manifest for image at %s", api_url)
+        elif response.status_code == 429:
+            self.throttler.throttle(local_image_info.index_name, raise_exception=True)
+        elif not response.is_success:
+            api_data = httpx_json_content(response, {})
+            self.log.warning(
+                "Failed to fetch index from %s: %s",
+                api_url,
+                api_data.get("errors") if api_data else response.text,
+            )
+        else:
+            index = response.json()
+            self.log.debug(
+                "INDEX %s manifests, %s annotations",
+                len(index.get("manifests", [])),
+                len(index.get("annotations", [])),
+            )
+            return index
+        return None
+
+    def fetch_manifest(
+        self,
+        api_host: str,
+        local_image_info: DockerImageInfo,
+        media_type: str,
+        digest: str,
+        token: str | None,
+        immutable_cache_ttl: int = 86400,
+    ) -> Any | None:
+        api_url = f"https://{api_host}/v2/{local_image_info.name}/manifests/{digest}"
+        response = fetch_url(
+            api_url,
+            cache_ttl=immutable_cache_ttl,
+            bearer_token=token,
+            response_type=media_type,
+        )
+        if response and response.is_success:
+            manifest = httpx_json_content(response, None)
+            if manifest:
+                self.log.debug(
+                    "MANIFEST %s, %s layers, %s annotations",
+                    digest,
+                    len(manifest.get("layers", [])),
+                    len(manifest.get("annotations", [])),
+                )
+                return manifest
+        elif response and response.status_code == 429:
+            self.throttler.throttle(local_image_info.index_name, raise_exception=True)
+        elif response and not response.is_success:
+            api_data = httpx_json_content(response, {})
+            self.log.warning(
+                "Failed to fetch manifest from %s: %s", api_url, api_data.get("errors") if api_data else response.text
+            )
+        else:
+            self.log.error("Empty response from %s", api_url)
+        return None
 
     def lookup(
         self,
@@ -528,52 +620,38 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
         immutable_cache_ttl: int = 86400,
         **kwargs,  # noqa: ANN003, ARG002
     ) -> DockerImageInfo:
-        logger = self.log.bind(image_ref=local_image_info.ref, action="enrich_registry")
-
         result: DockerImageInfo = DockerImageInfo(local_image_info.ref)
         if not local_image_info.name or not local_image_info.index_name:
-            logger.debug("No local pkg name or registry index name to check")
+            self.log.debug("No local pkg name or registry index name to check")
+            return result
+
+        if self.throttler.check_throttle(local_image_info.index_name):
+            result.throttled = True
             return result
 
         if token:
-            logger.debug("Using provided token to fetch manifest for image %s", local_image_info.ref)
+            self.log.debug("Using provided token to fetch manifest for image %s", local_image_info.ref)
         else:
             try:
                 token = self.fetch_token(local_image_info.index_name, local_image_info.name)
             except AuthError as e:
-                logger.warning("Authentication error prevented Docker Registry enrichment: %s", e)
+                self.log.warning("Authentication error prevented Docker Registry enrichment: %s", e)
                 result.error = str(e)
                 return result
 
         api_host: str | None = REGISTRIES.get(
             local_image_info.index_name, (local_image_info.index_name, local_image_info.index_name)
         )[1]
-        api_url: str = f"https://{api_host}/v2/{local_image_info.name}/manifests/{local_image_info.tag_or_digest}"
-        response: Response | None = fetch_url(
-            api_url,
-            cache_ttl=mutable_cache_ttl,
-            bearer_token=token,
-            response_type="application/vnd.oci.image.index.v1+json",
-        )
-        if response is None:
-            logger.warning("Empty response for manifest for image at %s", api_url)
-        elif response.status_code == 429:
-            # TODO: integrate Throttler
+        if api_host is None:
+            self.log("No API host can be determined for %s", local_image_info.index_name)
+            return result
+        try:
+            index: Any | None = self.fetch_index(api_host, local_image_info, token, mutable_cache_ttl)
+        except ThrottledError:
             result.throttled = True
-        elif not response.is_success:
-            api_data = httpx_json_content(response, {})
-            logger.warning(
-                "Failed to fetch manifest from %s: %s",
-                api_url,
-                api_data.get("errors") if api_data else response.text,
-            )
-        else:
-            index = response.json()
-            logger.debug(
-                "INDEX %s manifests, %s annotations",
-                len(index.get("manifests", [])),
-                len(index.get("annotations", [])),
-            )
+            index = None
+
+        if index:
             result.annotations = index.get("annotations", {})
             for m in index.get("manifests", []):
                 platform_info = m.get("platform", {})
@@ -582,35 +660,31 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
                     and platform_info.get("architecture") == local_image_info.arch
                     and ("Variant" not in platform_info or platform_info.get("Variant") == local_image_info.variant)
                 ):
-                    digest = m.get("digest")
+                    digest: str | None = m.get("digest")
                     media_type = m.get("mediaType")
-                    api_url = f"https://{api_host}/v2/{local_image_info.name}/manifests/{digest}"
-                    response = fetch_url(
-                        api_url,
-                        cache_ttl=immutable_cache_ttl,
-                        bearer_token=token,
-                        response_type=media_type,
-                    )
-                    if response and response.is_success:
-                        api_data = httpx_json_content(response, None)
-                        if api_data:
-                            digest = api_data.get("config", {}).get("digest")
-                            logger.debug(
-                                "MANIFEST %s, %s layers, %s annotations",
-                                digest,
-                                len(api_data.get("layers", [])),
-                                len(api_data.get("annotations", [])),
+                    manifest: Any | None = None
+                    if digest:
+                        try:
+                            manifest = self.fetch_manifest(
+                                api_host, local_image_info, media_type, digest, token, immutable_cache_ttl
                             )
-                            result.digest = result.condense_digest(digest, short=False)
-                            result.short_digest = result.condense_digest(digest)
+                        except ThrottledError:
+                            result.throttled = True
 
-                            if api_data.get("annotations"):
-                                result.annotations.update(api_data.get("annotations", {}))
-                            else:
-                                logger.debug("No annotations found in manifest: %s", api_data)
+                    if manifest:
+                        digest = manifest.get("config", {}).get("digest")
+                        if digest is None:
+                            self.log.warning("Empty digest for %s %s %s", api_host, digest, media_type)
+                        else:
+                            result.repo_digest = result.condense_digest(digest, short=False)
+
+                        if manifest.get("annotations"):
+                            result.annotations.update(manifest.get("annotations", {}))
+                        else:
+                            self.log.debug("No annotations found in manifest: %s", manifest)
 
         if not result.annotations:
-            logger.debug("No annotations found from registry data")
+            self.log.debug("No annotations found from registry data")
         custom: dict[str, str | None] = cherrypick_annotations(local_image_info, result)
         result.custom = custom
         result.version = custom.get("latest_image_version")
@@ -654,7 +728,7 @@ class DockerClientVersionLookup(VersionLookup):
                 )
                 if reg_data:
                     result.short_digest = result.condense_digest(reg_data.short_id)
-                    result.digest = result.condense_digest(reg_data.id, short=False)
+                    result.image_digest = result.condense_digest(reg_data.id, short=False)
                     # result.name = reg_data.image_name
                     result.attributes = reg_data.attrs
                     result.annotations = reg_data.attrs.get("Config", {}).get("Labels") or {}

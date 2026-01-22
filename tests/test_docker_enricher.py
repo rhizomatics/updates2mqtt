@@ -24,7 +24,9 @@ def test_docker_image_info_bare_default() -> None:
     uut = DockerImageInfo("test")
     assert uut.index_name == "docker.io"
     assert uut.tag_or_digest == "latest"
+    assert uut.tag == "latest"
     assert uut.name == "library/test"
+    assert uut.pinned_digest is None
     assert uut.untagged_ref == "test"
 
 
@@ -32,6 +34,8 @@ def test_docker_image_info_non_docker_unqualified() -> None:
     uut = DockerImageInfo("myreg.io/test")
     assert uut.index_name == "myreg.io"
     assert uut.tag_or_digest == "latest"
+    assert uut.tag == "latest"
+    assert uut.pinned_digest is None
     assert uut.name == "test"
     assert uut.untagged_ref == "myreg.io/test"
 
@@ -40,16 +44,42 @@ def test_docker_image_info_with_tag() -> None:
     uut = DockerImageInfo("test/unit:nightly")
     assert uut.index_name == "docker.io"
     assert uut.tag_or_digest == "nightly"
+    assert uut.tag == "nightly"
+    assert uut.pinned_digest is None
     assert uut.name == "test/unit"
     assert uut.untagged_ref == "test/unit"
 
 
 def test_docker_image_info_with_digest_qualifier() -> None:
-    uut = DockerImageInfo("test/unit:8553535@sha2030")
+    uut = DockerImageInfo("test/unit@sha2030:58495945945")
     assert uut.index_name == "docker.io"
-    assert uut.tag_or_digest == "8553535"
+    assert uut.tag_or_digest == "sha2030:58495945945"
+    assert uut.pinned_digest == "sha2030:58495945945"
+    assert uut.tag is None
     assert uut.name == "test/unit"
     assert uut.untagged_ref == "test/unit"
+
+
+def test_docker_image_info_with_digest() -> None:
+    uut = DockerImageInfo("ghcr.io/immich-app/postgres@sha256:41eacbe83eca995561fe43814fd4891e16e39632806253848efaf04d3c8a8b84")
+    assert uut.index_name == "ghcr.io"
+    assert uut.tag_or_digest == "sha256:41eacbe83eca995561fe43814fd4891e16e39632806253848efaf04d3c8a8b84"
+    assert uut.tag is None
+    assert uut.pinned_digest == "sha256:41eacbe83eca995561fe43814fd4891e16e39632806253848efaf04d3c8a8b84"
+    assert uut.name == "immich-app/postgres"
+    assert uut.untagged_ref == "ghcr.io/immich-app/postgres"
+
+
+def test_docker_image_info_with_pinned_tag() -> None:
+    uut = DockerImageInfo(
+        "ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0@sha256:41eacbe83eca995561fe43814fd4891e16e39632806253848efaf04d3c8a8b84"
+    )
+    assert uut.index_name == "ghcr.io"
+    assert uut.tag_or_digest == "sha256:41eacbe83eca995561fe43814fd4891e16e39632806253848efaf04d3c8a8b84"
+    assert uut.tag == "14-vectorchord0.4.3-pgvectors0.2.0"
+    assert uut.pinned_digest == "sha256:41eacbe83eca995561fe43814fd4891e16e39632806253848efaf04d3c8a8b84"
+    assert uut.name == "immich-app/postgres"
+    assert uut.untagged_ref == "ghcr.io/immich-app/postgres"
 
 
 def test_common_enricher() -> None:
@@ -99,8 +129,8 @@ def test_discover_metadata(httpx_mock: HTTPXMock) -> None:
 
 
 @pytest.mark.slow
-def test_label_enricher_ghcr() -> None:
-    uut = ContainerDistributionAPIVersionLookup()
+def test_label_enricher_ghcr(mock_throttler: Throttler) -> None:
+    uut = ContainerDistributionAPIVersionLookup(mock_throttler)
     v: DockerImageInfo = uut.lookup(
         DockerImageInfo("ghcr.io/rhizomatics/updates2mqtt:1.6.0", attributes={"Os": "linux", "Architecture": "amd64"})
     )
@@ -108,29 +138,29 @@ def test_label_enricher_ghcr() -> None:
 
 
 @pytest.mark.slow
-def test_label_enricher_unqualified_docker() -> None:
-    uut = ContainerDistributionAPIVersionLookup()
+def test_label_enricher_unqualified_docker(mock_throttler: Throttler) -> None:
+    uut = ContainerDistributionAPIVersionLookup(mock_throttler)
     v: DockerImageInfo = uut.lookup(DockerImageInfo("docker:cli", attributes={"Os": "linux", "Architecture": "amd64"}))
     assert v.annotations["org.opencontainers.image.url"] == "https://hub.docker.com/_/docker"
 
 
 @pytest.mark.slow
-def test_label_enricher_vanilla_docker() -> None:
-    uut = ContainerDistributionAPIVersionLookup()
+def test_label_enricher_vanilla_docker(mock_throttler: Throttler) -> None:
+    uut = ContainerDistributionAPIVersionLookup(mock_throttler)
     v: DockerImageInfo = uut.lookup(DockerImageInfo("jellyfin/jellyfin", attributes={"Os": "linux", "Architecture": "amd64"}))
     assert v.annotations is not None
 
 
 @pytest.mark.slow
-def test_label_enricher_vanilla_docker_v1() -> None:
-    uut = DockerClientVersionLookup(docker.from_env(), Throttler())
+def test_label_enricher_vanilla_docker_v1(mock_throttler: Throttler) -> None:
+    uut = DockerClientVersionLookup(docker.from_env(), mock_throttler)
     v: DockerImageInfo = uut.lookup(DockerImageInfo("jellyfin/jellyfin", attributes={"Os": "linux", "Architecture": "amd64"}))
     assert v.annotations is not None
 
 
 @pytest.mark.slow
-def test_label_enricher_gitlab() -> None:
-    uut = ContainerDistributionAPIVersionLookup()
+def test_label_enricher_gitlab(mock_throttler: Throttler) -> None:
+    uut = ContainerDistributionAPIVersionLookup(mock_throttler)
     v: DockerImageInfo = uut.lookup(
         DockerImageInfo("registry.gitlab.com/elad.bar/dahuavto2mqtt", attributes={"Os": "linux", "Architecture": "amd64"})
     )

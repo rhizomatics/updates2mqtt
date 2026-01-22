@@ -1,4 +1,5 @@
 import random
+import re
 import subprocess
 import time
 import typing
@@ -15,6 +16,8 @@ from docker.models.containers import Container
 
 from updates2mqtt.config import (
     NO_KNOWN_IMAGE,
+    SEMVER_RE,
+    VERSION_RE,
     DockerConfig,
     NodeConfig,
     PackageUpdateInfo,
@@ -23,7 +26,7 @@ from updates2mqtt.config import (
     UpdatePolicy,
     VersionPolicy,
 )
-from updates2mqtt.helpers import Selection, Throttler, select_version
+from updates2mqtt.helpers import Selection, Throttler
 from updates2mqtt.integrations.docker_enrich import (
     CommonPackageEnricher,
     ContainerDistributionAPIVersionLookup,
@@ -37,7 +40,7 @@ from updates2mqtt.integrations.docker_enrich import (
 )
 from updates2mqtt.model import Discovery, ReleaseProvider
 
-from .git_utils import git_check_update_available, git_iso_timestamp, git_local_version, git_pull, git_trust
+from .git_utils import git_check_update_available, git_iso_timestamp, git_local_digest, git_pull, git_trust
 
 if typing.TYPE_CHECKING:
     from docker.models.images import Image
@@ -138,7 +141,7 @@ class DockerProvider(ReleaseProvider):
             DefaultPackageEnricher(self.cfg),
         ]
         self.docker_client_image_lookup = DockerClientVersionLookup(self.client, self.throttler, self.cfg.default_api_backoff)
-        self.registry_image_lookup = ContainerDistributionAPIVersionLookup()
+        self.registry_image_lookup = ContainerDistributionAPIVersionLookup(self.throttler)
         self.release_enricher = SourceReleaseEnricher()
         self.local_info_builder = LocalContainerInfo(self.cfg.registry_access)
 
@@ -297,26 +300,26 @@ class DockerProvider(ReleaseProvider):
 
             registry_selection = Selection(self.cfg.registry_select, local_info.index_name)
             latest_info: DockerImageInfo
-            if registry_selection and local_info.ref and not local_info.local_build:
+            if local_info.pinned_digest and local_info.repo_digests and local_info.pinned_digest in local_info.repo_digests:
+                logger.debug("Skipping registry fetch for local pinned image, %s", local_info.ref)
+                latest_info = local_info.reuse()
+            elif registry_selection and local_info.ref and not local_info.local_build:
                 if self.cfg.registry_access == RegistryAccessPolicy.DOCKER_CLIENT:
                     latest_info = self.docker_client_image_lookup.lookup(local_info)
                 elif self.cfg.registry_access == RegistryAccessPolicy.OCI_V2:
                     latest_info = self.registry_image_lookup.lookup(local_info, token=customization.registry_token)
                 else:  # assuming RegistryAccessPolicy.DISABLED
                     logger.debug(f"Skipping registry check, disabled in config {self.cfg.registry_access}")
-                    latest_info = DockerImageInfo(local_info.ref)
-
-                if latest_info.short_digest and self.cfg.registry_access == RegistryAccessPolicy.DOCKER_CLIENT:
-                    # local image might have multiple RepoDigests if image has been pulled multiple times with diff manifests
-                    local_info.force_digest_match(latest_info.short_digest)
-
+                    latest_info = local_info.reuse()
             elif local_info.local_build:
                 # assume its a locally built image if no RepoDigests available
-                latest_info = DockerImageInfo(local_info.ref)
+                latest_info = local_info.reuse()
+                latest_info.short_digest = None
+                latest_info.image_digest = None
                 custom["git_repo_path"] = customization.git_repo_path
             else:
                 logger.debug("Registry selection rules suppressed metadata lookup")
-                latest_info = DockerImageInfo(local_info.ref)
+                latest_info = local_info.reuse()
 
             custom.update(latest_info.custom)
 
@@ -366,17 +369,18 @@ class DockerProvider(ReleaseProvider):
                         cast("str", custom.get("compose_path")), cast("str", custom.get("git_repo_path"))
                     )
                     if local_info.local_build and full_repo_path:
-                        local_info.short_digest = (
-                            git_local_version(full_repo_path, Path(self.node_cfg.git_path)) or NO_KNOWN_IMAGE
-                        )
+                        git_versionish = git_local_digest(full_repo_path, Path(self.node_cfg.git_path))
+                        if git_versionish:
+                            local_info.git_digest = git_versionish
+                            logger.debug("Git digest for local code %s", git_versionish)
 
-                        behind_count: int = git_check_update_available(full_repo_path, Path(self.node_cfg.git_path))
-                        if behind_count > 0:
-                            if local_info.short_digest is not None and local_info.short_digest.startswith("git:"):
-                                latest_info.short_digest = f"{local_info.short_digest}+{behind_count}"
-                                logger.info("Git update available, generating version %s", latest_info.short_digest)
-                        else:
-                            logger.debug(f"Git update not available, local repo:{full_repo_path}")
+                            behind_count: int = git_check_update_available(full_repo_path, Path(self.node_cfg.git_path))
+                            if behind_count > 0:
+                                latest_info.git_digest = f"{git_versionish}+{behind_count}"
+                                logger.info("Git update available, generating version %s", latest_info.git_digest)
+                            else:
+                                logger.debug(f"Git update not available, local repo:{full_repo_path}")
+                                latest_info.git_digest = git_versionish
 
             can_restart: bool = self.cfg.allow_restart and custom.get("compose_path") is not None
 
@@ -401,23 +405,9 @@ class DockerProvider(ReleaseProvider):
             # can_pull,can_build etc are only info flags
             # the HASS update process is driven by comparing current and available versions
 
-            if latest_info.short_digest in (local_info.short_digest, NO_KNOWN_IMAGE) or latest_info.throttled:
-                latest_info.short_digest = local_info.short_digest
-                latest_info.version = local_info.version
-            public_installed_version = select_version(
-                version_policy,
-                local_info.version,
-                local_info.short_digest,
-                other_version=latest_info.version,
-                other_digest=latest_info.short_digest,
-            )
-            public_latest_version = select_version(
-                version_policy,
-                latest_info.version,
-                latest_info.short_digest,
-                other_version=local_info.version,
-                other_digest=local_info.short_digest,
-            )
+            public_installed_version: str
+            public_latest_version: str
+            public_installed_version, public_latest_version = select_versions(version_policy, local_info, latest_info)
 
             publish_policy: PublishPolicy = PublishPolicy.HOMEASSISTANT
             img_ref_selection = Selection(self.cfg.image_ref_select, local_info.ref)
@@ -531,3 +521,102 @@ class DockerProvider(ReleaseProvider):
             if pkg_info is not None:
                 return pkg_info
         raise ValueError("No enricher could provide metadata, not even default enricher")
+
+
+def select_versions(version_policy: VersionPolicy, installed: DockerImageInfo, latest: DockerImageInfo) -> tuple[str, str]:
+    """Pick the best version string to display based on the version policy and available data
+
+    Ensures that both local installed and remote latest versions are derived in same way
+    Falls back to digest if version not reliable or not consistent with current/available version
+    """
+    # shortcircuit the logic if there's nothing to compare
+    if latest.throttled:
+        log.debug("Flattening versions for throttled update %s", installed.ref)
+        latest = installed
+    if latest.short_digest == NO_KNOWN_IMAGE and not latest.repo_digest and not latest.version:
+        log.debug("Flattening versions for empty update %s", installed.ref)
+        latest = installed
+    if latest.short_digest != NO_KNOWN_IMAGE and latest.short_digest == installed.short_digest:
+        log.debug("Flattening versions for identical update %s", installed.ref)
+        latest = installed
+
+    if version_policy == VersionPolicy.VERSION and installed.version and latest.version:
+        return installed.version, latest.version
+
+    installed_digest_available: bool = installed.short_digest is not None and installed.short_digest not in ("", NO_KNOWN_IMAGE)
+    latest_digest_available: bool = latest.short_digest is not None and latest.short_digest not in ("", NO_KNOWN_IMAGE)
+
+    if version_policy == VersionPolicy.DIGEST and installed_digest_available and latest_digest_available:
+        return installed.short_digest, latest.short_digest  # type: ignore[return-value]
+    if (
+        version_policy == VersionPolicy.VERSION_DIGEST
+        and installed.version
+        and latest.version
+        and installed_digest_available
+        and latest_digest_available
+    ):
+        return f"{installed.version}:{installed.short_digest}", f"{latest.version}:{latest.short_digest}"
+
+    if version_policy == VersionPolicy.AUTO and (
+        (installed.version == latest.version and installed.short_digest == latest.short_digest)
+        or (installed.version != latest.version and installed.short_digest != latest.short_digest)
+    ):
+        # detect semver, or casual semver (e.g. v1.030)
+        # only use this if both version and digest are consistently agreeing or disagreeing
+        # if the strict conditions work, people see nice version numbers on screen rather than hashes
+        if (
+            installed.version
+            and re.match(SEMVER_RE, installed.version or "")
+            and latest.version
+            and re.match(SEMVER_RE, latest.version or "")
+        ):
+            # Smells like semver, override if not using version_policy
+            return installed.version, latest.version
+        if (
+            installed.version
+            and re.match(VERSION_RE, installed.version or "")
+            and latest.version
+            and re.match(VERSION_RE, latest.version or "")
+        ):
+            # Smells like casual semver, override if not using version_policy
+            return installed.version, latest.version
+
+    # AUTO or fallback
+    if installed.version and latest.version and installed_digest_available and latest_digest_available:
+        return f"{installed.version}:{installed.short_digest}", f"{latest.version}:{latest.short_digest}"
+
+        # and ((other_digest is None and other_version is None) or (other_digest is not None and other_version is not None))
+
+    if installed.version and latest.version:
+        return installed.version, latest.version
+
+    # Check for local builds
+    if installed.git_digest and latest.git_digest:
+        return f"git:{installed.git_digest}", f"git:{latest.git_digest}"
+
+    # Fall back to digests, image or repo index
+    if installed_digest_available and latest_digest_available:
+        return installed.short_digest, latest.short_digest  # type: ignore[return-value]
+    if installed.version and not latest.version and not latest.short_digest and not latest.repo_digest:
+        return installed.version, installed.version
+
+    if not installed_digest_available and latest_digest_available:
+        # odd condition if local image has no identity, even out versions so no update alert
+        return latest.short_digest, latest.short_digest  # type: ignore[return-value]
+
+    # Fall back to repo digests
+    def condense_repo_id(i: DockerImageInfo) -> str:
+        v: str | None = i.condense_digest(i.repo_digest) if i.repo_digest else None
+        return v or ""
+
+    if installed.repo_digest and latest.repo_digest:
+        # where the image digest isn't available, fall back to a repo digest
+        return condense_repo_id(installed), condense_repo_id(latest)
+    if latest.repo_digest and installed.repo_digests and latest.repo_digest in installed.repo_digests:
+        # installed has multiple RepoDigests from multiple pulls and one of them matches latest current repo digest
+        return condense_repo_id(latest), condense_repo_id(latest)
+
+    if installed_digest_available and not latest_digest_available:
+        return installed.short_digest, latest.short_digest  # type: ignore[return-value]
+
+    return NO_KNOWN_IMAGE, NO_KNOWN_IMAGE

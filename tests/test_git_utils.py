@@ -5,7 +5,7 @@ from pytest_subprocess import FakeProcess
 from updates2mqtt.integrations.git_utils import (
     git_check_update_available,
     git_iso_timestamp,
-    git_local_version,
+    git_local_digest,
     git_pull,
     git_trust,
 )
@@ -45,17 +45,17 @@ def test_git_check_update_available(fake_process: FakeProcess) -> None:
     assert git_check_update_available(Path("/my/path"), GIT_EXEC, timeout=5) == 0
 
 
-def test_git_local_version(fake_process: FakeProcess) -> None:
+def test_git_local_digest(fake_process: FakeProcess) -> None:
     # Test successful case - returns git:{hash} truncated to 19 chars total
     fake_process.register(
         "/usr/bin/git rev-parse HEAD",
         stdout="abc123def456789012345678901234567890",
         returncode=0,
     )
-    assert git_local_version(Path("/my/path"), GIT_EXEC) == "git:abc123def456789"
+    assert git_local_digest(Path("/my/path"), GIT_EXEC) == "abc123def456789"
 
 
-def test_git_local_version_failure(fake_process: FakeProcess) -> None:
+def test_git_local_digest_failure(fake_process: FakeProcess) -> None:
     # Test failure case - returns None
     fake_process.register("/usr/bin/git rev-parse HEAD", returncode=128)
-    assert git_local_version(Path("/my/path"), GIT_EXEC) is None
+    assert git_local_digest(Path("/my/path"), GIT_EXEC) is None
