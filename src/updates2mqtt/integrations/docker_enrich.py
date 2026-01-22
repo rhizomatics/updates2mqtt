@@ -400,6 +400,7 @@ def fetch_url(
                     response.headers.get(HEADER_DOCKER_API),
                     response.headers.get(HEADER_DOCKER_DIGEST),
                 )
+                log.debug(response.headers)  # REMOVE !!!!!!!!!!!!!!
             if force_docker_headers and response and HEADER_DOCKER_DIGEST not in response.headers:
                 header_response = client.head(url)
                 if header_response and header_response.is_success:
