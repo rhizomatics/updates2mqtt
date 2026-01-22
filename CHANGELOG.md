@@ -1,12 +1,16 @@
 # CHANGELOG
 
 ## 1.7.0
-### Container Registry Enrichment
-- Container registry will be accessed where available to pull in annotations ( including 
+### OCI Container Registry APIs
+- By default now uses the OCI v2 Distribution APIs rather than old Docker APIs via Docker SDK
+   - Older method can be switched back on using `registry_access: docker_client` in Docker configuration section
+   - Container registry also used where available to pull in annotations ( including 
 a meaningful version ) using the OCI Distriubtion API
   - Docker, GitHub GHCR, Gitlab and Codeberg configured
   - Authentication logic to automatically adapt and retry dynamically for other platforms
   - Annotations will be sourced from the Index or Manifest, with priority for the (platform-specific) manifest
+  - Digest matching adapts to different practices across repos
+- Registries can now be selectively included/excluded using `registry_select` in Docker configuration section
 ### GitHub Release Enrichment
 - Where an annotation points to a source URL and hash, this can be used to derive a 
 `diff_url`, a direct link to the actual release notes, and a release summary pulled from the
@@ -19,6 +23,7 @@ Github source repo releases and passed onto Home Assistant
    - `VERSION`,`DIGEST` and `VERSION_DIGEST` can be used to fix on which fields to use
    - If the chosen option isn't available, next preference is for `version:digest` qualified version, falling back to whatever else is available
    - Version policy can be set at container level using `UPD2MQTT_VERSION_POLICY` env var or corresponding label
+- Version selection now has a diagnostic code that ties back to precisely which code used
 ### Local Docker Image Enrichment
 - Metadata from local `org.opencontainers` labels published where available
 - Added more packages to common-packages, vector and greptime
