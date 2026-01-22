@@ -160,6 +160,27 @@ or using labels
 The images will show up in the *Update* section of *Settings* menu in HomeAssistant,
 as will the release notes link. SVG icons should be used.
 
+## Customizing Versions
+
+Updates2MQTT attempts to find the most human-friendly representation of image versions that
+can be reliably used. Ideally that's a `v1.5.4` type version (whether formally SemVer or just traditional version).
+
+By default it uses an `auto` version policy that will choose the most meaningful, and fall back to
+digests where versions aren't available (usually via image labels/annotations). This will also take
+into account where updates are throttled, or a pinned digest declared in the container.
+
+This can be overridden at container level using using the `updates2mqtt.version_policy` container label or `UPD2MQTT_VERSION_POLICY` environment variable:
+
+   - `AUTO` - to do the best it can with versions, git repo digests, index digests or config digests
+   - `VERSION` - always choose simple version unless version not available
+     - Some images use version oddly, where its more of a label applying to multiple releases than a version. Also
+       there's guarantee for container images that a human friendly version always points to the same thing.
+     - This is useful where you know the image has sensible versions and trust it enough
+   - `DIGEST` - always use the 12-char abbreviated digest, even if version available
+   - `VERSION_DIGEST` - use a `version:1234567890ab` style combo of version and digest id where both available
+
+If the chosen option isn't available, they'll all fail back to `auto`. A diagnostic code, `version-select` that ties back to precisely which [code])(https://github.com/rhizomatics/updates2mqtt/blob/main/src/updates2mqtt/integrations/docker.py#L533) used is included in the attributes.
+
 ## Silencing Containers
 
 If there are containers which are changing very frequently with development builds, or for other reasons

@@ -34,7 +34,8 @@ Read the release notes, and optionally click *Update* to trigger a Docker *pull*
 
 Updates2MQTT perioidically checks for new versions of components being available, and publishes new version info to MQTT. HomeAssistant auto discovery is supported, so all updates can be seen in the same place as Home Assistant's own components and add-ins.
 
-Currently only Docker containers are supported, either via an image registry check, or a git repo for source (see [Local Builds](local_builds.md)). The design is modular, so other update sources can be added, at least for notification. The next anticipated is **apt** for Debian based systems.
+Currently only Docker containers are supported, either via an image registry check (using either v1 Docker APIs or the OCI v2 API), or a git repo for source (see [Local Builds](local_builds.md)), with specific handling for Docker, Github Container Registry, Gitlab, Codeberg, Microsoft Container Registry and LinuxServer Registry, with adaptive behaviour to cope with most
+others.  The design is modular, so other update sources can be added, at least for notification. The next anticipated is **apt** for Debian based systems.
 
 Components can also be updated, either automatically or triggered via MQTT, for example by hitting the *Install* button in the HomeAssistant update dialog. Icons and release notes can be specified for a better HA experience. See [Home Assistant Integration](home_assistant.md) for details.
 
@@ -135,8 +136,8 @@ Alternatively, use Docker labels
 | `updates2mqtt.relnotes`        | `UPD2MQTT_RELNOTES`        |
 | `updates2mqtt.git_repo_path`   | `UPD2MQTT_GIT_REPO_PATH`   |
 | `updates2mqtt.ignore`          | `UPD2MQTT_IGNORE`          |
-| `updates2mqtt.version_policy`  | `UPD2MQTT_VERSION_POLICY` |
-| `updates2mqtt.registry_token`  | `UPD2MQTT_REGISTRY_TOKEN` |
+| `updates2mqtt.version_policy`  | `UPD2MQTT_VERSION_POLICY`  |
+| `updates2mqtt.registry_token`  | `UPD2MQTT_REGISTRY_TOKEN`  |
 
 
 

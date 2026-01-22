@@ -253,7 +253,7 @@ class DockerProvider(ReleaseProvider):
             c: Container = self.client.containers.get(discovery.name)
             if c:
                 rediscovery = self.analyze(c, discovery.session, previous_discovery=discovery)
-                if rediscovery:
+                if rediscovery and not rediscovery.throttled:
                     self.discoveries[rediscovery.name] = rediscovery
                     return rediscovery
             logger.warn("Unable to find container for rescan")

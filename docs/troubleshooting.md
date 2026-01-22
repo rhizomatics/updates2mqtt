@@ -170,6 +170,20 @@ uv run --with docker python3
 
 This should output the version of the `docker` package, and the total count of local containers if the connection is good. Updates2MQTT uses at least v7.1.0 of `docker` for Python API.
 
+## Registry API
+
+Updates2MQTT uses the Docker developed `docker-py` library for local management, and originally for discovering
+updates. Now by default it uses the more modern [OCI v2 Distribution API](https://github.com/opencontainers/distribution-spec/blob/main/spec.md) that `docker.io` and other registries have supported for years. 
+
+The `registry_access` option in Docker config can override this, set to `docker_client`,`oci_v2` or `disabled`.
+
+The OCI APIs require more network calls, typically one to retrieve a token, one for the image index, and then one
+for the platform specific manifest. On the other hand, well-developer images also provide annotations on these documents,
+which allow for direct links to release notes and source code, descriptions, semantic versions and more.
+
+Registries usually have an unauthenticated token system for authorization, this can be overridden per container using the
+`updates2mqtt.registry_token` container label or `UPD2MQTT_REGISTRY_TOKEN` environment variable.
+
 ## Too Many Requests
 
 The Docker Registry API has a limit on how many authenticated requests, and a lower
@@ -182,3 +196,17 @@ in the `docker` configuration section, with a value in seconds.
 The throttling is determined per registry, so if Docker is throttling it won't
 affect `gchr.io`, private registries or others. They will also throttle if needed, but
 again the throttle will only affect that specific registry, and other scans will continue.
+
+The order of containers scanned is shuffled every time, so if there is a lot of throttling
+it won't be the same ones every time.
+
+## Docker CLI
+
+There is a very bare bones command line debug tool, that will look up an image in either v1
+or v2 APIs and dump everything to console at `DEBUG` log level. Use the *container* hash,
+or a container name if one has been given ( easy to find out either of these with `docker ps`)
+
+```bash
+python updates2mqtt.cli container=frigate
+python updates2mqtt.cli container=f4f02e182f5e registry_access=docker_client
+```
