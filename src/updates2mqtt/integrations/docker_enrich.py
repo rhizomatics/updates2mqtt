@@ -41,6 +41,9 @@ UNKNOWN_RELEASE_URL_TEMPLATES = {SOURCE_PLATFORM_GITHUB: "{repo}/releases"}
 MISSING_VAL = "**MISSING**"
 UNKNOWN_REGISTRY = "**UNKNOWN_REGISTRY**"
 
+HEADER_DOCKER_DIGEST = "sha256:2c8edc1f9400ef02a93c3b754d4419082ceb5d049178c3a3968e3fd56caf7f29"
+HEADER_DOCKER_API = "Docker-Distribution-Api-Version"
+
 TOKEN_URL_TEMPLATE = "https://{auth_host}/token?scope=repository:{image_name}:pull&service={service}"  # noqa: S105 # nosec
 REGISTRIES = {
     # registry: (auth_host, api_host, service, url_template)
@@ -572,9 +575,11 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
         else:
             index = response.json()
             self.log.debug(
-                "INDEX %s manifests, %s annotations",
+                "INDEX %s manifests, %s annotations, api: %s, header digest: %s",
                 len(index.get("manifests", [])),
                 len(index.get("annotations", [])),
+                response.headers.get(HEADER_DOCKER_API, "N/A"),
+                response.headers.get(HEADER_DOCKER_DIGEST, "N/A"),
             )
             return index
         return None
@@ -599,8 +604,10 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
             manifest = httpx_json_content(response, None)
             if manifest:
                 self.log.debug(
-                    "MANIFEST %s, %s layers, %s annotations",
+                    "MANIFEST %s, header digest:%s, api: %s, %s layers, %s annotations",
                     digest,
+                    response.headers.get(HEADER_DOCKER_DIGEST, "N/A"),
+                    response.headers.get(HEADER_DOCKER_API, "N/A"),
                     len(manifest.get("layers", [])),
                     len(manifest.get("annotations", [])),
                 )

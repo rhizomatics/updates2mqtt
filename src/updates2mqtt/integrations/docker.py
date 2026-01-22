@@ -295,6 +295,7 @@ class DockerProvider(ReleaseProvider):
 
             custom["platform"] = local_info.platform
             custom["image_ref"] = local_info.ref
+            custom["current_image_id"] = local_info.short_digest
             custom["index_name"] = local_info.index_name
             custom["git_repo_path"] = customization.git_repo_path
 
