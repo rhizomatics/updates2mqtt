@@ -324,6 +324,7 @@ class DockerProvider(ReleaseProvider):
 
             custom.update(latest_info.custom)
             custom["latest_origin"] = latest_info.origin
+            custom["latest_image_id"] = latest_info.short_digest
 
             release_info: dict[str, str | None] = self.release_enricher.enrich(
                 latest_info, source_repo_url=pkg_info.source_repo_url, release_url=relnotes_url
