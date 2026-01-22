@@ -297,12 +297,10 @@ class DockerProvider(ReleaseProvider):
             custom["image_ref"] = local_info.ref
             custom["index_name"] = local_info.index_name
             custom["git_repo_path"] = customization.git_repo_path
-            if local_info.repo_digest:
-                custom["installed_repo_digest"] = local_info.repo_digest[:19]
 
             registry_selection = Selection(self.cfg.registry_select, local_info.index_name)
             latest_info: DockerImageInfo
-            if local_info.pinned_digest and local_info.repo_digests and local_info.pinned_digest in local_info.repo_digests:
+            if local_info.pinned_digest and local_info.pinned_digest in local_info.repo_digests:
                 logger.debug("Skipping registry fetch for local pinned image, %s", local_info.ref)
                 latest_info = local_info.reuse()
             elif registry_selection and local_info.ref and not local_info.local_build:
@@ -325,8 +323,6 @@ class DockerProvider(ReleaseProvider):
 
             custom.update(latest_info.custom)
             custom["latest_origin"] = latest_info.origin
-            if latest_info.repo_digest:
-                custom["latest_repo_digest"] = latest_info.repo_digest[:19]
 
             release_info: dict[str, str | None] = self.release_enricher.enrich(
                 latest_info, source_repo_url=pkg_info.source_repo_url, release_url=relnotes_url
@@ -617,7 +613,7 @@ def select_versions(version_policy: VersionPolicy, installed: DockerImageInfo, l
     if installed.repo_digest and latest.repo_digest:
         # where the image digest isn't available, fall back to a repo digest
         return condense_repo_id(installed), condense_repo_id(latest)
-    if latest.repo_digest and installed.repo_digests and latest.repo_digest in installed.repo_digests:
+    if latest.repo_digest and latest.repo_digest in installed.repo_digests:
         # installed has multiple RepoDigests from multiple pulls and one of them matches latest current repo digest
         return condense_repo_id(latest), condense_repo_id(latest)
 

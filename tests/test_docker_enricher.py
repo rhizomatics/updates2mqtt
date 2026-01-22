@@ -82,6 +82,31 @@ def test_docker_image_info_with_pinned_tag() -> None:
     assert uut.untagged_ref == "ghcr.io/immich-app/postgres"
 
 
+def test_docker_image_qualified_repo_ids() -> None:
+    uut = DockerImageInfo(
+        "test",
+        attributes={
+            "RepoDigests": [
+                "ghcr.io/immich-app/immich-server@sha256:2c496e3b9d476ea723e6f0df05d1f690fed2d79b61f4ed75597679892d86311a",
+                "ghcr.io/immich-app/immich-server@sha256:e6a6298e67ae077808fdb7d8d5565955f60b0708191576143fc02d30ab1389d1",
+            ]
+        },
+    )
+    assert uut.repo_digest is None
+    assert uut.repo_digests == [
+        "sha256:2c496e3b9d476ea723e6f0df05d1f690fed2d79b61f4ed75597679892d86311a",
+        "sha256:e6a6298e67ae077808fdb7d8d5565955f60b0708191576143fc02d30ab1389d1",
+    ]
+
+
+def test_docker_image_single_repo_id() -> None:
+    uut = DockerImageInfo(
+        "test", attributes={"RepoDigests": ["docker@sha256:931f63d7100eb6734405d92d8bd9f4aa708c587510e5cc673bb9ac196a3d733f"]}
+    )
+    assert uut.repo_digest == "sha256:931f63d7100eb6734405d92d8bd9f4aa708c587510e5cc673bb9ac196a3d733f"
+    assert uut.repo_digests == ["sha256:931f63d7100eb6734405d92d8bd9f4aa708c587510e5cc673bb9ac196a3d733f"]
+
+
 def test_common_enricher() -> None:
     uut = CommonPackageEnricher(DockerConfig())
     uut.initialize()

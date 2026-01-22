@@ -102,7 +102,7 @@ class DockerImageInfo:
         self.platform: str | None = None
         self.custom: dict[str, str | None] = {}
 
-        self.local_build: bool = self.repo_digests is None
+        self.local_build: bool = not self.repo_digests
         self.index_name, remote_name = resolve_repository_name(ref)
 
         self.name = remote_name
@@ -129,7 +129,7 @@ class DockerImageInfo:
             self.untagged_ref = ref
             self.tag = self.tag_or_digest
 
-        if self.repo_digest is None and self.repo_digests and len(self.repo_digests) == 1:
+        if self.repo_digest is None and len(self.repo_digests) == 1:
             # definite known RepoDigest
             # if its ambiguous, the final version selection will handle it
             self.repo_digest = self.repo_digests[0]
@@ -155,10 +155,10 @@ class DockerImageInfo:
             self.short_digest = self.condense_digest(self.image_digest)  # type: ignore[arg-type]
 
     @property
-    def repo_digests(self) -> str | None:
+    def repo_digests(self) -> list[str]:
         # RepoDigest in image inspect, Registry Config object
-        v = self.attributes.get("RepoDigests")
-        return v if v else None  # don't return empty list
+        digests = [v.split("@", 1)[1] if "@" in v else v for v in self.attributes.get("RepoDigests", [])]
+        return digests or []
 
     @property
     def os(self) -> str | None:
