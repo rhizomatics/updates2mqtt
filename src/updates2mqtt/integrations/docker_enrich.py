@@ -393,7 +393,7 @@ def fetch_url(
             response: Response = client.get(url)
             if not response.is_success:
                 log.debug("URL %s fetch returned non-success status: %s", url, response.status_code)
-            elif docker_headers and response and HEADER_DOCKER_DIGEST in response.headers:
+            elif response and HEADER_DOCKER_DIGEST in response.headers:
                 log.debug(
                     "Docker headers on GET: API %s, Digest %s",
                     response.headers.get(HEADER_DOCKER_API),
