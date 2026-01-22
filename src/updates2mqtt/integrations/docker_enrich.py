@@ -378,7 +378,6 @@ def fetch_url(
     bearer_token: str | None = None,
     response_type: str | list[str] | None = None,
     follow_redirects: bool = False,
-    force_docker_headers: bool = False,
 ) -> Response | None:
     try:
         headers = [("cache-control", f"max-age={cache_ttl}")]
@@ -401,16 +400,6 @@ def fetch_url(
                     response.headers.get(HEADER_DOCKER_DIGEST),
                 )
 
-            if force_docker_headers and response and HEADER_DOCKER_DIGEST not in response.headers:
-                header_response = client.head(url)
-                if header_response and header_response.is_success:
-                    log.debug(
-                        "Docker headers on HEAD: API %s, Digest %s",
-                        header_response.headers.get(HEADER_DOCKER_API),
-                        header_response.headers.get(HEADER_DOCKER_DIGEST),
-                    )
-                else:
-                    log.debug("Docker headers HEAD failed: %s", response.status_code if response else "NO RESPONSE")
             return response
     except Exception as e:
         log.debug("URL %s failed to fetch: %s", url, e)
@@ -575,7 +564,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
 
     def fetch_index(
         self, api_host: str, local_image_info: DockerImageInfo, token: str | None, mutable_cache_ttl: int = 600
-    ) -> Any | None:
+    ) -> tuple[Any | None, str | None]:
         api_url: str = f"https://{api_host}/v2/{local_image_info.name}/manifests/{local_image_info.tag_or_digest}"
         response: Response | None = fetch_url(
             api_url,
@@ -606,8 +595,8 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
                 response.headers.get(HEADER_DOCKER_API, "N/A"),
                 response.headers.get(HEADER_DOCKER_DIGEST, "N/A"),
             )
-            return index
-        return None
+            return index, response.headers.get(HEADER_DOCKER_DIGEST)
+        return None, None
 
     def fetch_manifest(
         self,
@@ -675,6 +664,8 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
                 result.error = str(e)
                 return result
 
+        index: Any | None = None
+        index_digest: str | None = None  # fetched from header, should be the image digest
         api_host: str | None = REGISTRIES.get(
             local_image_info.index_name, (local_image_info.index_name, local_image_info.index_name)
         )[1]
@@ -682,7 +673,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
             self.log("No API host can be determined for %s", local_image_info.index_name)
             return result
         try:
-            index: Any | None = self.fetch_index(api_host, local_image_info, token, mutable_cache_ttl)
+            index, index_digest = self.fetch_index(api_host, local_image_info, token, mutable_cache_ttl)
         except ThrottledError:
             result.throttled = True
             index = None
@@ -696,6 +687,8 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
                     and platform_info.get("architecture") == local_image_info.arch
                     and ("Variant" not in platform_info or platform_info.get("Variant") == local_image_info.variant)
                 ):
+                    if index_digest:
+                        result.image_digest = index_digest
                     digest: str | None = m.get("digest")
                     media_type = m.get("mediaType")
                     manifest: Any | None = None
