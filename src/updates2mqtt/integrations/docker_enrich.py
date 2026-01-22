@@ -690,7 +690,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
                     if index_digest:
                         result.image_digest = index_digest
                         result.short_digest = result.condense_digest(index_digest)
-                        log.debug("Setting image digest %s for %s", result.short_digest, result.name)
+                        log.debug("Setting %s image digest %s", result.name, result.short_digest)
 
                     digest: str | None = m.get("digest")
                     media_type = m.get("mediaType")
@@ -709,6 +709,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
                             self.log.warning("Empty digest for %s %s %s", api_host, digest, media_type)
                         else:
                             result.repo_digest = result.condense_digest(digest, short=False)
+                            log.debug("Setting %s repo digest: %s", result.name, result.repo_digest)
 
                         if manifest.get("annotations"):
                             result.annotations.update(manifest.get("annotations", {}))
