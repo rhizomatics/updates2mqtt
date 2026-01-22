@@ -161,6 +161,11 @@ class DockerImageInfo:
         return digests or []
 
     @property
+    def pinned(self) -> bool:
+        """Check if this is pinned and installed version consistent with pin"""
+        return bool(self.pinned_digest and self.pinned_digest in self.repo_digests)
+
+    @property
     def os(self) -> str | None:
         return self.attributes.get("Os")
 

@@ -27,6 +27,7 @@ def test_docker_image_info_bare_default() -> None:
     assert uut.tag == "latest"
     assert uut.name == "library/test"
     assert uut.pinned_digest is None
+    assert not uut.pinned
     assert uut.untagged_ref == "test"
 
 
@@ -72,12 +73,44 @@ def test_docker_image_info_with_digest() -> None:
 
 def test_docker_image_info_with_pinned_tag() -> None:
     uut = DockerImageInfo(
-        "ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0@sha256:41eacbe83eca995561fe43814fd4891e16e39632806253848efaf04d3c8a8b84"
+        "ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0@sha256:41eacbe83eca995561fe43814fd4891e16e39632806253848efaf04d3c8a8b84",
+        attributes={
+            "RepoDigests": [
+                "ghcr.io/immich-app/postgres@sha256:2c496e3b9d476ea723e6f0df05d1f690fed2d79b61f4ed75597679892d86311a",
+                "ghcr.io/immich-app/postgres@sha256:41eacbe83eca995561fe43814fd4891e16e39632806253848efaf04d3c8a8b84",
+            ]
+        },
     )
     assert uut.index_name == "ghcr.io"
     assert uut.tag_or_digest == "sha256:41eacbe83eca995561fe43814fd4891e16e39632806253848efaf04d3c8a8b84"
     assert uut.tag == "14-vectorchord0.4.3-pgvectors0.2.0"
+    assert uut.repo_digest is None
+    assert uut.repo_digests == [
+        "sha256:2c496e3b9d476ea723e6f0df05d1f690fed2d79b61f4ed75597679892d86311a",
+        "sha256:41eacbe83eca995561fe43814fd4891e16e39632806253848efaf04d3c8a8b84",
+    ]
     assert uut.pinned_digest == "sha256:41eacbe83eca995561fe43814fd4891e16e39632806253848efaf04d3c8a8b84"
+    assert uut.pinned
+    assert uut.name == "immich-app/postgres"
+    assert uut.untagged_ref == "ghcr.io/immich-app/postgres"
+
+
+def test_docker_image_info_with_pinned_tag_not_pulled() -> None:
+    uut = DockerImageInfo(
+        "ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0@sha256:41eacbe83eca995561fe43814fd4891e16e39632806253848efaf04d3c8a8b84",
+        attributes={
+            "RepoDigests": [
+                "ghcr.io/immich-app/postgres@sha256:2c496e3b9d476ea723e6f0df05d1f690fed2d79b61f4ed75597679892d86311a"
+            ]
+        },
+    )
+    assert uut.index_name == "ghcr.io"
+    assert uut.tag_or_digest == "sha256:41eacbe83eca995561fe43814fd4891e16e39632806253848efaf04d3c8a8b84"
+    assert uut.tag == "14-vectorchord0.4.3-pgvectors0.2.0"
+    assert uut.repo_digest == "sha256:2c496e3b9d476ea723e6f0df05d1f690fed2d79b61f4ed75597679892d86311a"
+    assert uut.repo_digests == ["sha256:2c496e3b9d476ea723e6f0df05d1f690fed2d79b61f4ed75597679892d86311a"]
+    assert uut.pinned_digest == "sha256:41eacbe83eca995561fe43814fd4891e16e39632806253848efaf04d3c8a8b84"
+    assert not uut.pinned
     assert uut.name == "immich-app/postgres"
     assert uut.untagged_ref == "ghcr.io/immich-app/postgres"
 

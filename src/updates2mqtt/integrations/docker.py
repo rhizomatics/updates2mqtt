@@ -300,7 +300,7 @@ class DockerProvider(ReleaseProvider):
 
             registry_selection = Selection(self.cfg.registry_select, local_info.index_name)
             latest_info: DockerImageInfo
-            if local_info.pinned_digest and local_info.pinned_digest in local_info.repo_digests:
+            if local_info.pinned:
                 logger.debug("Skipping registry fetch for local pinned image, %s", local_info.ref)
                 latest_info = local_info.reuse()
             elif registry_selection and local_info.ref and not local_info.local_build:
@@ -408,7 +408,11 @@ class DockerProvider(ReleaseProvider):
 
             public_installed_version: str
             public_latest_version: str
-            public_installed_version, public_latest_version = select_versions(version_policy, local_info, latest_info)
+            version_rule: str
+            public_installed_version, public_latest_version, version_rule = select_versions(
+                version_policy, local_info, latest_info
+            )
+            custom["version_rule"] = version_rule
 
             publish_policy: PublishPolicy = PublishPolicy.HOMEASSISTANT
             img_ref_selection = Selection(self.cfg.image_ref_select, local_info.ref)
@@ -524,7 +528,7 @@ class DockerProvider(ReleaseProvider):
         raise ValueError("No enricher could provide metadata, not even default enricher")
 
 
-def select_versions(version_policy: VersionPolicy, installed: DockerImageInfo, latest: DockerImageInfo) -> tuple[str, str]:
+def select_versions(version_policy: VersionPolicy, installed: DockerImageInfo, latest: DockerImageInfo) -> tuple[str, str, str]:
     """Pick the best version string to display based on the version policy and available data
 
     Ensures that both local installed and remote latest versions are derived in same way
@@ -542,13 +546,13 @@ def select_versions(version_policy: VersionPolicy, installed: DockerImageInfo, l
         latest = installed
 
     if version_policy == VersionPolicy.VERSION and installed.version and latest.version:
-        return installed.version, latest.version
+        return installed.version, latest.version, "version-0"
 
     installed_digest_available: bool = installed.short_digest is not None and installed.short_digest != ""
     latest_digest_available: bool = latest.short_digest is not None and latest.short_digest != ""
 
     if version_policy == VersionPolicy.DIGEST and installed_digest_available and latest_digest_available:
-        return installed.short_digest, latest.short_digest  # type: ignore[return-value]
+        return installed.short_digest, latest.short_digest, "digest-0"  # type: ignore[return-value]
     if (
         version_policy == VersionPolicy.VERSION_DIGEST
         and installed.version
@@ -556,7 +560,7 @@ def select_versions(version_policy: VersionPolicy, installed: DockerImageInfo, l
         and installed_digest_available
         and latest_digest_available
     ):
-        return f"{installed.version}:{installed.short_digest}", f"{latest.version}:{latest.short_digest}"
+        return f"{installed.version}:{installed.short_digest}", f"{latest.version}:{latest.short_digest}", "version-digest-0"
 
     if version_policy == VersionPolicy.AUTO and (
         (installed.version == latest.version and installed.short_digest == latest.short_digest)
@@ -572,7 +576,7 @@ def select_versions(version_policy: VersionPolicy, installed: DockerImageInfo, l
             and re.match(SEMVER_RE, latest.version or "")
         ):
             # Smells like semver, override if not using version_policy
-            return installed.version, latest.version
+            return installed.version, latest.version, "semver-0"
         if (
             installed.version
             and re.match(VERSION_RE, installed.version or "")
@@ -580,30 +584,30 @@ def select_versions(version_policy: VersionPolicy, installed: DockerImageInfo, l
             and re.match(VERSION_RE, latest.version or "")
         ):
             # Smells like casual semver, override if not using version_policy
-            return installed.version, latest.version
+            return installed.version, latest.version, "semver-1"
 
     # AUTO or fallback
     if installed.version and latest.version and installed_digest_available and latest_digest_available:
-        return f"{installed.version}:{installed.short_digest}", f"{latest.version}:{latest.short_digest}"
+        return f"{installed.version}:{installed.short_digest}", f"{latest.version}:{latest.short_digest}", "version-digest-2"
 
         # and ((other_digest is None and other_version is None) or (other_digest is not None and other_version is not None))
 
     if installed.version and latest.version:
-        return installed.version, latest.version
+        return installed.version, latest.version, "version-2"
 
     # Check for local builds
     if installed.git_digest and latest.git_digest:
-        return f"git:{installed.git_digest}", f"git:{latest.git_digest}"
+        return f"git:{installed.git_digest}", f"git:{latest.git_digest}", "git-2"
 
     # Fall back to digests, image or repo index
     if installed_digest_available and latest_digest_available:
-        return installed.short_digest, latest.short_digest  # type: ignore[return-value]
+        return installed.short_digest, latest.short_digest, "digest-3"  # type: ignore[return-value]
     if installed.version and not latest.version and not latest.short_digest and not latest.repo_digest:
-        return installed.version, installed.version
+        return installed.version, installed.version, "version-3"
 
     if not installed_digest_available and latest_digest_available:
         # odd condition if local image has no identity, even out versions so no update alert
-        return latest.short_digest, latest.short_digest  # type: ignore[return-value]
+        return latest.short_digest, latest.short_digest, "digest-4"  # type: ignore[return-value]
 
     # Fall back to repo digests
     def condense_repo_id(i: DockerImageInfo) -> str:
@@ -612,13 +616,13 @@ def select_versions(version_policy: VersionPolicy, installed: DockerImageInfo, l
 
     if installed.repo_digest and latest.repo_digest:
         # where the image digest isn't available, fall back to a repo digest
-        return condense_repo_id(installed), condense_repo_id(latest)
+        return condense_repo_id(installed), condense_repo_id(latest), "repo-digest-5"
     if latest.repo_digest and latest.repo_digest in installed.repo_digests:
         # installed has multiple RepoDigests from multiple pulls and one of them matches latest current repo digest
-        return condense_repo_id(latest), condense_repo_id(latest)
+        return condense_repo_id(latest), condense_repo_id(latest), "repo-digest-6"
 
     if installed_digest_available and not latest_digest_available:
-        return installed.short_digest, latest.short_digest  # type: ignore[return-value]
+        return installed.short_digest, latest.short_digest, "digest-7"  # type: ignore[return-value]
 
     log.warn("No versions can be determined for %s", installed.ref)
-    return UNKNOWN_VERSION, UNKNOWN_VERSION
+    return UNKNOWN_VERSION, UNKNOWN_VERSION, "failure-999"
