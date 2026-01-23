@@ -21,6 +21,7 @@ class DiscoveryArtefactDetail:
 class DiscoveryInstallationDetail:
     """Provider specific detail"""
 
+    @abstractmethod
     def as_dict(self) -> dict[str, str | list | dict | bool | int | None]:
         return {}
 
@@ -193,10 +194,10 @@ class Discovery:
             "publish_policy": str(self.publish_policy),
             "version_policy": str(self.version_policy),
             "update": {"last_attempt": timestamp(self.update_last_attempt), "in_progress": False},
-            self.source_type: self.custom,
             "installation_detail": self.installation_detail.as_dict() if self.installation_detail else None,
             "current_detail": self.current_detail.as_dict() if self.current_detail else None,
             "latest_detail": self.latest_detail.as_dict() if self.latest_detail else None,
+            self.source_type: self.custom,
         }
 
 

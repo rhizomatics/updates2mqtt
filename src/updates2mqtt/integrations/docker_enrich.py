@@ -280,6 +280,19 @@ class DockerServiceDetails(DiscoveryInstallationDetail):
         self.git_repo_path: str | None = git_repo_path
         self.git_local_timestamp: str | None = None
 
+    def as_dict(self) -> dict[str, str | list | dict | bool | int | None]:
+        results: dict[str, str | list | dict | bool | int | None] = {
+            "container_name": self.container_name,
+            "compose_path": self.compose_path,
+            "compose_service": self.compose_service,
+            "compose_version": self.compose_version,
+        }
+        if self.git_local_timestamp:
+            results["git_local_timestamp"] = self.git_local_timestamp
+        if self.git_repo_path:
+            results["git_repo_path"] = self.git_repo_path
+        return results
+
 
 class LocalContainerInfo:
     def build_image_info(self, container: Container) -> tuple[DockerImageInfo, DockerServiceDetails]:
