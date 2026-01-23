@@ -290,7 +290,8 @@ def test_rescan_returns_none_on_api_error(mock_docker_client: DockerClient) -> N
         assert result is None
 
 
-def test_command_install_success(mock_docker_client: DockerClient) -> None:
+@pytest.mark.httpx_mock(assert_all_requests_were_expected=False)
+def test_command_install_success(mock_docker_client: DockerClient, mock_registry: HTTPXMock) -> None:  # noqa: ARG001
     from unittest.mock import MagicMock
 
     from conftest import build_mock_container
@@ -316,7 +317,7 @@ def test_command_install_success(mock_docker_client: DockerClient) -> None:
 
         # Mock update to return True (restart succeeded)
         with patch.object(uut, "update", return_value=True):
-            result = uut.command("test-container", "install", on_start, on_end)
+            result: bool = uut.command("test-container", "install", on_start, on_end)
 
         assert result is True
         on_start.assert_called_once_with(discovery)

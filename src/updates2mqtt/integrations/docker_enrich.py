@@ -198,8 +198,8 @@ class DockerImageInfo(DiscoveryArtefactDetail):
         cloned.origin = "REUSED"
         return cloned
 
-    def as_dict(self) -> dict[str, str | list | dict | bool | int | None]:
-        return {
+    def as_dict(self, minimal: bool = True) -> dict[str, str | list | dict | bool | int | None]:
+        result: dict[str, str | list | dict | bool | int | None] = {
             "image_ref": self.ref,
             "name": self.name,
             "version": self.version,
@@ -212,7 +212,6 @@ class DockerImageInfo(DiscoveryArtefactDetail):
             "pinned_digest": self.pinned_digest,
             "tag_or_digest": self.tag_or_digest,
             "tags": self.tags,
-            "attributes": self.attributes,
             "origin": self.origin,
             "platform": self.platform,
             "local_build": self.local_build,
@@ -220,6 +219,10 @@ class DockerImageInfo(DiscoveryArtefactDetail):
             "throttled": self.throttled,
             "custom": self.custom,
         }
+        if not minimal:
+            result["attributes"] = self.attributes
+            result["annotations"] = self.annotations
+        return result
 
 
 def id_source_platform(source: str | None) -> str | None:
