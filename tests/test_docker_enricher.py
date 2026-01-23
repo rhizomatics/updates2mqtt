@@ -339,8 +339,9 @@ def test_source_release_enricher_basic_annotations() -> None:
         "org.opencontainers.image.revision": "abc123def",
     }
 
-    result: ReleaseDetail = enricher.enrich(DockerImageInfo("test", annotations=annotations))
+    result: ReleaseDetail | None = enricher.enrich(DockerImageInfo("test", annotations=annotations))
 
+    assert result is not None
     assert result.version == "1.2.3"
     assert result.revision == "abc123def"
 
@@ -349,9 +350,9 @@ def test_source_release_enricher_empty_annotations() -> None:
     """SourceReleaseEnricher should handle empty annotations"""
     enricher = SourceReleaseEnricher()
 
-    result: ReleaseDetail = enricher.enrich(DockerImageInfo("test"))
+    result: ReleaseDetail | None = enricher.enrich(DockerImageInfo("test"))
 
-    assert result.source_platform is None
+    assert result is None
 
 
 def test_source_release_enricher_github_source() -> None:
@@ -362,8 +363,9 @@ def test_source_release_enricher_github_source() -> None:
         "org.opencontainers.image.version": "1.0.0",
     }
 
-    result: ReleaseDetail = enricher.enrich(DockerImageInfo("test", annotations=annotations))
+    result: ReleaseDetail | None = enricher.enrich(DockerImageInfo("test", annotations=annotations))
 
+    assert result is not None
     assert result.source_platform == SOURCE_PLATFORM_GITHUB
     assert result.source_repo_url == "https://github.com/myorg/myrepo"
 
@@ -375,9 +377,10 @@ def test_source_release_enricher_strips_hash_from_source() -> None:
         "org.opencontainers.image.source": "https://github.com/myorg/myrepo#branch-name",
     }
 
-    result: ReleaseDetail = enricher.enrich(DockerImageInfo("test", annotations=annotations))
+    result: ReleaseDetail | None = enricher.enrich(DockerImageInfo("test", annotations=annotations))
 
     # Source is stored with fragment, but platform detection uses stripped URL
+    assert result is not None
     assert result.source_url == "https://github.com/myorg/myrepo#branch-name"
     assert result.source_repo_url == "https://github.com/myorg/myrepo"
     assert result.source_platform == SOURCE_PLATFORM_GITHUB
@@ -390,8 +393,8 @@ def test_source_release_enricher_no_known_platform() -> None:
         "org.opencontainers.image.source": "https://gitlab.com/myorg/myrepo",
     }
 
-    result: ReleaseDetail = enricher.enrich(DockerImageInfo("test", annotations=annotations))
-
+    result: ReleaseDetail | None = enricher.enrich(DockerImageInfo("test", annotations=annotations))
+    assert result is not None
     assert result.source_platform is None
     assert result.source_url == "https://gitlab.com/myorg/myrepo"
 
@@ -401,10 +404,10 @@ def test_source_release_enricher_uses_provided_source_repo_url() -> None:
     enricher = SourceReleaseEnricher()
     annotations: dict[str, str] = {}  # No source in annotations
 
-    result: ReleaseDetail = enricher.enrich(
+    result: ReleaseDetail | None = enricher.enrich(
         DockerImageInfo("test", annotations=annotations), source_repo_url="https://github.com/fallback/repo"
     )
-
+    assert result is not None
     assert result.source_platform == SOURCE_PLATFORM_GITHUB
 
 
@@ -415,10 +418,10 @@ def test_source_release_enricher_uses_provided_release_url() -> None:
         "org.opencontainers.image.source": "https://github.com/myorg/myrepo",
     }
 
-    result: ReleaseDetail = enricher.enrich(
+    result: ReleaseDetail | None = enricher.enrich(
         DockerImageInfo("test", annotations=annotations), notes_url="https://custom.release.url"
     )
-
+    assert result is not None
     assert result.notes_url == "https://custom.release.url"
 
 

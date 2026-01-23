@@ -465,7 +465,10 @@ class SourceReleaseEnricher:
 
     def enrich(
         self, registry_info: DockerImageInfo, source_repo_url: str | None = None, notes_url: str | None = None
-    ) -> ReleaseDetail:
+    ) -> ReleaseDetail | None:
+        if not registry_info.annotations and not source_repo_url and not notes_url:
+            return None
+
         detail = ReleaseDetail()
 
         detail.notes_url = notes_url

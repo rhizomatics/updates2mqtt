@@ -56,7 +56,7 @@ class ReleaseDetail:
             "diff_url": self.diff_url,
             "notes_url": self.notes_url,
             "summary": self.summary,
-            "net_score": str(self.net_score),
+            "net_score": str(self.net_score) if self.net_score is not None else None,
         }
 
 

@@ -336,7 +336,7 @@ class DockerProvider(ReleaseProvider):
                 logger.debug("Registry selection rules suppressed metadata lookup")
                 latest_info = local_info.reuse()
 
-            release_info: ReleaseDetail = self.release_enricher.enrich(
+            release_info: ReleaseDetail | None = self.release_enricher.enrich(
                 latest_info,
                 source_repo_url=pkg_info.source_repo_url,
                 notes_url=customization.relnotes or pkg_info.release_notes_url,
