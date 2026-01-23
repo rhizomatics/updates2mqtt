@@ -618,11 +618,17 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
         media_type: str,
         digest: str,
         token: str | None,
+        follow_redirects: bool = False,
         api_type: str = "manifests",
     ) -> tuple[Any | None, CacheMetadata | None]:
         api_url = f"https://{api_host}/v2/{local_image_info.name}/{api_type}/{digest}"
         response = fetch_url(
-            api_url, cache_ttl=self.cfg.immutable_cache_ttl, bearer_token=token, response_type=media_type, allow_stale=True
+            api_url,
+            cache_ttl=self.cfg.immutable_cache_ttl,
+            bearer_token=token,
+            response_type=media_type,
+            allow_stale=True,
+            follow_redirects=follow_redirects,
         )
         if response and response.is_success:
             obj = httpx_json_content(response, None)
@@ -742,6 +748,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
                                 manifest["config"].get("mediaType"),
                                 digest=manifest["config"].get("digest"),
                                 token=token,
+                                follow_redirects=True,
                                 api_type="blobs",
                             )
                             if config:
