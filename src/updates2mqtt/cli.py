@@ -7,7 +7,12 @@ from omegaconf import OmegaConf
 from updates2mqtt.config import DockerConfig, NodeConfig, RegistryConfig
 from updates2mqtt.helpers import Throttler
 from updates2mqtt.integrations.docker import DockerProvider
-from updates2mqtt.integrations.docker_enrich import ContainerDistributionAPIVersionLookup, DockerImageInfo, fetch_url
+from updates2mqtt.integrations.docker_enrich import (
+    REGISTRIES,
+    ContainerDistributionAPIVersionLookup,
+    DockerImageInfo,
+    fetch_url,
+)
 from updates2mqtt.model import Discovery
 
 if TYPE_CHECKING:
@@ -91,11 +96,13 @@ def dump_url(doc_type: str, img_ref: str) -> None:
         log.error("Unable to parse %ss", img_ref)
         return
 
+    api_host: str | None = REGISTRIES.get(img_info.index_name, (img_info.index_name, img_info.index_name))[1]
+
     token: str | None = lookup.fetch_token(img_info.index_name, img_info.name)
     if doc_type == "blob":
-        url: str = f"https://{img_info.index_name}/v2/{img_info.name}/blobs/{img_info.pinned_digest}"
+        url: str = f"https://{api_host}/v2/{img_info.name}/blobs/{img_info.pinned_digest}"
     elif doc_type == "manifest":
-        url = f"https://{img_info.index_name}/v2/{img_info.name}/manifests/{img_info.tag_or_digest}"
+        url = f"https://{api_host}/v2/{img_info.name}/manifests/{img_info.tag_or_digest}"
     else:
         return
     response: Response | None = fetch_url(url, bearer_token=token, follow_redirects=True, response_type=ALL_OCI_MEDIA_TYPES)
