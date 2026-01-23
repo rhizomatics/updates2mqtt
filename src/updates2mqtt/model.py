@@ -11,6 +11,54 @@ from updates2mqtt.config import NodeConfig, PublishPolicy, UpdatePolicy, Version
 from updates2mqtt.helpers import timestamp
 
 
+class DiscoveryArtefactDetail:
+    """Provider specific detail"""
+
+    def as_dict(self) -> dict[str, str | list | dict | bool | int | None]:
+        return {}
+
+
+class DiscoveryInstallationDetail:
+    """Provider specific detail"""
+
+    def as_dict(self) -> dict[str, str | list | dict | bool | int | None]:
+        return {}
+
+
+class ReleaseDetail:
+    """The artefact source details
+
+    Note this may be an actual software package, or the source details of the wrapping of it
+    For example, some Docker images report the main source repo, and others where the Dockerfile deploy project lives
+    """
+
+    def __init__(self, notes_url: str | None = None, summary: str | None = None) -> None:
+        self.source_platform: str | None = None
+        self.source_repo_url: str | None = None
+        self.source_url: str | None = None
+        self.version: str | None = None
+        self.revision: str | None = None
+        self.diff_url: str | None = None
+        self.notes_url: str | None = notes_url
+        self.title: str | None = None
+        self.summary: str | None = summary
+        self.net_score: int | None = None
+
+    def as_dict(self) -> dict[str, str | None]:
+        return {
+            "title": self.title,
+            "version": self.version,
+            "source_platform": self.source_platform,
+            "source_repo": self.source_repo_url,
+            "source": self.source_url,
+            "revision": self.revision,
+            "diff_url": self.diff_url,
+            "notes_url": self.notes_url,
+            "summary": self.summary,
+            "net_score": str(self.net_score),
+        }
+
+
 class Discovery:
     """Discovered component from a scan"""
 
@@ -23,22 +71,24 @@ class Discovery:
         entity_picture_url: str | None = None,
         current_version: str | None = None,
         latest_version: str | None = None,
-        can_update: bool = False,
         can_build: bool = False,
         can_restart: bool = False,
+        can_pull: bool = False,
         status: str = "on",
         publish_policy: PublishPolicy = PublishPolicy.HOMEASSISTANT,
         update_type: str | None = "Update",
         update_policy: UpdatePolicy = UpdatePolicy.PASSIVE,
         version_policy: VersionPolicy = VersionPolicy.AUTO,
-        release_url: str | None = None,
-        release_summary: str | None = None,
+        version_basis: str | None = None,
         title_template: str = "{discovery.update_type} for {discovery.name} on {discovery.node}",
         device_icon: str | None = None,
         custom: dict[str, Any] | None = None,
-        features: list[str] | None = None,
         throttled: bool = False,
         previous: "Discovery|None" = None,
+        release_detail: ReleaseDetail | None = None,
+        installation_detail: DiscoveryInstallationDetail | None = None,
+        current_detail: DiscoveryArtefactDetail | None = None,
+        latest_detail: DiscoveryArtefactDetail | None = None,
     ) -> None:
         self.provider: ReleaseProvider = provider
         self.source_type: str = provider.source_type
@@ -48,11 +98,9 @@ class Discovery:
         self.entity_picture_url: str | None = entity_picture_url
         self.current_version: str | None = current_version
         self.latest_version: str | None = latest_version
-        self.can_update: bool = can_update
+        self.can_pull: bool = can_pull
         self.can_build: bool = can_build
         self.can_restart: bool = can_restart
-        self.release_url: str | None = release_url
-        self.release_summary: str | None = release_summary
         self.title_template: str | None = title_template
         self.device_icon: str | None = device_icon
         self.update_type: str | None = update_type
@@ -60,14 +108,18 @@ class Discovery:
         self.publish_policy: PublishPolicy = publish_policy
         self.update_policy: UpdatePolicy = update_policy
         self.version_policy: VersionPolicy = version_policy
+        self.version_basis: str | None = version_basis
         self.update_last_attempt: float | None = None
         self.custom: dict[str, Any] = custom or {}
-        self.features: list[str] = features or []
         self.throttled: bool = throttled
         self.scan_count: int
         self.first_timestamp: float
         self.last_timestamp: float = time.time()
         self.check_timestamp: float | None = time.time()
+        self.release_detail: ReleaseDetail | None = release_detail
+        self.current_detail: DiscoveryArtefactDetail | None = current_detail
+        self.latest_detail: DiscoveryArtefactDetail | None = latest_detail
+        self.installation_detail: DiscoveryInstallationDetail | None = installation_detail
 
         if previous:
             self.update_last_attempt = previous.update_last_attempt
@@ -96,6 +148,21 @@ class Discovery:
         return json.dumps(dump)
 
     @property
+    def can_update(self) -> bool:
+        return self.can_pull or self.can_build or self.can_restart
+
+    @property
+    def features(self) -> list[str]:
+        results = []
+        if self.can_update:
+            # public install-neutral capabilities and Home Assistant features
+            results.append("INSTALL")
+            results.append("PROGRESS")
+        if self.release_detail and self.release_detail.notes_url:
+            results.append("RELEASE_NOTES")
+        return results
+
+    @property
     def title(self) -> str:
         if self.title_template:
             return self.title_template.format(discovery=self)
@@ -111,10 +178,8 @@ class Discovery:
             "scan_count": self.scan_count,
             "installed_version": self.current_version,
             "latest_version": self.latest_version,
+            "version_basis": self.version_basis,
             "title": self.title,
-            "release_summary": self.release_summary,
-            "release_url": self.release_url,
-            "entity_picture_url": self.entity_picture_url,
             "can_update": self.can_update,
             "can_build": self.can_build,
             "can_restart": self.can_restart,
@@ -122,11 +187,16 @@ class Discovery:
             "update_type": self.update_type,
             "status": self.status,
             "features": self.features,
+            "release": self.release_detail.as_dict() if self.release_detail else None,
+            "entity_picture_url": self.entity_picture_url,
             "update_policy": str(self.update_policy),
             "publish_policy": str(self.publish_policy),
             "version_policy": str(self.version_policy),
             "update": {"last_attempt": timestamp(self.update_last_attempt), "in_progress": False},
             self.source_type: self.custom,
+            "installation_detail": self.current_detail.as_dict() if self.current_detail else None,
+            "current_detail": self.current_detail.as_dict() if self.current_detail else None,
+            "latest_detail": self.latest_detail.as_dict() if self.latest_detail else None,
         }
 
 

@@ -4,7 +4,8 @@ from collections.abc import AsyncGenerator
 from typing import Any
 
 from updates2mqtt.config import NodeConfig, PublishPolicy, UpdatePolicy
-from updates2mqtt.model import Discovery, ReleaseProvider
+from updates2mqtt.integrations.docker_enrich import DockerImageInfo
+from updates2mqtt.model import Discovery, ReleaseDetail, ReleaseProvider
 
 
 def test_discovery_stringifies(mock_provider: ReleaseProvider) -> None:
@@ -40,7 +41,7 @@ def test_discovery_defaults(mock_provider: ReleaseProvider) -> None:
     assert uut.current_version is None
     assert uut.latest_version is None
     assert uut.entity_picture_url is None
-    assert uut.release_url is None
+    assert uut.release_detail is None
     assert uut.custom == {}
     assert uut.features == []
 
@@ -56,17 +57,15 @@ def test_discovery_with_all_fields(mock_provider: ReleaseProvider) -> None:
         entity_picture_url="https://example.com/logo.png",
         current_version="1.0.0",
         latest_version="2.0.0",
-        can_update=True,
+        can_pull=True,
         can_build=True,
         can_restart=True,
         status="off",
         update_type="Docker Build",
         update_policy=UpdatePolicy.AUTO,
-        release_url="https://github.com/example/releases",
-        release_summary="Bug fixes and improvements",
+        current_detail=DockerImageInfo("nginx:latest"),
+        release_detail=ReleaseDetail(notes_url="https://github.com/example/releases", summary="Bug fixes and improvements"),
         device_icon="mdi:docker",
-        custom={"image_ref": "nginx:latest", "platform": "linux/amd64"},
-        features=["INSTALL", "PROGRESS", "RELEASE_NOTES"],
         previous=previous,
     )
     assert uut.name == "full-container"
@@ -80,10 +79,11 @@ def test_discovery_with_all_fields(mock_provider: ReleaseProvider) -> None:
     assert uut.update_type == "Docker Build"
     assert uut.update_policy == UpdatePolicy.AUTO
     assert uut.update_last_attempt == 1234567890.0
-    assert uut.release_url == "https://github.com/example/releases"
-    assert uut.release_summary == "Bug fixes and improvements"
+    assert uut.release_detail is not None
+    assert uut.release_detail.notes_url == "https://github.com/example/releases"
+    assert uut.release_detail.summary == "Bug fixes and improvements"
     assert uut.device_icon == "mdi:docker"
-    assert uut.custom["image_ref"] == "nginx:latest"
+    assert uut.current_detail.ref == "nginx:latest"  # type: ignore[union-attr]
     assert "INSTALL" in uut.features
 
 
@@ -340,17 +340,15 @@ def test_discovery_as_dict_all_fields(mock_provider: ReleaseProvider) -> None:
         entity_picture_url="https://example.com/logo.png",
         current_version="1.0",
         latest_version="2.0",
-        can_update=True,
+        can_pull=True,
         can_build=True,
         can_restart=True,
         status="off",
         publish_policy=PublishPolicy.MQTT,
         update_type="Docker",
-        release_url="https://github.com/test/releases",
-        release_summary="Bug fixes",
+        release_detail=ReleaseDetail(notes_url="https://github.com/test/releases", summary="Bug fixes"),
         device_icon="mdi:docker",
         custom={"image_ref": "test:latest"},
-        features=["INSTALL", "PROGRESS"],
     )
     result = discovery.as_dict()
 
@@ -361,10 +359,11 @@ def test_discovery_as_dict_all_fields(mock_provider: ReleaseProvider) -> None:
     assert result["status"] == "off"
     assert result["publish_policy"] == "MQTT"
     assert result["update_type"] == "Docker"
-    assert result["release_url"] == "https://github.com/test/releases"
-    assert result["release_summary"] == "Bug fixes"
+    assert result["release"] is not None
+    assert result["release"]["notes_url"] == "https://github.com/test/releases"  # type: ignore[index,call-overload]
+    assert result["release"]["summary"] == "Bug fixes"  # type: ignore[index,call-overload]
     assert result["device_icon"] == "mdi:docker"
-    assert result["features"] == ["INSTALL", "PROGRESS"]
+    assert result["features"] == ["INSTALL", "PROGRESS", "RELEASE_NOTES"]
     # Custom data is stored under source_type key
     assert result["unit_test"] == {"image_ref": "test:latest"}
 

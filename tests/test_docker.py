@@ -12,6 +12,7 @@ import updates2mqtt.integrations.docker as mut
 from conftest import build_mock_container
 from updates2mqtt.config import DockerPackageUpdateInfo, RegistryAPI, RegistryConfig, UpdatePolicy
 from updates2mqtt.integrations.docker import ContainerCustomization, DockerComposeCommand
+from updates2mqtt.integrations.docker_enrich import DockerImageInfo, DockerServiceDetails
 from updates2mqtt.model import Discovery
 
 
@@ -28,8 +29,8 @@ async def test_scanner(mock_docker_client: DockerClient, mock_registry: HTTPXMoc
     unchanged: list[Discovery] = [d for d in results if d.current_version == d.latest_version]
     assert len(unchanged) == 1
     assert unchanged[0].entity_picture_url == "https://piccy"
-    assert unchanged[0].release_url == "https://release"
-    assert unchanged[0].custom["platform"] == "linux/amd64"
+    assert unchanged[0].release_detail.notes_url == "https://release"  # type: ignore[union-attr]
+    assert unchanged[0].current_detail.platform == "linux/amd64"  # type: ignore[union-attr]
     changed = [d for d in results if d.current_version != d.latest_version]
     assert len(changed) == 3
 
@@ -48,20 +49,22 @@ async def test_common_packages(mock_docker_client: DockerClient) -> None:
         session = "unit_123"
         results: list[Discovery] = [d async for d in uut.scan(session)]
 
-    common: list[Discovery] = [d for d in results if d.custom["image_ref"] == "common/pkg"]
+    common: list[Discovery] = [d for d in results if d.current_detail.ref == "common/pkg"]  # type: ignore[union-attr]
     assert len(common) == 1
     assert common[0].entity_picture_url == "https://commonhub/pkg/logo"
-    assert common[0].release_url == "https://commonhub/pkg/logo"
+    assert common[0].release_detail.notes_url == "https://commonhub/pkg/logo"  # type: ignore[union-attr]
 
 
 def test_build(mock_docker_client: DockerClient, fake_process: FakeProcess, tmpdir: Path) -> None:
     with patch("docker.from_env", return_value=mock_docker_client):
         uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.NodeConfig())
-        d = Discovery(uut, "build-test-dummy", "test-123", "node003")
+        d = Discovery(
+            uut, "build-test-dummy", "test-123", "node003", installation_detail=DockerServiceDetails(compose_path=str(tmpdir))
+        )
         fake_process.register("docker compose build", returncode=0)
-        assert uut.build(d, str(tmpdir))
+        assert uut.build(d)
         fake_process.register("docker compose build", returncode=33)
-        assert not uut.build(d, str(tmpdir))
+        assert not uut.build(d)
 
 
 def test_container_customization_default() -> None:
@@ -125,7 +128,8 @@ def test_fetch_pulls_image_when_can_pull(mock_docker_client: DockerClient) -> No
             "fetch-test-container",
             "test-session",
             "node001",
-            custom={"can_pull": True, "image_ref": "nginx:latest", "platform": "linux/amd64"},
+            can_pull=True,
+            current_detail=DockerImageInfo("nginx:latest", platform="linux/amd64"),
         )
 
         mock_image = MagicMock()
@@ -147,7 +151,8 @@ def test_fetch_skips_pull_when_cannot_pull(mock_docker_client: DockerClient) -> 
             "fetch-test-container",
             "test-session",
             "node001",
-            custom={"can_pull": False, "image_ref": "nginx:latest"},
+            can_pull=False,
+            current_detail=DockerImageInfo("nginx:latest"),
         )
 
         uut.fetch(discovery)
@@ -164,11 +169,11 @@ def test_fetch_builds_when_can_build_and_pull(mock_docker_client: DockerClient, 
             "test-session",
             "node001",
             can_build=True,
-            custom={
-                "can_pull": False,
-                "compose_path": str(tmpdir),
-                "git_repo_path": ".",
-            },
+            can_pull=False,
+            installation_detail=DockerServiceDetails(
+                compose_path=str(tmpdir),
+                git_repo_path=".",
+            ),
         )
 
         with (
@@ -195,11 +200,11 @@ def test_fetch_skips_build_when_no_pull(mock_docker_client: DockerClient, tmpdir
             "test-session",
             "node001",
             can_build=True,
-            custom={
-                "can_pull": False,
-                "compose_path": str(tmpdir),
-                "git_repo_path": ".",
-            },
+            can_pull=False,
+            installation_detail=DockerServiceDetails(
+                compose_path=str(tmpdir),
+                git_repo_path=".",
+            ),
         )
 
         with (
@@ -221,11 +226,11 @@ def test_fetch_skips_build_when_no_compose_path(mock_docker_client: DockerClient
             "test-session",
             "node001",
             can_build=True,
-            custom={
-                "can_pull": False,
-                "git_repo_path": "/some/repo",
+            can_pull=False,
+            installation_detail=DockerServiceDetails(
                 # no compose_path
-            },
+                git_repo_path="/some/repo",
+            ),
         )
 
         with patch.object(uut, "build") as mock_build:
@@ -301,8 +306,8 @@ def test_command_install_success(mock_docker_client: DockerClient) -> None:
             "test-container",
             "test-session",
             "node001",
-            can_update=True,
-            custom={"can_pull": True, "image_ref": "nginx:latest", "platform": "linux/amd64"},
+            can_pull=True,
+            current_detail=DockerImageInfo("nginx:latest", platform="linux/amd64"),
         )
         uut.discoveries["test-container"] = discovery
 
@@ -324,12 +329,7 @@ def test_command_install_update_fails(mock_docker_client: DockerClient) -> None:
     with patch("docker.from_env", return_value=mock_docker_client):
         uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.NodeConfig())
         discovery = Discovery(
-            uut,
-            "test-container",
-            "test-session",
-            "node001",
-            can_update=True,
-            custom={"can_pull": True, "image_ref": "nginx:latest"},
+            uut, "test-container", "test-session", "node001", can_pull=True, current_detail=DockerImageInfo("nginx:latest")
         )
         uut.discoveries["test-container"] = discovery
 
@@ -366,7 +366,7 @@ def test_command_unknown_command(mock_docker_client: DockerClient) -> None:
 
     with patch("docker.from_env", return_value=mock_docker_client):
         uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.NodeConfig())
-        discovery = Discovery(uut, "test-container", "test-session", "node001", can_update=True)
+        discovery = Discovery(uut, "test-container", "test-session", "node001", can_pull=True)
         uut.discoveries["test-container"] = discovery
 
         on_start = MagicMock()
@@ -384,7 +384,7 @@ def test_command_cannot_update(mock_docker_client: DockerClient) -> None:
 
     with patch("docker.from_env", return_value=mock_docker_client):
         uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.NodeConfig())
-        discovery = Discovery(uut, "test-container", "test-session", "node001", can_update=False)
+        discovery = Discovery(uut, "test-container", "test-session", "node001", can_pull=False)
         uut.discoveries["test-container"] = discovery
 
         on_start = MagicMock()
@@ -402,7 +402,7 @@ def test_command_handles_exception(mock_docker_client: DockerClient) -> None:
 
     with patch("docker.from_env", return_value=mock_docker_client):
         uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.NodeConfig())
-        discovery = Discovery(uut, "test-container", "test-session", "node001", can_update=True)
+        discovery = Discovery(uut, "test-container", "test-session", "node001", can_pull=True)
         uut.discoveries["test-container"] = discovery
 
         on_start = MagicMock()
@@ -517,7 +517,7 @@ def test_analyze_with_git_repo_uses_git_local_digest(mock_docker_client: DockerC
         assert result is not None
         assert result.current_version == "git:abc123def456789"
         assert result.can_build is True
-        assert result.custom.get("git_repo_path") == "."
+        assert result.installation_detail.git_repo_path == "."  # type: ignore[union-attr]
 
 
 def test_analyze_git_repo_with_updates_available(mock_docker_client: DockerClient, tmpdir: Path) -> None:

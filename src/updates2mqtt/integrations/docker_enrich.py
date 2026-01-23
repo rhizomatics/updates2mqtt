@@ -11,6 +11,7 @@ from httpx import Response
 from omegaconf import MissingMandatoryValue, OmegaConf, ValidationError
 
 from updates2mqtt.helpers import ThrottledError, Throttler
+from updates2mqtt.model import DiscoveryArtefactDetail, DiscoveryInstallationDetail, ReleaseDetail
 
 if typing.TYPE_CHECKING:
     from docker.models.images import RegistryData
@@ -64,7 +65,7 @@ OCI_NAME_RE = r"[a-z0-9]+((\.|_|__|-+)[a-z0-9]+)*(\/[a-z0-9]+((\.|_|__|-+)[a-z0-
 OCI_TAG_RE = r"[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}"
 
 
-class DockerImageInfo:
+class DockerImageInfo(DiscoveryArtefactDetail):
     """Normalize and shlep around the bits of an image def
 
     index_name: aka index_name, e.g. ghcr.io
@@ -80,6 +81,7 @@ class DockerImageInfo:
         tags: list[str] | None = None,
         attributes: dict[str, Any] | None = None,
         annotations: dict[str, Any] | None = None,
+        platform: str | None = None,  # test harness simplification
         version: str | None = None,  # test harness simplification
     ) -> None:
         self.ref: str = ref
@@ -101,7 +103,7 @@ class DockerImageInfo:
         self.throttled: bool = False
         self.origin: str | None = None
         self.error: str | None = None
-        self.platform: str | None = None
+        self.platform: str | None = platform
         self.custom: dict[str, str | None] = {}
 
         self.local_build: bool = not self.repo_digests
@@ -196,6 +198,29 @@ class DockerImageInfo:
         cloned.origin = "REUSED"
         return cloned
 
+    def as_dict(self) -> dict[str, str | list | dict | bool | int | None]:
+        return {
+            "image_ref": self.ref,
+            "name": self.name,
+            "version": self.version,
+            "image_digest": self.image_digest,
+            "repo_digest": self.repo_digest,
+            "repo_digests": self.repo_digest,
+            "git_digest": self.git_digest,
+            "index_name": self.index_name,
+            "tag": self.tag,
+            "pinned_digest": self.pinned_digest,
+            "tag_or_digest": self.tag_or_digest,
+            "tags": self.tags,
+            "attributes": self.attributes,
+            "origin": self.origin,
+            "platform": self.platform,
+            "local_build": self.local_build,
+            "error": self.error,
+            "throttled": self.throttled,
+            "custom": self.custom,
+        }
+
 
 def id_source_platform(source: str | None) -> str | None:
     candidates: list[str] = [platform for platform, pattern in SOURCE_PLATFORMS.items() if re.match(pattern, source or "")]
@@ -220,36 +245,41 @@ def _select_annotation(
 def cherrypick_annotations(local_info: DockerImageInfo | None, registry_info: DockerImageInfo | None) -> dict[str, str | None]:
     """https://github.com/opencontainers/image-spec/blob/main/annotations.md"""
     results: dict[str, str | None] = {}
-    for local_name, local_label in [
-        ("current_image_created", "org.opencontainers.image.created"),
-        ("current_image_version", "org.opencontainers.image.version"),
-        ("current_image_revision", "org.opencontainers.image.revision"),
-    ]:
-        results.update(_select_annotation(local_name, local_label, local_info))
     for either_name, either_label in [
         ("documentation_url", "org.opencontainers.image.documentation"),
         ("description", "org.opencontainers.image.description"),
+        ("licences", "org.opencontainers.image.licenses"),
+        ("image_base", "org.opencontainers.image.base.name"),
+        ("image_created", "org.opencontainers.image.created"),
+        ("image_version", "org.opencontainers.image.version"),
+        ("image_revision", "org.opencontainers.image.revision"),
         ("title", "org.opencontainers.image.title"),
         ("vendor", "org.opencontainers.image.vendor"),
-        ("licences", "org.opencontainers.image.licenses"),
-        ("current_image_base", "org.opencontainers.image.base.name"),
-    ]:
-        results.update(_select_annotation(either_name, either_label, local_info, registry_info))
-
-    for reg_name, reg_label in [
-        ("latest_image_created", "org.opencontainers.image.created"),
-        ("latest_image_version", "org.opencontainers.image.version"),
-        ("latest_image_revision", "org.opencontainers.image.revision"),
-        ("latest_image_base", "org.opencontainers.image.base.name"),
         ("source", "org.opencontainers.image.source"),
     ]:
-        results.update(_select_annotation(reg_name, reg_label, registry_info))
-
+        results.update(_select_annotation(either_name, either_label, local_info, registry_info))
     return results
 
 
+class DockerServiceDetails(DiscoveryInstallationDetail):
+    def __init__(
+        self,
+        container_name: str | None = None,
+        compose_path: str | None = None,
+        compose_version: str | None = None,
+        compose_service: str | None = None,
+        git_repo_path: str | None = None,
+    ) -> None:
+        self.container_name: str | None = container_name
+        self.compose_path: str | None = compose_path
+        self.compose_version: str | None = compose_version
+        self.compose_service: str | None = compose_service
+        self.git_repo_path: str | None = git_repo_path
+        self.git_local_timestamp: str | None = None
+
+
 class LocalContainerInfo:
-    def build_image_info(self, container: Container) -> DockerImageInfo:
+    def build_image_info(self, container: Container) -> tuple[DockerImageInfo, DockerServiceDetails]:
         """Image contents equiv to `docker inspect image <image_ref>`"""
         # container image can be none if someone ran `docker rmi -f`
         # so although this could be sourced from image, like `container.image.tags[0]`
@@ -264,16 +294,19 @@ class LocalContainerInfo:
             annotations=container.image.labels if container.image else None,
             attributes=container.image.attrs if container.image else None,
         )
+        service_info: DockerServiceDetails = DockerServiceDetails(
+            container.name,
+            compose_path=container.labels.get("com.docker.compose.project.working_dir"),
+            compose_service=container.labels.get("com.docker.compose.service"),
+            compose_version=container.labels.get("com.docker.compose.version"),
+        )
 
-        custom: dict[str, str | None] = cherrypick_annotations(image_info, None)
+        labels: dict[str, str | None] = cherrypick_annotations(image_info, None)
         # capture container labels/annotations, not image ones
-        custom["compose_path"] = container.labels.get("com.docker.compose.project.working_dir")
-        custom["compose_version"] = container.labels.get("com.docker.compose.version")
-        custom["compose_service"] = container.labels.get("com.docker.compose.service")
-        custom["container_name"] = container.name
-        image_info.custom = custom
-        image_info.version = custom.get("current_image_version")
-        return image_info
+        labels = labels or {}
+        image_info.custom = labels
+        image_info.version = labels.get("image_version")
+        return image_info, service_info
 
 
 class PackageEnricher:
@@ -415,69 +448,66 @@ class SourceReleaseEnricher:
         self.mutable_cache_ttl = mutable_cache_ttl
 
     def enrich(
-        self, registry_info: DockerImageInfo, source_repo_url: str | None = None, release_url: str | None = None
-    ) -> dict[str, str | None]:
-        results: dict[str, str | None] = cherrypick_annotations(None, registry_info=registry_info)
+        self, registry_info: DockerImageInfo, source_repo_url: str | None = None, notes_url: str | None = None
+    ) -> ReleaseDetail:
+        detail = ReleaseDetail()
 
-        release_version: str | None = registry_info.annotations.get("org.opencontainers.image.version")
-        release_revision: str | None = registry_info.annotations.get("org.opencontainers.image.revision")
-        release_source: str | None = registry_info.annotations.get("org.opencontainers.image.source") or source_repo_url
+        detail.notes_url = notes_url
+        detail.version = registry_info.annotations.get("org.opencontainers.image.version")
+        detail.revision = registry_info.annotations.get("org.opencontainers.image.revision")
+        detail.source_url = registry_info.annotations.get("org.opencontainers.image.source") or source_repo_url
 
-        release_source_deep: str | None = release_source
-        if release_source and "#" in release_source:
-            release_source = release_source.split("#", 1)[0]
-            self.log.debug("Simplifying %s from %s", release_source, release_source_deep)
+        if detail.source_url and "#" in detail.source_url:
+            detail.source_repo_url = detail.source_url.split("#", 1)[0]
+            self.log.debug("Simplifying %s from %s", detail.source_repo_url, detail.source_url)
+        else:
+            detail.source_repo_url = detail.source_url
 
-        source_platform = id_source_platform(release_source)
-        if not source_platform:
-            self.log.debug("No known source platform found on container", source=release_source)
-            return results
-
-        results["source_platform"] = source_platform
-        results["source_repo"] = release_source
+        detail.source_platform = id_source_platform(detail.source_repo_url)
+        if not detail.source_platform:
+            self.log.debug("No known source platform found on container", source=detail.source_repo_url)
+            return detail
 
         template_vars: dict[str, str | None] = {
-            "version": release_version or MISSING_VAL,
-            "revision": release_revision or MISSING_VAL,
-            "repo": release_source or MISSING_VAL,
-            "source": release_source_deep or MISSING_VAL,
+            "version": detail.version or MISSING_VAL,
+            "revision": detail.revision or MISSING_VAL,
+            "repo": detail.source_repo_url or MISSING_VAL,
+            "source": detail.source_url or MISSING_VAL,
         }
 
-        diff_url: str | None = DIFF_URL_TEMPLATES[source_platform].format(**template_vars)
+        diff_url: str | None = DIFF_URL_TEMPLATES[detail.source_platform].format(**template_vars)
         if diff_url and MISSING_VAL not in diff_url and validate_url(diff_url, cache_ttl=self.mutable_cache_ttl):
-            results["diff_url"] = diff_url
+            detail.diff_url = diff_url
         else:
             diff_url = None
 
-        if release_url is None:
-            release_url = RELEASE_URL_TEMPLATES[source_platform].format(**template_vars)
+        if detail.notes_url is None:
+            detail.notes_url = RELEASE_URL_TEMPLATES[detail.source_platform].format(**template_vars)
 
-            if MISSING_VAL in release_url or not validate_url(release_url, cache_ttl=self.mutable_cache_ttl):
-                release_url = UNKNOWN_RELEASE_URL_TEMPLATES[source_platform].format(**template_vars)
-                if MISSING_VAL in release_url or not validate_url(release_url, cache_ttl=self.mutable_cache_ttl):
-                    release_url = None
-        if release_url is not None:
-            results["release_url"] = release_url
+            if MISSING_VAL in detail.notes_url or not validate_url(detail.notes_url, cache_ttl=self.mutable_cache_ttl):
+                detail.notes_url = UNKNOWN_RELEASE_URL_TEMPLATES[detail.source_platform].format(**template_vars)
+                if MISSING_VAL in detail.notes_url or not validate_url(detail.notes_url, cache_ttl=self.mutable_cache_ttl):
+                    detail.notes_url = None
 
-        if source_platform == SOURCE_PLATFORM_GITHUB and release_source:
-            base_api = release_source.replace("https://github.com", "https://api.github.com/repos")
+        if detail.source_platform == SOURCE_PLATFORM_GITHUB and detail.source_repo_url:
+            base_api = detail.source_repo_url.replace("https://github.com", "https://api.github.com/repos")
 
-            api_response: Response | None = fetch_url(f"{base_api}/releases/tags/{release_version}")
+            api_response: Response | None = fetch_url(f"{base_api}/releases/tags/{detail.version}")
             if api_response and api_response.is_success:
                 api_results: Any = httpx_json_content(api_response, {})
-                results["release_summary"] = api_results.get("body")  # ty:ignore[possibly-missing-attribute]
+                detail.summary = api_results.get("body")  # ty:ignore[possibly-missing-attribute]
                 reactions = api_results.get("reactions")  # ty:ignore[possibly-missing-attribute]
                 if reactions:
-                    results["net_score"] = reactions.get("+1", 0) - reactions.get("-1", 0)
+                    detail.net_score = reactions.get("+1", 0) - reactions.get("-1", 0)
             else:
                 self.log.debug(
                     "Failed to fetch GitHub release info",
-                    url=f"{base_api}/releases/tags/{release_version}",
+                    url=f"{base_api}/releases/tags/{detail.version}",
                     status_code=(api_response and api_response.status_code) or None,
                 )
-        if not results.get("release_summary") and diff_url:
-            results["release_summary"] = f"<a href='{diff_url}'>{release_version or release_revision} Diff</a>"
-        return results
+        if not detail.summary and detail.diff_url:
+            detail.summary = f"<a href='{detail.diff_url}'>{detail.version or detail.revision} Diff</a>"
+        return detail
 
 
 class AuthError(Exception):
@@ -717,9 +747,9 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
         if not result.annotations:
             self.log.debug("No annotations found from registry data")
 
-        custom: dict[str, str | None] = cherrypick_annotations(local_image_info, result)
-        result.custom = custom
-        result.version = custom.get("latest_image_version")
+        labels: dict[str, str | None] = cherrypick_annotations(local_image_info, result)
+        result.custom = labels or {}
+        result.version = labels.get("image_version")
         result.origin = "OCI_V2"
 
         self.log.debug(
@@ -791,8 +821,8 @@ class DockerClientVersionLookup(VersionLookup):
                 else:
                     self.log.debug("Failed to fetch registry data, retrying: %s", e)
 
-        custom: dict[str, str | None] = cherrypick_annotations(local_image_info, result)
-        result.custom = custom
-        result.version = custom.get("latest_image_version")
+        labels: dict[str, str | None] = cherrypick_annotations(local_image_info, result)
+        result.custom = labels or {}
+        result.version = labels.get("image_version")
         result.origin = "DOCKER_CLIENT"
         return result

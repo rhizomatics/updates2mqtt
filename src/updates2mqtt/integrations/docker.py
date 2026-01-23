@@ -33,12 +33,13 @@ from updates2mqtt.integrations.docker_enrich import (
     DefaultPackageEnricher,
     DockerClientVersionLookup,
     DockerImageInfo,
+    DockerServiceDetails,
     LinuxServerIOPackageEnricher,
     LocalContainerInfo,
     PackageEnricher,
     SourceReleaseEnricher,
 )
-from updates2mqtt.model import Discovery, ReleaseProvider
+from updates2mqtt.model import Discovery, ReleaseDetail, ReleaseProvider
 
 from .git_utils import git_check_update_available, git_iso_timestamp, git_local_digest, git_pull, git_trust
 
@@ -165,19 +166,21 @@ class DockerProvider(ReleaseProvider):
 
     def fetch(self, discovery: Discovery) -> None:
         logger = self.log.bind(container=discovery.name, action="fetch")
+        installed_info: DockerImageInfo | None = cast("DockerImageInfo|None", discovery.current_detail)
+        service_info: DockerServiceDetails | None = cast("DockerServiceDetails|None", discovery.installation_detail)
 
-        image_ref: str | None = discovery.custom.get("image_ref")
-        platform: str | None = discovery.custom.get("platform")
-        if discovery.custom.get("can_pull") and image_ref:
+        image_ref: str | None = installed_info.ref if installed_info else None
+        platform: str | None = installed_info.platform if installed_info else None
+        if discovery.can_pull and image_ref:
             logger.info("Pulling", image_ref=image_ref, platform=platform)
             image: Image = self.client.images.pull(image_ref, platform=platform, all_tags=False)
             if image:
                 logger.info("Pulled", image_id=image.id, image_ref=image_ref, platform=platform)
             else:
                 logger.warn("Unable to pull", image_ref=image_ref, platform=platform)
-        elif discovery.can_build:
-            compose_path: str | None = discovery.custom.get("compose_path")
-            git_repo_path: str | None = discovery.custom.get("git_repo_path")
+        elif discovery.can_build and service_info:
+            compose_path: str | None = service_info.compose_path
+            git_repo_path: str | None = service_info.git_repo_path
             logger.debug("can_build check", git_repo=git_repo_path)
             if not compose_path or not git_repo_path:
                 logger.warn("No compose path or git repo path configured, skipped build")
@@ -185,10 +188,7 @@ class DockerProvider(ReleaseProvider):
 
             full_repo_path: Path = self.full_repo_path(compose_path, git_repo_path)
             if git_pull(full_repo_path, Path(self.node_cfg.git_path)):
-                if compose_path:
-                    self.build(discovery, compose_path)
-                else:
-                    logger.warn("No compose path configured, skipped build")
+                self.build(discovery)
             else:
                 logger.debug("Skipping git_pull, no update")
 
@@ -199,14 +199,19 @@ class DockerProvider(ReleaseProvider):
             return Path(compose_path) / git_repo_path
         return Path(git_repo_path)
 
-    def build(self, discovery: Discovery, compose_path: str) -> bool:
+    def build(self, discovery: Discovery) -> bool:
         logger = self.log.bind(container=discovery.name, action="build")
-        logger.info("Building", compose_path=compose_path)
+        service_info: DockerServiceDetails | None = cast("DockerServiceDetails|None", discovery.installation_detail)
+
+        if not service_info or not service_info.compose_path:
+            logger.warn("No service_info available on compose")
+            return False
+        logger.info("Building", compose_path=service_info.compose_path, service=service_info.compose_service)
         return self.execute_compose(
             command=DockerComposeCommand.BUILD,
             args="",
-            service=discovery.custom.get("compose_service"),
-            cwd=compose_path,
+            service=service_info.compose_service,
+            cwd=service_info.compose_path,
             logger=logger,
         )
 
@@ -240,16 +245,28 @@ class DockerProvider(ReleaseProvider):
 
     def restart(self, discovery: Discovery) -> bool:
         logger = self.log.bind(container=discovery.name, action="restart")
-        if self.self_bounce is not None and (
-            "ghcr.io/rhizomatics/updates2mqtt" in discovery.custom.get("image_ref", "")
-            or (discovery.custom.get("git_repo_path") and discovery.custom.get("git_repo_path", "").endswith("updates2mqtt"))
+        installed_info: DockerImageInfo | None = cast("DockerImageInfo|None", discovery.current_detail)
+        service_info: DockerServiceDetails | None = cast("DockerServiceDetails|None", discovery.installation_detail)
+
+        if (
+            self.self_bounce is not None
+            and installed_info
+            and service_info
+            and (
+                "ghcr.io/rhizomatics/updates2mqtt" in installed_info.ref
+                or (service_info.git_repo_path and service_info.git_repo_path.endswith("updates2mqtt"))
+            )
         ):
             logger.warning("Attempting to self-bounce")
             self.self_bounce.set()
-        compose_path = discovery.custom.get("compose_path")
-        compose_service: str | None = discovery.custom.get("compose_service")
+        if service_info is None:
+            return False
         return self.execute_compose(
-            command=DockerComposeCommand.UP, args="--detach --yes", service=compose_service, cwd=compose_path, logger=logger
+            command=DockerComposeCommand.UP,
+            args="--detach --yes",
+            service=service_info.compose_service,
+            cwd=service_info.compose_path,
+            logger=logger,
         )
 
     def rescan(self, discovery: Discovery) -> Discovery | None:
@@ -289,22 +306,13 @@ class DockerProvider(ReleaseProvider):
             logger.debug("Auto update policy detected")
         update_policy: UpdatePolicy = customization.update or UpdatePolicy.PASSIVE
 
-        local_info: DockerImageInfo = self.local_info_builder.build_image_info(c)
+        local_info: DockerImageInfo
+        service_info: DockerServiceDetails
+        local_info, service_info = self.local_info_builder.build_image_info(c)
         pkg_info: PackageUpdateInfo = self.default_metadata(local_info)
 
         try:
-            picture_url: str | None = customization.picture or pkg_info.logo_url
-            relnotes_url: str | None = customization.relnotes or pkg_info.release_notes_url
-            release_summary: str | None = None
-
-            custom: dict[str, str | bool | int | list[str] | dict[str, Any] | None] = {}
-            custom.update(local_info.custom)
-
-            custom["platform"] = local_info.platform
-            custom["image_ref"] = local_info.ref
-            custom["current_image_id"] = local_info.short_digest
-            custom["index_name"] = local_info.index_name
-            custom["git_repo_path"] = customization.git_repo_path
+            service_info.git_repo_path = customization.git_repo_path
 
             registry_selection = Selection(self.cfg.registry_select, local_info.index_name)
             latest_info: DockerImageInfo
@@ -324,36 +332,23 @@ class DockerProvider(ReleaseProvider):
                 latest_info = local_info.reuse()
                 latest_info.short_digest = None
                 latest_info.image_digest = None
-                custom["git_repo_path"] = customization.git_repo_path
             else:
                 logger.debug("Registry selection rules suppressed metadata lookup")
                 latest_info = local_info.reuse()
 
-            custom.update(latest_info.custom)
-            custom["latest_origin"] = latest_info.origin
-            custom["latest_image_id"] = latest_info.short_digest
-
-            release_info: dict[str, str | None] = self.release_enricher.enrich(
-                latest_info, source_repo_url=pkg_info.source_repo_url, release_url=relnotes_url
+            release_info: ReleaseDetail = self.release_enricher.enrich(
+                latest_info,
+                source_repo_url=pkg_info.source_repo_url,
+                notes_url=customization.relnotes or pkg_info.release_notes_url,
             )
             logger.debug("Enriched release info: %s", release_info)
 
-            if release_info.get("release_url") and customization.relnotes is None:
-                relnotes_url = release_info.pop("release_url")
-            if release_info.get("release_summary"):
-                release_summary = release_info.pop("release_summary")
-
-            custom.update(release_info)
-
-            if custom.get("git_repo_path") and custom.get("compose_path"):
-                full_repo_path: Path = Path(cast("str", custom.get("compose_path"))).joinpath(
-                    cast("str", custom.get("git_repo_path"))
-                )
+            if service_info.git_repo_path and service_info.compose_path:
+                full_repo_path: Path = Path(service_info.compose_path).joinpath(service_info.git_repo_path)
 
                 git_trust(full_repo_path, Path(self.node_cfg.git_path))
-                custom["git_local_timestamp"] = git_iso_timestamp(full_repo_path, Path(self.node_cfg.git_path))
+                service_info.git_local_timestamp = git_iso_timestamp(full_repo_path, Path(self.node_cfg.git_path))
 
-            features: list[str] = []
             can_pull: bool = (
                 self.cfg.allow_pull
                 and not local_info.local_build
@@ -368,15 +363,15 @@ class DockerProvider(ReleaseProvider):
 
             can_build: bool = False
             if self.cfg.allow_build:
-                can_build = custom.get("git_repo_path") is not None and custom.get("compose_path") is not None
+                can_build = service_info.git_repo_path is not None and service_info.compose_path is not None
                 if not can_build:
-                    if custom.get("git_repo_path") is not None:
+                    if service_info.git_repo_path is not None:
                         logger.debug(
-                            "Local build ignored for git_repo_path=%s because no compose_path", custom.get("git_repo_path")
+                            "Local build ignored for git_repo_path=%s because no compose_path", service_info.git_repo_path
                         )
                 else:
                     full_repo_path = self.full_repo_path(
-                        cast("str", custom.get("compose_path")), cast("str", custom.get("git_repo_path"))
+                        cast("str", service_info.compose_path), cast("str", service_info.git_repo_path)
                     )
                     if local_info.local_build and full_repo_path:
                         git_versionish = git_local_digest(full_repo_path, Path(self.node_cfg.git_path))
@@ -392,36 +387,24 @@ class DockerProvider(ReleaseProvider):
                                 logger.debug(f"Git update not available, local repo:{full_repo_path}")
                                 latest_info.git_digest = git_versionish
 
-            can_restart: bool = self.cfg.allow_restart and custom.get("compose_path") is not None
+            can_restart: bool = self.cfg.allow_restart and service_info.compose_path is not None
 
-            can_update: bool = False
-
-            if can_pull or can_build or can_restart:
-                # public install-neutral capabilities and Home Assistant features
-                can_update = True
-                features.append("INSTALL")
-                features.append("PROGRESS")
-            elif any((self.cfg.allow_build, self.cfg.allow_restart, self.cfg.allow_pull)):
-                logger.info(f"Update not available, can_pull:{can_pull}, can_build:{can_build},can_restart:{can_restart}")
-            if relnotes_url:
-                features.append("RELEASE_NOTES")
             if can_pull:
                 update_type = "Docker Image"
             elif can_build:
                 update_type = "Docker Build"
             else:
                 update_type = "Unavailable"
-            custom["can_pull"] = can_pull
+
             # can_pull,can_build etc are only info flags
             # the HASS update process is driven by comparing current and available versions
 
             public_installed_version: str
             public_latest_version: str
-            version_rule: str
-            public_installed_version, public_latest_version, version_rule = select_versions(
+            version_basis: str
+            public_installed_version, public_latest_version, version_basis = select_versions(
                 version_policy, local_info, latest_info
             )
-            custom["version_rule"] = version_rule
 
             publish_policy: PublishPolicy = PublishPolicy.HOMEASSISTANT
             img_ref_selection = Selection(self.cfg.image_ref_select, local_info.ref)
@@ -437,24 +420,25 @@ class DockerProvider(ReleaseProvider):
                 c.name,
                 session,
                 node=self.node_cfg.name,
-                entity_picture_url=picture_url,
-                release_url=relnotes_url,
-                release_summary=release_summary,
+                entity_picture_url=customization.picture or pkg_info.logo_url,
                 current_version=public_installed_version,
                 publish_policy=publish_policy,
                 update_policy=update_policy,
                 version_policy=version_policy,
+                version_basis=version_basis,
                 latest_version=public_latest_version,
                 device_icon=self.cfg.device_icon,
-                can_update=can_update,
+                can_pull=can_pull,
                 update_type=update_type,
                 can_build=can_build,
                 can_restart=can_restart,
                 status=(c.status == "running" and "on") or "off",
-                custom=custom,
-                features=features,
                 throttled=latest_info.throttled,
                 previous=previous_discovery,
+                release_detail=release_info,
+                installation_detail=service_info,
+                current_detail=local_info,
+                latest_detail=latest_info,
             )
             logger.debug("Analyze generated discovery: %s", discovery)
             return discovery
@@ -485,7 +469,7 @@ class DockerProvider(ReleaseProvider):
             containers = containers + 1
             result: Discovery | None = self.analyze(c, session)
             if result:
-                logger.debug("Analyzed container", result_name=result.name, custom=result.custom)
+                logger.debug("Analyzed container", result_name=result.name, throttled=result.throttled)
                 self.discoveries[result.name] = result
                 results = results + 1
                 throttled += 1 if result.throttled else 0

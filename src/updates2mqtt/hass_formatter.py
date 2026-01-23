@@ -71,9 +71,10 @@ def hass_format_state(discovery: Discovery, session: str, in_progress: bool = Fa
         "title": discovery.title,
         "in_progress": in_progress,
     }
-    if discovery.release_summary:
-        state["release_summary"] = discovery.release_summary
-    if discovery.release_url:
-        state["release_url"] = discovery.release_url
+    if discovery.release_detail:
+        if discovery.release_detail.summary:
+            state["release_summary"] = discovery.release_detail.summary
+        if discovery.release_detail.notes_url:
+            state["release_url"] = discovery.release_detail.notes_url
 
     return state
