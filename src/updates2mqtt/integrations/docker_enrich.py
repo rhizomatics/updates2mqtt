@@ -614,10 +614,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
     ) -> tuple[Any | None, CacheMetadata | None]:
         api_url = f"https://{api_host}/v2/{local_image_info.name}/manifests/{digest}"
         response = fetch_url(
-            api_url,
-            cache_ttl=self.cfg.immutable_cache_ttl,
-            bearer_token=token,
-            response_type=media_type,
+            api_url, cache_ttl=self.cfg.immutable_cache_ttl, bearer_token=token, response_type=media_type, allow_stale=True
         )
         if response and response.is_success:
             manifest = httpx_json_content(response, None)

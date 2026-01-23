@@ -113,6 +113,7 @@ def fetch_url(
     bearer_token: str | None = None,
     response_type: str | list[str] | None = None,
     follow_redirects: bool = False,
+    allow_stale: bool = False,
     method: str = "GET",
 ) -> Response | None:
     try:
@@ -127,7 +128,7 @@ def fetch_url(
         cache_policy = SpecificationPolicy(
             cache_options=CacheOptions(
                 shared=False,  # Private browser cache
-                allow_stale=cache_ttl != 0,
+                allow_stale=allow_stale,
             )
         )
         with SyncCacheClient(headers=headers, follow_redirects=follow_redirects, policy=cache_policy) as client:
