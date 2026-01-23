@@ -119,7 +119,7 @@ In the `docker-compose.yaml`, set the user and group using [user](https://docs.d
 services:
   updates2mqtt:
     container_name: updates2mqtt
-    image: ghcr.io/rhizomatics/updates2mqtt:release
+    image: ghcr.io/rhizomatics/updates2mqtt:latest
     user: 130:119
 ```
 

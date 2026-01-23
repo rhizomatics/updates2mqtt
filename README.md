@@ -44,7 +44,7 @@ To get started, read the [Installation](installation.md) and [Configuration](con
 For a quick spin, try this:
 
 ```bash
-docker run -v /var/run/docker.sock:/var/run/docker.sock -e MQTT_USER=user1 -e MQTT_PASS=user1 -e MQTT_HOST=192.168.1.5 ghcr.io/rhizomatics/updates2mqtt:release
+docker run -v /var/run/docker.sock:/var/run/docker.sock -e MQTT_USER=user1 -e MQTT_PASS=user1 -e MQTT_HOST=192.168.1.5 ghcr.io/rhizomatics/updates2mqtt:latest
 ```
 
 or without Docker, using [uv](https://docs.astral.sh/uv/)
