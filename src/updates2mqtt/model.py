@@ -170,7 +170,7 @@ class Discovery:
         return self.name
 
     def as_dict(self) -> dict[str, str | list | dict | bool | int | None]:
-        return {
+        results: dict[str, str | list | dict | bool | int | None] = {
             "name": self.name,
             "node": self.node,
             "provider": {"source_type": self.provider.source_type},
@@ -188,7 +188,6 @@ class Discovery:
             "update_type": self.update_type,
             "status": self.status,
             "features": self.features,
-            "release": self.release_detail.as_dict() if self.release_detail else None,
             "entity_picture_url": self.entity_picture_url,
             "update_policy": str(self.update_policy),
             "publish_policy": str(self.publish_policy),
@@ -197,8 +196,12 @@ class Discovery:
             "installation_detail": self.installation_detail.as_dict() if self.installation_detail else None,
             "current_detail": self.current_detail.as_dict() if self.current_detail else None,
             "latest_detail": self.latest_detail.as_dict() if self.latest_detail else None,
-            self.source_type: self.custom,
         }
+        if self.release_detail:
+            results["release"] = self.release_detail.as_dict() if self.release_detail else None
+        if self.custom:
+            results[self.source_type] = self.custom
+        return results
 
 
 class ReleaseProvider:
