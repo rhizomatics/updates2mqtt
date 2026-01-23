@@ -23,7 +23,7 @@
 
 Let Home Assistant tell you about new updates to Docker images for your containers.
 
-![Example Home Assistant update page](images/ha_update_detail.png "Home Assistant Updates")
+![Example Home Assistant update page](images/ha_update_detail.png "Home Assistant Updates")![Example Home Assistant Release Notes](images/ha_release_notes.png "Home Assistant Release Notes"){width=300} 
 
 Read the release notes, and optionally click *Update* to trigger a Docker *pull* (or optionally *build*) and *update*.
 
