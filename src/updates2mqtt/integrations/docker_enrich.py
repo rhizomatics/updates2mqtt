@@ -1,7 +1,7 @@
 import re
 import typing
 from abc import abstractmethod
-from typing import Any
+from typing import Any, cast
 
 import structlog
 from docker.auth import resolve_repository_name
@@ -104,7 +104,7 @@ class DockerImageInfo(DiscoveryArtefactDetail):
         self.origin: str | None = None
         self.error: str | None = None
         self.platform: str | None = platform
-        self.custom: dict[str, str | None] = {}
+        self.custom: dict[str, str | float | int | bool | None] = {}
 
         self.local_build: bool = not self.repo_digests
         self.index_name, remote_name = resolve_repository_name(ref)
@@ -245,9 +245,11 @@ def _select_annotation(
     return result
 
 
-def cherrypick_annotations(local_info: DockerImageInfo | None, registry_info: DockerImageInfo | None) -> dict[str, str | None]:
+def cherrypick_annotations(
+    local_info: DockerImageInfo | None, registry_info: DockerImageInfo | None
+) -> dict[str, str | float | int | bool | None]:
     """https://github.com/opencontainers/image-spec/blob/main/annotations.md"""
-    results: dict[str, str | None] = {}
+    results: dict[str, str | float | int | bool | None] = {}
     for either_name, either_label in [
         ("documentation_url", "org.opencontainers.image.documentation"),
         ("description", "org.opencontainers.image.description"),
@@ -317,11 +319,11 @@ class LocalContainerInfo:
             compose_version=container.labels.get("com.docker.compose.version"),
         )
 
-        labels: dict[str, str | None] = cherrypick_annotations(image_info, None)
+        labels: dict[str, str | float | int | bool | None] = cherrypick_annotations(image_info, None)
         # capture container labels/annotations, not image ones
         labels = labels or {}
         image_info.custom = labels
-        image_info.version = labels.get("image_version")
+        image_info.version = cast("str|None", labels.get("image_version"))
         return image_info, service_info
 
 
@@ -722,13 +724,13 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
         if not result.annotations:
             self.log.debug("No annotations found from registry data")
 
-        labels: dict[str, str | None] = cherrypick_annotations(local_image_info, result)
+        labels: dict[str, str | float | int | bool | None] = cherrypick_annotations(local_image_info, result)
         result.custom = labels or {}
         if index_cache_metadata:
-            result.custom["index_cache_age"] = str(index_cache_metadata.age) if index_cache_metadata.age else None
+            result.custom["index_cache_age"] = index_cache_metadata.age
         if manifest_cache_metadata:
-            result.custom["manifest_cache_age"] = str(manifest_cache_metadata.age) if manifest_cache_metadata.age else None
-        result.version = labels.get("image_version")
+            result.custom["manifest_cache_age"] = manifest_cache_metadata.age
+        result.version = cast("str|None", labels.get("image_version"))
         result.origin = "OCI_V2"
 
         self.log.debug(
@@ -801,8 +803,8 @@ class DockerClientVersionLookup(VersionLookup):
                 else:
                     self.log.debug("Failed to fetch registry data, retrying: %s", e)
 
-        labels: dict[str, str | None] = cherrypick_annotations(local_image_info, result)
+        labels: dict[str, str | float | int | bool | None] = cherrypick_annotations(local_image_info, result)
         result.custom = labels or {}
-        result.version = labels.get("image_version")
+        result.version = cast("str|None", labels.get("image_version"))
         result.origin = "DOCKER_CLIENT"
         return result
