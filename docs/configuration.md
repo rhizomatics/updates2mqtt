@@ -165,8 +165,7 @@ as will the release notes link. SVG icons should be used.
 Updates2MQTT attempts to find the most human-friendly representation of image versions that
 can be reliably used. Ideally that's a `v1.5.4` type version (whether formally SemVer or just traditional version).
 
-By default it uses an `auto` version policy that will choose the most meaningful, and fall back to
-digests where versions aren't available (usually via image labels/annotations). This will also take
+By default, configurable using `version_policy` in the Docker section of the config, it uses an `auto` version policy that will choose the most meaningful, and fall back to digests where versions aren't available (usually via image labels/annotations). This will also take
 into account where updates are throttled, or a pinned digest declared in the container.
 
 This can be overridden at container level using using the `updates2mqtt.version_policy` container label or `UPD2MQTT_VERSION_POLICY` environment variable:
@@ -201,12 +200,19 @@ Alternatively, set `UPD2MQTT_IGNORE` flag on the container itself to completely 
 
 ## API Throttling
 
-Docker API has [usage limits](https://docs.docker.com/docker-hub/usage/) which may be triggered if there are many
-containers ( and other registries will have similar).
+Docker API has [usage limits](https://docs.docker.com/docker-hub/usage/) which may be triggered if there are many containers ( and other registries will have similar).
 
-`updates2mqtt` will back off if a `429` Too Many Requests response is received, and pause for that specific registry
-for the requested number of seconds. There's a default in `docker` config of `default_api_backoff` applied if the backoff can't be
-automatically determined.
+`updates2mqtt` will back off if a `429` Too Many Requests response is received, and pause for that specific registry for the requested number of seconds. There's a default in `docker` config of `default_api_backoff` applied if the backoff can't be automatically determined.
+
+The main technique to avoid throttling is caching of responses, and fortunately many of the calls are cache friendly, such as the manifest retrieval. The config has these options:
+
+| Config Key | Default | Comments |
+| ---------- | ------- | -------- |
+| `mutable_cache_ttl` | 900 (15 mins) | This is primarily the fetch of `latest` or similar tags to get new versions |
+| `immutable_cache_ttl` | 2592000 (30 days) | This is for anything fetched by a digest, such as image manifests. The only limitation for these should be storage space |
+| `token_cache_ttl` | 290 (4m 50secs) | Caching for authorization tokens, `docker.io` is good for 300 seconds, not all registries publish the life in the response |
+
+The cache, using [Hisel](https://hishel.com), is automatically cleaned up of old entries once the TTL (Time to Live) has expired.
 
 The other approach can be to reduce the scan interval, or ignore some of the containers.
 

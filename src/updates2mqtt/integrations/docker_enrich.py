@@ -24,7 +24,6 @@ from updates2mqtt.config import (
     DockerConfig,
     DockerPackageUpdateInfo,
     PackageUpdateInfo,
-    RegistryAccessPolicy,
     UpdateInfoConfig,
 )
 
@@ -250,9 +249,6 @@ def cherrypick_annotations(local_info: DockerImageInfo | None, registry_info: Do
 
 
 class LocalContainerInfo:
-    def __init__(self, registry_access: RegistryAccessPolicy) -> None:
-        self.registry_access: RegistryAccessPolicy = registry_access
-
     def build_image_info(self, container: Container) -> DockerImageInfo:
         """Image contents equiv to `docker inspect image <image_ref>`"""
         # container image can be none if someone ran `docker rmi -f`
@@ -414,8 +410,9 @@ def validate_url(url: str, cache_ttl: int = 300) -> bool:
 
 
 class SourceReleaseEnricher:
-    def __init__(self) -> None:
+    def __init__(self, mutable_cache_ttl: int = 300) -> None:
         self.log: Any = structlog.get_logger().bind(integration="docker")
+        self.mutable_cache_ttl = mutable_cache_ttl
 
     def enrich(
         self, registry_info: DockerImageInfo, source_repo_url: str | None = None, release_url: str | None = None
@@ -447,7 +444,7 @@ class SourceReleaseEnricher:
         }
 
         diff_url: str | None = DIFF_URL_TEMPLATES[source_platform].format(**template_vars)
-        if diff_url and MISSING_VAL not in diff_url and validate_url(diff_url):
+        if diff_url and MISSING_VAL not in diff_url and validate_url(diff_url, cache_ttl=self.mutable_cache_ttl):
             results["diff_url"] = diff_url
         else:
             diff_url = None
@@ -455,9 +452,9 @@ class SourceReleaseEnricher:
         if release_url is None:
             release_url = RELEASE_URL_TEMPLATES[source_platform].format(**template_vars)
 
-            if MISSING_VAL in release_url or not validate_url(release_url):
+            if MISSING_VAL in release_url or not validate_url(release_url, cache_ttl=self.mutable_cache_ttl):
                 release_url = UNKNOWN_RELEASE_URL_TEMPLATES[source_platform].format(**template_vars)
-                if MISSING_VAL in release_url or not validate_url(release_url):
+                if MISSING_VAL in release_url or not validate_url(release_url, cache_ttl=self.mutable_cache_ttl):
                     release_url = None
         if release_url is not None:
             results["release_url"] = release_url
@@ -506,8 +503,13 @@ class VersionLookup:
 
 
 class ContainerDistributionAPIVersionLookup(VersionLookup):
-    def __init__(self, throttler: Throttler) -> None:
+    def __init__(
+        self, throttler: Throttler, mutable_cache_ttl: int = 300, immutable_cache_ttl: int = 2592000, token_cache_ttl: int = 290
+    ) -> None:
         self.throttler: Throttler = throttler
+        self.mutable_cache_ttl = mutable_cache_ttl
+        self.immutable_cache_ttl = immutable_cache_ttl
+        self.token_cache_ttl = token_cache_ttl
         self.log: Any = structlog.get_logger().bind(integration="docker", tool="version_lookup")
 
     def fetch_token(self, registry: str, image_name: str) -> str | None:
@@ -519,7 +521,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
         service: str = REGISTRIES.get(registry, default_host)[2]
         url_template: str = REGISTRIES.get(registry, default_host)[3]
         auth_url: str = url_template.format(auth_host=auth_host, image_name=image_name, service=service)
-        response: Response | None = fetch_url(auth_url, cache_ttl=30, follow_redirects=True)
+        response: Response | None = fetch_url(auth_url, cache_ttl=self.token_cache_ttl, follow_redirects=True)
         if response and response.is_success:
             api_data = httpx_json_content(response, {})
             token: str | None = api_data.get("token") if api_data else None
@@ -564,13 +566,17 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
 
         raise AuthError(f"Failed to fetch token for {image_name} at {auth_url}")
 
-    def fetch_index(
-        self, api_host: str, local_image_info: DockerImageInfo, token: str | None, mutable_cache_ttl: int = 600
-    ) -> tuple[Any | None, str | None]:
-        api_url: str = f"https://{api_host}/v2/{local_image_info.name}/manifests/{local_image_info.tag_or_digest}"
+    def fetch_index(self, api_host: str, local_image_info: DockerImageInfo, token: str | None) -> tuple[Any | None, str | None]:
+        if local_image_info.tag:
+            api_url: str = f"https://{api_host}/v2/{local_image_info.name}/manifests/{local_image_info.tag}"
+            cache_ttl: int = self.mutable_cache_ttl
+        else:
+            api_url = f"https://{api_host}/v2/{local_image_info.name}/manifests/{local_image_info.pinned_digest}"
+            cache_ttl = self.immutable_cache_ttl
+
         response: Response | None = fetch_url(
             api_url,
-            cache_ttl=mutable_cache_ttl,
+            cache_ttl=cache_ttl,
             bearer_token=token,
             response_type=[
                 "application/vnd.oci.image.index.v1+json",
@@ -601,18 +607,12 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
         return None, None
 
     def fetch_manifest(
-        self,
-        api_host: str,
-        local_image_info: DockerImageInfo,
-        media_type: str,
-        digest: str,
-        token: str | None,
-        immutable_cache_ttl: int = 86400,
+        self, api_host: str, local_image_info: DockerImageInfo, media_type: str, digest: str, token: str | None
     ) -> Any | None:
         api_url = f"https://{api_host}/v2/{local_image_info.name}/manifests/{digest}"
         response = fetch_url(
             api_url,
-            cache_ttl=immutable_cache_ttl,
+            cache_ttl=self.immutable_cache_ttl,
             bearer_token=token,
             response_type=media_type,
         )
@@ -643,8 +643,6 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
         self,
         local_image_info: DockerImageInfo,
         token: str | None = None,
-        mutable_cache_ttl: int = 600,
-        immutable_cache_ttl: int = 86400,
         **kwargs,  # noqa: ANN003, ARG002
     ) -> DockerImageInfo:
         result: DockerImageInfo = DockerImageInfo(local_image_info.ref)
@@ -675,7 +673,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
             self.log("No API host can be determined for %s", local_image_info.index_name)
             return result
         try:
-            index, index_digest = self.fetch_index(api_host, local_image_info, token, mutable_cache_ttl)
+            index, index_digest = self.fetch_index(api_host, local_image_info, token)
         except ThrottledError:
             result.throttled = True
             index = None
@@ -699,9 +697,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
                     manifest: Any | None = None
                     if digest:
                         try:
-                            manifest = self.fetch_manifest(
-                                api_host, local_image_info, media_type, digest, token, immutable_cache_ttl
-                            )
+                            manifest = self.fetch_manifest(api_host, local_image_info, media_type, digest, token)
                         except ThrottledError:
                             result.throttled = True
 

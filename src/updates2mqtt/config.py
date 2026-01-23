@@ -35,7 +35,7 @@ class LogLevel(StrEnum):
     CRITICAL = "CRITICAL"
 
 
-class RegistryAccessPolicy(StrEnum):
+class RegistryAPI(StrEnum):
     OCI_V2 = "OCI_V2"
     DOCKER_CLIENT = "DOCKER_CLIENT"
     DISABLED = "DISABLED"
@@ -46,6 +46,14 @@ class VersionType:
     FULL_SHA = "full_sha"
     VERSION_REVISION = "version_revision"
     VERSION = "version"
+
+
+@dataclass
+class RegistryConfig:
+    api: RegistryAPI = RegistryAPI.OCI_V2
+    mutable_cache_ttl: int = 900  # 5 mins
+    immutable_cache_ttl: int = 2592000  # 30 days
+    token_cache_ttl: int = 290  # just under 5 mins
 
 
 @dataclass
@@ -70,6 +78,13 @@ class Selector:
     exclude: list[str] | None = None
 
 
+class VersionPolicy(StrEnum):
+    AUTO = "AUTO"
+    VERSION = "VERSION"
+    DIGEST = "DIGEST"
+    VERSION_DIGEST = "VERSION_DIGEST"
+
+
 @dataclass
 class DockerConfig:
     enabled: bool = True
@@ -83,18 +98,12 @@ class DockerConfig:
     discover_metadata: dict[str, MetadataSourceConfig] = field(
         default_factory=lambda: {"linuxserver.io": MetadataSourceConfig(enabled=True)}
     )
+    registry: RegistryConfig = field(default_factory=lambda: RegistryConfig())
     default_api_backoff: int = 60 * 15
     image_ref_select: Selector = field(default_factory=lambda: Selector())
     version_select: Selector = field(default_factory=lambda: Selector())
+    version_policy: VersionPolicy = VersionPolicy.AUTO
     registry_select: Selector = field(default_factory=lambda: Selector())
-    registry_access: RegistryAccessPolicy = RegistryAccessPolicy.OCI_V2
-
-
-class VersionPolicy(StrEnum):
-    AUTO = "AUTO"
-    VERSION = "VERSION"
-    DIGEST = "DIGEST"
-    VERSION_DIGEST = "VERSION_DIGEST"
 
 
 @dataclass

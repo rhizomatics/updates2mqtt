@@ -32,6 +32,7 @@ docker:
   default_entity_picture_url: https://www.docker.com/wp-content/uploads/2022/03/Moby-logo.png
   device_icon: mdi:docker
   default_api_backoff: 1800
+  version_policy: VERSION_DIGEST
   discover_metadata:
     linuxserver.io:
       enabled: true
@@ -47,4 +48,9 @@ docker:
      - .*-beta.*
      include:
      -  1\..*
+  registry:
+    token_cache_ttl: 290
+    mutable_cache_ttl: 900
+    immutable_cache_ttl: 2592000
+    api: OCI_V2
 scan_interval: 10800

@@ -1,19 +1,114 @@
+from pprint import pformat
+from typing import TYPE_CHECKING
+
 import structlog
 from omegaconf import OmegaConf
 
-from updates2mqtt.config import DockerConfig, NodeConfig
+from updates2mqtt.config import DockerConfig, NodeConfig, RegistryConfig
+from updates2mqtt.helpers import Throttler
 from updates2mqtt.integrations.docker import DockerProvider
+from updates2mqtt.integrations.docker_enrich import ContainerDistributionAPIVersionLookup, DockerImageInfo, fetch_url
 from updates2mqtt.model import Discovery
 
+if TYPE_CHECKING:
+    from httpx import Response
+
 log = structlog.get_logger()
+
 
 """
 Super simple CLI
 
 python updates2mqtt.cli container=frigate
 
-python updates2mqtt.cli container=frigate registry_access=docker_client
-"""
+python updates2mqtt.cli container=frigate api=docker_client
+
+python3 updates2mqtt/cli.py manifest=ghcr.io/blakeblackshear/frigate:stable
+
+python3 updates2mqtt/cli.py blob=ghcr.io/blakeblackshear/frigate@sha256:ef8d56a7d50b545af176e950ce328aec7f0b7bc5baebdca189fe661d97924980
+
+python3 updates2mqtt/cli.py manifest=ghcr.io/blakeblackshear/frigate@sha256:c68fd78fd3237c9ba81b5aa927f17b54f46705990f43b4b5d5596cfbbb626af4
+"""  # noqa: E501
+
+OCI_MANIFEST_TYPES: list[str] = [
+    "application/vnd.oci.image.manifest.v1+json",
+    "application/vnd.oci.image.index.v1+json",
+    "application/vnd.oci.descriptor.v1+json",
+    "application/vnd.oci.empty.v1+json",
+]
+
+OCI_CONFIG_TYPES: list[str] = [
+    "application/vnd.oci.image.config.v1+json",
+]
+
+OCI_LAYER_TYPES: list[str] = [
+    "application/vnd.oci.image.layer.v1.tar",
+    "application/vnd.oci.image.layer.v1.tar+gzip",
+    "application/vnd.oci.image.layer.v1.tar+zstd",
+]
+
+OCI_NONDISTRIBUTABLE_LAYER_TYPES: list[str] = [
+    "application/vnd.oci.image.layer.nondistributable.v1.tar",
+    "application/vnd.oci.image.layer.nondistributable.v1.tar+gzip",
+    "application/vnd.oci.image.layer.nondistributable.v1.tar+zstd",
+]
+
+# Docker Compatibility MIME Types
+DOCKER_MANIFEST_TYPES: list[str] = [
+    "application/vnd.docker.distribution.manifest.v2+json",
+    "application/vnd.docker.distribution.manifest.list.v2+json",
+    "application/vnd.docker.distribution.manifest.v1+json",
+    "application/vnd.docker.distribution.manifest.v1+prettyjws",
+]
+
+DOCKER_CONFIG_TYPES: list[str] = [
+    "application/vnd.docker.container.image.v1+json",
+]
+
+DOCKER_LAYER_TYPES: list[str] = [
+    "application/vnd.docker.image.rootfs.diff.tar.gzip",
+    "application/vnd.docker.image.rootfs.foreign.diff.tar.gzip",
+]
+
+# Combined constants
+ALL_MANIFEST_TYPES: list[str] = OCI_MANIFEST_TYPES + DOCKER_MANIFEST_TYPES
+ALL_CONFIG_TYPES: list[str] = OCI_CONFIG_TYPES + DOCKER_CONFIG_TYPES
+ALL_LAYER_TYPES: list[str] = OCI_LAYER_TYPES + OCI_NONDISTRIBUTABLE_LAYER_TYPES + DOCKER_LAYER_TYPES
+
+# All content types that might be returned by the API
+ALL_OCI_MEDIA_TYPES: list[str] = (
+    ALL_MANIFEST_TYPES
+    + ALL_CONFIG_TYPES
+    + ALL_LAYER_TYPES
+    + ["application/octet-stream", "application/json"]  # Error responses
+)
+
+
+def dump_url(doc_type: str, img_ref: str) -> None:
+    lookup = ContainerDistributionAPIVersionLookup(Throttler())
+    img_info = DockerImageInfo(img_ref)
+    if not img_info.index_name or not img_info.name:
+        log.error("Unable to parse %ss", img_ref)
+        return
+
+    token: str | None = lookup.fetch_token(img_info.index_name, img_info.name)
+    if doc_type == "blob":
+        url: str = f"https://{img_info.index_name}/v2/{img_info.name}/blobs/{img_info.pinned_digest}"
+    elif doc_type == "manifest":
+        url = f"https://{img_info.index_name}/v2/{img_info.name}/manifests/{img_info.tag_or_digest}"
+    else:
+        return
+    response: Response | None = fetch_url(url, bearer_token=token, follow_redirects=True, response_type=ALL_OCI_MEDIA_TYPES)
+    if response:
+        log.debug(f"{response.status_code}: {url}")
+        log.debug("HEADERS")
+        for k, v in response.headers.items():
+            log.debug(f"{k}: {v}")
+        log.debug("CONTENTS")
+        if "json" in response.headers.get("content-type", ""):
+            log.debug(pformat(response.json()))
+        else:
+            log.warning(response.content)
 
 
 def run_once_docker() -> None:
@@ -21,10 +116,20 @@ def run_once_docker() -> None:
     cli_conf = OmegaConf.from_cli()
     structlog.configure(wrapper_class=structlog.make_filtering_bound_logger("DEBUG"))
 
-    docker_scanner = DockerProvider(DockerConfig(registry_access=cli_conf.get("registry_access", "OCI_V2")), NodeConfig(), None)
-    discovery = docker_scanner.rescan(Discovery(docker_scanner, cli_conf.get("container", "frigate"), "cli", "manual"))
-    if discovery:
-        log.info(discovery.as_dict())
+    if cli_conf.get("blob"):
+        dump_url("blob", cli_conf.get("blob"))
+    elif cli_conf.get("manifest"):
+        dump_url("manifest", cli_conf.get("manifest"))
+
+    else:
+        docker_scanner = DockerProvider(
+            DockerConfig(registry=RegistryConfig(api=cli_conf.get("api", "OCI_V2"))), NodeConfig(), None
+        )
+        discovery: Discovery | None = docker_scanner.rescan(
+            Discovery(docker_scanner, cli_conf.get("container", "frigate"), "cli", "manual")
+        )
+        if discovery:
+            log.info(discovery.as_dict())
 
 
 if __name__ == "__main__":

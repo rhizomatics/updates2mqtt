@@ -6,7 +6,7 @@
 - Tests update for py3.14 mock async changes
 ### OCI Container Registry APIs
 - By default now uses the OCI v2 Distribution APIs rather than old Docker APIs via Docker SDK
-   - Older method can be switched back on using `registry_access: docker_client` in Docker configuration section
+   - Older method can be switched back on using `docker.registry.api: docker_client` configuration
    - Container registry also used where available to pull in annotations ( including 
 a meaningful version ) using the OCI Distriubtion API
   - Docker, GitHub GHCR, Gitlab and Codeberg configured

@@ -22,7 +22,7 @@ from updates2mqtt.config import (
     NodeConfig,
     PackageUpdateInfo,
     PublishPolicy,
-    RegistryAccessPolicy,
+    RegistryAPI,
     UpdatePolicy,
     VersionPolicy,
 )
@@ -141,9 +141,14 @@ class DockerProvider(ReleaseProvider):
             DefaultPackageEnricher(self.cfg),
         ]
         self.docker_client_image_lookup = DockerClientVersionLookup(self.client, self.throttler, self.cfg.default_api_backoff)
-        self.registry_image_lookup = ContainerDistributionAPIVersionLookup(self.throttler)
-        self.release_enricher = SourceReleaseEnricher()
-        self.local_info_builder = LocalContainerInfo(self.cfg.registry_access)
+        self.registry_image_lookup = ContainerDistributionAPIVersionLookup(
+            self.throttler,
+            mutable_cache_ttl=self.cfg.registry.mutable_cache_ttl,
+            immutable_cache_ttl=self.cfg.registry.immutable_cache_ttl,
+            token_cache_ttl=self.cfg.registry.token_cache_ttl,
+        )
+        self.release_enricher = SourceReleaseEnricher(mutable_cache_ttl=self.cfg.registry.mutable_cache_ttl)
+        self.local_info_builder = LocalContainerInfo()
 
     def initialize(self) -> None:
         for enricher in self.pkg_enrichers:
@@ -277,7 +282,9 @@ class DockerProvider(ReleaseProvider):
         if customization.ignore:
             logger.info("Container ignored due to UPD2MQTT_IGNORE setting")
             return None
-        version_policy: VersionPolicy = VersionPolicy.AUTO if not customization.version_policy else customization.version_policy
+        version_policy: VersionPolicy = (
+            self.cfg.version_policy if not customization.version_policy else customization.version_policy
+        )
         if customization.update == UpdatePolicy.AUTO:
             logger.debug("Auto update policy detected")
         update_policy: UpdatePolicy = customization.update or UpdatePolicy.PASSIVE
@@ -305,12 +312,12 @@ class DockerProvider(ReleaseProvider):
                 logger.debug("Skipping registry fetch for local pinned image, %s", local_info.ref)
                 latest_info = local_info.reuse()
             elif registry_selection and local_info.ref and not local_info.local_build:
-                if self.cfg.registry_access == RegistryAccessPolicy.DOCKER_CLIENT:
+                if self.cfg.registry.api == RegistryAPI.DOCKER_CLIENT:
                     latest_info = self.docker_client_image_lookup.lookup(local_info)
-                elif self.cfg.registry_access == RegistryAccessPolicy.OCI_V2:
+                elif self.cfg.registry.api == RegistryAPI.OCI_V2:
                     latest_info = self.registry_image_lookup.lookup(local_info, token=customization.registry_token)
-                else:  # assuming RegistryAccessPolicy.DISABLED
-                    logger.debug(f"Skipping registry check, disabled in config {self.cfg.registry_access}")
+                else:  # assuming RegistryAPI.DISABLED
+                    logger.debug(f"Skipping registry check, disabled in config {self.cfg.registry.api}")
                     latest_info = local_info.reuse()
             elif local_info.local_build:
                 # assume its a locally built image if no RepoDigests available

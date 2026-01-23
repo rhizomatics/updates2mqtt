@@ -175,7 +175,7 @@ This should output the version of the `docker` package, and the total count of l
 Updates2MQTT uses the Docker developed `docker-py` library for local management, and originally for discovering
 updates. Now by default it uses the more modern [OCI v2 Distribution API](https://github.com/opencontainers/distribution-spec/blob/main/spec.md) that `docker.io` and other registries have supported for years. 
 
-The `registry_access` option in Docker config can override this, set to `docker_client`,`oci_v2` or `disabled`.
+The `api` option in Docker`registry` config can override this, set to `docker_client`,`oci_v2` or `disabled`.
 
 The OCI APIs require more network calls, typically one to retrieve a token, one for the image index, and then one
 for the platform specific manifest. On the other hand, well-developer images also provide annotations on these documents,
@@ -208,5 +208,5 @@ or a container name if one has been given ( easy to find out either of these wit
 
 ```bash
 python updates2mqtt.cli container=frigate
-python updates2mqtt.cli container=f4f02e182f5e registry_access=docker_client
+python updates2mqtt.cli container=f4f02e182f5e api=docker_client
 ```
