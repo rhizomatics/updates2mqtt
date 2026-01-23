@@ -51,9 +51,9 @@ class VersionType:
 @dataclass
 class RegistryConfig:
     api: RegistryAPI = RegistryAPI.OCI_V2
-    mutable_cache_ttl: int = 900  # 5 mins
-    immutable_cache_ttl: int = 2592000  # 30 days
-    token_cache_ttl: int = 290  # just under 5 mins
+    mutable_cache_ttl: int | None = None  # default to server cache hint
+    immutable_cache_ttl: int | None = 7776000  # 90 days
+    token_cache_ttl: int | None = None  # default to server cache hint
 
 
 @dataclass

@@ -6,11 +6,10 @@ from typing import Any
 import structlog
 from docker.auth import resolve_repository_name
 from docker.models.containers import Container
-from hishel.httpx import SyncCacheClient
 from httpx import Response
 from omegaconf import MissingMandatoryValue, OmegaConf, ValidationError
 
-from updates2mqtt.helpers import ThrottledError, Throttler
+from updates2mqtt.helpers import CacheMetadata, ThrottledError, Throttler, fetch_url, validate_url
 from updates2mqtt.model import DiscoveryArtefactDetail, DiscoveryInstallationDetail, ReleaseDetail
 
 if typing.TYPE_CHECKING:
@@ -25,6 +24,7 @@ from updates2mqtt.config import (
     DockerConfig,
     DockerPackageUpdateInfo,
     PackageUpdateInfo,
+    RegistryConfig,
     UpdateInfoConfig,
 )
 
@@ -390,19 +390,15 @@ class LinuxServerIOPackageEnricher(PackageEnricher):
         if cfg is None or not cfg.enabled:
             return
 
-        try:
-            with SyncCacheClient(headers=[("cache-control", f"max-age={cfg.cache_ttl}")]) as client:
-                log.debug(f"Fetching linuxserver.io metadata from API, cache_ttl={cfg.cache_ttl}")
-                response: Response = client.get(
-                    "https://api.linuxserver.io/api/v1/images?include_config=false&include_deprecated=false"
-                )
-                if response.status_code != 200:
-                    log.error("Failed to fetch linuxserver.io metadata, non-200 response", status_code=response.status_code)
-                    return
-                api_data: Any = response.json()
-                repos: list = api_data.get("data", {}).get("repositories", {}).get("linuxserver", [])
-        except Exception:
-            log.exception("Failed to fetch linuxserver.io metadata")
+        log.debug(f"Fetching linuxserver.io metadata from API, cache_ttl={cfg.cache_ttl}")
+        response: Response | None = fetch_url(
+            "https://api.linuxserver.io/api/v1/images?include_config=false&include_deprecated=false",
+            cache_ttl=cfg.cache_ttl,
+        )
+        if response and response.is_success:
+            api_data: Any = response.json()
+            repos: list = api_data.get("data", {}).get("repositories", {}).get("linuxserver", [])
+        else:
             return
 
         added = 0
@@ -419,49 +415,9 @@ class LinuxServerIOPackageEnricher(PackageEnricher):
         log.info(f"Added {added} linuxserver.io package details")
 
 
-def fetch_url(
-    url: str,
-    cache_ttl: int = 300,
-    bearer_token: str | None = None,
-    response_type: str | list[str] | None = None,
-    follow_redirects: bool = False,
-) -> Response | None:
-    try:
-        headers = [("cache-control", f"max-age={cache_ttl}")]
-        if bearer_token:
-            headers.append(("Authorization", f"Bearer {bearer_token}"))
-        if response_type:
-            response_type = [response_type] if isinstance(response_type, str) else response_type
-            if response_type and isinstance(response_type, (tuple, list)):
-                headers.extend(("Accept", mime_type) for mime_type in response_type)
-        with SyncCacheClient(headers=headers, follow_redirects=follow_redirects) as client:
-            log.debug(f"Fetching URL {url}, cache_ttl={cache_ttl}")
-            response: Response = client.get(url)
-            if not response.is_success:
-                log.debug("URL %s fetch returned non-success status: %s", url, response.status_code)
-            elif response:
-                log.debug(
-                    "Registry response: content_type: %s, Docker API %s, Digest %s",
-                    response.headers.get("Content-Type"),
-                    response.headers.get(HEADER_DOCKER_API),
-                    response.headers.get(HEADER_DOCKER_DIGEST),
-                )
-
-            return response
-    except Exception as e:
-        log.debug("URL %s failed to fetch: %s", url, e)
-    return None
-
-
-def validate_url(url: str, cache_ttl: int = 300) -> bool:
-    response: Response | None = fetch_url(url, cache_ttl=cache_ttl)
-    return response is not None and response.status_code != 404
-
-
 class SourceReleaseEnricher:
-    def __init__(self, mutable_cache_ttl: int = 300) -> None:
+    def __init__(self) -> None:
         self.log: Any = structlog.get_logger().bind(integration="docker")
-        self.mutable_cache_ttl = mutable_cache_ttl
 
     def enrich(
         self, registry_info: DockerImageInfo, source_repo_url: str | None = None, notes_url: str | None = None
@@ -495,7 +451,7 @@ class SourceReleaseEnricher:
         }
 
         diff_url: str | None = DIFF_URL_TEMPLATES[detail.source_platform].format(**template_vars)
-        if diff_url and MISSING_VAL not in diff_url and validate_url(diff_url, cache_ttl=self.mutable_cache_ttl):
+        if diff_url and MISSING_VAL not in diff_url and validate_url(diff_url):
             detail.diff_url = diff_url
         else:
             diff_url = None
@@ -503,9 +459,9 @@ class SourceReleaseEnricher:
         if detail.notes_url is None:
             detail.notes_url = RELEASE_URL_TEMPLATES[detail.source_platform].format(**template_vars)
 
-            if MISSING_VAL in detail.notes_url or not validate_url(detail.notes_url, cache_ttl=self.mutable_cache_ttl):
+            if MISSING_VAL in detail.notes_url or not validate_url(detail.notes_url):
                 detail.notes_url = UNKNOWN_RELEASE_URL_TEMPLATES[detail.source_platform].format(**template_vars)
-                if MISSING_VAL in detail.notes_url or not validate_url(detail.notes_url, cache_ttl=self.mutable_cache_ttl):
+                if MISSING_VAL in detail.notes_url or not validate_url(detail.notes_url):
                     detail.notes_url = None
 
         if detail.source_platform == SOURCE_PLATFORM_GITHUB and detail.source_repo_url:
@@ -552,13 +508,9 @@ class VersionLookup:
 
 
 class ContainerDistributionAPIVersionLookup(VersionLookup):
-    def __init__(
-        self, throttler: Throttler, mutable_cache_ttl: int = 300, immutable_cache_ttl: int = 2592000, token_cache_ttl: int = 290
-    ) -> None:
+    def __init__(self, throttler: Throttler, cfg: RegistryConfig) -> None:
         self.throttler: Throttler = throttler
-        self.mutable_cache_ttl = mutable_cache_ttl
-        self.immutable_cache_ttl = immutable_cache_ttl
-        self.token_cache_ttl = token_cache_ttl
+        self.cfg: RegistryConfig = cfg
         self.log: Any = structlog.get_logger().bind(integration="docker", tool="version_lookup")
 
     def fetch_token(self, registry: str, image_name: str) -> str | None:
@@ -570,7 +522,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
         service: str = REGISTRIES.get(registry, default_host)[2]
         url_template: str = REGISTRIES.get(registry, default_host)[3]
         auth_url: str = url_template.format(auth_host=auth_host, image_name=image_name, service=service)
-        response: Response | None = fetch_url(auth_url, cache_ttl=self.token_cache_ttl, follow_redirects=True)
+        response: Response | None = fetch_url(auth_url, cache_ttl=self.cfg.token_cache_ttl, follow_redirects=True)
         if response and response.is_success:
             api_data = httpx_json_content(response, {})
             token: str | None = api_data.get("token") if api_data else None
@@ -615,13 +567,15 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
 
         raise AuthError(f"Failed to fetch token for {image_name} at {auth_url}")
 
-    def fetch_index(self, api_host: str, local_image_info: DockerImageInfo, token: str | None) -> tuple[Any | None, str | None]:
+    def fetch_index(
+        self, api_host: str, local_image_info: DockerImageInfo, token: str | None
+    ) -> tuple[Any | None, str | None, CacheMetadata | None]:
         if local_image_info.tag:
             api_url: str = f"https://{api_host}/v2/{local_image_info.name}/manifests/{local_image_info.tag}"
-            cache_ttl: int = self.mutable_cache_ttl
+            cache_ttl: int | None = self.cfg.mutable_cache_ttl
         else:
             api_url = f"https://{api_host}/v2/{local_image_info.name}/manifests/{local_image_info.pinned_digest}"
-            cache_ttl = self.immutable_cache_ttl
+            cache_ttl = self.cfg.immutable_cache_ttl
 
         response: Response | None = fetch_url(
             api_url,
@@ -652,16 +606,16 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
                 response.headers.get(HEADER_DOCKER_API, "N/A"),
                 response.headers.get(HEADER_DOCKER_DIGEST, "N/A"),
             )
-            return index, response.headers.get(HEADER_DOCKER_DIGEST)
-        return None, None
+            return index, response.headers.get(HEADER_DOCKER_DIGEST), CacheMetadata(response)
+        return None, None, None
 
     def fetch_manifest(
         self, api_host: str, local_image_info: DockerImageInfo, media_type: str, digest: str, token: str | None
-    ) -> Any | None:
+    ) -> tuple[Any | None, CacheMetadata | None]:
         api_url = f"https://{api_host}/v2/{local_image_info.name}/manifests/{digest}"
         response = fetch_url(
             api_url,
-            cache_ttl=self.immutable_cache_ttl,
+            cache_ttl=self.cfg.immutable_cache_ttl,
             bearer_token=token,
             response_type=media_type,
         )
@@ -676,7 +630,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
                     len(manifest.get("layers", [])),
                     len(manifest.get("annotations", [])),
                 )
-                return manifest
+                return manifest, CacheMetadata(response)
         elif response and response.status_code == 429:
             self.throttler.throttle(local_image_info.index_name, raise_exception=True)
         elif response and not response.is_success:
@@ -686,7 +640,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
             )
         else:
             self.log.error("Empty response from %s", api_url)
-        return None
+        return None, None
 
     def lookup(
         self,
@@ -715,6 +669,8 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
 
         index: Any | None = None
         index_digest: str | None = None  # fetched from header, should be the image digest
+        index_cache_metadata: CacheMetadata | None = None
+        manifest_cache_metadata: CacheMetadata | None = None
         api_host: str | None = REGISTRIES.get(
             local_image_info.index_name, (local_image_info.index_name, local_image_info.index_name)
         )[1]
@@ -722,7 +678,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
             self.log("No API host can be determined for %s", local_image_info.index_name)
             return result
         try:
-            index, index_digest = self.fetch_index(api_host, local_image_info, token)
+            index, index_digest, index_cache_metadata = self.fetch_index(api_host, local_image_info, token)
         except ThrottledError:
             result.throttled = True
             index = None
@@ -744,9 +700,12 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
                     digest: str | None = m.get("digest")
                     media_type = m.get("mediaType")
                     manifest: Any | None = None
+
                     if digest:
                         try:
-                            manifest = self.fetch_manifest(api_host, local_image_info, media_type, digest, token)
+                            manifest, manifest_cache_metadata = self.fetch_manifest(
+                                api_host, local_image_info, media_type, digest, token
+                            )
                         except ThrottledError:
                             result.throttled = True
 
@@ -768,6 +727,10 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
 
         labels: dict[str, str | None] = cherrypick_annotations(local_image_info, result)
         result.custom = labels or {}
+        if index_cache_metadata:
+            result.custom["index_cache_age"] = str(index_cache_metadata.age) if index_cache_metadata.age else None
+        if manifest_cache_metadata:
+            result.custom["manifest_cache_age"] = str(manifest_cache_metadata.age) if manifest_cache_metadata.age else None
         result.version = labels.get("image_version")
         result.origin = "OCI_V2"
 
@@ -787,9 +750,10 @@ class DockerClientVersionLookup(VersionLookup):
     No auth needed, however uses the old v1 APIs, and only Index available via API
     """
 
-    def __init__(self, client: docker.DockerClient, throttler: Throttler, api_backoff: int = 30) -> None:
+    def __init__(self, client: docker.DockerClient, throttler: Throttler, cfg: RegistryConfig, api_backoff: int = 30) -> None:
         self.client: docker.DockerClient = client
         self.throttler: Throttler = throttler
+        self.cfg: RegistryConfig = cfg
         self.api_backoff: int = api_backoff
         self.log: Any = structlog.get_logger().bind(integration="docker", tool="version_lookup")
 

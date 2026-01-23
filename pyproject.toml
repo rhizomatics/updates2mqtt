@@ -18,7 +18,7 @@ dependencies = [
   "structlog>=25.4.0",
   "rich>=14.0.0",
   "httpx>=0.28.1",
-  "hishel[httpx]>=0.1.4",
+  "hishel[httpx]>=1.1.0",
   "usingversion>=0.1.2",
   "tzlocal>=5.3.1",
 ]

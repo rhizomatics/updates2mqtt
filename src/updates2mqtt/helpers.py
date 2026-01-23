@@ -5,6 +5,9 @@ from threading import Event
 from typing import Any
 
 import structlog
+from hishel import CacheOptions, SpecificationPolicy  # pyright: ignore[reportAttributeAccessIssue]
+from hishel.httpx import SyncCacheClient
+from httpx import Response
 from tzlocal import get_localzone
 
 from updates2mqtt.config import Selector
@@ -85,3 +88,69 @@ class Throttler:
         self.pause_api_until[index_name] = time.time() + retry_secs
         if raise_exception:
             raise ThrottledError(explanation or f"{index_name} throttled request", retry_secs)
+
+
+class CacheMetadata:
+    """Cache metadata extracted from hishel response extensions"""
+
+    def __init__(self, response: Response) -> None:
+        self.from_cache: bool = response.extensions.get("hishel_from_cache", False)
+        self.revalidated: bool = response.extensions.get("hishel_revalidated", False)
+        self.created_at: float | None = response.extensions.get("hishel_created_at")
+        self.stored: bool = response.extensions.get("hishel_stored", False)
+        self.age: float | None = None
+        if self.created_at is not None:
+            self.age = time.time() - self.created_at
+
+    def __str__(self) -> str:
+        """Summarize in a string"""
+        return f"cached: {self.from_cache}, revalidated: {self.revalidated}, age:{self.age}, stored:{self.stored}"
+
+
+def fetch_url(
+    url: str,
+    cache_ttl: int | None = None,  # default to server responses for cache ttl
+    bearer_token: str | None = None,
+    response_type: str | list[str] | None = None,
+    follow_redirects: bool = False,
+    method: str = "GET",
+) -> Response | None:
+    try:
+        headers = [("cache-control", f"max-age={cache_ttl}")]
+        if bearer_token:
+            headers.append(("Authorization", f"Bearer {bearer_token}"))
+        if response_type:
+            response_type = [response_type] if isinstance(response_type, str) else response_type
+            if response_type and isinstance(response_type, (tuple, list)):
+                headers.extend(("Accept", mime_type) for mime_type in response_type)
+
+        cache_policy = SpecificationPolicy(
+            cache_options=CacheOptions(
+                shared=False,  # Private browser cache
+                allow_stale=cache_ttl != 0,
+            )
+        )
+        with SyncCacheClient(headers=headers, follow_redirects=follow_redirects, policy=cache_policy) as client:
+            log.debug(f"Fetching URL {url}, redirects={follow_redirects}, headers={headers}, cache_ttl={cache_ttl}")
+            response: Response = client.request(method=method, url=url, extensions={"hishel_ttl": cache_ttl})
+            cache_metadata: CacheMetadata = CacheMetadata(response)
+            if not response.is_success:
+                log.debug("URL %s fetch returned non-success status: %s, %s", url, response.status_code, cache_metadata.stored)
+            elif response:
+                log.debug(
+                    "URL response: status: %s, cached: %s, revalidated: %s, cache age: %s, stored: %s",
+                    response.status_code,
+                    cache_metadata.from_cache,
+                    cache_metadata.revalidated,
+                    cache_metadata.age,
+                    cache_metadata.stored,
+                )
+            return response
+    except Exception as e:
+        log.debug("URL %s failed to fetch: %s", url, e)
+    return None
+
+
+def validate_url(url: str, cache_ttl: int = 300) -> bool:
+    response: Response | None = fetch_url(url, method="HEAD", cache_ttl=cache_ttl, follow_redirects=True)
+    return response is not None and response.status_code != 404

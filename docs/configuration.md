@@ -204,13 +204,13 @@ Docker API has [usage limits](https://docs.docker.com/docker-hub/usage/) which m
 
 `updates2mqtt` will back off if a `429` Too Many Requests response is received, and pause for that specific registry for the requested number of seconds. There's a default in `docker` config of `default_api_backoff` applied if the backoff can't be automatically determined.
 
-The main technique to avoid throttling is caching of responses, and fortunately many of the calls are cache friendly, such as the manifest retrieval. The config has these options:
+The main technique to avoid throttling is caching of responses, and fortunately many of the calls are cache friendly, such as the manifest retrieval. By default, responses will be cached as suggested by the registry API service ([explanation](https://hishel.com/1.1/specification/#how-it-works)), however this can be overridden with these options:
 
 | Config Key | Default | Comments |
 | ---------- | ------- | -------- |
-| `mutable_cache_ttl` | 900 (15 mins) | This is primarily the fetch of `latest` or similar tags to get new versions |
-| `immutable_cache_ttl` | 2592000 (30 days) | This is for anything fetched by a digest, such as image manifests. The only limitation for these should be storage space |
-| `token_cache_ttl` | 290 (4m 50secs) | Caching for authorization tokens, `docker.io` is good for 300 seconds, not all registries publish the life in the response |
+| `mutable_cache_ttl` | None | This is primarily the fetch of `latest` or similar tags to get new versions |
+| `immutable_cache_ttl` | 7776000 (90 days) | This is for anything fetched by a digest, such as image manifests. The only limitation for these should be storage space |
+| `token_cache_ttl` | None | Caching for authorization tokens, `docker.io` is good for 300 seconds, not all registries publish the life in the response |
 
 The cache, using [Hisel](https://hishel.com), is automatically cleaned up of old entries once the TTL (Time to Live) has expired.
 

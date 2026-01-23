@@ -85,7 +85,7 @@ ALL_OCI_MEDIA_TYPES: list[str] = (
 
 
 def dump_url(doc_type: str, img_ref: str) -> None:
-    lookup = ContainerDistributionAPIVersionLookup(Throttler())
+    lookup = ContainerDistributionAPIVersionLookup(Throttler(), RegistryConfig())
     img_info = DockerImageInfo(img_ref)
     if not img_info.index_name or not img_info.name:
         log.error("Unable to parse %ss", img_ref)

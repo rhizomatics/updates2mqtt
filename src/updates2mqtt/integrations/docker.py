@@ -141,14 +141,11 @@ class DockerProvider(ReleaseProvider):
             LinuxServerIOPackageEnricher(self.cfg),
             DefaultPackageEnricher(self.cfg),
         ]
-        self.docker_client_image_lookup = DockerClientVersionLookup(self.client, self.throttler, self.cfg.default_api_backoff)
-        self.registry_image_lookup = ContainerDistributionAPIVersionLookup(
-            self.throttler,
-            mutable_cache_ttl=self.cfg.registry.mutable_cache_ttl,
-            immutable_cache_ttl=self.cfg.registry.immutable_cache_ttl,
-            token_cache_ttl=self.cfg.registry.token_cache_ttl,
+        self.docker_client_image_lookup = DockerClientVersionLookup(
+            self.client, self.throttler, self.cfg.registry, self.cfg.default_api_backoff
         )
-        self.release_enricher = SourceReleaseEnricher(mutable_cache_ttl=self.cfg.registry.mutable_cache_ttl)
+        self.registry_image_lookup = ContainerDistributionAPIVersionLookup(self.throttler, self.cfg.registry)
+        self.release_enricher = SourceReleaseEnricher()
         self.local_info_builder = LocalContainerInfo()
 
     def initialize(self) -> None:

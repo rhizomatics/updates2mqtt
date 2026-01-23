@@ -49,8 +49,6 @@ docker:
      include:
      -  1\..*
   registry:
-    token_cache_ttl: 290
-    mutable_cache_ttl: 900
     immutable_cache_ttl: 2592000
     api: OCI_V2
 scan_interval: 10800

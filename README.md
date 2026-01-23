@@ -168,7 +168,7 @@ This component relies on several open source packages:
 - [Eclipse Paho](https://eclipse.dev/paho/files/paho.mqtt.python/html/client.html) MQTT client
 - [OmegaConf](https://omegaconf.readthedocs.io) for configuration and validation
 - [structlog](https://www.structlog.org/en/stable/) for structured logging and [rich](https://rich.readthedocs.io/en/stable/) for better exception reporting
-- [hishel](https://hishel.com/1.0/) for caching metadata
+- [hishel](https://hishel.com/) for caching metadata
 - [httpx](https://www.python-httpx.org) for retrieving metadata
 - The Astral [uv](https://docs.astral.sh/uv/) and [ruff](https://docs.astral.sh/ruff/) tools for development and build
 - [pytest](https://docs.pytest.org/en/stable/) and supporting add-ins for automated testing

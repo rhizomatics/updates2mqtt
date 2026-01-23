@@ -37,6 +37,10 @@ Github source repo releases and passed onto Home Assistant
 ### API Throttling
 - Throttling fixed for TTL taken from remote API
 - Docker provider shuffles the list of containers it scans so if there is aggressive throttling there isn't the same set of containers always getting scanned before the rate limit hits
+### Caching
+- Index and Manifest local cache age now reported on MQTT message
+- Additional logging and defaults for caching
+- Local cache TTL override can be removed by using `None` for cache_ttl in registry config
 
 ## 1.6.0
 ### MQTT Topics

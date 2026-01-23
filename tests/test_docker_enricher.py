@@ -4,7 +4,7 @@ import docker
 import pytest
 from pytest_httpx import HTTPXMock
 
-from updates2mqtt.config import DockerConfig, DockerPackageUpdateInfo, PackageUpdateInfo
+from updates2mqtt.config import DockerConfig, DockerPackageUpdateInfo, MetadataSourceConfig, PackageUpdateInfo, RegistryConfig
 from updates2mqtt.integrations.docker import Throttler
 from updates2mqtt.integrations.docker_enrich import (
     DIFF_URL_TEMPLATES,
@@ -180,7 +180,8 @@ def test_discover_metadata(httpx_mock: HTTPXMock) -> None:
             }
         }
     )
-    uut = LinuxServerIOPackageEnricher(DockerConfig())
+    cfg: DockerConfig = DockerConfig(discover_metadata={"linuxserver.io": MetadataSourceConfig(cache_ttl=0)})
+    uut = LinuxServerIOPackageEnricher(cfg)
     uut.initialize()
 
     assert "mctesty901" in uut.pkgs
@@ -193,7 +194,7 @@ def test_discover_metadata(httpx_mock: HTTPXMock) -> None:
 
 @pytest.mark.slow
 def test_label_enricher_ghcr(mock_throttler: Throttler) -> None:
-    uut = ContainerDistributionAPIVersionLookup(mock_throttler)
+    uut = ContainerDistributionAPIVersionLookup(mock_throttler, RegistryConfig())
     v: DockerImageInfo = uut.lookup(
         DockerImageInfo("ghcr.io/rhizomatics/updates2mqtt:1.6.0", attributes={"Os": "linux", "Architecture": "amd64"})
     )
@@ -202,28 +203,28 @@ def test_label_enricher_ghcr(mock_throttler: Throttler) -> None:
 
 @pytest.mark.slow
 def test_label_enricher_unqualified_docker(mock_throttler: Throttler) -> None:
-    uut = ContainerDistributionAPIVersionLookup(mock_throttler)
+    uut = ContainerDistributionAPIVersionLookup(mock_throttler, RegistryConfig())
     v: DockerImageInfo = uut.lookup(DockerImageInfo("docker:cli", attributes={"Os": "linux", "Architecture": "amd64"}))
     assert v.annotations["org.opencontainers.image.url"] == "https://hub.docker.com/_/docker"
 
 
 @pytest.mark.slow
 def test_label_enricher_vanilla_docker(mock_throttler: Throttler) -> None:
-    uut = ContainerDistributionAPIVersionLookup(mock_throttler)
+    uut = ContainerDistributionAPIVersionLookup(mock_throttler, RegistryConfig())
     v: DockerImageInfo = uut.lookup(DockerImageInfo("jellyfin/jellyfin", attributes={"Os": "linux", "Architecture": "amd64"}))
     assert v.annotations is not None
 
 
 @pytest.mark.slow
 def test_label_enricher_vanilla_docker_v1(mock_throttler: Throttler) -> None:
-    uut = DockerClientVersionLookup(docker.from_env(), mock_throttler)
+    uut = DockerClientVersionLookup(docker.from_env(), mock_throttler, RegistryConfig())
     v: DockerImageInfo = uut.lookup(DockerImageInfo("jellyfin/jellyfin", attributes={"Os": "linux", "Architecture": "amd64"}))
     assert v.annotations is not None
 
 
 @pytest.mark.slow
 def test_label_enricher_gitlab(mock_throttler: Throttler) -> None:
-    uut = ContainerDistributionAPIVersionLookup(mock_throttler)
+    uut = ContainerDistributionAPIVersionLookup(mock_throttler, RegistryConfig())
     v: DockerImageInfo = uut.lookup(
         DockerImageInfo("registry.gitlab.com/elad.bar/dahuavto2mqtt", attributes={"Os": "linux", "Architecture": "amd64"})
     )
@@ -459,7 +460,8 @@ def test_linuxserverio_enricher_disabled() -> None:
 def test_linuxserverio_enricher_handles_api_error(httpx_mock: HTTPXMock) -> None:
     """LinuxServerIOPackageEnricher should handle API errors gracefully"""
     httpx_mock.add_response(status_code=500)
-    cfg = DockerConfig()
+
+    cfg: DockerConfig = DockerConfig(discover_metadata={"linuxserver.io": MetadataSourceConfig(cache_ttl=0)})
     enricher = LinuxServerIOPackageEnricher(cfg)
     enricher.initialize()
 
@@ -470,7 +472,7 @@ def test_linuxserverio_enricher_handles_api_error(httpx_mock: HTTPXMock) -> None
 def test_linuxserverio_enricher_handles_empty_response(httpx_mock: HTTPXMock) -> None:
     """LinuxServerIOPackageEnricher should handle empty response"""
     httpx_mock.add_response(json={"data": {"repositories": {"linuxserver": []}}})
-    cfg = DockerConfig()
+    cfg: DockerConfig = DockerConfig(discover_metadata={"linuxserver.io": MetadataSourceConfig(cache_ttl=0)})
     enricher = LinuxServerIOPackageEnricher(cfg)
     enricher.initialize()
 
