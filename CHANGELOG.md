@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 1.7.2
+### Container Registry Checks
+- The Config document is now also pulled in, which means more images have annotations, nice versions and release notes
+- `OCI_V2_MINIMAL` option to make only the calls needed for version checks
+- Diagnostic code now distinguishes two ways that different digests are checked between old and new
+### CLI
+- Fixed issues with docker.io fetches
 ## 1.7.1
 - No code change, version changed to fix a pypi publish issue
 ## 1.7.0
@@ -28,7 +35,7 @@ Github source repo releases and passed onto Home Assistant
    - `VERSION`,`DIGEST` and `VERSION_DIGEST` can be used to fix on which fields to use
    - If the chosen option isn't available, next preference is for `version:digest` qualified version, falling back to whatever else is available
    - Version policy can be set at container level using `UPD2MQTT_VERSION_POLICY` env var or corresponding label
-- Version selection now has a diagnostic code that ties back to precisely which code used
+- Version selection now has a diagnostic code, `version_basis`, that ties back to precisely which code used
 ### Local Docker Image Enrichment
 - Metadata from local `org.opencontainers` labels published where available
 - Added more packages to common-packages, vector and greptime

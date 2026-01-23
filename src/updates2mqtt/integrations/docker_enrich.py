@@ -665,6 +665,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
         self,
         local_image_info: DockerImageInfo,
         token: str | None = None,
+        minimal: bool = False,
         **kwargs,  # noqa: ANN003, ARG002
     ) -> DockerImageInfo:
         result: DockerImageInfo = DockerImageInfo(local_image_info.ref)
@@ -690,6 +691,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
         index_digest: str | None = None  # fetched from header, should be the image digest
         index_cache_metadata: CacheMetadata | None = None
         manifest_cache_metadata: CacheMetadata | None = None
+        config_cache_metadata: CacheMetadata | None = None
         api_host: str | None = REGISTRIES.get(
             local_image_info.index_name, (local_image_info.index_name, local_image_info.index_name)
         )[1]
@@ -741,8 +743,8 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
                         else:
                             self.log.debug("No annotations found in manifest: %s", manifest)
 
-                        if manifest.get("config"):
-                            config, _config_cache = self.fetch_object(
+                        if not minimal and manifest.get("config"):
+                            config, config_cache_metadata = self.fetch_object(
                                 api_host,
                                 local_image_info,
                                 manifest["config"].get("mediaType"),
@@ -765,8 +767,10 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
             result.custom["index_cache_age"] = index_cache_metadata.age
         if manifest_cache_metadata:
             result.custom["manifest_cache_age"] = manifest_cache_metadata.age
+        if config_cache_metadata:
+            result.custom["config_cache_age"] = config_cache_metadata.age
         result.version = cast("str|None", labels.get("image_version"))
-        result.origin = "OCI_V2"
+        result.origin = "OCI_V2" if not minimal else "OCI_V2_MINIMAL"
 
         self.log.debug(
             "OCI_V2 Lookup for %s: short_digest:%s, repo_digest:%s, version: %s",

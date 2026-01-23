@@ -177,12 +177,15 @@ updates. Now by default it uses the more modern [OCI v2 Distribution API](https:
 
 The `api` option in Docker`registry` config can override this, set to `docker_client`,`oci_v2` or `disabled`.
 
-The OCI APIs require more network calls, typically one to retrieve a token, one for the image index, and then one
-for the platform specific manifest. On the other hand, well-developer images also provide annotations on these documents,
-which allow for direct links to release notes and source code, descriptions, semantic versions and more.
+The OCI APIs require more network calls, typically one to retrieve a token, one for the image index, which points to
+the platform specific manifest, and finally the config document. On the other hand, well-developer images also provide 
+annotations on these documents, which allow for direct links to release notes and source code, descriptions, semantic versions and more.
 
 Registries usually have an unauthenticated token system for authorization, this can be overridden per container using the
 `updates2mqtt.registry_token` container label or `UPD2MQTT_REGISTRY_TOKEN` environment variable.
+
+If the benefits of the extra calls ( release summaries, direct release note URLs, human friendly version numbers ), then
+the additional fetches can be skipped by using `OCI_V2_MINIMAL` as the `api` value in the registry configuration section.
 
 ## Too Many Requests
 
@@ -209,4 +212,10 @@ or a container name if one has been given ( easy to find out either of these wit
 ```bash
 python updates2mqtt.cli container=frigate
 python updates2mqtt.cli container=f4f02e182f5e api=docker_client
+python updates2mqtt.cli container=frigate
+python updates2mqtt.cli container=frigate api=docker_client
+python3 updates2mqtt/cli.py manifest=ghcr.io/blakeblackshear/frigate:stable
+python3 updates2mqtt/cli.py blob=ghcr.io/blakeblackshear/frigate@sha256:ef8d56a7d50b545af176e950ce328aec7f0b7bc5baebdca189fe661d97924980
+python3 updates2mqtt/cli.py manifest=ghcr.io/blakeblackshear/frigate@sha256:c68fd78fd3237c9ba81b5aa927f17b54f46705990f43b4b5d5596cfbbb626af4
+
 ```

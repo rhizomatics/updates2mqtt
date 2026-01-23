@@ -37,6 +37,7 @@ class LogLevel(StrEnum):
 
 class RegistryAPI(StrEnum):
     OCI_V2 = "OCI_V2"
+    OCI_V2_MINIMAL = "OCI_V2"
     DOCKER_CLIENT = "DOCKER_CLIENT"
     DISABLED = "DISABLED"
 

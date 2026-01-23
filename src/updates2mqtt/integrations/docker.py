@@ -321,6 +321,10 @@ class DockerProvider(ReleaseProvider):
                     latest_info = self.docker_client_image_lookup.lookup(local_info)
                 elif self.cfg.registry.api == RegistryAPI.OCI_V2:
                     latest_info = self.registry_image_lookup.lookup(local_info, token=customization.registry_token)
+                elif self.cfg.registry.api == RegistryAPI.OCI_V2_MINIMAL:
+                    latest_info = self.registry_image_lookup.lookup(
+                        local_info, token=customization.registry_token, minimal=True
+                    )
                 else:  # assuming RegistryAPI.DISABLED
                     logger.debug(f"Skipping registry check, disabled in config {self.cfg.registry.api}")
                     latest_info = local_info.reuse()
@@ -543,12 +547,19 @@ def select_versions(version_policy: VersionPolicy, installed: DockerImageInfo, l
         log.debug("Flattening versions for identical update %s", installed.ref)
         shortcircuit = "SDM"
         latest = installed
-    elif installed.image_digest in latest.repo_digests or latest.image_digest in installed.repo_digests:
+    elif installed.image_digest in latest.repo_digests:
         # TODO: avoid this by better adaptations for different registries and single/multi manifests
         log.debug(
-            "Switching round repo and image digests to cope with %s inconsistencies %s", installed.index_name, installed.name
+            "Matching new repo_digest against installed image digest for %s image %s", installed.index_name, installed.name
         )
-        shortcircuit = "FDG"
+        shortcircuit = "FGA"
+        latest = installed
+    elif latest.image_digest in installed.repo_digests:
+        # TODO: avoid this by better adaptations for different registries and single/multi manifests
+        log.debug(
+            "Matching new image_digest against installed repo digest for %s image %s", installed.index_name, installed.name
+        )
+        shortcircuit = "FGB"
         latest = installed
 
     if version_policy == VersionPolicy.VERSION and installed.version and latest.version:

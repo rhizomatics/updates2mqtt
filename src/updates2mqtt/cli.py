@@ -126,8 +126,8 @@ def dump_url(doc_type: str, img_ref: str) -> None:
             log.warning(response.content)
 
 
-def run_once_docker() -> None:
-    # will be a cli someday
+def main() -> None:
+    # will be a proper cli someday
     cli_conf = OmegaConf.from_cli()
     structlog.configure(wrapper_class=structlog.make_filtering_bound_logger("DEBUG"))
 
@@ -148,4 +148,4 @@ def run_once_docker() -> None:
 
 
 if __name__ == "__main__":
-    run_once_docker()
+    main()
