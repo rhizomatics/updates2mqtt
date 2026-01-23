@@ -1,5 +1,7 @@
 # CHANGELOG
 
+## 1.7.1
+- No code change, version changed to fix a pypi publish issue
 ## 1.7.0
 ### py3.14
 - Image now built with python 3.14 by default
