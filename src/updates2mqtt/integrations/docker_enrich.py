@@ -639,7 +639,18 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
             self.throttler.throttle(local_image_info.index_name, raise_exception=True)
         elif response and not response.is_success:
             api_data = httpx_json_content(response, {})
-            self.log.warning("Failed to fetch obj from %s: %s", api_url, api_data.get("errors") if api_data else response.text)
+            if response:
+                self.log.warning(
+                    "Failed to fetch obj from %s: %s %s",
+                    api_url,
+                    response.status_code,
+                    api_data.get("errors") if api_data else response.text,
+                )
+            else:
+                self.log.warning(
+                    "Failed to fetch obj from %s: No Response, %s", api_url, api_data.get("errors") if api_data else None
+                )
+
         else:
             self.log.error("Empty response from %s", api_url)
         return None, None
