@@ -98,13 +98,21 @@ def dump_url(doc_type: str, img_ref: str) -> None:
 
     api_host: str | None = REGISTRIES.get(img_info.index_name, (img_info.index_name, img_info.index_name))[1]
 
-    token: str | None = lookup.fetch_token(img_info.index_name, img_info.name)
     if doc_type == "blob":
+        if not img_info.pinned_digest:
+            log.warning("No digest found in %s", img_ref)
+            return
         url: str = f"https://{api_host}/v2/{img_info.name}/blobs/{img_info.pinned_digest}"
     elif doc_type == "manifest":
+        if not img_info.tag_or_digest:
+            log.warning("No tag or digest found in %s", img_ref)
+            return
         url = f"https://{api_host}/v2/{img_info.name}/manifests/{img_info.tag_or_digest}"
     else:
         return
+
+    token: str | None = lookup.fetch_token(img_info.index_name, img_info.name)
+
     response: Response | None = fetch_url(url, bearer_token=token, follow_redirects=True, response_type=ALL_OCI_MEDIA_TYPES)
     if response:
         log.debug(f"{response.status_code}: {url}")

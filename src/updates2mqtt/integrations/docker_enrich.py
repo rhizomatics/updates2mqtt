@@ -611,32 +611,35 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
             return index, response.headers.get(HEADER_DOCKER_DIGEST), CacheMetadata(response)
         return None, None, None
 
-    def fetch_manifest(
-        self, api_host: str, local_image_info: DockerImageInfo, media_type: str, digest: str, token: str | None
+    def fetch_object(
+        self,
+        api_host: str,
+        local_image_info: DockerImageInfo,
+        media_type: str,
+        digest: str,
+        token: str | None,
+        api_type: str = "manifests",
     ) -> tuple[Any | None, CacheMetadata | None]:
-        api_url = f"https://{api_host}/v2/{local_image_info.name}/manifests/{digest}"
+        api_url = f"https://{api_host}/v2/{local_image_info.name}/{api_type}/{digest}"
         response = fetch_url(
             api_url, cache_ttl=self.cfg.immutable_cache_ttl, bearer_token=token, response_type=media_type, allow_stale=True
         )
         if response and response.is_success:
-            manifest = httpx_json_content(response, None)
-            if manifest:
+            obj = httpx_json_content(response, None)
+            if obj:
                 self.log.debug(
-                    "MANIFEST %s, header digest:%s, api: %s, %s layers, %s annotations",
-                    digest,
+                    "%s, header digest:%s, api: %s, %s annotations",
+                    api_type.upper(),
                     response.headers.get(HEADER_DOCKER_DIGEST, "N/A"),
                     response.headers.get(HEADER_DOCKER_API, "N/A"),
-                    len(manifest.get("layers", [])),
-                    len(manifest.get("annotations", [])),
+                    len(obj.get("annotations", [])),
                 )
-                return manifest, CacheMetadata(response)
+                return obj, CacheMetadata(response)
         elif response and response.status_code == 429:
             self.throttler.throttle(local_image_info.index_name, raise_exception=True)
         elif response and not response.is_success:
             api_data = httpx_json_content(response, {})
-            self.log.warning(
-                "Failed to fetch manifest from %s: %s", api_url, api_data.get("errors") if api_data else response.text
-            )
+            self.log.warning("Failed to fetch obj from %s: %s", api_url, api_data.get("errors") if api_data else response.text)
         else:
             self.log.error("Empty response from %s", api_url)
         return None, None
@@ -702,7 +705,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
 
                     if digest:
                         try:
-                            manifest, manifest_cache_metadata = self.fetch_manifest(
+                            manifest, manifest_cache_metadata = self.fetch_object(
                                 api_host, local_image_info, media_type, digest, token
                             )
                         except ThrottledError:
@@ -720,6 +723,20 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
                             result.annotations.update(manifest.get("annotations", {}))
                         else:
                             self.log.debug("No annotations found in manifest: %s", manifest)
+
+                        if manifest.get("config"):
+                            config, _config_cache = self.fetch_object(
+                                api_host,
+                                local_image_info,
+                                manifest["config"].get("mediaType"),
+                                digest=manifest["config"].get("digest"),
+                                token=token,
+                                api_type="blobs",
+                            )
+                            if config:
+                                result.annotations.update(config.get("annotations", {}))
+                            else:
+                                self.log.debug("No annotations found in config: %s", manifest)
 
         if not result.annotations:
             self.log.debug("No annotations found from registry data")
