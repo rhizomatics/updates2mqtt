@@ -9,7 +9,7 @@ from docker.models.containers import Container
 from httpx import Response
 from omegaconf import MissingMandatoryValue, OmegaConf, ValidationError
 
-from updates2mqtt.helpers import CacheMetadata, ThrottledError, Throttler, fetch_url, validate_url
+from updates2mqtt.helpers import APIStats, CacheMetadata, ThrottledError, Throttler, fetch_url, validate_url
 from updates2mqtt.model import DiscoveryArtefactDetail, DiscoveryInstallationDetail, ReleaseDetail
 
 if typing.TYPE_CHECKING:
@@ -513,50 +513,6 @@ class VersionLookup:
     @abstractmethod
     def lookup(self, local_image_info: DockerImageInfo, **kwargs) -> DockerImageInfo:  # noqa: ANN003
         pass
-
-
-class APIStats:
-    def __init__(self) -> None:
-        self.fetches: int = 0
-        self.cached: int = 0
-        self.throttled: int = 0
-        self.revalidated: int = 0
-        self.failed: dict[int, int] = {}
-        self.elapsed: float = 0
-        self.max_cache_age: float | None = None
-
-    def tick(self, response: Response | None) -> None:
-        self.fetches += 1
-        if response is None:
-            self.failed.setdefault(0, 0)
-            self.failed[0] += 1
-            return
-        cache_metadata: CacheMetadata = CacheMetadata(response)
-        self.cached += 1 if cache_metadata.from_cache else 0
-        self.revalidated += 1 if cache_metadata.revalidated else 0
-        self.throttled += 1 if response.status_code == 429 else 0
-        if response.elapsed:
-            self.elapsed += response.elapsed.microseconds / 1000000
-            self.elapsed += response.elapsed.seconds
-        if not response.is_success:
-            self.failed.setdefault(response.status_code, 0)
-            self.failed[response.status_code] += 1
-        if cache_metadata.age is not None and (self.max_cache_age is None or cache_metadata.age > self.max_cache_age):
-            self.max_cache_age = cache_metadata.age
-
-    def hit_ratio(self) -> float:
-        return round(self.cached / self.fetches, 2) if self.cached and self.fetches else 0
-
-    def average_elapsed(self) -> float:
-        return round(self.elapsed / self.fetches, 2) if self.elapsed and self.fetches else 0
-
-    def __str__(self) -> str:
-        """Log line friendly string summary"""
-        return (
-            f"fetches: {self.fetches}, cache ratio: {self.hit_ratio:.2%}, revalidated: {self.revalidated}, "
-            + f"throttled:{self.throttled}, errors: {self.hit_ratio()}, oldest cache hit:{self.max_cache_age}"
-            + f"avg elapsed:{self.average_elapsed}"
-        )
 
 
 class ContainerDistributionAPIVersionLookup(VersionLookup):
