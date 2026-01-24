@@ -40,7 +40,7 @@ classifiers = [
 
 [project.scripts]
 updates2mqtt = "updates2mqtt.app:run"
-cli = "updates2mqtt.cli.main"
+cli = "updates2mqtt.cli:main"
 
 [tool.uv]
 compile-bytecode = true
