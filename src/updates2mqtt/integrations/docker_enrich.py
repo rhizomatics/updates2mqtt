@@ -531,8 +531,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
             api_stats.tick(response)
             self.fetches += 1
             if self.fetches % self.stats_report_interval == 0:
-                for host, stats in self.host_stats.items():
-                    self.log.info(f"OCI_V2 API: {host} {stats}")
+                self.log.info("OCI_V2 API: %s", "\n".join(f"{host} {stats}" for host, stats in self.host_stats.items()))
         except Exception as e:
             self.log.warning("Failed to tick stats: %s", e)
 
