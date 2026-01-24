@@ -497,6 +497,12 @@ def httpx_json_content(response: Response, default: Any = None) -> Any | None:
             return response.json()
         except Exception:
             log.debug("Failed to parse JSON response: %s", response.text)
+    elif response and response.headers.get("content-type", "") == "application/octet-stream":
+        # blob could return a gzip layer tarball, however assumed only index, manifest or config requested
+        try:
+            return response.json()
+        except Exception:
+            log.debug("Failed to parse assumed JSON response: %s", response.text)
     return default
 
 

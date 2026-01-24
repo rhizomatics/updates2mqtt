@@ -122,6 +122,8 @@ def dump_url(doc_type: str, img_ref: str) -> None:
         log.debug("CONTENTS")
         if "json" in response.headers.get("content-type", ""):
             log.debug(pformat(response.json()))
+        elif response.headers.get("content-type", "") == "application/octet-stream":
+            log.warning(pformat(response.json()))
         else:
             log.warning(response.content)
 
