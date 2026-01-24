@@ -523,6 +523,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
         self.fetched: int = 0
         self.cached: int = 0
         self.throttled: int = 0
+        self.revalidated: int = 0
         self.failed: dict[int, int] = {}
         self.max_cache_age: float | None = None
         self.stats_report_interval: int = 100
@@ -534,6 +535,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
             return
         cache_metadata: CacheMetadata = CacheMetadata(response)
         self.cached += 1 if cache_metadata.from_cache else 0
+        self.revalidated += 1 if cache_metadata.revalidated else 0
         self.throttled += 1 if response.status_code == 429 else 0
         if not response.is_success:
             self.failed.setdefault(response.status_code, 0)
@@ -541,9 +543,10 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
         if cache_metadata.age is not None and (self.max_cache_age is None or cache_metadata.age > self.max_cache_age):
             self.max_cache_age = cache_metadata.age
         if self.fetched % self.stats_report_interval == 0:
+            hit_ratio: float = self.cached / self.fetched if self.cached and self.fetched else 0
             self.log.info(
-                f"OCI_V2 API: fetched: {self.fetched}, cache ratio: {self.cached / self.fetched:.3%},"
-                f"throttled:{self.throttled}, errors: {self.failed}, oldest cache hit:{self.max_cache_age:d}"
+                f"OCI_V2 API: fetched: {self.fetched}, cache ratio: {hit_ratio:.3%}, revalidated: {self.revalidated}"
+                f"throttled:{self.throttled}, errors: {self.failed}, oldest cache hit:{self.max_cache_age}"
             )
 
     def fetch_token(self, registry: str, image_name: str) -> str | None:
