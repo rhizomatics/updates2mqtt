@@ -531,6 +531,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
     def stats(self, response: Response | None) -> None:
         self.fetched += 1
         if response is None:
+            self.failed.setdefault(0, 0)
             self.failed[0] += 1
             return
         cache_metadata: CacheMetadata = CacheMetadata(response)
