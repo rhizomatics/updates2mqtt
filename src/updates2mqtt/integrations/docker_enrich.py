@@ -544,9 +544,9 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
         if cache_metadata.age is not None and (self.max_cache_age is None or cache_metadata.age > self.max_cache_age):
             self.max_cache_age = cache_metadata.age
         if self.fetched % self.stats_report_interval == 0:
-            hit_ratio: float = self.cached / self.fetched if self.cached and self.fetched else 0
+            hit_ratio: float = round(self.cached / self.fetched) if self.cached and self.fetched else 0
             self.log.info(
-                f"OCI_V2 API: fetched: {self.fetched}, cache ratio: {hit_ratio:.3%}, revalidated: {self.revalidated}, "
+                f"OCI_V2 API: fetched: {self.fetched}, cache ratio: {hit_ratio:.2%}, revalidated: {self.revalidated}, "
                 f"throttled:{self.throttled}, errors: {self.failed}, oldest cache hit:{self.max_cache_age}"
             )
 
@@ -786,7 +786,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
                             self.log.debug("No annotations found in manifest: %s", manifest)
 
                         if not minimal and manifest.get("config"):
-                            config, config_cache_metadata = self.fetch_object(
+                            img_config, config_cache_metadata = self.fetch_object(
                                 api_host=api_host,
                                 local_image_info=local_image_info,
                                 media_type=manifest["config"].get("mediaType"),
@@ -795,9 +795,11 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
                                 follow_redirects=True,
                                 api_type="blobs",
                             )
-                            if config:
-                                result.annotations.update(config.get("config", {}).get("Labels", {}))
-                                result.annotations.update(config.get("annotations", {}))
+                            if img_config:
+                                config = img_config.get("config") or img_config.get("Config")
+                                if config and "Labels" in config:
+                                    result.annotations.update(config.get("Labels") or {})
+                                result.annotations.update(img_config.get("annotations") or {})
                             else:
                                 self.log.debug("No config found: %s", manifest)
 
