@@ -795,6 +795,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
                                 api_type="blobs",
                             )
                             if config:
+                                result.annotations.update(config.get("config", {}).get("Labels", {}))
                                 result.annotations.update(config.get("annotations", {}))
                             else:
                                 self.log.debug("No config found: %s", manifest)
