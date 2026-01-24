@@ -545,7 +545,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
         if self.fetched % self.stats_report_interval == 0:
             hit_ratio: float = self.cached / self.fetched if self.cached and self.fetched else 0
             self.log.info(
-                f"OCI_V2 API: fetched: {self.fetched}, cache ratio: {hit_ratio:.3%}, revalidated: {self.revalidated}"
+                f"OCI_V2 API: fetched: {self.fetched}, cache ratio: {hit_ratio:.3%}, revalidated: {self.revalidated}, "
                 f"throttled:{self.throttled}, errors: {self.failed}, oldest cache hit:{self.max_cache_age}"
             )
 
@@ -786,9 +786,9 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
 
                         if not minimal and manifest.get("config"):
                             config, config_cache_metadata = self.fetch_object(
-                                api_host,
-                                local_image_info,
-                                manifest["config"].get("mediaType"),
+                                api_host=api_host,
+                                local_image_info=local_image_info,
+                                media_type=manifest["config"].get("mediaType"),
                                 digest=manifest["config"].get("digest"),
                                 token=token,
                                 follow_redirects=True,
@@ -797,7 +797,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
                             if config:
                                 result.annotations.update(config.get("annotations", {}))
                             else:
-                                self.log.debug("No annotations found in config: %s", manifest)
+                                self.log.debug("No config found: %s", manifest)
 
         if not result.annotations:
             self.log.debug("No annotations found from registry data")

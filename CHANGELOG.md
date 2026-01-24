@@ -5,8 +5,11 @@
 - The Config document is now also pulled in, which means more images have annotations, nice versions and release notes
 - `OCI_V2_MINIMAL` option to make only the calls needed for version checks
 - Diagnostic code now distinguishes two ways that different digests are checked between old and new
+- Stats now tallied for all registry URL calls, and periodically logged
 ### CLI
 - Fixed issues with docker.io fetches
+- Colourful and jq friendly JSON output
+- Log level now defaults to WARNING to make it easier to pipe results to `jq`, can change to see headers using `log_level=DEBUG`
 ## 1.7.1
 - No code change, version changed to fix a pypi publish issue
 ## 1.7.0

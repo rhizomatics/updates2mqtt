@@ -1,8 +1,8 @@
-from pprint import pformat
 from typing import TYPE_CHECKING
 
 import structlog
-from omegaconf import OmegaConf
+from omegaconf import DictConfig, OmegaConf
+from rich import print_json
 
 from updates2mqtt.config import DockerConfig, NodeConfig, RegistryConfig
 from updates2mqtt.helpers import Throttler
@@ -26,7 +26,9 @@ Super simple CLI
 
 python updates2mqtt.cli container=frigate
 
-python updates2mqtt.cli container=frigate api=docker_client
+python updates2mqtt.cli container=frigate api=docker_client log_level=DEBUG
+
+ython3 updates2mqtt/cli.py blob=ghcr.io/homarr-labs/homarr@sha256:af79a3339de5ed8ef7f5a0186ff3deb86f40b213ba75249291f2f68aef082a25 | jq '.config.Labels'
 
 python3 updates2mqtt/cli.py manifest=ghcr.io/blakeblackshear/frigate:stable
 
@@ -120,18 +122,13 @@ def dump_url(doc_type: str, img_ref: str) -> None:
         for k, v in response.headers.items():
             log.debug(f"{k}: {v}")
         log.debug("CONTENTS")
-        if "json" in response.headers.get("content-type", ""):
-            log.debug(pformat(response.json()))
-        elif response.headers.get("content-type", "") == "application/octet-stream":
-            log.warning(pformat(response.json()))
-        else:
-            log.warning(response.content)
+        print_json(response.text)
 
 
 def main() -> None:
     # will be a proper cli someday
-    cli_conf = OmegaConf.from_cli()
-    structlog.configure(wrapper_class=structlog.make_filtering_bound_logger("DEBUG"))
+    cli_conf: DictConfig = OmegaConf.from_cli()
+    structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(cli_conf.get("log_level", "WARNING")))
 
     if cli_conf.get("blob"):
         dump_url("blob", cli_conf.get("blob"))
