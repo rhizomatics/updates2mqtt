@@ -203,6 +203,7 @@ class MqttPublisher:
     async def execute_command(
         self, msg: MQTTMessage | LocalMessage, on_update_start: Callable, on_update_end: Callable
     ) -> None:
+        # TODO: defer handling of commands where repository is throttled
         logger = self.log.bind(topic=msg.topic, payload=msg.payload)
         comp_name: str | None = None
         command: str | None = None
