@@ -496,10 +496,10 @@ class DockerProvider(ReleaseProvider):
                     logger.info("Starting update ...")
                     on_update_start(discovery)
                     if self.update(discovery):
-                        logger.info("Rescanning ...")
+                        logger.debug("Rescanning ...")
                         rediscovery = self.rescan(discovery)
-                        updated = rediscovery is not None
-                        logger.info("Rescanned %s: %s", updated, rediscovery)
+                        updated = rediscovery is not None and not rediscovery.throttled
+                        logger.info("Rescanned, updated:%s", updated)
                     else:
                         logger.info("Rescan with no result")
                     on_update_end(rediscovery or discovery)
