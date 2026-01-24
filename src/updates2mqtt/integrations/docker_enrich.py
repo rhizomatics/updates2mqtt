@@ -9,7 +9,7 @@ from docker.models.containers import Container
 from httpx import Response
 from omegaconf import MissingMandatoryValue, OmegaConf, ValidationError
 
-from updates2mqtt.helpers import APIStats, CacheMetadata, ThrottledError, Throttler, fetch_url, validate_url
+from updates2mqtt.helpers import APIStatsCounter, CacheMetadata, ThrottledError, Throttler, fetch_url, validate_url
 from updates2mqtt.model import DiscoveryArtefactDetail, DiscoveryInstallationDetail, ReleaseDetail
 
 if typing.TYPE_CHECKING:
@@ -520,20 +520,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
         self.throttler: Throttler = throttler
         self.cfg: RegistryConfig = cfg
         self.log: Any = structlog.get_logger().bind(integration="docker", tool="version_lookup")
-        self.host_stats: dict[str, APIStats] = {}
-        self.fetches: int = 0
-        self.stats_report_interval: int = 100
-
-    def stats(self, response: Response | None) -> None:
-        try:
-            host: str = response.request.url.host if response and response.request and response.request.url else "UNKNOWN"
-            api_stats = self.host_stats.setdefault(host, APIStats())
-            api_stats.tick(response)
-            self.fetches += 1
-            if self.fetches % self.stats_report_interval == 0:
-                self.log.info("OCI_V2 API: %s", "\n".join(f"{host} {stats}" for host, stats in self.host_stats.items()))
-        except Exception as e:
-            self.log.warning("Failed to tick stats: %s", e)
+        self.api_stats = APIStatsCounter()
 
     def fetch_token(self, registry: str, image_name: str) -> str | None:
         default_host: tuple[str, str, str, str] = (registry, registry, registry, TOKEN_URL_TEMPLATE)
@@ -544,9 +531,10 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
         service: str = REGISTRIES.get(registry, default_host)[2]
         url_template: str = REGISTRIES.get(registry, default_host)[3]
         auth_url: str = url_template.format(auth_host=auth_host, image_name=image_name, service=service)
-        response: Response | None = fetch_url(auth_url, cache_ttl=self.cfg.token_cache_ttl, follow_redirects=True)
+        response: Response | None = fetch_url(
+            auth_url, cache_ttl=self.cfg.token_cache_ttl, follow_redirects=True, api_stats_counter=self.api_stats
+        )
 
-        self.stats(response)
         if response and response.is_success:
             api_data = httpx_json_content(response, {})
             token: str | None = api_data.get("token") if api_data else None
@@ -564,8 +552,13 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
             self.log.debug(
                 "Default token URL %s not found, calling /v2 endpoint to validate OCI API and provoke auth", auth_url
             )
-            response = fetch_url(f"https://{auth_host}/v2", follow_redirects=True, allow_stale=False, cache_ttl=0)
-            self.stats(response)
+            response = fetch_url(
+                f"https://{auth_host}/v2",
+                follow_redirects=True,
+                allow_stale=False,
+                cache_ttl=0,
+                api_stats_counter=self.api_stats,
+            )
 
         if response and response.status_code == 401:
             auth = response.headers.get("www-authenticate")
@@ -579,8 +572,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
 
             realm, service, scope = match.groups()
             auth_url = f"{realm}?service={service}&scope={scope}"
-            response = fetch_url(auth_url, follow_redirects=True)
-            self.stats(response)
+            response = fetch_url(auth_url, follow_redirects=True, api_stats_counter=self.api_stats)
 
             if response and response.is_success:
                 token_data = response.json()
@@ -612,8 +604,9 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
                 "application/vnd.oci.image.index.v1+json",
                 "application/vnd.docker.distribution.manifest.list.v2+json",
             ],
+            api_stats_counter=self.api_stats,
         )
-        self.stats(response)
+
         if response is None:
             self.log.warning("Empty response for manifest for image at %s", api_url)
         elif response.status_code == 429:
@@ -655,8 +648,9 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
             response_type=media_type,
             allow_stale=True,
             follow_redirects=follow_redirects,
+            api_stats_counter=self.api_stats,
         )
-        self.stats(response)
+
         if response and response.is_success:
             obj = httpx_json_content(response, None)
             if obj:

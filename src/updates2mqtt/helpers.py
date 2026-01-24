@@ -3,6 +3,7 @@ import re
 import time
 from threading import Event
 from typing import Any
+from urllib.parse import urlparse
 
 import structlog
 from hishel import CacheOptions, SpecificationPolicy  # pyright: ignore[reportAttributeAccessIssue]
@@ -107,56 +108,6 @@ class CacheMetadata:
         return f"cached: {self.from_cache}, revalidated: {self.revalidated}, age:{self.age}, stored:{self.stored}"
 
 
-def fetch_url(
-    url: str,
-    cache_ttl: int | None = None,  # default to server responses for cache ttl
-    bearer_token: str | None = None,
-    response_type: str | list[str] | None = None,
-    follow_redirects: bool = False,
-    allow_stale: bool = False,
-    method: str = "GET",
-) -> Response | None:
-    try:
-        headers = [("cache-control", f"max-age={cache_ttl}")]
-        if bearer_token:
-            headers.append(("Authorization", f"Bearer {bearer_token}"))
-        if response_type:
-            response_type = [response_type] if isinstance(response_type, str) else response_type
-            if response_type and isinstance(response_type, (tuple, list)):
-                headers.extend(("Accept", mime_type) for mime_type in response_type)
-
-        cache_policy = SpecificationPolicy(
-            cache_options=CacheOptions(
-                shared=False,  # Private browser cache
-                allow_stale=allow_stale,
-            )
-        )
-        with SyncCacheClient(headers=headers, follow_redirects=follow_redirects, policy=cache_policy) as client:
-            log.debug(f"Fetching URL {url}, redirects={follow_redirects}, headers={headers}, cache_ttl={cache_ttl}")
-            response: Response = client.request(method=method, url=url, extensions={"hishel_ttl": cache_ttl})
-            cache_metadata: CacheMetadata = CacheMetadata(response)
-            if not response.is_success:
-                log.debug("URL %s fetch returned non-success status: %s, %s", url, response.status_code, cache_metadata.stored)
-            elif response:
-                log.debug(
-                    "URL response: status: %s, cached: %s, revalidated: %s, cache age: %s, stored: %s",
-                    response.status_code,
-                    cache_metadata.from_cache,
-                    cache_metadata.revalidated,
-                    cache_metadata.age,
-                    cache_metadata.stored,
-                )
-            return response
-    except Exception as e:
-        log.debug("URL %s failed to fetch: %s", url, e)
-    return None
-
-
-def validate_url(url: str, cache_ttl: int = 300) -> bool:
-    response: Response | None = fetch_url(url, method="HEAD", cache_ttl=cache_ttl, follow_redirects=True)
-    return response is not None and response.status_code != 404
-
-
 class APIStats:
     def __init__(self) -> None:
         self.fetches: int = 0
@@ -197,3 +148,79 @@ class APIStats:
             + f"errors: {', '.join(f'{status_code}:{fails}' for status_code, fails in self.failed.items())}, "
             + f"oldest cache hit: {self.max_cache_age}, avg elapsed: {self.average_elapsed()}"
         )
+
+
+class APIStatsCounter:
+    def __init__(self) -> None:
+        self.stats_report_interval: int = 100
+        self.host_stats: dict[str, APIStats] = {}
+        self.fetches: int = 0
+        self.log: Any = structlog.get_logger().bind()
+
+    def stats(self, url: str, response: Response | None) -> None:
+        try:
+            host: str = urlparse(url).hostname or "UNKNOWN"
+            api_stats: APIStats = self.host_stats.setdefault(host, APIStats())
+            api_stats.tick(response)
+            self.fetches += 1
+            if self.fetches % self.stats_report_interval == 0:
+                self.log.info(
+                    "OCI_V2 API Stats Summary\n%s", "\n".join(f"{host} {stats}" for host, stats in self.host_stats.items())
+                )
+        except Exception as e:
+            self.log.warning("Failed to tick stats: %s", e)
+
+
+def fetch_url(
+    url: str,
+    cache_ttl: int | None = None,  # default to server responses for cache ttl
+    bearer_token: str | None = None,
+    response_type: str | list[str] | None = None,
+    follow_redirects: bool = False,
+    allow_stale: bool = False,
+    method: str = "GET",
+    api_stats_counter: APIStatsCounter | None = None,
+) -> Response | None:
+    try:
+        headers = [("cache-control", f"max-age={cache_ttl}")]
+        if bearer_token:
+            headers.append(("Authorization", f"Bearer {bearer_token}"))
+        if response_type:
+            response_type = [response_type] if isinstance(response_type, str) else response_type
+            if response_type and isinstance(response_type, (tuple, list)):
+                headers.extend(("Accept", mime_type) for mime_type in response_type)
+
+        cache_policy = SpecificationPolicy(
+            cache_options=CacheOptions(
+                shared=False,  # Private browser cache
+                allow_stale=allow_stale,
+            )
+        )
+        with SyncCacheClient(headers=headers, follow_redirects=follow_redirects, policy=cache_policy) as client:
+            log.debug(f"Fetching URL {url}, redirects={follow_redirects}, headers={headers}, cache_ttl={cache_ttl}")
+            response: Response = client.request(method=method, url=url, extensions={"hishel_ttl": cache_ttl})
+            cache_metadata: CacheMetadata = CacheMetadata(response)
+            if not response.is_success:
+                log.debug("URL %s fetch returned non-success status: %s, %s", url, response.status_code, cache_metadata.stored)
+            elif response:
+                log.debug(
+                    "URL response: status: %s, cached: %s, revalidated: %s, cache age: %s, stored: %s",
+                    response.status_code,
+                    cache_metadata.from_cache,
+                    cache_metadata.revalidated,
+                    cache_metadata.age,
+                    cache_metadata.stored,
+                )
+            if api_stats_counter:
+                api_stats_counter.stats(url, response)
+            return response
+    except Exception as e:
+        log.debug("URL %s failed to fetch: %s", url, e)
+        if api_stats_counter:
+            api_stats_counter.stats(url, None)
+    return None
+
+
+def validate_url(url: str, cache_ttl: int = 300) -> bool:
+    response: Response | None = fetch_url(url, method="HEAD", cache_ttl=cache_ttl, follow_redirects=True)
+    return response is not None and response.status_code != 404

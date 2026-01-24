@@ -5,7 +5,7 @@ from unittest.mock import Mock
 from httpx import Response
 
 from updates2mqtt.config import Selector
-from updates2mqtt.helpers import APIStats, Selection, timestamp
+from updates2mqtt.helpers import APIStats, APIStatsCounter, Selection, timestamp
 
 # === Selection Filtering Tests ===
 
@@ -328,3 +328,15 @@ def test_api_stats_average_elapsed_calculation() -> None:
     stats.tick(_mock_response(elapsed_seconds=3.0))
 
     assert stats.average_elapsed() == 2.0
+
+
+def test_api_stats_counter_handles_bad_url() -> None:
+    uut = APIStatsCounter()
+    uut.stats("bad_url_to_test", _mock_response())
+    assert uut.host_stats["UNKNOWN"].fetches == 1
+
+
+def test_api_stats_counter_handles_good_url() -> None:
+    uut = APIStatsCounter()
+    uut.stats("https://docker.io/v3/api/manifest/foo", _mock_response())
+    assert uut.host_stats["docker.io"].fetches == 1
