@@ -515,21 +515,18 @@ class VersionLookup:
         pass
 
 
-class ContainerDistributionAPIVersionLookup(VersionLookup):
-    def __init__(self, throttler: Throttler, cfg: RegistryConfig) -> None:
-        self.throttler: Throttler = throttler
-        self.cfg: RegistryConfig = cfg
-        self.log: Any = structlog.get_logger().bind(integration="docker", tool="version_lookup")
-        self.fetched: int = 0
+class APIStats:
+    def __init__(self) -> None:
+        self.fetches: int = 0
         self.cached: int = 0
         self.throttled: int = 0
         self.revalidated: int = 0
         self.failed: dict[int, int] = {}
+        self.elapsed: float = 0
         self.max_cache_age: float | None = None
-        self.stats_report_interval: int = 100
 
-    def stats(self, response: Response | None) -> None:
-        self.fetched += 1
+    def tick(self, response: Response | None) -> None:
+        self.fetches += 1
         if response is None:
             self.failed.setdefault(0, 0)
             self.failed[0] += 1
@@ -538,17 +535,50 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
         self.cached += 1 if cache_metadata.from_cache else 0
         self.revalidated += 1 if cache_metadata.revalidated else 0
         self.throttled += 1 if response.status_code == 429 else 0
+        if response.elapsed:
+            self.elapsed += response.elapsed.microseconds / 1000000
+            self.elapsed += response.elapsed.seconds
         if not response.is_success:
             self.failed.setdefault(response.status_code, 0)
             self.failed[response.status_code] += 1
         if cache_metadata.age is not None and (self.max_cache_age is None or cache_metadata.age > self.max_cache_age):
             self.max_cache_age = cache_metadata.age
-        if self.fetched % self.stats_report_interval == 0:
-            hit_ratio: float = round(self.cached / self.fetched) if self.cached and self.fetched else 0
-            self.log.info(
-                f"OCI_V2 API: fetched: {self.fetched}, cache ratio: {hit_ratio:.2%}, revalidated: {self.revalidated}, "
-                f"throttled:{self.throttled}, errors: {self.failed}, oldest cache hit:{self.max_cache_age}"
-            )
+
+    def hit_ratio(self) -> float:
+        return round(self.cached / self.fetches, 2) if self.cached and self.fetches else 0
+
+    def average_elapsed(self) -> float:
+        return round(self.elapsed / self.fetches, 2) if self.elapsed and self.fetches else 0
+
+    def __str__(self) -> str:
+        """Log line friendly string summary"""
+        return (
+            f"fetches: {self.fetches}, cache ratio: {self.hit_ratio:.2%}, revalidated: {self.revalidated}, "
+            + f"throttled:{self.throttled}, errors: {self.hit_ratio()}, oldest cache hit:{self.max_cache_age}"
+            + f"avg elapsed:{self.average_elapsed}"
+        )
+
+
+class ContainerDistributionAPIVersionLookup(VersionLookup):
+    def __init__(self, throttler: Throttler, cfg: RegistryConfig) -> None:
+        self.throttler: Throttler = throttler
+        self.cfg: RegistryConfig = cfg
+        self.log: Any = structlog.get_logger().bind(integration="docker", tool="version_lookup")
+        self.host_stats: dict[str, APIStats] = {}
+        self.fetches: int = 0
+        self.stats_report_interval: int = 100
+
+    def stats(self, response: Response | None) -> None:
+        try:
+            host: str = response.request.url.host if response and response.request and response.request.url else "UNKNOWN"
+            api_stats = self.host_stats.setdefault(host, APIStats())
+            api_stats.tick(response)
+            self.fetches += 1
+            if self.fetches % self.stats_report_interval == 0:
+                for host, stats in self.host_stats.items():
+                    self.log.info(f"OCI_V2 API: {host} {stats}")
+        except Exception as e:
+            self.log.warning("Failed to tick stats: %s", e)
 
     def fetch_token(self, registry: str, image_name: str) -> str | None:
         default_host: tuple[str, str, str, str] = (registry, registry, registry, TOKEN_URL_TEMPLATE)

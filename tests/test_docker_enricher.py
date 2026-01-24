@@ -208,7 +208,7 @@ def test_label_enricher_unqualified_docker(mock_throttler: Throttler) -> None:
     assert v.annotations["org.opencontainers.image.url"] == "https://hub.docker.com/_/docker"
 
 
-@pytest.mark.slow
+@pytest.mark.slowX
 def test_label_enricher_vanilla_docker(mock_throttler: Throttler) -> None:
     uut = ContainerDistributionAPIVersionLookup(mock_throttler, RegistryConfig())
     v: DockerImageInfo = uut.lookup(DockerImageInfo("jellyfin/jellyfin", attributes={"Os": "linux", "Architecture": "amd64"}))
