@@ -525,6 +525,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
         self.throttled: int = 0
         self.failed: int = 0
         self.max_cache_age: float | None = None
+        self.stats_report_interval: int = 100
 
     def stats(self, response: Response | None) -> None:
         self.fetched += 1
@@ -537,10 +538,10 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
         self.failed += 1 if not response.is_success else 0
         if cache_metadata.age is not None and (self.max_cache_age is None or cache_metadata.age > self.max_cache_age):
             self.max_cache_age = cache_metadata.age
-        if self.fetched % 20 == 0:
+        if self.fetched % self.stats_report_interval == 0:
             self.log.info(
-                f"OCIV2APIStats: fetched: {self.fetched}, cache ratio: {self.cached / self.fetched},"
-                "errors: {self.failed},throttled:{self.throttled}, oldest cache hit:{self.max_cache_age}"
+                f"OCI_V2 API: fetched: {self.fetched}, cache ratio: {self.cached / self.fetched:.3f},"
+                f"errors: {self.failed},throttled:{self.throttled}, oldest cache hit:{self.max_cache_age}"
             )
 
     def fetch_token(self, registry: str, image_name: str) -> str | None:
