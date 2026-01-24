@@ -217,6 +217,7 @@ def test_api_stats_tick_throttled_response() -> None:
     assert stats.fetches == 1
     assert 429 in stats.failed
     assert stats.failed[429] == 1
+    assert "429:1" in str(stats)
 
 
 def test_api_stats_tick_failed_response() -> None:
@@ -229,6 +230,7 @@ def test_api_stats_tick_failed_response() -> None:
     assert stats.fetches == 1
     assert 500 in stats.failed
     assert stats.failed[500] == 1
+    assert "500:1" in str(stats)
 
 
 def test_api_stats_tick_none_response() -> None:

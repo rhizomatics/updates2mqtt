@@ -194,5 +194,6 @@ class APIStats:
         """Log line friendly string summary"""
         return (
             f"fetches: {self.fetches}, cache ratio: {self.hit_ratio():.2%}, revalidated: {self.revalidated}, "
-            + f"errors: {self.failed}, oldest cache hit: {self.max_cache_age}, avg elapsed: {self.average_elapsed()}"
+            + f"errors: {', '.join(f'{status_code}:{fails}' for status_code, fails in self.failed.items())}, "
+            + f"oldest cache hit: {self.max_cache_age}, avg elapsed: {self.average_elapsed()}"
         )
