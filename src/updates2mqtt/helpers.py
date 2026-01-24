@@ -115,7 +115,7 @@ class APIStats:
         self.revalidated: int = 0
         self.failed: dict[int, int] = {}
         self.elapsed: float = 0
-        self.max_cache_age: float | None = None
+        self.max_cache_age: float = 0
 
     def tick(self, response: Response | None) -> None:
         self.fetches += 1
