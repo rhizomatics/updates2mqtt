@@ -1,6 +1,8 @@
 # CHANGELOG
 
 ## 1.7.2
+### API Stats
+- OCI v2 API client maintains api stats per host, and errors per status code, with a cache hit ratio and avg elapsed time
 ### Container Registry Checks
 - The Config document is now also pulled in, which means more images have annotations, nice versions and release notes
 - `OCI_V2_MINIMAL` option to make only the calls needed for version checks
