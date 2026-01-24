@@ -786,22 +786,25 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
                             self.log.debug("No annotations found in manifest: %s", manifest)
 
                         if not minimal and manifest.get("config"):
-                            img_config, config_cache_metadata = self.fetch_object(
-                                api_host=api_host,
-                                local_image_info=local_image_info,
-                                media_type=manifest["config"].get("mediaType"),
-                                digest=manifest["config"].get("digest"),
-                                token=token,
-                                follow_redirects=True,
-                                api_type="blobs",
-                            )
-                            if img_config:
-                                config = img_config.get("config") or img_config.get("Config")
-                                if config and "Labels" in config:
-                                    result.annotations.update(config.get("Labels") or {})
-                                result.annotations.update(img_config.get("annotations") or {})
-                            else:
-                                self.log.debug("No config found: %s", manifest)
+                            try:
+                                img_config, config_cache_metadata = self.fetch_object(
+                                    api_host=api_host,
+                                    local_image_info=local_image_info,
+                                    media_type=manifest["config"].get("mediaType"),
+                                    digest=manifest["config"].get("digest"),
+                                    token=token,
+                                    follow_redirects=True,
+                                    api_type="blobs",
+                                )
+                                if img_config:
+                                    config = img_config.get("config") or img_config.get("Config")
+                                    if config and "Labels" in config:
+                                        result.annotations.update(config.get("Labels") or {})
+                                    result.annotations.update(img_config.get("annotations") or {})
+                                else:
+                                    self.log.debug("No config found: %s", manifest)
+                            except Exception as e:
+                                self.log.warning("Failed to extract %s image info from config: %s", local_image_info.ref, e)
 
         if not result.annotations:
             self.log.debug("No annotations found from registry data")
