@@ -520,6 +520,28 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
         self.throttler: Throttler = throttler
         self.cfg: RegistryConfig = cfg
         self.log: Any = structlog.get_logger().bind(integration="docker", tool="version_lookup")
+        self.fetched: int = 0
+        self.cached: int = 0
+        self.throttled: int = 0
+        self.failed: int = 0
+        self.max_cache_age: float | None = None
+
+    def stats(self, response: Response | None) -> None:
+        self.fetched += 1
+        if response is None:
+            self.failed += 1
+            return
+        cache_metadata: CacheMetadata = CacheMetadata(response)
+        self.cached += 1 if cache_metadata.from_cache else 0
+        self.throttled += 1 if response.status_code == 429 else 0
+        self.failed += 1 if not response.is_success else 0
+        if cache_metadata.age is not None and (self.max_cache_age is None or cache_metadata.age > self.max_cache_age):
+            self.max_cache_age = cache_metadata.age
+        if self.fetched % 20 == 0:
+            self.log.info(
+                f"OCIV2APIStats: fetched: {self.fetched}, cache ratio: {self.cached / self.fetched},"
+                "errors: {self.failed},throttled:{self.throttled}, oldest cache hit:{self.max_cache_age}"
+            )
 
     def fetch_token(self, registry: str, image_name: str) -> str | None:
         default_host: tuple[str, str, str, str] = (registry, registry, registry, TOKEN_URL_TEMPLATE)
@@ -531,6 +553,8 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
         url_template: str = REGISTRIES.get(registry, default_host)[3]
         auth_url: str = url_template.format(auth_host=auth_host, image_name=image_name, service=service)
         response: Response | None = fetch_url(auth_url, cache_ttl=self.cfg.token_cache_ttl, follow_redirects=True)
+
+        self.stats(response)
         if response and response.is_success:
             api_data = httpx_json_content(response, {})
             token: str | None = api_data.get("token") if api_data else None
@@ -548,7 +572,8 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
             self.log.debug(
                 "Default token URL %s not found, calling /v2 endpoint to validate OCI API and provoke auth", auth_url
             )
-            response = fetch_url(f"https://{auth_host}/v2", follow_redirects=True)
+            response = fetch_url(f"https://{auth_host}/v2", follow_redirects=True, allow_stale=False, cache_ttl=0)
+            self.stats(response)
 
         if response and response.status_code == 401:
             auth = response.headers.get("www-authenticate")
@@ -563,6 +588,8 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
             realm, service, scope = match.groups()
             auth_url = f"{realm}?service={service}&scope={scope}"
             response = fetch_url(auth_url, follow_redirects=True)
+            self.stats(response)
+
             if response and response.is_success:
                 token_data = response.json()
                 self.log.debug("Fetched registry token from %s", auth_url)
@@ -594,6 +621,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
                 "application/vnd.docker.distribution.manifest.list.v2+json",
             ],
         )
+        self.stats(response)
         if response is None:
             self.log.warning("Empty response for manifest for image at %s", api_url)
         elif response.status_code == 429:
@@ -636,6 +664,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
             allow_stale=True,
             follow_redirects=follow_redirects,
         )
+        self.stats(response)
         if response and response.is_success:
             obj = httpx_json_content(response, None)
             if obj:
