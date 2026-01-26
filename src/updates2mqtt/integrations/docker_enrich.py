@@ -470,6 +470,15 @@ class SourceReleaseEnricher:
             base_api = detail.source_repo_url.replace("https://github.com", "https://api.github.com/repos")
 
             api_response: Response | None = fetch_url(f"{base_api}/releases/tags/{detail.version}")
+            if api_response and api_response.status_code == 404:
+                # possible that source version doesn't match release gag
+                alt_api_response: Response | None = fetch_url(f"{base_api}/releases/tags/latest")
+                if alt_api_response and alt_api_response.is_success:
+                    alt_api_results = httpx_json_content(alt_api_response, {})
+                    if alt_api_results and alt_api_results.get("name") == detail.version:
+                        self.log.info(f"Matched {detail.version} to latest release {alt_api_results['name']}")
+                        api_response = alt_api_response
+
             if api_response and api_response.is_success:
                 api_results: Any = httpx_json_content(api_response, {})
                 detail.summary = api_results.get("body")  # ty:ignore[possibly-missing-attribute]

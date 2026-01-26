@@ -91,7 +91,9 @@ ALL_OCI_MEDIA_TYPES: list[str] = (
 )
 
 
-def dump_url(doc_type: str, img_ref: str) -> None:
+def dump_url(doc_type: str, img_ref: str, cli_conf: DictConfig) -> None:
+    structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(cli_conf.get("log_level", "WARNING")))
+
     lookup = ContainerDistributionAPIVersionLookup(Throttler(), RegistryConfig())
     img_info = DockerImageInfo(img_ref)
     if not img_info.index_name or not img_info.name:
@@ -128,14 +130,14 @@ def dump_url(doc_type: str, img_ref: str) -> None:
 def main() -> None:
     # will be a proper cli someday
     cli_conf: DictConfig = OmegaConf.from_cli()
-    structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(cli_conf.get("log_level", "WARNING")))
 
     if cli_conf.get("blob"):
-        dump_url("blob", cli_conf.get("blob"))
+        dump_url("blob", cli_conf.get("blob"), cli_conf)
     elif cli_conf.get("manifest"):
-        dump_url("manifest", cli_conf.get("manifest"))
-
+        dump_url("manifest", cli_conf.get("manifest"), cli_conf)
     else:
+        structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(cli_conf.get("log_level", "INFO")))
+
         docker_scanner = DockerProvider(
             DockerConfig(registry=RegistryConfig(api=cli_conf.get("api", "OCI_V2"))), NodeConfig(), None
         )
