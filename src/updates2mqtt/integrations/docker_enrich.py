@@ -23,6 +23,7 @@ from updates2mqtt.config import (
     PKG_INFO_FILE,
     DockerConfig,
     DockerPackageUpdateInfo,
+    GitHubConfig,
     PackageUpdateInfo,
     RegistryConfig,
     UpdateInfoConfig,
@@ -418,8 +419,9 @@ class LinuxServerIOPackageEnricher(PackageEnricher):
 
 
 class SourceReleaseEnricher:
-    def __init__(self) -> None:
+    def __init__(self, gh_cfg: GitHubConfig | None = None) -> None:
         self.log: Any = structlog.get_logger().bind(integration="docker")
+        self.gh_cfg = gh_cfg
 
     def enrich(
         self, registry_info: DockerImageInfo, source_repo_url: str | None = None, notes_url: str | None = None
@@ -468,12 +470,15 @@ class SourceReleaseEnricher:
                     detail.notes_url = None
 
         if detail.source_platform == SOURCE_PLATFORM_GITHUB and detail.source_repo_url:
+            access_token = self.gh_cfg.access_token if self.gh_cfg else None
             base_api = detail.source_repo_url.replace("https://github.com", "https://api.github.com/repos")
 
-            api_response: Response | None = fetch_url(f"{base_api}/releases/tags/{detail.version}", allow_stale=True)
+            api_response: Response | None = fetch_url(
+                f"{base_api}/releases/tags/{detail.version}", bearer_token=access_token, allow_stale=True
+            )
             if api_response and api_response.status_code == 404:
                 # possible that source version doesn't match release gag
-                alt_api_response: Response | None = fetch_url(f"{base_api}/releases/tags/latest")
+                alt_api_response: Response | None = fetch_url(f"{base_api}/releases/tags/latest", bearer_token=access_token)
                 if alt_api_response and alt_api_response.is_success:
                     alt_api_results = httpx_json_content(alt_api_response, {})
                     if alt_api_results and alt_api_results.get("tag_name") == detail.version:

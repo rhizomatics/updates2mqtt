@@ -68,6 +68,11 @@ class MqttConfig:
 
 
 @dataclass
+class GitHubConfig:
+    access_token: str | None = None
+
+
+@dataclass
 class MetadataSourceConfig:
     enabled: bool = True
     cache_ttl: int = 60 * 60 * 24 * 7  # 1 week
@@ -149,6 +154,7 @@ class Config:
     mqtt: MqttConfig = field(default_factory=MqttConfig)  # pyright: ignore[reportArgumentType, reportCallIssue]
     homeassistant: HomeAssistantConfig = field(default_factory=HomeAssistantConfig)
     docker: DockerConfig = field(default_factory=DockerConfig)
+    github: GitHubConfig = field(default_factory=GitHubConfig)
     scan_interval: int = 60 * 60 * 3
 
 
