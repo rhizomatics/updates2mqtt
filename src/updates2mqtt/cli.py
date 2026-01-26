@@ -4,7 +4,7 @@ import structlog
 from omegaconf import DictConfig, OmegaConf
 from rich import print_json
 
-from updates2mqtt.config import DockerConfig, NodeConfig, RegistryConfig
+from updates2mqtt.config import DockerConfig, GitHubConfig, NodeConfig, RegistryConfig
 from updates2mqtt.helpers import Throttler
 from updates2mqtt.integrations.docker import DockerProvider
 from updates2mqtt.integrations.docker_enrich import (
@@ -139,7 +139,10 @@ def main() -> None:
         structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(cli_conf.get("log_level", "INFO")))
 
         docker_scanner = DockerProvider(
-            DockerConfig(registry=RegistryConfig(api=cli_conf.get("api", "OCI_V2"))), NodeConfig(), None
+            DockerConfig(registry=RegistryConfig(api=cli_conf.get("api", "OCI_V2"))),
+            NodeConfig(),
+            GitHubConfig(access_token=cli_conf.get("github_token")),
+            None,
         )
         docker_scanner.initialize()
         discovery: Discovery | None = docker_scanner.rescan(

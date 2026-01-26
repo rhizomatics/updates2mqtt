@@ -56,7 +56,7 @@ class App:
         self.scan_count: int = 0
         self.last_scan: str | None = None
         if self.cfg.docker.enabled:
-            self.scanners.append(DockerProvider(self.cfg.docker, self.cfg.node, self.self_bounce))
+            self.scanners.append(DockerProvider(self.cfg.docker, self.cfg.node, self.cfg.github, self.self_bounce))
         self.stopped = Event()
         self.healthcheck_topic = self.cfg.node.healthcheck.topic_template.format(node_name=self.cfg.node.name)
 

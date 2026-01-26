@@ -19,6 +19,7 @@ from updates2mqtt.config import (
     UNKNOWN_VERSION,
     VERSION_RE,
     DockerConfig,
+    GitHubConfig,
     NodeConfig,
     PackageUpdateInfo,
     PublishPolicy,
@@ -127,6 +128,7 @@ class DockerProvider(ReleaseProvider):
         self,
         cfg: DockerConfig,
         node_cfg: NodeConfig,
+        github_cfg: GitHubConfig,
         self_bounce: Event | None = None,
     ) -> None:
         super().__init__(node_cfg, "docker")
@@ -145,7 +147,7 @@ class DockerProvider(ReleaseProvider):
             self.client, self.throttler, self.cfg.registry, self.cfg.default_api_backoff
         )
         self.registry_image_lookup = ContainerDistributionAPIVersionLookup(self.throttler, self.cfg.registry)
-        self.release_enricher = SourceReleaseEnricher()
+        self.release_enricher = SourceReleaseEnricher(github_cfg)
         self.local_info_builder = LocalContainerInfo()
 
     def initialize(self) -> None:
