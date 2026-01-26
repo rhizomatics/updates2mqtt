@@ -141,6 +141,7 @@ def main() -> None:
         docker_scanner = DockerProvider(
             DockerConfig(registry=RegistryConfig(api=cli_conf.get("api", "OCI_V2"))), NodeConfig(), None
         )
+        docker_scanner.initialize()
         discovery: Discovery | None = docker_scanner.rescan(
             Discovery(docker_scanner, cli_conf.get("container", "frigate"), "cli", "manual")
         )
