@@ -151,6 +151,7 @@ class DockerProvider(ReleaseProvider):
     def initialize(self) -> None:
         for enricher in self.pkg_enrichers:
             enricher.initialize()
+        self.log.debug("Docker provider initialized")
 
     def update(self, discovery: Discovery) -> bool:
         logger: Any = self.log.bind(container=discovery.name, action="update")

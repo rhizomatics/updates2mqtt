@@ -217,5 +217,10 @@ python updates2mqtt.cli container=frigate api=docker_client
 python3 updates2mqtt/cli.py manifest=ghcr.io/blakeblackshear/frigate:stable
 python3 updates2mqtt/cli.py blob=ghcr.io/blakeblackshear/frigate@sha256:ef8d56a7d50b545af176e950ce328aec7f0b7bc5baebdca189fe661d97924980
 python3 updates2mqtt/cli.py manifest=ghcr.io/blakeblackshear/frigate@sha256:c68fd78fd3237c9ba81b5aa927f17b54f46705990f43b4b5d5596cfbbb626af4
+```
 
+or with `uv`
+
+```
+uv run cli log_level=DEBUG container=www_caddy
 ```

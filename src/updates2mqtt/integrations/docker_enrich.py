@@ -28,7 +28,7 @@ from updates2mqtt.config import (
     UpdateInfoConfig,
 )
 
-log = structlog.get_logger()
+log: Any = structlog.get_logger()
 
 SOURCE_PLATFORM_GITHUB = "GitHub"
 SOURCE_PLATFORM_CODEBERG = "CodeBerg"
@@ -371,10 +371,10 @@ class DefaultPackageEnricher(PackageEnricher):
 class CommonPackageEnricher(PackageEnricher):
     def initialize(self) -> None:
         if PKG_INFO_FILE.exists():
-            log.debug("Loading common package update info", path=PKG_INFO_FILE)
+            self.log.debug("Loading common package update info", path=PKG_INFO_FILE)
             cfg = OmegaConf.load(PKG_INFO_FILE)
         else:
-            log.warn("No common package update info found", path=PKG_INFO_FILE)
+            self.log.warn("No common package update info found", path=PKG_INFO_FILE)
             cfg = OmegaConf.structured(UpdateInfoConfig)
         try:
             # omegaconf broken-ness on optional fields and converting to backclasses
@@ -382,7 +382,7 @@ class CommonPackageEnricher(PackageEnricher):
                 pkg: PackageUpdateInfo(**pkg_cfg) for pkg, pkg_cfg in cfg.common_packages.items()
             }
         except (MissingMandatoryValue, ValidationError) as e:
-            log.error("Configuration error %s", e, path=PKG_INFO_FILE.as_posix())
+            self.log.error("Configuration error %s", e, path=PKG_INFO_FILE.as_posix())
             raise
 
 
@@ -392,7 +392,7 @@ class LinuxServerIOPackageEnricher(PackageEnricher):
         if cfg is None or not cfg.enabled:
             return
 
-        log.debug(f"Fetching linuxserver.io metadata from API, cache_ttl={cfg.cache_ttl}")
+        self.log.debug(f"Fetching linuxserver.io metadata from API, cache_ttl={cfg.cache_ttl}")
         response: Response | None = fetch_url(
             "https://api.linuxserver.io/api/v1/images?include_config=false&include_deprecated=false",
             cache_ttl=cfg.cache_ttl,
@@ -413,8 +413,8 @@ class LinuxServerIOPackageEnricher(PackageEnricher):
                     release_notes_url=f"{repo['github_url']}/releases",
                 )
                 added += 1
-                log.debug("Added linuxserver.io package", pkg=image_name)
-        log.info(f"Added {added} linuxserver.io package details")
+                self.log.debug("Added linuxserver.io package", pkg=image_name)
+        self.log.info(f"Added {added} linuxserver.io package details")
 
 
 class SourceReleaseEnricher:
@@ -754,7 +754,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
                     if index_digest:
                         result.image_digest = index_digest
                         result.short_digest = result.condense_digest(index_digest)
-                        log.debug("Setting %s image digest %s", result.name, result.short_digest)
+                        self.log.debug("Setting %s image digest %s", result.name, result.short_digest)
 
                     digest: str | None = m.get("digest")
                     media_type = m.get("mediaType")
@@ -774,7 +774,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
                             self.log.warning("Empty digest for %s %s %s", api_host, digest, media_type)
                         else:
                             result.repo_digest = result.condense_digest(digest, short=False)
-                            log.debug("Setting %s repo digest: %s", result.name, result.repo_digest)
+                            self.log.debug("Setting %s repo digest: %s", result.name, result.repo_digest)
 
                         if manifest.get("annotations"):
                             result.annotations.update(manifest.get("annotations", {}))
