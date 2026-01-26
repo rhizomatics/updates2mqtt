@@ -414,7 +414,6 @@ class LinuxServerIOPackageEnricher(PackageEnricher):
                     release_notes_url=f"{repo['github_url']}/releases",
                 )
                 added += 1
-                self.log.debug("Added linuxserver.io package", pkg=image_name)
         self.log.info(f"Added {added} linuxserver.io package details")
 
 
@@ -469,8 +468,10 @@ class SourceReleaseEnricher:
                 if MISSING_VAL in detail.notes_url or not validate_url(detail.notes_url):
                     detail.notes_url = None
 
-        if detail.source_platform == SOURCE_PLATFORM_GITHUB and detail.source_repo_url:
-            access_token = self.gh_cfg.access_token if self.gh_cfg else None
+        if detail.source_platform == SOURCE_PLATFORM_GITHUB and detail.source_repo_url and detail.version is not None:
+            access_token: str | None = self.gh_cfg.access_token if self.gh_cfg else None
+            if access_token:
+                self.log.debug("Using configured bearer token (%s chars) for GitHub API", len(access_token))
             base_api = detail.source_repo_url.replace("https://github.com", "https://api.github.com/repos")
 
             api_response: Response | None = fetch_url(
