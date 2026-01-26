@@ -432,7 +432,8 @@ class SourceReleaseEnricher:
         detail.notes_url = notes_url
         detail.version = registry_info.annotations.get("org.opencontainers.image.version")
         detail.revision = registry_info.annotations.get("org.opencontainers.image.revision")
-        detail.source_url = registry_info.annotations.get("org.opencontainers.image.source") or source_repo_url
+        # explicit source_repo_url overrides container, e.g. where container source is only the docker wrapper
+        detail.source_url = source_repo_url or registry_info.annotations.get("org.opencontainers.image.source")
 
         if detail.source_url and "#" in detail.source_url:
             detail.source_repo_url = detail.source_url.split("#", 1)[0]
@@ -469,7 +470,7 @@ class SourceReleaseEnricher:
         if detail.source_platform == SOURCE_PLATFORM_GITHUB and detail.source_repo_url:
             base_api = detail.source_repo_url.replace("https://github.com", "https://api.github.com/repos")
 
-            api_response: Response | None = fetch_url(f"{base_api}/releases/tags/{detail.version}")
+            api_response: Response | None = fetch_url(f"{base_api}/releases/tags/{detail.version}", allow_stale=True)
             if api_response and api_response.status_code == 404:
                 # possible that source version doesn't match release gag
                 alt_api_response: Response | None = fetch_url(f"{base_api}/releases/tags/latest")
