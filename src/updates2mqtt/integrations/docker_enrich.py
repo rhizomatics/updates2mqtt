@@ -475,9 +475,16 @@ class SourceReleaseEnricher:
                 alt_api_response: Response | None = fetch_url(f"{base_api}/releases/tags/latest")
                 if alt_api_response and alt_api_response.is_success:
                     alt_api_results = httpx_json_content(alt_api_response, {})
-                    if alt_api_results and alt_api_results.get("name") == detail.version:
-                        self.log.info(f"Matched {detail.version} to latest release {alt_api_results['name']}")
+                    if alt_api_results and alt_api_results.get("tag_name") == detail.version:
+                        self.log.info(f"Matched {detail.version} to latest release {alt_api_results['tag_name']}")
                         api_response = alt_api_response
+                    elif alt_api_results:
+                        self.log.debug(
+                            "Failed to match latest release for {detail.version}, found tag %s for name %s",
+                            detail.version,
+                            alt_api_results.get("tag_name"),
+                            alt_api_results.get("name"),
+                        )
 
             if api_response and api_response.is_success:
                 api_results: Any = httpx_json_content(api_response, {})
