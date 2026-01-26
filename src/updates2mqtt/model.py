@@ -59,6 +59,10 @@ class ReleaseDetail:
             "net_score": str(self.net_score) if self.net_score is not None else None,
         }
 
+    def __str__(self) -> str:
+        """Log friendly"""
+        return ",".join(f"{k}:{v}" for k, v in self.as_dict().items())
+
 
 class Discovery:
     """Discovered component from a scan"""
