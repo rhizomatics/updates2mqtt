@@ -33,7 +33,12 @@ log: Any = structlog.get_logger()
 
 SOURCE_PLATFORM_GITHUB = "GitHub"
 SOURCE_PLATFORM_CODEBERG = "CodeBerg"
-SOURCE_PLATFORMS = {SOURCE_PLATFORM_GITHUB: r"https://github.com/.*"}
+SOURCE_PLATFORM_GITLAB = "GitLab"
+SOURCE_PLATFORMS = {
+    SOURCE_PLATFORM_GITHUB: r"https://github.com/.*",
+    SOURCE_PLATFORM_GITLAB: r"https://gitlab.com/.*",
+    SOURCE_PLATFORM_CODEBERG: r"https://codeberg.org/.*",
+}
 DIFF_URL_TEMPLATES = {
     SOURCE_PLATFORM_GITHUB: "{repo}/commit/{revision}",
 }
@@ -46,6 +51,7 @@ HEADER_DOCKER_DIGEST = "docker-content-digest"
 HEADER_DOCKER_API = "docker-distribution-api-version"
 
 TOKEN_URL_TEMPLATE = "https://{auth_host}/token?scope=repository:{image_name}:pull&service={service}"  # noqa: S105 # nosec
+
 REGISTRIES = {
     # registry: (auth_host, api_host, service, url_template)
     "docker.io": ("auth.docker.io", "registry-1.docker.io", "registry.docker.io", TOKEN_URL_TEMPLATE),
