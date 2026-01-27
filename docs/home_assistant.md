@@ -30,17 +30,19 @@ a `suggested_area` for the device.
 
 There are 44 separate types of MQTT topic used for HomeAssisstant integration:
 
-- *Config* to support auto discovery. 
+- **Config** to support auto discovery. 
     - A topic is created per component, with a name like `homeassistant/update/dockernuc_docker_jellyfin/update/config`. 
     - This can be disabled in the config file, and the `homeassistant` topic prefix can also be configured.
-- *State* to report the current version and the latest version available
-    - One topic per component, like `updates2mqtt/dockernuc/docker/jellyfin/state`.
-- *Command* to support triggering an update. 
+    - All the configs for a given server will share the same *Device*, which can also be given a suggested *Area*
+- **State** to report the current version and the latest version available
+    - One topic per component, like `updates2mqtt/dockernuc/docker/jellyfin/state`
+    - This has a very limited schema
+- **Command** to support triggering an update. 
     - These will be created on the fly by HomeAssistant when an update is requested
     - Updates2MQTT subscribes to pick up the changes, so you won't typically see these if browsing MQTT topics. 
     - Only one is needed per Updates2MQTT agent, with a name like `updates2mqtt/dockernuc/docker`
-- *JSON Attributes* sources extra attributes from the main `updates2mqtt` discovery topic
-    - Switch this behaviour off using `extra_attributes` flag in HomeAssistant config
+- **JSON Attributes** sources extra attributes from the main `updates2mqtt` discovery topic
+    - Switch this behaviour off using `extra_attributes: false` flag in Updates2MQTT HomeAssistant config
 
 If the package supports automated update, then *Skip* and *Install* buttons will appear on the Home Assistant interface, and the package can be remotely fetched and the component restarted.
 
@@ -59,6 +61,22 @@ the entities by `update.` If there are lots of other updates (HassOS apps, Zigbe
 device firmware etc), then pick one of the container names you know.
 
 ![Home Assistant Entities](images/ha_entities.png){width=640}
+
+## Custom config
+
+None of this is necessary, all optional for tuning how it works with Home Assistant.
+
+```yaml title="updates2mqtt config snippet"
+homeassistant:
+  discovery:
+    prefix: homeassistant
+    enabled: true # if false then only plain MQTT publication made
+  state_topic_suffix: state
+  area: Server Room # suggested area for dynamically created device
+  device_creation: true # create a device per server and associate all the `update` entities with that device
+  force_command_topic: false # Publish a command topic even if the component can't be updated (can help with Home Assistant presentation)
+  extra_attributes: true # switch off all the extra attributes beyond the strict state schema
+```
 
 ## More Home Assistant information
 
