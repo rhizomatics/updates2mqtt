@@ -311,9 +311,13 @@ class MqttPublisher:
         prefix = self.hass_cfg.discovery.prefix
         return f"{prefix}/update/{self.node_cfg.name}_{discovery.source_type}_{discovery.name}/update/config"
 
+    def _provider_type_match(self) -> str:
+        return "|".join(t for t in self.providers_by_type)
+
     def reverse_config_topic(self, topic: str) -> Discovery | None:
         match = re.fullmatch(
-            f"{self.hass_cfg.discovery.prefix}/update/{self.node_cfg.name}_({MQTT_NAME})_({MQTT_NAME})/update/config", topic
+            f"{self.hass_cfg.discovery.prefix}/update/{self.node_cfg.name}:({self._provider_type_match}):({MQTT_NAME})/update/config",
+            topic,
         )
         if match:
             self.log.debug("CONFIG %s groups: %s", len(match.groups()), match.groups())
@@ -330,7 +334,7 @@ class MqttPublisher:
                 return self.providers_by_type[discovery_type].discoveries[discovery_name]
             self.log.debug("CONFIG discovery_type in providers_by_type: %s", bool(discovery_type in self.providers_by_type))
             self.log.debug(list(self.providers_by_type.keys()))
-            self.log.debug("CONFIG Can't find %s for %s", discovery_name, discovery_type)
+            self.log.debug("CONFIG Can't find %s for %s in %s", discovery_name, discovery_type, topic)
         else:
             self.log.debug("CONFIG no match for %s", topic)
         return None
@@ -339,7 +343,10 @@ class MqttPublisher:
         return f"{self.cfg.topic_root}/{self.node_cfg.name}/{discovery.source_type}/{discovery.name}/state"
 
     def reverse_state_topic(self, topic: str) -> Discovery | None:
-        match = re.fullmatch(f"{self.cfg.topic_root}/{self.node_cfg.name}/({MQTT_NAME})/({MQTT_NAME})/state", topic)
+        match = re.fullmatch(
+            f"{self.cfg.topic_root}/{self.node_cfg.name}/({self._provider_type_match})/({MQTT_NAME})/state",
+            topic,
+        )
         if match:
             self.log.debug("STATE %s groups: %s", len(match.groups()), match.groups())
         else:
@@ -358,7 +365,7 @@ class MqttPublisher:
         return f"{self.cfg.topic_root}/{self.node_cfg.name}/{discovery.source_type}/{discovery.name}"
 
     def reverse_general_topic(self, topic: str) -> Discovery | None:
-        match = re.fullmatch(f"{self.cfg.topic_root}/{self.node_cfg.name}/({MQTT_NAME})/({MQTT_NAME})", topic)
+        match = re.fullmatch(f"{self.cfg.topic_root}/{self.node_cfg.name}/({self._provider_type_match})/({MQTT_NAME})", topic)
         if match and len(match.groups()) == 2:
             discovery_type: str = match.group(1)
             discovery_name: str = match.group(2)
