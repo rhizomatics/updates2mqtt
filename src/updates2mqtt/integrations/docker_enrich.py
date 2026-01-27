@@ -329,8 +329,8 @@ class LocalContainerInfo:
 
 
 class PackageEnricher:
-    def __init__(self, docker_cfg: DockerConfig) -> None:
-        self.pkgs: dict[str, PackageUpdateInfo] = {}
+    def __init__(self, docker_cfg: DockerConfig, packages: dict[str, PackageUpdateInfo] | None = None) -> None:
+        self.pkgs: dict[str, PackageUpdateInfo] = packages or {}
         self.cfg: DockerConfig = docker_cfg
         self.log: Any = structlog.get_logger().bind(integration="docker")
 
@@ -380,7 +380,7 @@ class CommonPackageEnricher(PackageEnricher):
         try:
             # omegaconf broken-ness on optional fields and converting to backclasses
             self.pkgs: dict[str, PackageUpdateInfo] = {
-                pkg: PackageUpdateInfo(**pkg_cfg) for pkg, pkg_cfg in cfg.common_packages.items()
+                pkg: PackageUpdateInfo(**pkg_cfg) for pkg, pkg_cfg in cfg.common_packages.items() if pkg not in self.pkgs
             }
         except (MissingMandatoryValue, ValidationError) as e:
             self.log.error("Configuration error %s", e, path=PKG_INFO_FILE.as_posix())

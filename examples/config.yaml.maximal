@@ -52,3 +52,12 @@ docker:
     immutable_cache_ttl: 2592000
     api: OCI_V2
 scan_interval: 10800
+github:
+  access_token: github_pat_00001111444445555666677778888
+packages:
+  my_custom_pkg:
+    docker:
+      image_name: ghcr.io/dummy/my_custom
+    logo_url: https://avatars.githubusercontent.com/u/162821199?s=48&v=4
+    source_repo_url: https://github.com/dummy/my_custom
+    release_notes_url:  https://github.com/dummy/my_custom/releases

@@ -1,6 +1,8 @@
 # CHANGELOG
 
 ## 1.7.4
+### Package Info
+- The `common_packages.yaml` that ships inside the Docker image can be extended, or overridden, using the `packages` section of the main config file
 ### Release Notes
 - If the component tag doesn't match the release tag (e.g. `1.7.3` vs `v1.7.3`), an alt lookup will be made on latest github released, and used if the tag name on that release matches the expected tag, with a common `v`,`V`,`r` or `R` prefix
 - A GitHub *personal access token* can now be added in the `github:` config section, which will increase number of API calls that

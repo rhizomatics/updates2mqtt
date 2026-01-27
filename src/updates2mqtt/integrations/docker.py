@@ -128,6 +128,7 @@ class DockerProvider(ReleaseProvider):
         self,
         cfg: DockerConfig,
         node_cfg: NodeConfig,
+        packages: dict[str, PackageUpdateInfo] | None = None,
         github_cfg: GitHubConfig | None = None,
         self_bounce: Event | None = None,
     ) -> None:
@@ -138,8 +139,9 @@ class DockerProvider(ReleaseProvider):
         # TODO: refresh discovered packages periodically
         self.throttler = Throttler(self.cfg.default_api_backoff, self.log, self.stopped)
         self.self_bounce: Event | None = self_bounce
+
         self.pkg_enrichers: list[PackageEnricher] = [
-            CommonPackageEnricher(self.cfg),
+            CommonPackageEnricher(self.cfg, packages),
             LinuxServerIOPackageEnricher(self.cfg),
             DefaultPackageEnricher(self.cfg),
         ]

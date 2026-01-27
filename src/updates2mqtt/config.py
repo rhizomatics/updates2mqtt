@@ -92,6 +92,24 @@ class VersionPolicy(StrEnum):
 
 
 @dataclass
+class DockerPackageUpdateInfo:
+    image_name: str = MISSING  # untagged image ref
+
+
+@dataclass
+class PackageUpdateInfo:
+    docker: DockerPackageUpdateInfo | None = field(default_factory=DockerPackageUpdateInfo)
+    logo_url: str | None = None
+    release_notes_url: str | None = None
+    source_repo_url: str | None = None
+
+
+@dataclass
+class UpdateInfoConfig:
+    common_packages: dict[str, PackageUpdateInfo] = field(default_factory=lambda: {})
+
+
+@dataclass
 class DockerConfig:
     enabled: bool = True
     allow_pull: bool = True
@@ -156,24 +174,7 @@ class Config:
     docker: DockerConfig = field(default_factory=DockerConfig)
     github: GitHubConfig = field(default_factory=GitHubConfig)
     scan_interval: int = 60 * 60 * 3
-
-
-@dataclass
-class DockerPackageUpdateInfo:
-    image_name: str = MISSING  # untagged image ref
-
-
-@dataclass
-class PackageUpdateInfo:
-    docker: DockerPackageUpdateInfo | None = field(default_factory=DockerPackageUpdateInfo)
-    logo_url: str | None = None
-    release_notes_url: str | None = None
-    source_repo_url: str | None = None
-
-
-@dataclass
-class UpdateInfoConfig:
-    common_packages: dict[str, PackageUpdateInfo] = field(default_factory=lambda: {})
+    packages: dict[str, PackageUpdateInfo] = field(default_factory=dict)
 
 
 class IncompleteConfigException(BaseException):
