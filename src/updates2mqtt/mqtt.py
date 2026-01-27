@@ -350,7 +350,11 @@ class MqttPublisher:
         if match:
             self.log.debug("STATE %s groups: %s", len(match.groups()), match.groups())
         else:
-            self.log.debug("NO MATCH STATE")
+            self.log.debug(
+                "NO MATCH STATE for %s by %s",
+                topic,
+                f"{self.cfg.topic_root}/{self.node_cfg.name}/({self._provider_type_match})/({MQTT_NAME})/state",
+            )
         if match and len(match.groups()) == 2:
             discovery_type: str = match.group(1)
             discovery_name: str = match.group(2)
