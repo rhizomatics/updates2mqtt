@@ -6,12 +6,15 @@
 - Source platform will be inferred, and verified, for GitHub, Gitlab and Codeberg
 ### Release Notes
 - If the component tag doesn't match the release tag (e.g. `1.7.3` vs `v1.7.3`), an alt lookup will be made on latest github released, and used if the tag name on that release matches the expected tag, with a common `v`,`V`,`r` or `R` prefix
-- A GitHub *personal access token* can now be added in the `github:` config section, which will increase number of API calls that
-can be made for release info before being throttled
+- A GitHub *personal access token* can now be added in the `github:` config section, which will increase number of API calls that can be made for release info before being throttled
+- Release notes can be better guessed, subject to URL validation, for Gitlab and GitHub
 ### CLI
-- Logging improved, with different default for container lookup
+- Logging improved, with different default for container lookup, so there's always some output from commands
 ### Housekeeping
-- MQTT topic clean overhauled - now runs only after scan, and checks topics against current discoveries vs previous session based
+- MQTT topic clean overhauled - 
+    - Now runs only after scan
+    - Checks topics against current discoveries vs previous session key based check
+
 ## 1.7.3
 - Minor fix for stats reporting
 ## 1.7.2
