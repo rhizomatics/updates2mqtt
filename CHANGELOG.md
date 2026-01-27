@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 1.7.4
+## 1.8.0
 ### Package Info
 - The `common_packages.yaml` that ships inside the Docker image can be extended, or overridden, using the `packages` section of the main config file
 - Source platform will be inferred, and verified, for GitHub, Gitlab and Codeberg
