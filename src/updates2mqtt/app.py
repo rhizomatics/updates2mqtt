@@ -79,9 +79,6 @@ class App:
         session = uuid.uuid4().hex
         for scanner in self.scanners:
             slog = log.bind(source_type=scanner.source_type, session=session)
-            slog.info("Cleaning topics before scan")
-            # if self.scan_count == 0:
-            #    await self.publisher.clean_topics(scanner, None, force=True)
             if self.stopped.is_set():
                 break
             slog.info("Scanning ...")
