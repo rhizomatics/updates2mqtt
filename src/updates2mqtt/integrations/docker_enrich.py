@@ -459,7 +459,7 @@ class SourceReleaseEnricher:
                 source_url = repo_template.format(image_name=registry_info.name)
                 if validate_url(source_url, cache_ttl=86400):
                     detail.source_url = source_url
-                    self.log.info("Implied source platform from container registry: %s", detail.source_url)
+                    self.log.info("Implied source from registry: %s", detail.source_url)
 
         if detail.source_url is None and detail.notes_url is None and detail.revision is None and detail.version is None:
             return None
