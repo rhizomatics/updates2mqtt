@@ -371,6 +371,15 @@ def test_source_release_enricher_github_source() -> None:
     assert result.source_repo_url == "https://github.com/myorg/myrepo"
 
 
+def test_source_release_enricher_implies_github_source() -> None:
+    enricher = SourceReleaseEnricher()
+    result: ReleaseDetail | None = enricher.enrich(DockerImageInfo(ref="ghcr.io/rhizomatics/updates2mqtt:latest"))
+
+    assert result is not None
+    assert result.source_platform == SOURCE_PLATFORM_GITHUB
+    assert result.source_repo_url == "https://github.com/rhizomatics/updates2mqtt"
+
+
 def test_source_release_enricher_strips_hash_from_source() -> None:
     """SourceReleaseEnricher should strip hash fragment from source URL"""
     enricher = SourceReleaseEnricher()
@@ -391,12 +400,24 @@ def test_source_release_enricher_no_known_platform() -> None:
     """SourceReleaseEnricher should not set source_platform for unknown sources"""
     enricher = SourceReleaseEnricher()
     annotations = {
-        "org.opencontainers.image.source": "https://gitlab.com/myorg/myrepo",
+        "org.opencontainers.image.source": "https://gitbadger.com/myorg/myrepo",
     }
 
     result: ReleaseDetail | None = enricher.enrich(DockerImageInfo("test", annotations=annotations))
     assert result is not None
     assert result.source_platform is None
+    assert result.source_url == "https://gitbadger.com/myorg/myrepo"
+
+
+def test_source_release_enricher_known_other_platform() -> None:
+    enricher = SourceReleaseEnricher()
+    annotations = {
+        "org.opencontainers.image.source": "https://gitlab.com/myorg/myrepo",
+    }
+
+    result: ReleaseDetail | None = enricher.enrich(DockerImageInfo("test", annotations=annotations))
+    assert result is not None
+    assert result.source_platform == "GitLab"
     assert result.source_url == "https://gitlab.com/myorg/myrepo"
 
 

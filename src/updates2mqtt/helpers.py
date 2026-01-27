@@ -222,6 +222,6 @@ def fetch_url(
     return None
 
 
-def validate_url(url: str, cache_ttl: int = 300) -> bool:
+def validate_url(url: str, cache_ttl: int = 1500) -> bool:
     response: Response | None = fetch_url(url, method="HEAD", cache_ttl=cache_ttl, follow_redirects=True)
     return response is not None and response.status_code != 404

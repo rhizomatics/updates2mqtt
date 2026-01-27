@@ -42,8 +42,13 @@ SOURCE_PLATFORMS = {
 DIFF_URL_TEMPLATES = {
     SOURCE_PLATFORM_GITHUB: "{repo}/commit/{revision}",
 }
-RELEASE_URL_TEMPLATES = {SOURCE_PLATFORM_GITHUB: "{repo}/releases/tag/{version}"}
-UNKNOWN_RELEASE_URL_TEMPLATES = {SOURCE_PLATFORM_GITHUB: "{repo}/releases"}
+RELEASE_URL_TEMPLATES = {
+    SOURCE_PLATFORM_GITHUB: "{repo}/releases/tag/{version}",
+}
+UNKNOWN_RELEASE_URL_TEMPLATES = {
+    SOURCE_PLATFORM_GITHUB: "{repo}/releases",
+    SOURCE_PLATFORM_GITLAB: "{repo}/container_registry/",
+}
 MISSING_VAL = "**MISSING**"
 UNKNOWN_REGISTRY = "**UNKNOWN_REGISTRY**"
 
@@ -52,18 +57,25 @@ HEADER_DOCKER_API = "docker-distribution-api-version"
 
 TOKEN_URL_TEMPLATE = "https://{auth_host}/token?scope=repository:{image_name}:pull&service={service}"  # noqa: S105 # nosec
 
-REGISTRIES = {
-    # registry: (auth_host, api_host, service, url_template)
-    "docker.io": ("auth.docker.io", "registry-1.docker.io", "registry.docker.io", TOKEN_URL_TEMPLATE),
-    "mcr.microsoft.com": (None, "mcr.microsoft.com", "mcr.microsoft.com", TOKEN_URL_TEMPLATE),
-    "ghcr.io": ("ghcr.io", "ghcr.io", "ghcr.io", TOKEN_URL_TEMPLATE),
-    "lscr.io": ("ghcr.io", "lscr.io", "ghcr.io", TOKEN_URL_TEMPLATE),
-    "codeberg.org": ("codeberg.org", "codeberg.org", "container_registry", TOKEN_URL_TEMPLATE),
+REGISTRIES: dict[str, tuple[str | None, str, str, str, str | None]] = {
+    # registry: (auth_host, api_host, service, url_template, repo_template)
+    "docker.io": ("auth.docker.io", "registry-1.docker.io", "registry.docker.io", TOKEN_URL_TEMPLATE, None),
+    "mcr.microsoft.com": (None, "mcr.microsoft.com", "mcr.microsoft.com", TOKEN_URL_TEMPLATE, None),
+    "ghcr.io": ("ghcr.io", "ghcr.io", "ghcr.io", TOKEN_URL_TEMPLATE, "https://github.com/{image_name}"),
+    "lscr.io": ("ghcr.io", "lscr.io", "ghcr.io", TOKEN_URL_TEMPLATE, None),
+    "codeberg.org": (
+        "codeberg.org",
+        "codeberg.org",
+        "container_registry",
+        TOKEN_URL_TEMPLATE,
+        "https://codeberg.org/{image_name}",
+    ),
     "registry.gitlab.com": (
         "www.gitlab.com",
         "registry.gitlab.com",
         "container_registry",
         "https://{auth_host}/jwt/auth?service={service}&scope=repository:{image_name}:pull&offline_token=true&client_id=docker",
+        "https://gitlab.com/{image_name}",
     ),
 }
 
@@ -431,9 +443,6 @@ class SourceReleaseEnricher:
     def enrich(
         self, registry_info: DockerImageInfo, source_repo_url: str | None = None, notes_url: str | None = None
     ) -> ReleaseDetail | None:
-        if not registry_info.annotations and not source_repo_url and not notes_url:
-            return None
-
         detail = ReleaseDetail()
 
         detail.notes_url = notes_url
@@ -441,6 +450,18 @@ class SourceReleaseEnricher:
         detail.revision = registry_info.annotations.get("org.opencontainers.image.revision")
         # explicit source_repo_url overrides container, e.g. where container source is only the docker wrapper
         detail.source_url = source_repo_url or registry_info.annotations.get("org.opencontainers.image.source")
+
+        if detail.source_url is None and registry_info is not None and registry_info.index_name is not None:
+            registry_config: tuple[str | None, str, str, str, str | None] | None = REGISTRIES.get(registry_info.index_name)
+            repo_template: str | None = registry_config[4] if registry_config else None
+            if repo_template:
+                source_url = repo_template.format(image_name=registry_info.name)
+                if validate_url(source_url, cache_ttl=86400):
+                    detail.source_url = source_url
+                    self.log.debug("Implied source platform from container registry: %s", detail.source_url)
+
+        if detail.source_url is None and detail.notes_url is None and detail.revision is None and detail.version is None:
+            return None
 
         if detail.source_url and "#" in detail.source_url:
             detail.source_repo_url = detail.source_url.split("#", 1)[0]
@@ -460,16 +481,19 @@ class SourceReleaseEnricher:
             "source": detail.source_url or MISSING_VAL,
         }
 
-        diff_url: str | None = DIFF_URL_TEMPLATES[detail.source_platform].format(**template_vars)
+        diff_url_template: str | None = DIFF_URL_TEMPLATES.get(detail.source_platform)
+        diff_url: str | None = diff_url_template.format(**template_vars) if diff_url_template else None
         if diff_url and MISSING_VAL not in diff_url and validate_url(diff_url):
             detail.diff_url = diff_url
         else:
             diff_url = None
 
-        if detail.notes_url is None:
+        if detail.notes_url is None and detail.source_platform in RELEASE_URL_TEMPLATES:
             detail.notes_url = RELEASE_URL_TEMPLATES[detail.source_platform].format(**template_vars)
 
-            if MISSING_VAL in detail.notes_url or not validate_url(detail.notes_url):
+            if detail.source_platform in UNKNOWN_RELEASE_URL_TEMPLATES and (
+                MISSING_VAL in detail.notes_url or not validate_url(detail.notes_url)
+            ):
                 detail.notes_url = UNKNOWN_RELEASE_URL_TEMPLATES[detail.source_platform].format(**template_vars)
                 if MISSING_VAL in detail.notes_url or not validate_url(detail.notes_url):
                     detail.notes_url = None
@@ -554,7 +578,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
         self.api_stats = APIStatsCounter()
 
     def fetch_token(self, registry: str, image_name: str) -> str | None:
-        default_host: tuple[str, str, str, str] = (registry, registry, registry, TOKEN_URL_TEMPLATE)
+        default_host: tuple[str, str, str, str, None] = (registry, registry, registry, TOKEN_URL_TEMPLATE, None)
         auth_host: str | None = REGISTRIES.get(registry, default_host)[0]
         if auth_host is None:
             return None
