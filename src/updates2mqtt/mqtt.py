@@ -305,11 +305,16 @@ class MqttPublisher:
             f"{self.hass_cfg.discovery.prefix}/update/{self.node_cfg.name}_({MQTT_NAME})_({MQTT_NAME})/update/config", topic
         )
         self.log.debug(match.groups() if match else "NO MATCH CONFIG")
+        self.log.debug(len(match.groups() if match else ""))
         if match and len(match.groups()) == 2:
             discovery_type: str = match.group(1)
-            disovery_name: str = match.group(2)
-            if discovery_type in self.providers_by_type and disovery_name in self.providers_by_type[discovery_type].discoveries:
-                return self.providers_by_type[discovery_type].discoveries[disovery_name]
+            discovery_name: str = match.group(2)
+            if (
+                discovery_type in self.providers_by_type
+                and discovery_name in self.providers_by_type[discovery_type].discoveries
+            ):
+                return self.providers_by_type[discovery_type].discoveries[discovery_name]
+            self.log("Can't find %s for %s", discovery_name, discovery_type)
         return None
 
     def state_topic(self, discovery: Discovery) -> str:
@@ -320,9 +325,12 @@ class MqttPublisher:
         self.log.debug(match.groups() if match else "NO MATCH STATE")
         if match and len(match.groups()) == 2:
             discovery_type: str = match.group(1)
-            disovery_name: str = match.group(2)
-            if discovery_type in self.providers_by_type and disovery_name in self.providers_by_type[discovery_type].discoveries:
-                return self.providers_by_type[discovery_type].discoveries[disovery_name]
+            discovery_name: str = match.group(2)
+            if (
+                discovery_type in self.providers_by_type
+                and discovery_name in self.providers_by_type[discovery_type].discoveries
+            ):
+                return self.providers_by_type[discovery_type].discoveries[discovery_name]
         return None
 
     def general_topic(self, discovery: Discovery) -> str:
@@ -332,9 +340,12 @@ class MqttPublisher:
         match = re.fullmatch(f"{self.cfg.topic_root}/{self.node_cfg.name}/({MQTT_NAME})/({MQTT_NAME})", topic)
         if match and len(match.groups()) == 2:
             discovery_type: str = match.group(1)
-            disovery_name: str = match.group(2)
-            if discovery_type in self.providers_by_type and disovery_name in self.providers_by_type[discovery_type].discoveries:
-                return self.providers_by_type[discovery_type].discoveries[disovery_name]
+            discovery_name: str = match.group(2)
+            if (
+                discovery_type in self.providers_by_type
+                and discovery_name in self.providers_by_type[discovery_type].discoveries
+            ):
+                return self.providers_by_type[discovery_type].discoveries[discovery_name]
         return None
 
     def command_topic(self, provider: ReleaseProvider) -> str:
