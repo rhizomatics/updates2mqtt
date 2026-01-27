@@ -311,6 +311,7 @@ class MqttPublisher:
         prefix = self.hass_cfg.discovery.prefix
         return f"{prefix}/update/{self.node_cfg.name}_{discovery.source_type}_{discovery.name}/update/config"
 
+    @property
     def _provider_type_match(self) -> str:
         return "|".join(t for t in self.providers_by_type)
 
