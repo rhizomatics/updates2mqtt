@@ -495,6 +495,7 @@ class SourceReleaseEnricher:
                 and MISSING_VAL not in platform_notes_url
                 and validate_url(platform_notes_url, cache_ttl=86400)
             ):
+                self.log.debug("Setting default known release notes url: %s", platform_notes_url)
                 detail.notes_url = platform_notes_url
 
         if detail.notes_url is None and detail.source_platform in UNKNOWN_RELEASE_URL_TEMPLATES:
@@ -504,6 +505,7 @@ class SourceReleaseEnricher:
                 and MISSING_VAL not in platform_notes_url
                 and validate_url(platform_notes_url, cache_ttl=86400)
             ):
+                self.log.debug("Setting default unknown release notes url: %s", platform_notes_url)
                 detail.notes_url = platform_notes_url
 
         if detail.source_platform == SOURCE_PLATFORM_GITHUB and detail.source_repo_url and detail.version is not None:
