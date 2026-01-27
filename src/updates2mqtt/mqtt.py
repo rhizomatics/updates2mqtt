@@ -128,12 +128,18 @@ class MqttPublisher:
             self.log.warning("Disconnect failure from broker", result_code=rc)
 
     async def clean_topics(
-        self, provider: ReleaseProvider, _last_scan_session: str | None, wait_time: int = 5, force: bool = False
+        self,
+        provider: ReleaseProvider,
+        _last_scan_session: str | None,
+        wait_time: int = 5,
+        max_time: int = 120,
+        force: bool = False,
     ) -> None:
         logger = self.log.bind(action="clean")
         if self.fatal_failure.is_set():
             return
         logger.info("Starting clean cycle")
+        cutoff_time: float = time.time() + max_time
         cleaner = mqtt.Client(
             callback_api_version=CallbackAPIVersion.VERSION1,
             client_id=f"updates2mqtt_clean_{self.node_cfg.name}",
@@ -175,7 +181,7 @@ class MqttPublisher:
         cleaner.subscribe(f"{self.hass_cfg.discovery.prefix}/update/#", options=options)
         cleaner.subscribe(f"{self.cfg.topic_root}/{self.node_cfg.name}/{provider.source_type}/#", options=options)
 
-        while time.time() - results["last_timestamp"] <= wait_time:
+        while time.time() - results["last_timestamp"] <= wait_time and time.time() <= cutoff_time:
             cleaner.loop(0.5)
 
         logger.info(
