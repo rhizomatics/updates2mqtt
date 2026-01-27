@@ -102,9 +102,11 @@ def mock_provider() -> ReleaseProvider:
     provider: ReleaseProvider = AsyncMock(spec=ReleaseProvider)
     provider.source_type = "unit_test"
     provider.command.return_value = True  # type: ignore[attr-defined]
-    provider.resolve.return_value = Discovery(  # type: ignore[attr-defined]
+    discovery: Discovery = Discovery(
         provider, "fooey", session="test-mqtt-123", node="node002", current_version="v2", latest_version="v2"
     )
+    provider.resolve.return_value = discovery  # type: ignore[attr-defined]
+    provider.discoveries = {"fooey": discovery}
     return provider
 
 
@@ -218,7 +220,12 @@ def mock_docker_client() -> DockerClient:
         build_mock_container("ubuntu"),
         build_mock_container("common/pkg"),
         build_mock_container(
-            "testy/mctest", picture="https://piccy", relnotes="https://release", arch="amd64", update_available=False
+            "testy/mctest",
+            name="piccy",
+            picture="https://piccy",
+            relnotes="https://release",
+            arch="amd64",
+            update_available=False,
         ),
     ]
     patch("docker.from_env", return_value=client)
@@ -227,6 +234,7 @@ def mock_docker_client() -> DockerClient:
 
 def build_mock_container(
     tag: str,
+    name: str | None = None,
     picture: str | None = None,
     relnotes: str | None = None,
     opsys: str = "linux",
@@ -235,6 +243,7 @@ def build_mock_container(
 ) -> Container:
     c = Mock(spec=Container)
     c.image = Mock(spec=Image)
+    c.name = name or uuid.uuid4().hex
     c.image.tags = [tag]
     c.image.labels = {}
     c.image.attrs = {}

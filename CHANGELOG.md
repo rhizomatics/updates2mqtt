@@ -10,6 +10,8 @@
 can be made for release info before being throttled
 ### CLI
 - Logging improved, with different default for container lookup
+### Housekeeping
+- MQTT topic clean overhauled - now runs only after scan, and checks topics against current discoveries vs previous session based
 ## 1.7.3
 - Minor fix for stats reporting
 ## 1.7.2

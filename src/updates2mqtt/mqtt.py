@@ -127,14 +127,7 @@ class MqttPublisher:
         else:
             self.log.warning("Disconnect failure from broker", result_code=rc)
 
-    async def clean_topics(
-        self,
-        provider: ReleaseProvider,
-        _last_scan_session: str | None,
-        wait_time: int = 5,
-        max_time: int = 120,
-        force: bool = False,
-    ) -> None:
+    async def clean_topics(self, provider: ReleaseProvider, wait_time: int = 5, max_time: int = 120) -> None:
         logger = self.log.bind(action="clean")
         if self.fatal_failure.is_set():
             return
@@ -146,7 +139,7 @@ class MqttPublisher:
                 client_id=f"updates2mqtt_clean_{self.node_cfg.name}",
                 clean_session=True,
             )
-            results = {"cleaned": 0, "handled": 0, "discovered": 0, "last_timestamp": time.time()}
+            results = {"cleaned": 0, "matched": 0, "discovered": 0, "last_timestamp": time.time()}
             cleaner.username_pw_set(self.cfg.user, password=self.cfg.password)
             cleaner.connect(host=self.cfg.host, port=self.cfg.port, keepalive=60)
 
@@ -155,27 +148,23 @@ class MqttPublisher:
                 if msg.topic.startswith(
                     f"{self.hass_cfg.discovery.prefix}/update/{self.node_cfg.name}_{provider.source_type}_"
                 ):
-                    discovery = self.reverse_config_topic(msg.topic)
-                    if discovery is None:
-                        logger.info("Config topic discovery unknown", topic=msg.topic)
+                    discovery = self.reverse_config_topic(msg.topic, provider.source_type)
                 elif msg.topic.startswith(
                     f"{self.cfg.topic_root}/{self.node_cfg.name}/{provider.source_type}/"
                 ) and msg.topic.endswith("/state"):
-                    discovery = self.reverse_state_topic(msg.topic)
-                    if discovery is None:
-                        logger.info("State topic discovery unknown", topic=msg.topic)
+                    discovery = self.reverse_state_topic(msg.topic, provider.source_type)
                 elif msg.topic.startswith(f"{self.cfg.topic_root}/{self.node_cfg.name}/{provider.source_type}/"):
-                    discovery = self.reverse_general_topic(msg.topic)
-                    if discovery is None:
-                        logger.info("General topic discovery unknown", topic=msg.topic)
+                    discovery = self.reverse_general_topic(msg.topic, provider.source_type)
                 else:
-                    logger.info("Unable to find matching discovery for topic", topic=msg.topic)
+                    logger.debug("Ignoring other topic ", topic=msg.topic)
+                    return
 
                 results["discovered"] += 1
-                results["handled"] += 1
+                if discovery is not None:
+                    results["matched"] += 1
                 results["last_timestamp"] = time.time()
-                if discovery is None and force:
-                    logger.debug("Removing untrackable msg", topic=msg.topic)
+                if discovery is None:
+                    logger.debug("Removing unknown discovery", topic=msg.topic)
                     cleaner.publish(msg.topic, "", retain=True)
                     results["cleaned"] += 1
 
@@ -188,7 +177,7 @@ class MqttPublisher:
                 cleaner.loop(0.5)
 
             logger.info(
-                f"Cleaned - discovered:{results['discovered']}, handled:{results['handled']}, cleaned:{results['cleaned']}"
+                f"Cleaned - discovered:{results['discovered']}, matched:{results['matched']}, cleaned:{results['cleaned']}"
             )
         except Exception as e:
             logger.error("Cleaning topics of stale entries failed: %s", e)
@@ -311,81 +300,46 @@ class MqttPublisher:
         prefix = self.hass_cfg.discovery.prefix
         return f"{prefix}/update/{self.node_cfg.name}_{discovery.source_type}_{discovery.name}/update/config"
 
-    @property
-    def _provider_type_match(self) -> str:
-        return "|".join(t for t in self.providers_by_type)
-
-    def reverse_config_topic(self, topic: str) -> Discovery | None:
+    def reverse_config_topic(self, topic: str, source_type: str) -> Discovery | None:
         match = re.fullmatch(
-            f"{self.hass_cfg.discovery.prefix}/update/{self.node_cfg.name}_({self._provider_type_match})_({MQTT_NAME})/update/config",
+            f"{self.hass_cfg.discovery.prefix}/update/{self.node_cfg.name}_{source_type}_({MQTT_NAME})/update/config",
             topic,
         )
-        if match:
-            self.log.debug("CONFIG %s groups: %s", len(match.groups()), match.groups())
-        else:
-            self.log.debug(
-                "NO MATCH CONFIG %s by %s",
-                topic,
-                f"{self.hass_cfg.discovery.prefix}/update/{self.node_cfg.name}_({self._provider_type_match})_({MQTT_NAME})/update/config",
-            )
+        if match and len(match.groups()) == 1:
+            discovery_name: str = match.group(1)
+            if discovery_name in self.providers_by_type[source_type].discoveries:
+                return self.providers_by_type[source_type].discoveries[discovery_name]
 
-        if match and len(match.groups()) == 2:
-            discovery_type: str = match.group(1)
-            discovery_name: str = match.group(2)
-            if (
-                discovery_type in self.providers_by_type
-                and discovery_name in self.providers_by_type[discovery_type].discoveries
-            ):
-                return self.providers_by_type[discovery_type].discoveries[discovery_name]
-            self.log.debug("CONFIG discovery_type in providers_by_type: %s", bool(discovery_type in self.providers_by_type))
-            self.log.debug(list(self.providers_by_type.keys()))
-            self.log.debug("CONFIG Can't find %s for %s in %s", discovery_name, discovery_type, topic)
-        else:
-            self.log.debug("CONFIG no match for %s", topic)
+        self.log.debug("MQTT CONFIG no match for %s", topic)
         return None
 
     def state_topic(self, discovery: Discovery) -> str:
         return f"{self.cfg.topic_root}/{self.node_cfg.name}/{discovery.source_type}/{discovery.name}/state"
 
-    def reverse_state_topic(self, topic: str) -> Discovery | None:
+    def reverse_state_topic(self, topic: str, source_type: str) -> Discovery | None:
         match = re.fullmatch(
-            f"{self.cfg.topic_root}/{self.node_cfg.name}/({self._provider_type_match})/({MQTT_NAME})/state",
+            f"{self.cfg.topic_root}/{self.node_cfg.name}/{source_type}/({MQTT_NAME})/state",
             topic,
         )
-        if match:
-            self.log.debug("STATE %s groups: %s", len(match.groups()), match.groups())
-        else:
-            self.log.debug(
-                "NO MATCH STATE for %s by %s",
-                topic,
-                f"{self.cfg.topic_root}/{self.node_cfg.name}/({self._provider_type_match})/({MQTT_NAME})/state",
-            )
-        if match and len(match.groups()) == 2:
-            discovery_type: str = match.group(1)
-            discovery_name: str = match.group(2)
-            if (
-                discovery_type in self.providers_by_type
-                and discovery_name in self.providers_by_type[discovery_type].discoveries
-            ):
-                return self.providers_by_type[discovery_type].discoveries[discovery_name]
-            self.log.debug("STATE discovery_type in providers_by_type: %s", bool(discovery_type in self.providers_by_type))
-            self.log.debug(list(self.providers_by_type.keys()))
-            self.log.debug("STATE Can't find %s for %s in %s", discovery_name, discovery_type, topic)
+        if match and len(match.groups()) == 1:
+            discovery_name: str = match.group(1)
+            if discovery_name in self.providers_by_type[source_type].discoveries:
+                return self.providers_by_type[source_type].discoveries[discovery_name]
+
+        self.log.debug("MQTT STATE no match for %s", topic)
         return None
 
     def general_topic(self, discovery: Discovery) -> str:
         return f"{self.cfg.topic_root}/{self.node_cfg.name}/{discovery.source_type}/{discovery.name}"
 
-    def reverse_general_topic(self, topic: str) -> Discovery | None:
-        match = re.fullmatch(f"{self.cfg.topic_root}/{self.node_cfg.name}/({self._provider_type_match})/({MQTT_NAME})", topic)
-        if match and len(match.groups()) == 2:
-            discovery_type: str = match.group(1)
-            discovery_name: str = match.group(2)
-            if (
-                discovery_type in self.providers_by_type
-                and discovery_name in self.providers_by_type[discovery_type].discoveries
-            ):
-                return self.providers_by_type[discovery_type].discoveries[discovery_name]
+    def reverse_general_topic(self, topic: str, source_type: str) -> Discovery | None:
+        match = re.fullmatch(f"{self.cfg.topic_root}/{self.node_cfg.name}/{source_type}/({MQTT_NAME})", topic)
+        if match and len(match.groups()) == 1:
+            discovery_name: str = match.group(1)
+            if discovery_name in self.providers_by_type[source_type].discoveries:
+                return self.providers_by_type[source_type].discoveries[discovery_name]
+
+        self.log.debug("MQTT ATTR no match for %s", topic)
         return None
 
     def command_topic(self, provider: ReleaseProvider) -> str:

@@ -5,7 +5,7 @@ import time
 import types
 from collections.abc import AsyncGenerator, Coroutine
 from typing import Any, NoReturn
-from unittest.mock import ANY, call
+from unittest.mock import call
 
 import pytest
 
@@ -23,7 +23,7 @@ async def test_scan(
     monkeypatch.setattr(uut.scanners[0], "scan", mock_discovery_generator)
     await uut.scan()
     uut.publisher.clean_topics.assert_has_calls(  # type: ignore[attr-defined]
-        [call(uut.scanners[0], None, force=True), call(uut.scanners[0], ANY, force=False)]
+        [call(uut.scanners[0])]
     )
     uut.publisher.publish_hass_state.assert_has_calls([call(d) for d in mock_discoveries])  # type: ignore[attr-defined]
 

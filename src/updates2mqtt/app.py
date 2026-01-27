@@ -92,7 +92,7 @@ class App:
             if self.stopped.is_set():
                 slog.debug("Breaking scan loop on stopped event")
                 break
-            await self.publisher.clean_topics(scanner, session, force=False)
+            await self.publisher.clean_topics(scanner)
             self.scan_count += 1
             slog.info(f"Scan #{self.scan_count} complete")
         self.last_scan_timestamp = datetime.now(UTC).isoformat()
