@@ -165,8 +165,7 @@ as will the release notes link. SVG icons should be used.
 Updates2MQTT attempts to find the most human-friendly representation of image versions that
 can be reliably used. Ideally that's a `v1.5.4` type version (whether formally SemVer or just traditional version).
 
-By default, configurable using `version_policy` in the Docker section of the config, it uses an `auto` version policy that will choose the most meaningful, and fall back to digests where versions aren't available (usually via image labels/annotations). This will also take
-into account where updates are throttled, or a pinned digest declared in the container.
+By default, configurable using `version_policy` in the Docker section of the config, it uses an `auto` version policy that will choose the most meaningful, and fall back to digests where versions aren't available (usually via image labels/annotations). This will also take into account where updates are throttled, or a pinned digest declared in the container.
 
 This can be overridden at container level using using the `updates2mqtt.version_policy` container label or `UPD2MQTT_VERSION_POLICY` environment variable:
 
@@ -212,11 +211,22 @@ The main technique to avoid throttling is caching of responses, and fortunately 
 | `immutable_cache_ttl` | 7776000 (90 days) | This is for anything fetched by a digest, such as image manifests. The only limitation for these should be storage space |
 | `token_cache_ttl` | None | Caching for authorization tokens, `docker.io` is good for 300 seconds, not all registries publish the life in the response |
 
-The cache, using [Hisel](https://hishel.com), is automatically cleaned up of old entries once the TTL (Time to Live) has expired.
+The cache, using [Hishel](https://hishel.com), is automatically cleaned up of old entries once the TTL (Time to Live) has expired.
 
 The other approach can be to reduce the scan interval, or ignore some of the containers.
 
-#### Icon Sources
+### GitHub API
+
+GitHub REST API has its own throttling, which may impact fetching release summaries. A higher limit can be achieved using a
+*personal access token*. Create one in *Developer Settings* in GitHub, make sure it has access to "Public Repositories",
+and configure it in Updates2MQTT as below:
+
+```yaml title="updates2mqtt config snippet"
+github:
+  access_token: my_access_token
+```
+
+## Icon Sources
 
 Updates look nicer in Home Assistant with a suitable icon. Updates2mqtt comes
 pre-packaged with some common ones, in `common_packages.yaml`, and can automatically fetch them (and release links) for the popular [linuxserver.io](https://www.linuxserver.io) packages.  

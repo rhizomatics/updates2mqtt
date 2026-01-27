@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 1.7.4
+### Release Notes
+- If the component tag doesn't match the release tag (e.g. `1.7.3` vs `v1.7.3`), an alt lookup will be made on latest github released, and used if the tag name on that release matches the expected tag
+- A GitHub *personal access token* can now be added in the `github:` config section, which will increase number of API calls that
+can be made for release info before being throttled
+### CLI
+- Logging improved, with different default for container lookup
 ## 1.7.3
 - Minor fix for stats reporting
 ## 1.7.2

@@ -187,6 +187,10 @@ Registries usually have an unauthenticated token system for authorization, this 
 If the benefits of the extra calls ( release summaries, direct release note URLs, human friendly version numbers ), then
 the additional fetches can be skipped by using `OCI_V2_MINIMAL` as the `api` value in the registry configuration section.
 
+!!! tip
+Images built on GitHub often use the `docker-metadata` action to create the annotations, which is documented at [metadata-action](https://github.com/docker/metadata-action)
+
+
 ## Too Many Requests
 
 The Docker Registry API has a limit on how many authenticated requests, and a lower
