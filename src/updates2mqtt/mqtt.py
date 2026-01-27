@@ -138,55 +138,60 @@ class MqttPublisher:
         logger = self.log.bind(action="clean")
         if self.fatal_failure.is_set():
             return
-        logger.info("Starting clean cycle, max time: %s", max_time)
-        cutoff_time: float = time.time() + max_time
-        cleaner = mqtt.Client(
-            callback_api_version=CallbackAPIVersion.VERSION1,
-            client_id=f"updates2mqtt_clean_{self.node_cfg.name}",
-            clean_session=True,
-        )
-        results = {"cleaned": 0, "handled": 0, "discovered": 0, "last_timestamp": time.time()}
-        cleaner.username_pw_set(self.cfg.user, password=self.cfg.password)
-        cleaner.connect(host=self.cfg.host, port=self.cfg.port, keepalive=60)
+        try:
+            logger.info("Starting clean cycle, max time: %s", max_time)
+            cutoff_time: float = time.time() + max_time
+            cleaner = mqtt.Client(
+                callback_api_version=CallbackAPIVersion.VERSION1,
+                client_id=f"updates2mqtt_clean_{self.node_cfg.name}",
+                clean_session=True,
+            )
+            results = {"cleaned": 0, "handled": 0, "discovered": 0, "last_timestamp": time.time()}
+            cleaner.username_pw_set(self.cfg.user, password=self.cfg.password)
+            cleaner.connect(host=self.cfg.host, port=self.cfg.port, keepalive=60)
 
-        def cleanup(_client: mqtt.Client, _userdata: Any, msg: mqtt.MQTTMessage) -> None:
-            discovery: Discovery | None = None
-            if msg.topic.startswith(f"{self.hass_cfg.discovery.prefix}/update/{self.node_cfg.name}_{provider.source_type}_"):
-                discovery = self.reverse_config_topic(msg.topic)
-                if discovery is None:
-                    logger.info("Config topic discovery unknown", topic=msg.topic)
-            elif msg.topic.startswith(
-                f"{self.cfg.topic_root}/{self.node_cfg.name}/{provider.source_type}/"
-            ) and msg.topic.endswith("/state"):
-                discovery = self.reverse_state_topic(msg.topic)
-                if discovery is None:
-                    logger.info("State topic discovery unknown", topic=msg.topic)
-            elif msg.topic.startswith(f"{self.cfg.topic_root}/{self.node_cfg.name}/{provider.source_type}/"):
-                discovery = self.reverse_general_topic(msg.topic)
-                if discovery is None:
-                    logger.info("General topic discovery unknown", topic=msg.topic)
-            else:
-                logger.info("Unable to find matching discovery for topic", topic=msg.topic)
+            def cleanup(_client: mqtt.Client, _userdata: Any, msg: mqtt.MQTTMessage) -> None:
+                discovery: Discovery | None = None
+                if msg.topic.startswith(
+                    f"{self.hass_cfg.discovery.prefix}/update/{self.node_cfg.name}_{provider.source_type}_"
+                ):
+                    discovery = self.reverse_config_topic(msg.topic)
+                    if discovery is None:
+                        logger.info("Config topic discovery unknown", topic=msg.topic)
+                elif msg.topic.startswith(
+                    f"{self.cfg.topic_root}/{self.node_cfg.name}/{provider.source_type}/"
+                ) and msg.topic.endswith("/state"):
+                    discovery = self.reverse_state_topic(msg.topic)
+                    if discovery is None:
+                        logger.info("State topic discovery unknown", topic=msg.topic)
+                elif msg.topic.startswith(f"{self.cfg.topic_root}/{self.node_cfg.name}/{provider.source_type}/"):
+                    discovery = self.reverse_general_topic(msg.topic)
+                    if discovery is None:
+                        logger.info("General topic discovery unknown", topic=msg.topic)
+                else:
+                    logger.info("Unable to find matching discovery for topic", topic=msg.topic)
 
-            results["discovered"] += 1
-            results["handled"] += 1
-            results["last_timestamp"] = time.time()
-            if discovery is None and force:
-                logger.debug("Removing untrackable msg", topic=msg.topic)
-                cleaner.publish(msg.topic, "", retain=True)
-                results["cleaned"] += 1
+                results["discovered"] += 1
+                results["handled"] += 1
+                results["last_timestamp"] = time.time()
+                if discovery is None and force:
+                    logger.debug("Removing untrackable msg", topic=msg.topic)
+                    cleaner.publish(msg.topic, "", retain=True)
+                    results["cleaned"] += 1
 
-        cleaner.on_message = cleanup
-        options = paho.mqtt.subscribeoptions.SubscribeOptions(noLocal=True)
-        cleaner.subscribe(f"{self.hass_cfg.discovery.prefix}/update/#", options=options)
-        cleaner.subscribe(f"{self.cfg.topic_root}/{self.node_cfg.name}/{provider.source_type}/#", options=options)
+            cleaner.on_message = cleanup
+            options = paho.mqtt.subscribeoptions.SubscribeOptions(noLocal=True)
+            cleaner.subscribe(f"{self.hass_cfg.discovery.prefix}/update/#", options=options)
+            cleaner.subscribe(f"{self.cfg.topic_root}/{self.node_cfg.name}/{provider.source_type}/#", options=options)
 
-        while time.time() - results["last_timestamp"] <= wait_time and time.time() <= cutoff_time:
-            cleaner.loop(0.5)
+            while time.time() - results["last_timestamp"] <= wait_time and time.time() <= cutoff_time:
+                cleaner.loop(0.5)
 
-        logger.info(
-            f"Clean completed, discovered:{results['discovered']}, handled:{results['handled']}, cleaned:{results['cleaned']}"
-        )
+            logger.info(
+                f"Cleaned - discovered:{results['discovered']}, handled:{results['handled']}, cleaned:{results['cleaned']}"
+            )
+        except Exception as e:
+            logger.error("Cleaning topics of stale entries failed: %s", e)
 
     def safe_json_decode(self, jsonish: str | bytes | None) -> dict:
         if jsonish is None:
@@ -323,9 +328,11 @@ class MqttPublisher:
                 and discovery_name in self.providers_by_type[discovery_type].discoveries
             ):
                 return self.providers_by_type[discovery_type].discoveries[discovery_name]
-            self.log.debug("CONFIG discovery_type in providers_by_type", discovery_type in self.providers_by_type)
+            self.log.debug("CONFIG discovery_type in providers_by_type: %s", bool(discovery_type in self.providers_by_type))
             self.log.debug(list(self.providers_by_type.keys()))
             self.log.debug("CONFIG Can't find %s for %s", discovery_name, discovery_type)
+        else:
+            self.log.debug("CONFIG no match for %s", topic)
         return None
 
     def state_topic(self, discovery: Discovery) -> str:
