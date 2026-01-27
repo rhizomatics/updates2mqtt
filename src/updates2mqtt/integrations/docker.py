@@ -272,11 +272,11 @@ class DockerProvider(ReleaseProvider):
         )
 
     def rescan(self, discovery: Discovery) -> Discovery | None:
-        logger = self.log.bind(container=discovery.name, action="rescan")
+        logger: Any = self.log.bind(container=discovery.name, action="rescan")
         try:
             c: Container = self.client.containers.get(discovery.name)
             if c:
-                rediscovery = self.analyze(c, discovery.session, previous_discovery=discovery)
+                rediscovery: Discovery | None = self.analyze(c, discovery.session, previous_discovery=discovery)
                 if rediscovery and not rediscovery.throttled:
                     self.discoveries[rediscovery.name] = rediscovery
                     return rediscovery

@@ -47,7 +47,7 @@ RELEASE_URL_TEMPLATES = {
 }
 UNKNOWN_RELEASE_URL_TEMPLATES = {
     SOURCE_PLATFORM_GITHUB: "{repo}/releases",
-    SOURCE_PLATFORM_GITLAB: "{repo}/container_registry/",
+    SOURCE_PLATFORM_GITLAB: "{repo}/container_registry",
 }
 MISSING_VAL = "**MISSING**"
 UNKNOWN_REGISTRY = "**UNKNOWN_REGISTRY**"
@@ -209,7 +209,8 @@ class DockerImageInfo(DiscoveryArtefactDetail):
                 digest = digest.split(":")[1] if ":" in digest else digest  # remove digest type prefix
                 return digest[0:12]
             return digest
-        except Exception:
+        except Exception as e:
+            log.warning("Unable to condense digest %s: %s", digest, e)
             return None
 
     def reuse(self) -> "DockerImageInfo":

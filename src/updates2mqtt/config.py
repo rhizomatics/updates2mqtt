@@ -195,13 +195,13 @@ def load_app_config(conf_file_path: Path, return_invalid: bool = False) -> Confi
             try:
                 log.debug(f"Creating config directory {conf_file_path.parent} if not already present")
                 conf_file_path.parent.mkdir(parents=True, exist_ok=True)
-            except Exception:
-                log.warning("Unable to create config directory", path=conf_file_path.parent)
+            except Exception as e:
+                log.warning("Unable to create config directory: %s", e, path=conf_file_path.parent)
         try:
             conf_file_path.write_text(OmegaConf.to_yaml(base_cfg))
             log.info(f"Auto-generated a new config file at {conf_file_path}")
-        except Exception:
-            log.warning("Unable to write config file", path=conf_file_path)
+        except Exception as e:
+            log.warning("Unable to write config file: %s", e, path=conf_file_path)
         cfg = base_cfg
     else:
         cfg = base_cfg
