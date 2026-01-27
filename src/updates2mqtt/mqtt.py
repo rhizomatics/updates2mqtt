@@ -147,12 +147,18 @@ class MqttPublisher:
             discovery: Discovery | None = None
             if msg.topic.startswith(f"{self.hass_cfg.discovery.prefix}/update/{self.node_cfg.name}_{provider.source_type}_"):
                 discovery = self.reverse_config_topic(msg.topic)
+                if discovery is None:
+                    self.log.info("Config topic discovery unknown", topic=msg.topic)
             elif msg.topic.startswith(
                 f"{self.cfg.topic_root}/{self.node_cfg.name}/{provider.source_type}/"
             ) and msg.topic.endswith("/state"):
                 discovery = self.reverse_state_topic(msg.topic)
+                if discovery is None:
+                    self.log.info("State topic discovery unknown", topic=msg.topic)
             elif msg.topic.startswith(f"{self.cfg.topic_root}/{self.node_cfg.name}/{provider.source_type}/"):
                 discovery = self.reverse_general_topic(msg.topic)
+                if discovery is None:
+                    self.log.info("General topic discovery unknown", topic=msg.topic)
             else:
                 self.log.info("Unable to find matching discovery for topic", topic=msg.topic)
 
