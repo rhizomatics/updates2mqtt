@@ -479,7 +479,7 @@ class SourceReleaseEnricher:
             )
             if api_response and api_response.status_code == 404:
                 # possible that source version doesn't match release gag
-                alt_api_response: Response | None = fetch_url(f"{base_api}/releases/tags/latest", bearer_token=access_token)
+                alt_api_response: Response | None = fetch_url(f"{base_api}/releases/latest", bearer_token=access_token)
                 if alt_api_response and alt_api_response.is_success:
                     alt_api_results = httpx_json_content(alt_api_response, {})
                     if alt_api_results and re.match(f"(v|r)?{detail.version}", alt_api_results.get("tag_name")):
