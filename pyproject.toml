@@ -60,7 +60,8 @@ dev = [
     "pytest-subprocess>=1.5.3",
     "coverage",
     "icdiff",
-    "genbadge[all]"
+    "genbadge[all]",
+    "actionlint-py"
 ]
 docs=[
     "mkdocs",
