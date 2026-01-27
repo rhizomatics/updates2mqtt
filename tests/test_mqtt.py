@@ -574,7 +574,7 @@ async def test_clean_topics_removes_stale_session(mock_mqtt_client: Mock, mock_p
                 msg = Mock()
                 msg.retain = True
                 msg.topic = f"homeassistant/update/cleannode_{mock_provider.source_type}_container1/update/config"
-                msg.payload = json.dumps({"source_session": "old_session"}).encode()
+                msg.payload = json.dumps({"last_scan": {"session": "old_session"}}).encode()
                 on_message_callback(mock_cleaner, None, msg)
 
             # Run clean_topics with short wait_time

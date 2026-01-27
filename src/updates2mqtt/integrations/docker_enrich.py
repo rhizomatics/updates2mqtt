@@ -530,7 +530,7 @@ class SourceReleaseEnricher:
                         api_response = alt_api_response
                     elif alt_api_results:
                         self.log.debug(
-                            "Failed to match latest release for {detail.version}, found tag %s for name %s",
+                            "Failed to match latest release for %s, found tag %s for name %s",
                             detail.version,
                             alt_api_results.get("tag_name"),
                             alt_api_results.get("name"),

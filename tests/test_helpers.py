@@ -5,7 +5,7 @@ from unittest.mock import Mock
 from httpx import Response
 
 from updates2mqtt.config import Selector
-from updates2mqtt.helpers import APIStats, APIStatsCounter, Selection, timestamp
+from updates2mqtt.helpers import APIStats, APIStatsCounter, Selection, sanitize_name, timestamp
 
 # === Selection Filtering Tests ===
 
@@ -340,3 +340,11 @@ def test_api_stats_counter_handles_good_url() -> None:
     uut = APIStatsCounter()
     uut.stats("https://docker.io/v3/api/manifest/foo", _mock_response())
     assert uut.host_stats["docker.io"].fetches == 1
+
+
+def test_sanitize_leaves_good_name_untouched() -> None:
+    assert sanitize_name("my_docker_container_23") == "my_docker_container_23"
+
+
+def test_sanitize_replaces_special_chars() -> None:
+    assert sanitize_name("#my_docker_container_23!/45") == "_my_docker_container_23_45"

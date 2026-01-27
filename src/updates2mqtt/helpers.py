@@ -225,3 +225,42 @@ def fetch_url(
 def validate_url(url: str, cache_ttl: int = 1500) -> bool:
     response: Response | None = fetch_url(url, method="HEAD", cache_ttl=cache_ttl, follow_redirects=True)
     return response is not None and response.status_code != 404
+
+
+def sanitize_name(name: str, replacement: str = "_", max_len: int = 64) -> str:
+    """Strict sanitization that removes/replaces common problematic characters for MQTT or HA
+
+    - Replaces spaces with underscores
+    - Removes control characters
+    - Ensures alphanumeric safety for broader compatibility
+
+    Args:
+        name: The topic component string to sanitize
+        replacement: Character to replace invalid characters with (default: "_")
+        max_len: Largest acceptable name size
+
+    Returns:
+        Sanitized topic string safe for most MQTT brokers
+
+    """
+    if not name:
+        raise ValueError("Name cannot be empty")
+    orig_name: str = name
+    name = re.sub(r"[^A-Za-z0-9_\-\.]+", replacement, name)
+
+    # Replace multiple consecutive replacement chars with single one
+    if replacement:
+        pattern = re.escape(replacement) + "+"
+        name = re.sub(pattern, replacement, name)
+
+    # Trim to max length
+    topic_bytes = name.encode("utf-8")
+    if len(topic_bytes) > max_len:
+        name = topic_bytes[:max_len].decode("utf-8", errors="ignore")
+
+    if not name:
+        raise ValueError("Topic became empty after sanitization")
+    if name != orig_name:
+        log.info("Component name %s changed to %s for MQTT/HA compatibility", orig_name, name)
+
+    return name

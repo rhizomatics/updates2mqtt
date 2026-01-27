@@ -1,5 +1,6 @@
 import asyncio
 import json
+import re
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -21,6 +22,8 @@ from .hass_formatter import hass_format_config, hass_format_state
 
 log = structlog.get_logger()
 
+MQTT_NAME = r"[A-Za-z0-9_\-\.]+"
+
 
 @dataclass
 class LocalMessage:
@@ -34,6 +37,7 @@ class MqttPublisher:
         self.node_cfg: NodeConfig = node_cfg
         self.hass_cfg: HomeAssistantConfig = hass_cfg
         self.providers_by_topic: dict[str, ReleaseProvider] = {}
+        self.providers_by_type: dict[str, ReleaseProvider] = {}
         self.event_loop: asyncio.AbstractEventLoop | None = None
         self.client: mqtt.Client | None = None
         self.fatal_failure = Event()
@@ -124,7 +128,7 @@ class MqttPublisher:
             self.log.warning("Disconnect failure from broker", result_code=rc)
 
     async def clean_topics(
-        self, provider: ReleaseProvider, last_scan_session: str | None, wait_time: int = 5, force: bool = False
+        self, provider: ReleaseProvider, _last_scan_session: str | None, wait_time: int = 5, force: bool = False
     ) -> None:
         logger = self.log.bind(action="clean")
         if self.fatal_failure.is_set():
@@ -138,40 +142,30 @@ class MqttPublisher:
         results = {"cleaned": 0, "handled": 0, "discovered": 0, "last_timestamp": time.time()}
         cleaner.username_pw_set(self.cfg.user, password=self.cfg.password)
         cleaner.connect(host=self.cfg.host, port=self.cfg.port, keepalive=60)
-        prefixes = [
-            f"{self.hass_cfg.discovery.prefix}/update/{self.node_cfg.name}_{provider.source_type}_",
-            f"{self.cfg.topic_root}/{self.node_cfg.name}/{provider.source_type}/",
-        ]
 
         def cleanup(_client: mqtt.Client, _userdata: Any, msg: mqtt.MQTTMessage) -> None:
-            if msg.retain and any(msg.topic.startswith(prefix) for prefix in prefixes):
-                session = None
+            if msg.retain:
+                discovery: Discovery | None = None
+                if msg.topic.startswith(
+                    f"{self.hass_cfg.discovery.prefix}/update/{self.node_cfg.name}_{provider.source_type}_"
+                ):
+                    discovery = self.reverse_config_topic(msg.topic)
+                elif msg.topic.startswith(
+                    f"{self.cfg.topic_root}/{self.node_cfg.name}/{provider.source_type}/"
+                ) and msg.topic.endswith("/state"):
+                    discovery = self.reverse_state_topic(msg.topic)
+                elif msg.topic.startswith(f"{self.cfg.topic_root}/{self.node_cfg.name}/{provider.source_type}/"):
+                    discovery = self.reverse_general_topic(msg.topic)
+                else:
+                    self.log.info("Unable to find matching discovery for topic", topic=msg.topic)
+
                 results["discovered"] += 1
-                try:
-                    payload = self.safe_json_decode(msg.payload)
-                    session = payload.get("source_session")
-                except Exception as e:
-                    log.warn(
-                        "Unable to handle payload for %s: %s",
-                        msg.topic,
-                        e,
-                        exc_info=1,
-                    )
                 results["handled"] += 1
                 results["last_timestamp"] = time.time()
-                if session is not None and last_scan_session is not None and session != last_scan_session:
-                    log.debug("Removing stale msg", topic=msg.topic, session=session)
-                    cleaner.publish(msg.topic, "", retain=True)
-                    results["cleaned"] += 1
-                elif session is None and force:
+                if discovery is None and force:
                     log.debug("Removing untrackable msg", topic=msg.topic)
                     cleaner.publish(msg.topic, "", retain=True)
                     results["cleaned"] += 1
-                else:
-                    log.debug(
-                        "Retaining topic with current session: %s",
-                        msg.topic,
-                    )
             else:
                 log.debug("Skipping clean of %s", msg.topic)
 
@@ -233,7 +227,7 @@ class MqttPublisher:
                     source_type,
                     comp_name,
                 )
-                updated = provider.command(comp_name, command, on_update_start, on_update_end)
+                updated: bool = provider.command(comp_name, command, on_update_start, on_update_end)
                 discovery = provider.resolve(comp_name)
                 if updated and discovery:
                     if discovery.publish_policy == PublishPolicy.HOMEASSISTANT and self.hass_cfg.discovery.enabled:
@@ -305,11 +299,40 @@ class MqttPublisher:
         prefix = self.hass_cfg.discovery.prefix
         return f"{prefix}/update/{self.node_cfg.name}_{discovery.source_type}_{discovery.name}/update/config"
 
+    def reverse_config_topic(self, topic: str) -> Discovery | None:
+        match = re.fullmatch(
+            f"{self.hass_cfg.discovery.prefix}/update/{self.node_cfg.name}_({MQTT_NAME})_({MQTT_NAME})/update/config", topic
+        )
+        if match and len(match.groups()) == 2:
+            discovery_type: str = match.group(1)
+            disovery_name: str = match.group(2)
+            if discovery_type in self.providers_by_type and disovery_name in self.providers_by_type[discovery_type].discoveries:
+                return self.providers_by_type[discovery_type].discoveries[disovery_name]
+        return None
+
     def state_topic(self, discovery: Discovery) -> str:
         return f"{self.cfg.topic_root}/{self.node_cfg.name}/{discovery.source_type}/{discovery.name}/state"
 
+    def reverse_state_topic(self, topic: str) -> Discovery | None:
+        match = re.fullmatch(f"{self.cfg.topic_root}/{self.node_cfg.name}/({MQTT_NAME})/({MQTT_NAME})/state", topic)
+        if match and len(match.groups()) == 2:
+            discovery_type: str = match.group(1)
+            disovery_name: str = match.group(2)
+            if discovery_type in self.providers_by_type and disovery_name in self.providers_by_type[discovery_type].discoveries:
+                return self.providers_by_type[discovery_type].discoveries[disovery_name]
+        return None
+
     def general_topic(self, discovery: Discovery) -> str:
         return f"{self.cfg.topic_root}/{self.node_cfg.name}/{discovery.source_type}/{discovery.name}"
+
+    def reverse_general_topic(self, topic: str) -> Discovery | None:
+        match = re.fullmatch(f"{self.cfg.topic_root}/{self.node_cfg.name}/({MQTT_NAME})/({MQTT_NAME})", topic)
+        if match and len(match.groups()) == 2:
+            discovery_type: str = match.group(1)
+            disovery_name: str = match.group(2)
+            if discovery_type in self.providers_by_type and disovery_name in self.providers_by_type[discovery_type].discoveries:
+                return self.providers_by_type[discovery_type].discoveries[disovery_name]
+        return None
 
     def command_topic(self, provider: ReleaseProvider) -> str:
         return f"{self.cfg.topic_root}/{self.node_cfg.name}/{provider.source_type}"
@@ -363,6 +386,7 @@ class MqttPublisher:
         else:
             self.log.info("Handler subscribing", topic=topic)
             self.providers_by_topic[topic] = provider
+            self.providers_by_type[provider.source_type] = provider
             self.client.subscribe(topic)
         return topic
 

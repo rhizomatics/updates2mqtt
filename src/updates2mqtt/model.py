@@ -8,7 +8,7 @@ from typing import Any
 import structlog
 
 from updates2mqtt.config import NodeConfig, PublishPolicy, UpdatePolicy, VersionPolicy
-from updates2mqtt.helpers import timestamp
+from updates2mqtt.helpers import sanitize_name, timestamp
 
 
 class DiscoveryArtefactDetail:
@@ -98,7 +98,7 @@ class Discovery:
         self.provider: ReleaseProvider = provider
         self.source_type: str = provider.source_type
         self.session: str = session
-        self.name: str = name
+        self.name: str = sanitize_name(name)
         self.node: str = node
         self.entity_picture_url: str | None = entity_picture_url
         self.current_version: str | None = current_version
