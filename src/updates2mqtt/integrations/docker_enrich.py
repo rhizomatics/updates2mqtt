@@ -483,20 +483,28 @@ class SourceReleaseEnricher:
 
         diff_url_template: str | None = DIFF_URL_TEMPLATES.get(detail.source_platform)
         diff_url: str | None = diff_url_template.format(**template_vars) if diff_url_template else None
-        if diff_url and MISSING_VAL not in diff_url and validate_url(diff_url):
+        if diff_url and MISSING_VAL not in diff_url and validate_url(diff_url, cache_ttl=3600):
             detail.diff_url = diff_url
         else:
             diff_url = None
 
         if detail.notes_url is None and detail.source_platform in RELEASE_URL_TEMPLATES:
-            detail.notes_url = RELEASE_URL_TEMPLATES[detail.source_platform].format(**template_vars)
-
-            if detail.source_platform in UNKNOWN_RELEASE_URL_TEMPLATES and (
-                MISSING_VAL in detail.notes_url or not validate_url(detail.notes_url)
+            platform_notes_url: str | None = RELEASE_URL_TEMPLATES[detail.source_platform].format(**template_vars)
+            if (
+                platform_notes_url
+                and MISSING_VAL not in platform_notes_url
+                and validate_url(platform_notes_url, cache_ttl=86400)
             ):
-                detail.notes_url = UNKNOWN_RELEASE_URL_TEMPLATES[detail.source_platform].format(**template_vars)
-                if MISSING_VAL in detail.notes_url or not validate_url(detail.notes_url):
-                    detail.notes_url = None
+                detail.notes_url = platform_notes_url
+
+        if detail.notes_url is None and detail.source_platform in UNKNOWN_RELEASE_URL_TEMPLATES:
+            platform_notes_url = UNKNOWN_RELEASE_URL_TEMPLATES[detail.source_platform].format(**template_vars)
+            if (
+                platform_notes_url
+                and MISSING_VAL not in platform_notes_url
+                and validate_url(platform_notes_url, cache_ttl=86400)
+            ):
+                detail.notes_url = platform_notes_url
 
         if detail.source_platform == SOURCE_PLATFORM_GITHUB and detail.source_repo_url and detail.version is not None:
             access_token: str | None = self.gh_cfg.access_token if self.gh_cfg else None
