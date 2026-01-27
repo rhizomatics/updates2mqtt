@@ -317,7 +317,7 @@ class MqttPublisher:
 
     def reverse_config_topic(self, topic: str) -> Discovery | None:
         match = re.fullmatch(
-            f"{self.hass_cfg.discovery.prefix}/update/{self.node_cfg.name}:({self._provider_type_match}):({MQTT_NAME})/update/config",
+            f"{self.hass_cfg.discovery.prefix}/update/{self.node_cfg.name}_({self._provider_type_match})_({MQTT_NAME})/update/config",
             topic,
         )
         if match:
@@ -326,7 +326,7 @@ class MqttPublisher:
             self.log.debug(
                 "NO MATCH CONFIG %s by %s",
                 topic,
-                f"{self.hass_cfg.discovery.prefix}/update/{self.node_cfg.name}:({self._provider_type_match}):({MQTT_NAME})/update/config",
+                f"{self.hass_cfg.discovery.prefix}/update/{self.node_cfg.name}_({self._provider_type_match})_({MQTT_NAME})/update/config",
             )
 
         if match and len(match.groups()) == 2:
@@ -368,6 +368,9 @@ class MqttPublisher:
                 and discovery_name in self.providers_by_type[discovery_type].discoveries
             ):
                 return self.providers_by_type[discovery_type].discoveries[discovery_name]
+            self.log.debug("STATE discovery_type in providers_by_type: %s", bool(discovery_type in self.providers_by_type))
+            self.log.debug(list(self.providers_by_type.keys()))
+            self.log.debug("STATE Can't find %s for %s in %s", discovery_name, discovery_type, topic)
         return None
 
     def general_topic(self, discovery: Discovery) -> str:
