@@ -323,7 +323,7 @@ class MqttPublisher:
                 and discovery_name in self.providers_by_type[discovery_type].discoveries
             ):
                 return self.providers_by_type[discovery_type].discoveries[discovery_name]
-            self.log("Can't find %s for %s", discovery_name, discovery_type)
+            self.log.debug("CONFIG Can't find %s for %s", discovery_name, discovery_type)
         return None
 
     def state_topic(self, discovery: Discovery) -> str:
