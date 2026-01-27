@@ -323,7 +323,11 @@ class MqttPublisher:
         if match:
             self.log.debug("CONFIG %s groups: %s", len(match.groups()), match.groups())
         else:
-            self.log.debug("NO MATCH CONFIG")
+            self.log.debug(
+                "NO MATCH CONFIG %s by %s",
+                topic,
+                f"{self.hass_cfg.discovery.prefix}/update/{self.node_cfg.name}:({self._provider_type_match}):({MQTT_NAME})/update/config",
+            )
 
         if match and len(match.groups()) == 2:
             discovery_type: str = match.group(1)
