@@ -138,7 +138,7 @@ class MqttPublisher:
         logger = self.log.bind(action="clean")
         if self.fatal_failure.is_set():
             return
-        logger.info("Starting clean cycle")
+        logger.info("Starting clean cycle, max time: %s", max_time)
         cutoff_time: float = time.time() + max_time
         cleaner = mqtt.Client(
             callback_api_version=CallbackAPIVersion.VERSION1,
@@ -310,8 +310,11 @@ class MqttPublisher:
         match = re.fullmatch(
             f"{self.hass_cfg.discovery.prefix}/update/{self.node_cfg.name}_({MQTT_NAME})_({MQTT_NAME})/update/config", topic
         )
-        self.log.debug(match.groups() if match else "NO MATCH CONFIG")
-        self.log.debug(len(match.groups() if match else ""))
+        if match:
+            self.log.debug("CONFIG %s groups: %s", len(match.groups()), match.groups())
+        else:
+            self.log.debug("NO MATCH CONFIG")
+
         if match and len(match.groups()) == 2:
             discovery_type: str = match.group(1)
             discovery_name: str = match.group(2)
@@ -328,7 +331,7 @@ class MqttPublisher:
 
     def reverse_state_topic(self, topic: str) -> Discovery | None:
         match = re.fullmatch(f"{self.cfg.topic_root}/{self.node_cfg.name}/({MQTT_NAME})/({MQTT_NAME})/state", topic)
-        self.log.debug(match.groups() if match else "NO MATCH STATE")
+
         if match and len(match.groups()) == 2:
             discovery_type: str = match.group(1)
             discovery_name: str = match.group(2)
