@@ -90,7 +90,7 @@ restarter:
 While `updates2mqtt` will discover and monitor all containers running under the Docker daemon,
 there are some options to make to those containers to tune how it works.
 
-These happen by adding environment variables to the containers, typically inside an `.env`
+These happen by adding environment variables or docker labels to the containers, typically inside an `.env`
 file, or as `environment` options inside `docker-compose.yaml`.
 
 ### Automated updates
@@ -158,7 +158,7 @@ Other apps useful for self-hosting with the help of MQTT:
 
 Find more at [awesome-mqtt](https://github.com/rhizomatics/awesome-mqtt)
 
-For a more powerful Docker update manager, try [What's Up Docker](https://getwud.github.io/wud/)
+For a more powerful Docker focussed update manager, try [What's Up Docker](https://getwud.github.io/wud/)
 
 ## Development
 

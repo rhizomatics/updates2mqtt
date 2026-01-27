@@ -21,7 +21,7 @@ common_packages:
     docker:
       image_name: librenms/librenms
     logo_url: https://www.librenms.org/images/LibreNMS-Logo.svg
-    source_repo_url: https://github.com/librenms/docker
+    source_repo_url: https://github.com/librenms/librenms
 
   unifi-jacobalberty:
     docker:
