@@ -240,3 +240,40 @@ If you have something not covered, here are some good places to look for self-ho
 - [Papirus Icons](https://github.com/PapirusDevelopmentTeam/papirus-icon-theme)
 - [Homelab SVG Assets](https://github.com/loganmarchione/homelab-svg-assets)
 
+### Environment Variables
+
+The following environment variables can be used to configure containers for `updates2mqtt`:
+
+| Env Var                    | Description                                                                                  | Default         |
+|----------------------------|----------------------------------------------------------------------------------------------|-----------------|
+| `UPD2MQTT_UPDATE`          | Update mode, either `Passive` or `Auto`. If `Auto`, updates will be installed automatically. | `Passive`       |
+| `UPD2MQTT_PICTURE`         | URL to an icon to use in Home Assistant.                                                     | Docker logo URL |
+| `UPD2MQTT_RELNOTES`        | URL to release notes for the package.                                                        |                 |
+| `UPD2MQTT_GIT_REPO_PATH`   | Relative path to a local git repo if the image is built locally.                             |                 |
+| `UPD2MQTT_IGNORE`          | If set to `True`, the container will be ignored by Updates2MQTT.                             | False           |
+                        |                 |
+| `UPD2MQTT_VERSION_POLICY` | Change how version derived from container label or image hash, `Version`,`Digest`,`Version_Digest` with default of `Auto`|
+| `UPD2MQTT_REGISTRY_TOKEN` | Access token for authentication to container distribution API, as alternative to making a call to `token` service |
+
+### Docker Labels
+
+Alternatively, use Docker labels
+
+| Label                          | Env Var                    |
+|--------------------------------|----------------------------|
+| `updates2mqtt.update`          | `UPD2MQTT_UPDATE`          |
+| `updates2mqtt.picture`         | `UPD2MQTT_PCITURE`         |
+| `updates2mqtt.relnotes`        | `UPD2MQTT_RELNOTES`        |
+| `updates2mqtt.git_repo_path`   | `UPD2MQTT_GIT_REPO_PATH`   |
+| `updates2mqtt.ignore`          | `UPD2MQTT_IGNORE`          |
+| `updates2mqtt.version_policy`  | `UPD2MQTT_VERSION_POLICY`  |
+| `updates2mqtt.registry_token`  | `UPD2MQTT_REGISTRY_TOKEN`  |
+
+
+```yaml title="Example Compose Snippet"
+restarter:
+    image: docker:cli
+    command: ["/bin/sh", "-c", "while true; do sleep 86400; docker restart mailserver; done"]
+    labels:
+        updates2mqtt.relnotes: https://component.my.com/release_notes
+```

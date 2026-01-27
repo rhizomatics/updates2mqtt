@@ -3,13 +3,14 @@
 ## 1.8.0
 ### Package Info
 - The `common_packages.yaml` that ships inside the Docker image can be extended, or overridden, using the `packages` section of the main config file
-- Source platform will be inferred, and verified, for GitHub, Gitlab and Codeberg
+- Source platform will be inferred, and verified, for GitHub, Gitlab, Quay, LSCR and Codeberg
 ### Release Notes
 - If the component tag doesn't match the release tag (e.g. `1.7.3` vs `v1.7.3`), an alt lookup will be made on latest github released, and used if the tag name on that release matches the expected tag, with a common `v`,`V`,`r` or `R` prefix
 - A GitHub *personal access token* can now be added in the `github:` config section, which will increase number of API calls that can be made for release info before being throttled
 - Release notes can be better guessed, subject to URL validation, for Gitlab and GitHub
 ### CLI
 - Logging improved, with different default for container lookup, so there's always some output from commands
+- Added a `tags` option to retrieve list of known tags in the registry
 ### Housekeeping
 - MQTT topic clean overhauled - 
     - Now runs only after scan
@@ -40,7 +41,7 @@
    - Older method can be switched back on using `docker.registry.api: docker_client` configuration
    - Container registry also used where available to pull in annotations ( including 
 a meaningful version ) using the OCI Distriubtion API
-  - Docker, GitHub GHCR, Gitlab and Codeberg configured
+  - Docker, GitHub GHCR, Gitlab, LSCR, Microsoft MCR and Codeberg configured
   - Authentication logic to automatically adapt and retry dynamically for other platforms
   - Annotations will be sourced from the Index or Manifest, with priority for the (platform-specific) manifest
   - Digest matching adapts to different practices across repos

@@ -57,10 +57,11 @@ HEADER_DOCKER_API = "docker-distribution-api-version"
 
 TOKEN_URL_TEMPLATE = "https://{auth_host}/token?scope=repository:{image_name}:pull&service={service}"  # noqa: S105 # nosec
 
-REGISTRIES: dict[str, tuple[str | None, str, str, str, str | None]] = {
+REGISTRIES: dict[str, tuple[str | None, str, str, str | None, str | None]] = {
     # registry: (auth_host, api_host, service, url_template, repo_template)
     "docker.io": ("auth.docker.io", "registry-1.docker.io", "registry.docker.io", TOKEN_URL_TEMPLATE, None),
-    "mcr.microsoft.com": (None, "mcr.microsoft.com", "mcr.microsoft.com", TOKEN_URL_TEMPLATE, None),
+    "mcr.microsoft.com": (None, "mcr.microsoft.com", "mcr.microsoft.com", None, None),
+    "quay.io": (None, "quay.io", "quay.io", TOKEN_URL_TEMPLATE, None),
     "ghcr.io": ("ghcr.io", "ghcr.io", "ghcr.io", TOKEN_URL_TEMPLATE, "https://github.com/{image_name}"),
     "lscr.io": ("ghcr.io", "lscr.io", "ghcr.io", TOKEN_URL_TEMPLATE, None),
     "codeberg.org": (
@@ -453,7 +454,9 @@ class SourceReleaseEnricher:
         detail.source_url = source_repo_url or registry_info.annotations.get("org.opencontainers.image.source")
 
         if detail.source_url is None and registry_info is not None and registry_info.index_name is not None:
-            registry_config: tuple[str | None, str, str, str, str | None] | None = REGISTRIES.get(registry_info.index_name)
+            registry_config: tuple[str | None, str, str, str | None, str | None] | None = REGISTRIES.get(
+                registry_info.index_name
+            )
             repo_template: str | None = registry_config[4] if registry_config else None
             if repo_template:
                 source_url = repo_template.format(image_name=registry_info.name)
@@ -595,8 +598,12 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
             return None
 
         service: str = REGISTRIES.get(registry, default_host)[2]
-        url_template: str = REGISTRIES.get(registry, default_host)[3]
-        auth_url: str = url_template.format(auth_host=auth_host, image_name=image_name, service=service)
+        url_template: str | None = REGISTRIES.get(registry, default_host)[3]
+        auth_url: str | None = (
+            url_template.format(auth_host=auth_host, image_name=image_name, service=service) if url_template else None
+        )
+        if auth_url is None:
+            return None
         response: Response | None = fetch_url(
             auth_url, cache_ttl=self.cfg.token_cache_ttl, follow_redirects=True, api_stats_counter=self.api_stats
         )

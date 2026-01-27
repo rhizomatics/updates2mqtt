@@ -196,7 +196,7 @@ def fetch_url(
                 allow_stale=allow_stale,
             )
         )
-        log_headers = (h for h in headers if len(h) > 1 and h[0] != "Authorization")
+        log_headers: list[tuple[str, str]] = [h for h in headers if len(h) > 1 and h[0] != "Authorization"]
         with SyncCacheClient(headers=headers, follow_redirects=follow_redirects, policy=cache_policy) as client:
             log.debug(f"Fetching URL {url}, redirects={follow_redirects}, headers={log_headers}, cache_ttl={cache_ttl}")
             response: Response = client.request(method=method, url=url, extensions={"hishel_ttl": cache_ttl})

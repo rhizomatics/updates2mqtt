@@ -34,7 +34,7 @@ Read the release notes, and optionally click *Update* to trigger a Docker *pull*
 
 Updates2MQTT perioidically checks for new versions of components being available, and publishes new version info to MQTT. HomeAssistant auto discovery is supported, so all updates can be seen in the same place as Home Assistant's own components and add-ins.
 
-Currently only Docker containers are supported, either via an image registry check (using either v1 Docker APIs or the OCI v2 API), or a git repo for source (see [Local Builds](local_builds.md)), with specific handling for Docker, Github Container Registry, Gitlab, Codeberg, Microsoft Container Registry and LinuxServer Registry, with adaptive behaviour to cope with most
+Currently only Docker containers are supported, either via an image registry check (using either v1 Docker APIs or the OCI v2 API), or a git repo for source (see [Local Builds](local_builds.md)), with specific handling for Docker, Github Container Registry, Gitlab, Codeberg, Microsoft Container Registry, Quay and LinuxServer Registry, with adaptive behaviour to cope with most
 others.  The design is modular, so other update sources can be added, at least for notification. The next anticipated is **apt** for Debian based systems.
 
 Components can also be updated, either automatically or triggered via MQTT, for example by hitting the *Install* button in the HomeAssistant update dialog. Icons and release notes can be specified for a better HA experience. See [Home Assistant Integration](home_assistant.md) for details.
@@ -52,6 +52,9 @@ or without Docker, using [uv](https://docs.astral.sh/uv/)
 ```bash
 export MQTT_HOST=192.168.1.1;export MQTT_USER=user1;export MQTT_PASS=user1;uv run --with updates2mqtt python -m updates2mqtt
 ```
+
+It also comes with a basic command line tool that will perform the analysis for a single running container, or fetch
+manifests, JSON blobs and lists of tags from remote registries (known to work with GitHub, GitLab, Codeberg, Quay, LSCR and Microsoft MCR).
 
 ## Release Support
 
@@ -109,45 +112,6 @@ restarter:
 
 Automated updates can also apply to local builds, where a `git_repo_path` has been defined - if there are remote
 commits available to pull, then a `git pull`, `docker compose build` and `docker compose up` will be executed.
-
-### Environment Variables
-
-The following environment variables can be used to configure containers for `updates2mqtt`:
-
-| Env Var                    | Description                                                                                  | Default         |
-|----------------------------|----------------------------------------------------------------------------------------------|-----------------|
-| `UPD2MQTT_UPDATE`          | Update mode, either `Passive` or `Auto`. If `Auto`, updates will be installed automatically. | `Passive`       |
-| `UPD2MQTT_PICTURE`         | URL to an icon to use in Home Assistant.                                                     | Docker logo URL |
-| `UPD2MQTT_RELNOTES`        | URL to release notes for the package.                                                        |                 |
-| `UPD2MQTT_GIT_REPO_PATH`   | Relative path to a local git repo if the image is built locally.                             |                 |
-| `UPD2MQTT_IGNORE`          | If set to `True`, the container will be ignored by Updates2MQTT.                             | False           |
-                        |                 |
-| `UPD2MQTT_VERSION_POLICY` | Change how version derived from container label or image hash, `Version`,`Digest`,`Version_Digest` with default of `Auto`|
-| `UPD2MQTT_REGISTRY_TOKEN` | Access token for authentication to container distribution API, as alternative to making a call to `token` service |
-
-### Docker Labels
-
-Alternatively, use Docker labels
-
-| Label                          | Env Var                    |
-|--------------------------------|----------------------------|
-| `updates2mqtt.update`          | `UPD2MQTT_UPDATE`          |
-| `updates2mqtt.picture`         | `UPD2MQTT_PCITURE`         |
-| `updates2mqtt.relnotes`        | `UPD2MQTT_RELNOTES`        |
-| `updates2mqtt.git_repo_path`   | `UPD2MQTT_GIT_REPO_PATH`   |
-| `updates2mqtt.ignore`          | `UPD2MQTT_IGNORE`          |
-| `updates2mqtt.version_policy`  | `UPD2MQTT_VERSION_POLICY`  |
-| `updates2mqtt.registry_token`  | `UPD2MQTT_REGISTRY_TOKEN`  |
-
-
-
-```yaml title="Example Compose Snippet"
-restarter:
-    image: docker:cli
-    command: ["/bin/sh", "-c", "while true; do sleep 86400; docker restart mailserver; done"]
-    labels:
-        updates2mqtt.relnotes: https://component.my.com/release_notes
-```
 
 
 ## Related Projects

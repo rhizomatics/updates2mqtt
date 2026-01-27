@@ -24,18 +24,20 @@ log = structlog.get_logger()
 """
 Super simple CLI
 
-python updates2mqtt.cli container=frigate
+Command can be `container`,`tags`,`manifest` or `blob`
 
-python updates2mqtt.cli container=frigate api=docker_client log_level=DEBUG
+* `container=container-name`
+* `container=hash`
+* `tags=ghcr.io/
+* `blob=manifest=mcr.microsoft.com/dotnet/sdk:latest`
+* `tags=quay.io/linuxserver.io/babybuddy`
+* `blob=ghcr.io/blakeblackshear/frigate@sha256:759c36ee869e3e60258350a2e221eae1a4ba1018613e0334f1bc84eb09c4bbbc`
 
-ython3 updates2mqtt/cli.py blob=ghcr.io/homarr-labs/homarr@sha256:af79a3339de5ed8ef7f5a0186ff3deb86f40b213ba75249291f2f68aef082a25 | jq '.config.Labels'
+In addition, a `log_level=DEBUG` or other level can be added, `github_token` to try a personal access
+token for GitHub release info retrieval, or `api=docker_client` to use the older API (defaults to `api=OCI_V2`)
 
-python3 updates2mqtt/cli.py manifest=ghcr.io/blakeblackshear/frigate:stable
 
-python3 updates2mqtt/cli.py blob=ghcr.io/blakeblackshear/frigate@sha256:ef8d56a7d50b545af176e950ce328aec7f0b7bc5baebdca189fe661d97924980
-
-python3 updates2mqtt/cli.py manifest=ghcr.io/blakeblackshear/frigate@sha256:c68fd78fd3237c9ba81b5aa927f17b54f46705990f43b4b5d5596cfbbb626af4
-"""  # noqa: E501
+"""
 
 OCI_MANIFEST_TYPES: list[str] = [
     "application/vnd.oci.image.manifest.v1+json",
@@ -112,18 +114,24 @@ def dump_url(doc_type: str, img_ref: str, cli_conf: DictConfig) -> None:
             log.warning("No tag or digest found in %s", img_ref)
             return
         url = f"https://{api_host}/v2/{img_info.name}/manifests/{img_info.tag_or_digest}"
+    elif doc_type == "tags":
+        url = f"https://{api_host}/v2/{img_info.name}/tags/list"
     else:
         return
 
     token: str | None = lookup.fetch_token(img_info.index_name, img_info.name)
 
     response: Response | None = fetch_url(url, bearer_token=token, follow_redirects=True, response_type=ALL_OCI_MEDIA_TYPES)
-    if response:
+    if response and response.is_error:
+        log.warning(f"{response.status_code}: {url}")
+        log.warning(response.text)
+    elif response and response.is_success:
         log.debug(f"{response.status_code}: {url}")
         log.debug("HEADERS")
         for k, v in response.headers.items():
             log.debug(f"{k}: {v}")
         log.debug("CONTENTS")
+
         print_json(response.text)
 
 
@@ -135,6 +143,9 @@ def main() -> None:
         dump_url("blob", cli_conf.get("blob"), cli_conf)
     elif cli_conf.get("manifest"):
         dump_url("manifest", cli_conf.get("manifest"), cli_conf)
+    elif cli_conf.get("tags"):
+        dump_url("tags", cli_conf.get("tags"), cli_conf)
+
     else:
         structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(cli_conf.get("log_level", "INFO")))
 

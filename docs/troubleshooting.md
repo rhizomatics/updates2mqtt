@@ -210,21 +210,37 @@ it won't be the same ones every time.
 ## Docker CLI
 
 There is a very bare bones command line debug tool, that will look up an image in either v1
-or v2 APIs and dump everything to console at `DEBUG` log level. Use the *container* hash,
-or a container name if one has been given ( easy to find out either of these with `docker ps`)
+or v2 APIs and dump everything to console at `DEBUG` log level, while also retrieving tokens
+to authorize API access and adapting to Docker Hub, GitHub, GitLab or Codeberg registries.
+
+Use the *container* hash, or a container name if one has been given ( easy to find out either of these with `docker ps`)
+
+There's no need to install Updates2MQTT to use the manifest and blob fetching ability. 
 
 ```bash
-python updates2mqtt.cli container=frigate
-python updates2mqtt.cli container=f4f02e182f5e api=docker_client
-python updates2mqtt.cli container=frigate
+uv run --with updates2mqtt cli manifest=ghcr.io/blakeblackshear/frigate:stable
+```
+
+The following examples will all work from any Python context, and don't need a local Docker or any Docker access.
+
+```bash
+uv run --with updates2mqtt cli  manifest=ghcr.io/blakeblackshear/frigate:stable
+uv run --with updates2mqtt cli  blob=ghcr.io/blakeblackshear/frigate@sha256:ef8d56a7d50b545af176e950ce328aec7f0b7bc5baebdca189fe661d97924980
+uv run --with updates2mqtt cli  manifest=ghcr.io/blakeblackshear/frigate@sha256:c68fd78fd3237c9ba81b5aa927f17b54f46705990f43b4b5d5596cfbbb626af4
+uv run --with updates2mqtt cli  tags=ghcr.io/blakeblackshear/frigate
+uv run --with updates2mqtt cli  manifest=mcr.microsoft.com/dotnet/sdk:latest
+```
+
+These examples refer to locally running containers, displaying the local info as well as remote registry
+
+```bash
+uv run --with updates2mqtt cli  container=frigate
+uv run --with updates2mqtt cli container=f4f02e182f5e api=docker_client
+uv run --with updates2mqtt cli container=frigate api=docker_client log_level=DEBUG
+```
+
+If the package is installed locally then the `--with updates2mqtt` part can be omitted with uv, or it can be run directly:
+
+```bash
 python updates2mqtt.cli container=frigate api=docker_client
-python3 updates2mqtt/cli.py manifest=ghcr.io/blakeblackshear/frigate:stable
-python3 updates2mqtt/cli.py blob=ghcr.io/blakeblackshear/frigate@sha256:ef8d56a7d50b545af176e950ce328aec7f0b7bc5baebdca189fe661d97924980
-python3 updates2mqtt/cli.py manifest=ghcr.io/blakeblackshear/frigate@sha256:c68fd78fd3237c9ba81b5aa927f17b54f46705990f43b4b5d5596cfbbb626af4
-```
-
-or with `uv`
-
-```
-uv run cli log_level=DEBUG container=www_caddy
 ```

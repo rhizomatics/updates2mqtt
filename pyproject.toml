@@ -75,7 +75,8 @@ docs=[
     "mkdocs-git-revision-date-localized-plugin",
     "mkdocs-meta-descriptions-plugin",
     "pngquant",
-    "mkdocs-mermaid2-plugin"
+    "mkdocs-mermaid2-plugin",
+    "mkdocs-htmlproofer-plugin"
 ]
 
 [build-system]

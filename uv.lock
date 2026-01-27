@@ -689,6 +689,21 @@ wheels = [
 ]
 
 [[package]]
+name = "mkdocs-htmlproofer-plugin"
+version = "1.4.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "beautifulsoup4" },
+    { name = "markdown" },
+    { name = "mkdocs" },
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ad/66/cafa93e64a5b648f6ece6fd407caed278a4b497a8c47678118b9736f1132/mkdocs_htmlproofer_plugin-1.4.1.tar.gz", hash = "sha256:7b2422175960cc8b91a9350f35a5802953f79f12faf2709f6de674a58de38733", size = 9173, upload-time = "2026-01-23T04:26:29.205Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9e/5a/6ec0d3a9c088826e8e245c7b92729e452621713ee21ebda80b9ad2b494a6/mkdocs_htmlproofer_plugin-1.4.1-py3-none-any.whl", hash = "sha256:8f427dc94c329d43f809d28595849c1242b7a5cfca8f9eff103a4195894d3fc7", size = 9240, upload-time = "2026-01-23T04:26:26.087Z" },
+]
+
+[[package]]
 name = "mkdocs-material"
 version = "9.7.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1429,6 +1444,7 @@ docs = [
     { name = "mkdocs-autorefs" },
     { name = "mkdocs-coverage" },
     { name = "mkdocs-git-revision-date-localized-plugin" },
+    { name = "mkdocs-htmlproofer-plugin" },
     { name = "mkdocs-material" },
     { name = "mkdocs-mermaid2-plugin" },
     { name = "mkdocs-meta-descriptions-plugin" },
@@ -1474,6 +1490,7 @@ docs = [
     { name = "mkdocs-autorefs" },
     { name = "mkdocs-coverage" },
     { name = "mkdocs-git-revision-date-localized-plugin" },
+    { name = "mkdocs-htmlproofer-plugin" },
     { name = "mkdocs-material" },
     { name = "mkdocs-mermaid2-plugin" },
     { name = "mkdocs-meta-descriptions-plugin" },

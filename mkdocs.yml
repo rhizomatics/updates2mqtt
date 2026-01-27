@@ -34,6 +34,8 @@ theme:
     - search.share
 plugins:
   - search
+  - htmlproofer:
+      skip_downloads: True
   - autorefs
   - pagetree
   - optimize
@@ -84,4 +86,8 @@ markdown_extensions:
           class: mermaid
           format: !!python/name:mermaid2.fence_mermaid_custom
 
-
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn 
