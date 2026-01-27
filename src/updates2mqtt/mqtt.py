@@ -323,6 +323,8 @@ class MqttPublisher:
                 and discovery_name in self.providers_by_type[discovery_type].discoveries
             ):
                 return self.providers_by_type[discovery_type].discoveries[discovery_name]
+            self.log.debug("CONFIG discovery_type in providers_by_type", discovery_type in self.providers_by_type)
+            self.log.debug(list(self.providers_by_type.keys()))
             self.log.debug("CONFIG Can't find %s for %s", discovery_name, discovery_type)
         return None
 
