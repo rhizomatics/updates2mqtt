@@ -128,7 +128,7 @@ class DockerProvider(ReleaseProvider):
         self,
         cfg: DockerConfig,
         node_cfg: NodeConfig,
-        github_cfg: GitHubConfig,
+        github_cfg: GitHubConfig | None = None,
         self_bounce: Event | None = None,
     ) -> None:
         super().__init__(node_cfg, "docker")
