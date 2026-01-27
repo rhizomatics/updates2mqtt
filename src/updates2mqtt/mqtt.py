@@ -331,7 +331,10 @@ class MqttPublisher:
 
     def reverse_state_topic(self, topic: str) -> Discovery | None:
         match = re.fullmatch(f"{self.cfg.topic_root}/{self.node_cfg.name}/({MQTT_NAME})/({MQTT_NAME})/state", topic)
-
+        if match:
+            self.log.debug("STATE %s groups: %s", len(match.groups()), match.groups())
+        else:
+            self.log.debug("NO MATCH STATE")
         if match and len(match.groups()) == 2:
             discovery_type: str = match.group(1)
             discovery_name: str = match.group(2)
