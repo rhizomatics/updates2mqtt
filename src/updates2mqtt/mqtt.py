@@ -144,30 +144,25 @@ class MqttPublisher:
         cleaner.connect(host=self.cfg.host, port=self.cfg.port, keepalive=60)
 
         def cleanup(_client: mqtt.Client, _userdata: Any, msg: mqtt.MQTTMessage) -> None:
-            if msg.retain:
-                discovery: Discovery | None = None
-                if msg.topic.startswith(
-                    f"{self.hass_cfg.discovery.prefix}/update/{self.node_cfg.name}_{provider.source_type}_"
-                ):
-                    discovery = self.reverse_config_topic(msg.topic)
-                elif msg.topic.startswith(
-                    f"{self.cfg.topic_root}/{self.node_cfg.name}/{provider.source_type}/"
-                ) and msg.topic.endswith("/state"):
-                    discovery = self.reverse_state_topic(msg.topic)
-                elif msg.topic.startswith(f"{self.cfg.topic_root}/{self.node_cfg.name}/{provider.source_type}/"):
-                    discovery = self.reverse_general_topic(msg.topic)
-                else:
-                    self.log.info("Unable to find matching discovery for topic", topic=msg.topic)
-
-                results["discovered"] += 1
-                results["handled"] += 1
-                results["last_timestamp"] = time.time()
-                if discovery is None and force:
-                    log.debug("Removing untrackable msg", topic=msg.topic)
-                    cleaner.publish(msg.topic, "", retain=True)
-                    results["cleaned"] += 1
+            discovery: Discovery | None = None
+            if msg.topic.startswith(f"{self.hass_cfg.discovery.prefix}/update/{self.node_cfg.name}_{provider.source_type}_"):
+                discovery = self.reverse_config_topic(msg.topic)
+            elif msg.topic.startswith(
+                f"{self.cfg.topic_root}/{self.node_cfg.name}/{provider.source_type}/"
+            ) and msg.topic.endswith("/state"):
+                discovery = self.reverse_state_topic(msg.topic)
+            elif msg.topic.startswith(f"{self.cfg.topic_root}/{self.node_cfg.name}/{provider.source_type}/"):
+                discovery = self.reverse_general_topic(msg.topic)
             else:
-                log.debug("Skipping clean of %s", msg.topic)
+                self.log.info("Unable to find matching discovery for topic", topic=msg.topic)
+
+            results["discovered"] += 1
+            results["handled"] += 1
+            results["last_timestamp"] = time.time()
+            if discovery is None and force:
+                log.debug("Removing untrackable msg", topic=msg.topic)
+                cleaner.publish(msg.topic, "", retain=True)
+                results["cleaned"] += 1
 
         cleaner.on_message = cleanup
         options = paho.mqtt.subscribeoptions.SubscribeOptions(noLocal=True)
