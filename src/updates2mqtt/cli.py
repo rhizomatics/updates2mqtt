@@ -141,8 +141,9 @@ def main() -> None:
         docker_scanner = DockerProvider(
             DockerConfig(registry=RegistryConfig(api=cli_conf.get("api", "OCI_V2"))),
             NodeConfig(),
-            GitHubConfig(access_token=cli_conf.get("github_token")),
-            None,
+            packages={},
+            github_cfg=GitHubConfig(access_token=cli_conf.get("github_token")),
+            self_bounce=None,
         )
         docker_scanner.initialize()
         discovery: Discovery | None = docker_scanner.rescan(

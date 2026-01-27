@@ -420,7 +420,7 @@ class LinuxServerIOPackageEnricher(PackageEnricher):
 class SourceReleaseEnricher:
     def __init__(self, gh_cfg: GitHubConfig | None = None) -> None:
         self.log: Any = structlog.get_logger().bind(integration="docker")
-        self.gh_cfg = gh_cfg
+        self.gh_cfg: GitHubConfig | None = gh_cfg
 
     def enrich(
         self, registry_info: DockerImageInfo, source_repo_url: str | None = None, notes_url: str | None = None
