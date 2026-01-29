@@ -342,42 +342,6 @@ wheels = [
 ]
 
 [[package]]
-name = "gitdb"
-version = "4.0.12"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "smmap" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/72/94/63b0fc47eb32792c7ba1fe1b694daec9a63620db1e313033d18140c2320a/gitdb-4.0.12.tar.gz", hash = "sha256:5ef71f855d191a3326fcfbc0d5da835f26b13fbcba60c32c21091c349ffdb571", size = 394684, upload-time = "2025-01-02T07:20:46.413Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a0/61/5c78b91c3143ed5c14207f463aecfc8f9dbb5092fb2869baf37c273b2705/gitdb-4.0.12-py3-none-any.whl", hash = "sha256:67073e15955400952c6565cc3e707c554a4eea2e428946f7a4c162fab9bd9bcf", size = 62794, upload-time = "2025-01-02T07:20:43.624Z" },
-]
-
-[[package]]
-name = "gitpython"
-version = "3.1.46"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "gitdb" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/df/b5/59d16470a1f0dfe8c793f9ef56fd3826093fc52b3bd96d6b9d6c26c7e27b/gitpython-3.1.46.tar.gz", hash = "sha256:400124c7d0ef4ea03f7310ac2fbf7151e09ff97f2a3288d64a440c584a29c37f", size = 215371, upload-time = "2026-01-01T15:37:32.073Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/6a/09/e21df6aef1e1ffc0c816f0522ddc3f6dcded766c3261813131c78a704470/gitpython-3.1.46-py3-none-any.whl", hash = "sha256:79812ed143d9d25b6d176a10bb511de0f9c67b1fa641d82097b0ab90398a2058", size = 208620, upload-time = "2026-01-01T15:37:30.574Z" },
-]
-
-[[package]]
-name = "griffe"
-version = "1.15.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "colorama" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/0d/0c/3a471b6e31951dce2360477420d0a8d1e00dea6cf33b70f3e8c3ab6e28e1/griffe-1.15.0.tar.gz", hash = "sha256:7726e3afd6f298fbc3696e67958803e7ac843c1cfe59734b6251a40cdbfb5eea", size = 424112, upload-time = "2025-11-10T15:03:15.52Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/9c/83/3b1d03d36f224edded98e9affd0467630fc09d766c0e56fb1498cbb04a9b/griffe-1.15.0-py3-none-any.whl", hash = "sha256:6f6762661949411031f5fcda9593f586e6ce8340f0ba88921a0f2ef7a81eb9a3", size = 150705, upload-time = "2025-11-10T15:03:13.549Z" },
-]
-
-[[package]]
 name = "h11"
 version = "0.16.0"
 source = { registry = "https://pypi.org/simple" }
@@ -674,21 +638,6 @@ wheels = [
 ]
 
 [[package]]
-name = "mkdocs-git-revision-date-localized-plugin"
-version = "1.5.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "babel" },
-    { name = "gitpython" },
-    { name = "mkdocs" },
-    { name = "tzdata", marker = "sys_platform == 'win32'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/aa/16/25d7b1b930a802bf8b0c6ee64a9b34ea6e7d0a34c6bc69adbbb59b9d2f4b/mkdocs_git_revision_date_localized_plugin-1.5.1.tar.gz", hash = "sha256:2b0239455cd84784dd87ac8dfc9253fe4b2dd35e102696f21b5d34e2175981c6", size = 449557, upload-time = "2026-01-26T13:34:30.912Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/4b/3f/4f663fb7e889fbb2fabef7a67ddd96f8355edca917aa724c6c6cda352d01/mkdocs_git_revision_date_localized_plugin-1.5.1-py3-none-any.whl", hash = "sha256:b00fd36ed0f9b2326b1488fd8fa31bf2ce64e68c4aa60a9ce857f10719571903", size = 26150, upload-time = "2026-01-26T13:34:28.768Z" },
-]
-
-[[package]]
 name = "mkdocs-htmlproofer-plugin"
 version = "1.4.1"
 source = { registry = "https://pypi.org/simple" }
@@ -791,42 +740,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/04/df/f3362706a562dea1c439c15c854244f9fad0ca97c65d901468781c02b072/mkdocs_pagetree_plugin-0.0.17.tar.gz", hash = "sha256:980fee9d44fc327b847d56f27d6869d97d578f10891248fe4343266a8463601e", size = 13449, upload-time = "2025-03-17T08:50:18.359Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f5/81/7fda21890e998b9756d18e3980ed62711f14d0a928568aae2116f279d64b/mkdocs_pagetree_plugin-0.0.17-py3-none-any.whl", hash = "sha256:861016a33d37e05c9ffe382f06471eb5664833fb4713bf4f51e11e28e825b5bf", size = 13098, upload-time = "2025-03-17T08:50:16.896Z" },
-]
-
-[[package]]
-name = "mkdocstrings"
-version = "1.0.2"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "jinja2" },
-    { name = "markdown" },
-    { name = "markupsafe" },
-    { name = "mkdocs" },
-    { name = "mkdocs-autorefs" },
-    { name = "pymdown-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/63/4d/1ca8a9432579184599714aaeb36591414cc3d3bfd9d494f6db540c995ae4/mkdocstrings-1.0.2.tar.gz", hash = "sha256:48edd0ccbcb9e30a3121684e165261a9d6af4d63385fc4f39a54a49ac3b32ea8", size = 101048, upload-time = "2026-01-24T15:57:25.735Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/57/32/407a9a5fdd7d8ecb4af8d830b9bcdf47ea68f916869b3f44bac31f081250/mkdocstrings-1.0.2-py3-none-any.whl", hash = "sha256:41897815a8026c3634fe5d51472c3a569f92ded0ad8c7a640550873eea3b6817", size = 35443, upload-time = "2026-01-24T15:57:23.933Z" },
-]
-
-[package.optional-dependencies]
-python = [
-    { name = "mkdocstrings-python" },
-]
-
-[[package]]
-name = "mkdocstrings-python"
-version = "2.0.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "griffe" },
-    { name = "mkdocs-autorefs" },
-    { name = "mkdocstrings" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/24/75/d30af27a2906f00eb90143470272376d728521997800f5dce5b340ba35bc/mkdocstrings_python-2.0.1.tar.gz", hash = "sha256:843a562221e6a471fefdd4b45cc6c22d2607ccbad632879234fa9692e9cf7732", size = 199345, upload-time = "2025-12-03T14:26:11.755Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/81/06/c5f8deba7d2cbdfa7967a716ae801aa9ca5f734b8f54fd473ef77a088dbe/mkdocstrings_python-2.0.1-py3-none-any.whl", hash = "sha256:66ecff45c5f8b71bf174e11d49afc845c2dfc7fc0ab17a86b6b337e0f24d8d90", size = 105055, upload-time = "2025-12-03T14:26:10.184Z" },
 ]
 
 [[package]]
@@ -1159,15 +1072,15 @@ wheels = [
 
 [[package]]
 name = "pytest-mqtt"
-version = "0.6.2"
+version = "0.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "paho-mqtt" },
     { name = "pytest-docker-fixtures" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/42/21/2a5875a7cb60d8bcf3c6b28454c70e6970848be8271bd97cadf156537b68/pytest_mqtt-0.6.2.tar.gz", hash = "sha256:8d1be4549f2b9aafc08cddaf45941082927b5f2b41508fc9c9f1f588302e9a12", size = 11356, upload-time = "2025-12-24T22:27:48.581Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e9/a0/ca8890b82e99bc928e7c71e96848cdff45d8e5f6f4c5f42980168d837973/pytest_mqtt-0.7.0.tar.gz", hash = "sha256:fb8a74dcfc87ac8b397f8792913a4ed7c749d7fa22f8371de9d6d1d4ea71eb97", size = 11850, upload-time = "2026-01-28T01:46:23.048Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/51/2d/21294ce9365cf1d1ad6378572ac0ba59f037cb771b809c30a5253e482f75/pytest_mqtt-0.6.2-py3-none-any.whl", hash = "sha256:ca62c2b18c846394482190d311de9a21e19d6e37ed62f9d573929a5c3bca07ed", size = 9949, upload-time = "2025-12-24T22:27:45.508Z" },
+    { url = "https://files.pythonhosted.org/packages/11/70/dbd8468c7c74649b07230ce2252f678c325b48bb6f7e7e7e2ec27c8bf5a7/pytest_mqtt-0.7.0-py3-none-any.whl", hash = "sha256:d3c003da758e6e5f8261c500d5bee8e11e3b419b5d789ce917ea9264fbb6638d", size = 10196, upload-time = "2026-01-28T01:46:21.98Z" },
 ]
 
 [[package]]
@@ -1341,15 +1254,6 @@ wheels = [
 ]
 
 [[package]]
-name = "smmap"
-version = "5.0.2"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/44/cd/a040c4b3119bbe532e5b0732286f805445375489fceaec1f48306068ee3b/smmap-5.0.2.tar.gz", hash = "sha256:26ea65a03958fa0c8a1c7e8c7a58fdc77221b8910f6be2131affade476898ad5", size = 22329, upload-time = "2025-01-02T07:14:40.909Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/04/be/d09147ad1ec7934636ad912901c5fd7667e1c858e19d355237db0d0cd5e4/smmap-5.0.2-py3-none-any.whl", hash = "sha256:b30115f0def7d7531d22a0fb6502488d879e75b260a9db4d0819cfb25403af5e", size = 24303, upload-time = "2025-01-02T07:14:38.724Z" },
-]
-
-[[package]]
 name = "soupsieve"
 version = "2.8.3"
 source = { registry = "https://pypi.org/simple" }
@@ -1443,14 +1347,12 @@ docs = [
     { name = "mkdocs" },
     { name = "mkdocs-autorefs" },
     { name = "mkdocs-coverage" },
-    { name = "mkdocs-git-revision-date-localized-plugin" },
     { name = "mkdocs-htmlproofer-plugin" },
     { name = "mkdocs-material" },
     { name = "mkdocs-mermaid2-plugin" },
     { name = "mkdocs-meta-descriptions-plugin" },
     { name = "mkdocs-minify-plugin" },
     { name = "mkdocs-pagetree-plugin" },
-    { name = "mkdocstrings", extra = ["python"] },
     { name = "pngquant" },
     { name = "pymdown-extensions" },
 ]
@@ -1489,14 +1391,12 @@ docs = [
     { name = "mkdocs" },
     { name = "mkdocs-autorefs" },
     { name = "mkdocs-coverage" },
-    { name = "mkdocs-git-revision-date-localized-plugin" },
     { name = "mkdocs-htmlproofer-plugin" },
     { name = "mkdocs-material" },
     { name = "mkdocs-mermaid2-plugin" },
     { name = "mkdocs-meta-descriptions-plugin" },
     { name = "mkdocs-minify-plugin" },
     { name = "mkdocs-pagetree-plugin" },
-    { name = "mkdocstrings", extras = ["python"] },
     { name = "pngquant" },
     { name = "pymdown-extensions" },
 ]

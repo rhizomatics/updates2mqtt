@@ -39,7 +39,7 @@ others.  The design is modular, so other update sources can be added, at least f
 
 Components can also be updated, either automatically or triggered via MQTT, for example by hitting the *Install* button in the HomeAssistant update dialog. Icons and release notes can be specified for a better HA experience. See [Home Assistant Integration](home_assistant.md) for details.
 
-To get started, read the [Installation](installation.md) and [Configuration](configuration.md) pages.
+To get started, read the [Installation](installation.md) and [Configuration](configuration/index.md) pages.
 
 For a quick spin, try this:
 

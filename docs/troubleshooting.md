@@ -147,10 +147,10 @@ volumes:
   - /var/run/docker.sock:/var/run/docker.sock
 ```
 
-Where `docker-compose` projects are being automatically updated and restarted, one problem can be that earlier versions used a `docker-compose` command and newer ones use `docker compose`. There is a `v1` and `v2` option in the [configuration](configuration.md) to support this, defaulting to `v2`.
+Where `docker-compose` projects are being automatically updated and restarted, one problem can be that earlier versions used a `docker-compose` command and newer ones use `docker compose`. There is a `v1` and `v2` option in the [configuration](configuration/index.md) to support this, defaulting to `v2`.
   
 If the `updates2mqtt` container is not running as root, then ensure that the user is a member of the local `docker` group. (If it is running as root, then consider moving
-to a defined user, see [Running as Non-Root](configuration.md#running-as-non-root)).
+to a defined user, see [Running as Non-Root](configuration/security.md#running-as-non-root)).
 
 ### Docker Help
 

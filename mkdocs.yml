@@ -42,25 +42,12 @@ plugins:
   - mermaid2
   - tags:
       tags: false
-  - git-revision-date-localized:
-      enable_creation_date: true
   - meta-descriptions
   - minify:
       minify_html: true
   - coverage:
       page_path: developer/coverage
       html_report_dir: htmlcov
-  - mkdocstrings:
-      handlers:
-        # See: https://mkdocstrings.github.io/python/usage/
-        python:
-          options:
-            show_source: false
-            show_root_heading: true
-            summary: true
-            show_inheritance_diagram: false
-            overloads_only: true
-            show_if_no_docstring: false
 
 markdown_extensions:
   - admonition

@@ -1,5 +1,10 @@
 ---
-title: Integration with Home Assistant using automated MQTT Discovery and MQTT Update entities
+title: HomeAssistant Integration
+description: Integration with Home Assistant using automated MQTT Discovery and MQTT Update entities
+tags:
+- homeassistant
+- mqtt
+- hass
 ---
 # HomeAssistant Integration
 

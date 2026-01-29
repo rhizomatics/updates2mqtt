@@ -4,7 +4,7 @@
 
 Updates2MQTT prefers to be run inside a Docker container, though can run standalone, for example scripted via cron or systemd.
 
-The only mandatory configuration is the MQTT broker host, user name and password, which can be set by environment variables, or the config file. The node name will be taken from the operating system if there's no config file. See [Configuration](configuration.md) for details.
+The only mandatory configuration is the MQTT broker host, user name and password, which can be set by environment variables, or the config file. The node name will be taken from the operating system if there's no config file. See [Configuration](configuration/index.md) for details.
 
 To check that it's working, have a look at [Verifying it Works on Home Assistant](home_assistant.md#verifying-it-works).
 
