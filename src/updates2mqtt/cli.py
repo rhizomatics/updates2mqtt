@@ -29,7 +29,7 @@ Command can be `container`,`tags`,`manifest` or `blob`
 * `container=container-name`
 * `container=hash`
 * `tags=ghcr.io/
-* `blob=manifest=mcr.microsoft.com/dotnet/sdk:latest`
+* `blob=mcr.microsoft.com/dotnet/sdk:latest`
 * `tags=quay.io/linuxserver.io/babybuddy`
 * `blob=ghcr.io/blakeblackshear/frigate@sha256:759c36ee869e3e60258350a2e221eae1a4ba1018613e0334f1bc84eb09c4bbbc`
 

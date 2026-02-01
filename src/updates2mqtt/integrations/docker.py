@@ -301,9 +301,7 @@ class DockerProvider(ReleaseProvider):
         if customization.ignore:
             logger.info("Container ignored due to UPD2MQTT_IGNORE setting")
             return None
-        version_policy: VersionPolicy = (
-            self.cfg.version_policy if not customization.version_policy else customization.version_policy
-        )
+
         if customization.update == UpdatePolicy.AUTO:
             logger.debug("Auto update policy detected")
         update_policy: UpdatePolicy = customization.update or UpdatePolicy.PASSIVE
@@ -312,6 +310,15 @@ class DockerProvider(ReleaseProvider):
         service_info: DockerServiceDetails
         local_info, service_info = self.local_info_builder.build_image_info(c)
         pkg_info: PackageUpdateInfo = self.default_metadata(local_info)
+
+        version_policy: VersionPolicy
+        if customization.version_policy:
+            version_policy = customization.version_policy
+        else:
+            if self.cfg.version_policy == VersionPolicy.AUTO:
+                version_policy = pkg_info.version_policy or self.cfg.version_policy
+            else:
+                version_policy = self.cfg.version_policy
 
         try:
             service_info.git_repo_path = customization.git_repo_path
@@ -521,7 +528,7 @@ class DockerProvider(ReleaseProvider):
 
     def default_metadata(self, image_info: DockerImageInfo) -> PackageUpdateInfo:
         for enricher in self.pkg_enrichers:
-            pkg_info = enricher.enrich(image_info)
+            pkg_info: PackageUpdateInfo | None = enricher.enrich(image_info)
             if pkg_info is not None:
                 return pkg_info
         raise ValueError("No enricher could provide metadata, not even default enricher")

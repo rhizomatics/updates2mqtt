@@ -27,6 +27,7 @@ from updates2mqtt.config import (
     PackageUpdateInfo,
     RegistryConfig,
     UpdateInfoConfig,
+    VersionPolicy,
 )
 
 log: Any = structlog.get_logger()
@@ -279,6 +280,7 @@ def cherrypick_annotations(
         ("image_created", "org.opencontainers.image.created"),
         ("image_version", "org.opencontainers.image.version"),
         ("image_revision", "org.opencontainers.image.revision"),
+        ("ref_name", "org.opencontainers.image.ref.name"),
         ("title", "org.opencontainers.image.title"),
         ("vendor", "org.opencontainers.image.vendor"),
         ("source", "org.opencontainers.image.source"),
@@ -386,6 +388,7 @@ class DefaultPackageEnricher(PackageEnricher):
             DockerPackageUpdateInfo(image_info.untagged_ref or image_info.ref),
             logo_url=self.cfg.default_entity_picture_url,
             release_notes_url=None,
+            version_policy=VersionPolicy.AUTO
         )
 
 
@@ -533,12 +536,12 @@ class SourceReleaseEnricher:
                         api_response = alt_api_response
                     elif alt_api_results:
                         self.log.debug(
-                            "Failed to match %s release %s, found tag %s for name %s: %s",
+                            "Failed to match %s release %s, found tag %s for name %s published at %s",
                             registry_info.name,
                             detail.version,
                             alt_api_results.get("tag_name"),
                             alt_api_results.get("name"),
-                            alt_api_results
+                            alt_api_results.get("published_at")
                         )
 
             if api_response and api_response.is_success:
@@ -547,8 +550,17 @@ class SourceReleaseEnricher:
                 reactions = api_results.get("reactions")  # ty:ignore[possibly-missing-attribute]
                 if reactions:
                     detail.net_score = reactions.get("+1", 0) - reactions.get("-1", 0)
+            elif api_response:
+                 api_results=httpx_json_content(api_response,default={})
+                 self.log.info(
+                            "Failed to find %s release %s, git hub status %s, errors; %s",
+                            registry_info.name,
+                            detail.version,
+                            api_response.status_code,
+                            api_results.get("errors")
+                        )
             else:
-                self.log.debug(
+                self.log.info(
                     "Failed to fetch GitHub release info",
                     url=f"{base_api}/releases/tags/{detail.version}",
                     status_code=(api_response and api_response.status_code) or None,

@@ -102,6 +102,7 @@ class PackageUpdateInfo:
     logo_url: str | None = None
     release_notes_url: str | None = None
     source_repo_url: str | None = None
+    version_policy: VersionPolicy = VersionPolicy.AUTO
 
 
 @dataclass

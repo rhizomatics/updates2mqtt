@@ -106,6 +106,7 @@ common_packages:
       image_name: greptime/greptimedb
     logo_url: https://avatars.githubusercontent.com/u/103400677?s=48&v=4
     source_repo_url: https://github.com/GrepTimeTeam/greptimedb
+    version_policy: digest
 
   vector:
     docker:
