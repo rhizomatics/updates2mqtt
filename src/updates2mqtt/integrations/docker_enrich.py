@@ -536,7 +536,7 @@ class SourceReleaseEnricher:
                         api_response = alt_api_response
                     elif alt_api_results:
                         self.log.debug(
-                            "Failed to match %s release %s, found tag %s for name %s published at %s",
+                            "Failed to match %s release %s on GitHub, found tag %s for name %s published at %s",
                             registry_info.name,
                             detail.version,
                             alt_api_results.get("tag_name"),
@@ -552,15 +552,15 @@ class SourceReleaseEnricher:
                     detail.net_score = reactions.get("+1", 0) - reactions.get("-1", 0)
             elif api_response:
                 api_results = httpx_json_content(api_response, default={})
-                self.log.info(
-                    "Failed to find %s release %s, git hub status %s, errors; %s",
+                self.log.debug(
+                    "Failed to find %s release %s on GitHub, status %s, errors; %s",
                     registry_info.name,
                     detail.version,
                     api_response.status_code,
                     api_results.get("errors"),
                 )
             else:
-                self.log.info(
+                self.log.debug(
                     "Failed to fetch GitHub release info",
                     url=f"{base_api}/releases/tags/{detail.version}",
                     status_code=(api_response and api_response.status_code) or None,
