@@ -388,7 +388,7 @@ class DefaultPackageEnricher(PackageEnricher):
             DockerPackageUpdateInfo(image_info.untagged_ref or image_info.ref),
             logo_url=self.cfg.default_entity_picture_url,
             release_notes_url=None,
-            version_policy=VersionPolicy.AUTO
+            version_policy=VersionPolicy.AUTO,
         )
 
 
@@ -541,7 +541,7 @@ class SourceReleaseEnricher:
                             detail.version,
                             alt_api_results.get("tag_name"),
                             alt_api_results.get("name"),
-                            alt_api_results.get("published_at")
+                            alt_api_results.get("published_at"),
                         )
 
             if api_response and api_response.is_success:
@@ -551,14 +551,14 @@ class SourceReleaseEnricher:
                 if reactions:
                     detail.net_score = reactions.get("+1", 0) - reactions.get("-1", 0)
             elif api_response:
-                 api_results=httpx_json_content(api_response,default={})
-                 self.log.info(
-                            "Failed to find %s release %s, git hub status %s, errors; %s",
-                            registry_info.name,
-                            detail.version,
-                            api_response.status_code,
-                            api_results.get("errors")
-                        )
+                api_results = httpx_json_content(api_response, default={})
+                self.log.info(
+                    "Failed to find %s release %s, git hub status %s, errors; %s",
+                    registry_info.name,
+                    detail.version,
+                    api_response.status_code,
+                    api_results.get("errors"),
+                )
             else:
                 self.log.info(
                     "Failed to fetch GitHub release info",
