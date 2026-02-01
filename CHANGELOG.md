@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## 1.8.1
+### Home Assistant
+- Re-publish state every scan to ensure fresh
 ## 1.8.0
 ### Package Info
 - The `common_packages.yaml` that ships inside the Docker image can be extended, or overridden, using the `packages` section of the main config file

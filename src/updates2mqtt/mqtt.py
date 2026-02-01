@@ -213,6 +213,7 @@ class MqttPublisher:
                 payload = msg.payload
             if payload and "|" in payload:
                 source_type, comp_name, command = payload.split("|")
+            logger.debug("Executing %s:%s:%s", source_type, comp_name, command)
 
             provider: ReleaseProvider | None = self.providers_by_topic.get(msg.topic) if msg.topic else None
             if not provider:
@@ -285,15 +286,20 @@ class MqttPublisher:
 
     def handle_message(self, msg: mqtt.MQTTMessage | LocalMessage) -> None:
         def update_start(discovery: Discovery) -> None:
+            self.log.debug("on_update_start: %s", topic=msg.topic)
             if discovery.publish_policy in (PublishPolicy.HOMEASSISTANT, PublishPolicy.MQTT):
                 self.publish_hass_state(discovery, in_progress=True)
 
         def update_end(discovery: Discovery) -> None:
+            self.log.debug("on_update_end: %s", topic=msg.topic)
             if discovery.publish_policy in (PublishPolicy.HOMEASSISTANT, PublishPolicy.MQTT):
                 self.publish_hass_state(discovery, in_progress=False)
 
         if self.event_loop is not None:
-            asyncio.run_coroutine_threadsafe(self.execute_command(msg, update_start, update_end), self.event_loop)
+            self.log.debug("Executing command topic", topic=msg.topic)
+            asyncio.run_coroutine_threadsafe(
+                self.execute_command(msg=msg, on_update_start=update_start, on_update_end=update_end), loop=self.event_loop
+            )
         else:
             self.log.error("No event loop to handle message", topic=msg.topic)
 
