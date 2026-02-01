@@ -236,9 +236,8 @@ class MqttPublisher:
                         self.publish_hass_config(discovery)
                     if discovery.publish_policy in (PublishPolicy.HOMEASSISTANT, PublishPolicy.MQTT):
                         self.publish_discovery(discovery)
-                elif discovery and discovery.publish_policy == PublishPolicy.HOMEASSISTANT:
-                    # republish state anyway, in_progress flag may have been left hanging
-                    self.publish_hass_state(discovery)
+                    if discovery and discovery.publish_policy == PublishPolicy.HOMEASSISTANT:
+                        self.publish_hass_state(discovery)
                 else:
                     logger.debug("No change to republish after execution")
             logger.info("Execution ended")
@@ -287,14 +286,19 @@ class MqttPublisher:
     def handle_message(self, msg: mqtt.MQTTMessage | LocalMessage) -> None:
         def update_start(discovery: Discovery) -> None:
             self.log.debug("on_update_start: %s", topic=msg.topic)
-            if discovery.publish_policy in (PublishPolicy.HOMEASSISTANT, PublishPolicy.MQTT):
+            if discovery.publish_policy == PublishPolicy.HOMEASSISTANT:
                 self.publish_hass_state(discovery, in_progress=True)
+            if discovery.publish_policy in (PublishPolicy.HOMEASSISTANT, PublishPolicy.MQTT):
+                self.publish_discovery(discovery, in_progress=True)
 
         def update_end(discovery: Discovery) -> None:
             self.log.debug("on_update_end: %s", topic=msg.topic)
-            if discovery.publish_policy in (PublishPolicy.HOMEASSISTANT, PublishPolicy.MQTT):
+            if discovery.publish_policy == PublishPolicy.HOMEASSISTANT:
                 self.publish_hass_state(discovery, in_progress=False)
+            if discovery.publish_policy in (PublishPolicy.HOMEASSISTANT, PublishPolicy.MQTT):
+                self.publish_discovery(discovery, in_progress=False)
 
+        #  TODO: fix double publish on callback and in command exec
         if self.event_loop is not None:
             self.log.debug("Executing command topic", topic=msg.topic)
             asyncio.run_coroutine_threadsafe(

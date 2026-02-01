@@ -3,6 +3,8 @@
 ## 1.8.1
 ### Home Assistant
 - Re-publish state every scan to ensure fresh
+- Main discovery and state message now better in sync on `in_progress` flag
+- State not published during update if Home Assistant mode off
 ## 1.8.0
 ### Package Info
 - The `common_packages.yaml` that ships inside the Docker image can be extended, or overridden, using the `packages` section of the main config file

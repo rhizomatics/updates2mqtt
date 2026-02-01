@@ -11,22 +11,29 @@ from updates2mqtt.config import NodeConfig, PublishPolicy, UpdatePolicy, Version
 from updates2mqtt.helpers import sanitize_name, timestamp
 
 
-class DiscoveryArtefactDetail:
-    """Provider specific detail"""
-
-    def as_dict(self) -> dict[str, str | list | dict | bool | int | None]:
-        return {}
-
-
-class DiscoveryInstallationDetail:
-    """Provider specific detail"""
-
+class DiscoveryDetail:
     @abstractmethod
     def as_dict(self) -> dict[str, str | list | dict | bool | int | None]:
         return {}
 
+    def __str__(self) -> str:
+        """Log friendly"""
+        return ",".join(f"{k}:{v}" for k, v in self.as_dict().items())
 
-class ReleaseDetail:
+
+class DiscoveryArtefactDetail(DiscoveryDetail):
+    """Provider specific detail"""
+
+    pass
+
+
+class DiscoveryInstallationDetail(DiscoveryDetail):
+    """Provider specific detail"""
+
+    pass
+
+
+class ReleaseDetail(DiscoveryDetail):
     """The artefact source details
 
     Note this may be an actual software package, or the source details of the wrapping of it
@@ -45,7 +52,7 @@ class ReleaseDetail:
         self.summary: str | None = summary
         self.net_score: int | None = None
 
-    def as_dict(self) -> dict[str, str | None]:
+    def as_dict(self) -> dict[str, str | list | dict | bool | int | None]:
         return {
             "title": self.title,
             "version": self.version,
@@ -58,10 +65,6 @@ class ReleaseDetail:
             "summary": self.summary,
             "net_score": str(self.net_score) if self.net_score is not None else None,
         }
-
-    def __str__(self) -> str:
-        """Log friendly"""
-        return ",".join(f"{k}:{v}" for k, v in self.as_dict().items())
 
 
 class Discovery:
