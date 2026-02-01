@@ -235,7 +235,8 @@ class MqttPublisher:
                         self.publish_hass_config(discovery)
                     if discovery.publish_policy in (PublishPolicy.HOMEASSISTANT, PublishPolicy.MQTT):
                         self.publish_discovery(discovery)
-                    if discovery.publish_policy == PublishPolicy.HOMEASSISTANT:
+                elif discovery and discovery.publish_policy == PublishPolicy.HOMEASSISTANT:
+                        # republish state anyway, in_progress flag may have been left hanging
                         self.publish_hass_state(discovery)
                 else:
                     logger.debug("No change to republish after execution")
