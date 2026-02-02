@@ -116,7 +116,7 @@ def test_timestamp_same_timestamp_different_digest_fallback() -> None:
     latest = DockerImageInfo("foo", image_digest="b5c7fd5f595a", created="2024-01-15T10:30:00Z")
     # Inconsistent state: same timestamp but different digest, should fall back to version-digest
     result = select_versions(VersionPolicy.TIMESTAMP, installed, latest)
-    assert result == ('917fd52395a', 'b5c7fd5f595a', 'digest-4')
+    assert result == ("917fd52395a", "b5c7fd5f595a", "digest-4")
 
 
 def test_timestamp_different_timestamp_same_digest_fallback() -> None:
@@ -125,7 +125,7 @@ def test_timestamp_different_timestamp_same_digest_fallback() -> None:
     latest = DockerImageInfo("foo", image_digest="b5c7fd5f595a", created="2024-01-20T14:00:00Z")
     # SDM shortcircuit triggers since digests match
     result = select_versions(VersionPolicy.TIMESTAMP, installed, latest)
-    assert result == ('2024-01-15T10:30:00Z', '2024-01-15T10:30:00Z', 'timestamp-0-SDM')
+    assert result == ("2024-01-15T10:30:00Z", "2024-01-15T10:30:00Z", "timestamp-0-SDM")
 
 
 def test_timestamp_missing_installed_timestamp_fallback() -> None:
@@ -134,7 +134,7 @@ def test_timestamp_missing_installed_timestamp_fallback() -> None:
     latest = DockerImageInfo("foo", image_digest="b5c7fd5f595a", created="2024-01-20T14:00:00Z")
     result = select_versions(VersionPolicy.TIMESTAMP, installed, latest)
     # Should fall back to digest-based version
-    assert result == ('917fd52395a', 'b5c7fd5f595a', 'digest-4')
+    assert result == ("917fd52395a", "b5c7fd5f595a", "digest-4")
 
 
 def test_timestamp_missing_latest_timestamp_fallback() -> None:
@@ -143,7 +143,7 @@ def test_timestamp_missing_latest_timestamp_fallback() -> None:
     latest = DockerImageInfo("foo", image_digest="b5c7fd5f595a")
     result = select_versions(VersionPolicy.TIMESTAMP, installed, latest)
     # Should fall back to digest-based version
-    assert result == ('917fd52395a', 'b5c7fd5f595a', 'digest-4')
+    assert result == ("917fd52395a", "b5c7fd5f595a", "digest-4")
 
 
 def test_timestamp_fallback_phase4() -> None:
