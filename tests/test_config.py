@@ -38,11 +38,11 @@ def test_config(config_name: str, monkeypatch) -> None:  # noqa: ANN001
     validated_config = load_app_config(config_path)
     assert validated_config is not None
     assert validated_config.node.git_path == "/usr/bin/git"
-    assert isinstance(validated_config.docker.version_policy,VersionPolicy)
+    assert isinstance(validated_config.docker.version_policy, VersionPolicy)
     for pkg in validated_config.packages.values():
-         assert pkg.source_repo_url is None or not None
-         if pkg.docker:
-            assert isinstance(pkg.docker.version_policy,VersionPolicy)
+        assert pkg.source_repo_url is None or not None
+        if pkg.docker:
+            assert isinstance(pkg.docker.version_policy, VersionPolicy)
 
 
 def test_round_trip_config() -> None:

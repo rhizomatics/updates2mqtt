@@ -104,6 +104,7 @@ class PackageUpdateInfo:
     release_notes_url: str | None = None
     source_repo_url: str | None = None
 
+
 @dataclass
 class DockerConfig:
     enabled: bool = True
@@ -170,6 +171,7 @@ class Config:
     github: GitHubConfig = field(default_factory=GitHubConfig)
     scan_interval: int = 60 * 60 * 3
     packages: dict[str, PackageUpdateInfo] = field(default_factory=dict)
+
 
 @dataclass
 class CommonPackages:

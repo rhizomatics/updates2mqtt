@@ -15,7 +15,6 @@ from updates2mqtt.model import DiscoveryArtefactDetail, DiscoveryInstallationDet
 if typing.TYPE_CHECKING:
     from docker.models.images import RegistryData
     from omegaconf.dictconfig import DictConfig
-    from omegaconf.listconfig import ListConfig
 from http import HTTPStatus
 
 import docker
@@ -389,7 +388,7 @@ class DefaultPackageEnricher(PackageEnricher):
         return PackageUpdateInfo(
             DockerPackageUpdateInfo(image_info.untagged_ref or image_info.ref, version_policy=VersionPolicy.AUTO),
             logo_url=self.cfg.default_entity_picture_url,
-            release_notes_url=None
+            release_notes_url=None,
         )
 
 
