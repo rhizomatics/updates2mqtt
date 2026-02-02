@@ -317,7 +317,7 @@ class DockerProvider(ReleaseProvider):
             version_policy = customization.version_policy
         else:
             if self.cfg.version_policy == VersionPolicy.AUTO:
-                logger.debug("Version policy, pkg level %s, config level: %s", pkg_info.version_policy, self.cfg.version_policy)
+                logger.debug("Version policy, pkg level %s(%s), config level: %s(%s)", pkg_info.version_policy,type(pkg_info.version_policy), self.cfg.version_policy,type(self.cfg.version_policy))
                 version_policy = pkg_info.version_policy or self.cfg.version_policy
             else:
                 logger.debug("Version policy, fixed config level: %s", self.cfg.version_policy)
