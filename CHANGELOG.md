@@ -6,6 +6,8 @@
 - Main discovery and state message now better in sync on `in_progress` flag
 - State not published during update if Home Assistant mode off
 ### Version Detection
+- Version Policy now includes `TIMESTAMP` for image creation date/time, which is also now part of
+auto version algorithm
 - Version policy can be also be set in `custom_packages.yaml` or in the `packages` section of config
 ## 1.8.0
 ### Package Info

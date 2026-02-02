@@ -105,6 +105,7 @@ class DockerImageInfo(DiscoveryArtefactDetail):
         annotations: dict[str, Any] | None = None,
         platform: str | None = None,  # test harness simplification
         version: str | None = None,  # test harness simplification
+        created: str | None = None,
     ) -> None:
         self.ref: str = ref
         self.version: str | None = version
@@ -127,6 +128,7 @@ class DockerImageInfo(DiscoveryArtefactDetail):
         self.error: str | None = None
         self.platform: str | None = platform
         self.custom: dict[str, str | float | int | bool | None] = {}
+        self.created: str | None = created
 
         self.local_build: bool = not self.repo_digests
         self.index_name, remote_name = resolve_repository_name(ref)
@@ -217,7 +219,9 @@ class DockerImageInfo(DiscoveryArtefactDetail):
             return None
 
     def reuse(self) -> "DockerImageInfo":
-        cloned = DockerImageInfo(self.ref, self.image_digest, self.tags, self.attributes, self.annotations, self.version)
+        cloned = DockerImageInfo(
+            self.ref, self.image_digest, self.tags, self.attributes, self.annotations, self.version, self.created
+        )
         cloned.origin = "REUSED"
         return cloned
 
@@ -346,8 +350,11 @@ class LocalContainerInfo:
         labels: dict[str, str | float | int | bool | None] = cherrypick_annotations(image_info, None)
         # capture container labels/annotations, not image ones
         labels = labels or {}
+        if container.image and container.image.attrs:
+            image_info.created = container.image.attrs.get("Created")
         image_info.custom = labels
         image_info.version = cast("str|None", labels.get("image_version"))
+
         return image_info, service_info
 
 
@@ -873,6 +880,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
                                     if config and "Labels" in config:
                                         result.annotations.update(config.get("Labels") or {})
                                     result.annotations.update(img_config.get("annotations") or {})
+                                    result.created = config.get("created") or config.get("Created")
                                 else:
                                     self.log.debug("No config found: %s", manifest)
                             except Exception as e:
@@ -965,5 +973,6 @@ class DockerClientVersionLookup(VersionLookup):
         labels: dict[str, str | float | int | bool | None] = cherrypick_annotations(local_image_info, result)
         result.custom = labels or {}
         result.version = cast("str|None", labels.get("image_version"))
+        result.created = cast("str|None", labels.get("image_created"))
         result.origin = "DOCKER_CLIENT"
         return result

@@ -89,6 +89,7 @@ class VersionPolicy(StrEnum):
     VERSION = "VERSION"
     DIGEST = "DIGEST"
     VERSION_DIGEST = "VERSION_DIGEST"
+    TIMESTAMP = "TIMESTAMP"
 
 
 @dataclass

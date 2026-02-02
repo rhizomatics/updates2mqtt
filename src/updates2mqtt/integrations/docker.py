@@ -600,6 +600,17 @@ def select_versions(version_policy: VersionPolicy, installed: DockerImageInfo, l
             basis("version-digest"),
         )
 
+    if (
+        version_policy == VersionPolicy.TIMESTAMP
+        and installed.created
+        and latest.created
+        and (
+            (latest.created > installed.created and latest.short_digest != installed.short_digest)
+            or (latest.created == installed.created and latest.short_digest == installed.short_digest)
+        )
+    ):
+        return installed.created, latest.created, basis("timestamp")
+
     phase = 1
     if version_policy == VersionPolicy.AUTO and (
         (installed.version == latest.version and installed.short_digest == latest.short_digest)
@@ -646,6 +657,15 @@ def select_versions(version_policy: VersionPolicy, installed: DockerImageInfo, l
 
     # Fall back to digests, image or repo index
     phase = 4
+    if (
+        installed.created
+        and latest.created
+        and (
+            (latest.created > installed.created and latest.short_digest != installed.short_digest)
+            or (latest.created == installed.created and latest.short_digest == installed.short_digest)
+        )
+    ):
+        return installed.created, latest.created, basis("timestamp")
     if installed_digest_available and latest_digest_available:
         return installed.short_digest, latest.short_digest, basis("digest")  # type: ignore[return-value]
     if installed.version and not latest.version and not latest.short_digest and not latest.repo_digest:
