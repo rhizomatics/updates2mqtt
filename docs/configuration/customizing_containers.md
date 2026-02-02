@@ -32,11 +32,12 @@ By default, configurable using `version_policy` in the Docker section of the con
 
 This can be overridden at container level using using the `updates2mqtt.version_policy` container label or `UPD2MQTT_VERSION_POLICY` environment variable:
 
-   - `AUTO` - to do the best it can with versions, git repo digests, index digests or config digests
+   - `AUTO` - to do the best it can with versions, git repo digests, timestamps, index digests or config digests
    - `VERSION` - always choose simple version unless version not available
      - Some images use version oddly, where its more of a label applying to multiple releases than a version. Also
        there's guarantee for container images that a human friendly version always points to the same thing.
      - This is useful where you know the image has sensible versions and trust it enough
+   - `TIMESTAMP` - always use the creation timestamp of the image, where its conistent with the digests
    - `DIGEST` - always use the 12-char abbreviated digest, even if version available
    - `VERSION_DIGEST` - use a `version:1234567890ab` style combo of version and digest id where both available
 
@@ -87,7 +88,7 @@ The following environment variables can be used to configure containers for `upd
 | `UPD2MQTT_GIT_REPO_PATH`   | Relative path to a local git repo if the image is built locally.                             |                 |
 | `UPD2MQTT_IGNORE`          | If set to `True`, the container will be ignored by Updates2MQTT.                             | False           |
                         |                 |
-| `UPD2MQTT_VERSION_POLICY` | Change how version derived from container label or image hash, `Version`,`Digest`,`Version_Digest` with default of `Auto`|
+| `UPD2MQTT_VERSION_POLICY` | Change how version derived from container label or image hash, `Version`,`Digest`,`Version_Digest`,`Timestamp` with default of `Auto`|
 | `UPD2MQTT_REGISTRY_TOKEN` | Access token for authentication to container distribution API, as alternative to making a call to `token` service |
 
 ## Docker Labels
