@@ -20,6 +20,7 @@ from updates2mqtt.integrations.docker_enrich import (
     SourceReleaseEnricher,
     id_source_platform,
 )
+from updates2mqtt.model import VersionPolicy
 
 if TYPE_CHECKING:
     from updates2mqtt.model import ReleaseDetail
@@ -158,6 +159,7 @@ def test_common_enricher() -> None:
         assert pkg.logo_url or pkg.logo_url is None
         assert pkg.release_notes_url or pkg.release_notes_url is None
         assert pkg.source_repo_url or pkg.source_repo_url is None
+        assert isinstance(pkg.docker.version_policy,VersionPolicy)
         if pkg.source_repo_url:
             source_repos += 1
     assert source_repos > 0

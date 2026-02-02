@@ -58,6 +58,8 @@ packages:
   my_custom_pkg:
     docker:
       image_name: ghcr.io/dummy/my_custom
+      version_policy: DIGEST
     logo_url: https://avatars.githubusercontent.com/u/162821199?s=48&v=4
     source_repo_url: https://github.com/dummy/my_custom
     release_notes_url:  https://github.com/dummy/my_custom/releases
+    

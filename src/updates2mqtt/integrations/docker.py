@@ -316,9 +316,9 @@ class DockerProvider(ReleaseProvider):
             logger.debug("Overriding version_policy to local customization: %s", customization.version_policy)
             version_policy = customization.version_policy
         else:
-            if self.cfg.version_policy == VersionPolicy.AUTO:
-                logger.debug("Version policy, pkg level %s(%s), config level: %s(%s)", pkg_info.version_policy,type(pkg_info.version_policy), self.cfg.version_policy,type(self.cfg.version_policy))
-                version_policy = pkg_info.version_policy or self.cfg.version_policy
+            if self.cfg.version_policy == VersionPolicy.AUTO and pkg_info.docker:
+                logger.debug("Version policy, pkg level %s(%s), config level: %s(%s)", pkg_info.docker.version_policy,type(pkg_info.docker.version_policy), self.cfg.version_policy,type(self.cfg.version_policy))
+                version_policy = pkg_info.docker.version_policy or self.cfg.version_policy
             else:
                 logger.debug("Version policy, fixed config level: %s", self.cfg.version_policy)
                 version_policy = self.cfg.version_policy

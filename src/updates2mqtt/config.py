@@ -94,6 +94,7 @@ class VersionPolicy(StrEnum):
 @dataclass
 class DockerPackageUpdateInfo:
     image_name: str = MISSING  # untagged image ref
+    version_policy: VersionPolicy = VersionPolicy.AUTO
 
 
 @dataclass
@@ -102,13 +103,6 @@ class PackageUpdateInfo:
     logo_url: str | None = None
     release_notes_url: str | None = None
     source_repo_url: str | None = None
-    version_policy: VersionPolicy = VersionPolicy.AUTO
-
-
-@dataclass
-class UpdateInfoConfig:
-    common_packages: dict[str, PackageUpdateInfo] = field(default_factory=lambda: {})
-
 
 @dataclass
 class DockerConfig:
@@ -176,6 +170,10 @@ class Config:
     github: GitHubConfig = field(default_factory=GitHubConfig)
     scan_interval: int = 60 * 60 * 3
     packages: dict[str, PackageUpdateInfo] = field(default_factory=dict)
+
+@dataclass
+class CommonPackages:
+    common_packages: dict[str, PackageUpdateInfo] = field(default_factory=dict)
 
 
 class IncompleteConfigException(BaseException):

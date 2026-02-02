@@ -21,7 +21,6 @@ from .mqtt import MqttPublisher
 log = structlog.get_logger()
 
 CONF_FILE = Path("conf/config.yaml")
-PKG_INFO_FILE = Path("./common_packages.yaml")
 UPDATE_INTERVAL = 60 * 60 * 4
 
 # #TODO:

@@ -14,6 +14,8 @@ from updates2mqtt.model import DiscoveryArtefactDetail, DiscoveryInstallationDet
 
 if typing.TYPE_CHECKING:
     from docker.models.images import RegistryData
+    from omegaconf.dictconfig import DictConfig
+    from omegaconf.listconfig import ListConfig
 from http import HTTPStatus
 
 import docker
@@ -21,12 +23,12 @@ import docker.errors
 
 from updates2mqtt.config import (
     PKG_INFO_FILE,
+    CommonPackages,
     DockerConfig,
     DockerPackageUpdateInfo,
     GitHubConfig,
     PackageUpdateInfo,
     RegistryConfig,
-    UpdateInfoConfig,
     VersionPolicy,
 )
 
@@ -385,28 +387,33 @@ class DefaultPackageEnricher(PackageEnricher):
     def enrich(self, image_info: DockerImageInfo) -> PackageUpdateInfo | None:
         self.log.debug("Default pkg info", image_name=image_info.untagged_ref, image_ref=image_info.ref)
         return PackageUpdateInfo(
-            DockerPackageUpdateInfo(image_info.untagged_ref or image_info.ref),
+            DockerPackageUpdateInfo(image_info.untagged_ref or image_info.ref, version_policy=VersionPolicy.AUTO),
             logo_url=self.cfg.default_entity_picture_url,
-            release_notes_url=None,
-            version_policy=VersionPolicy.AUTO,
+            release_notes_url=None
         )
 
 
 class CommonPackageEnricher(PackageEnricher):
     def initialize(self) -> None:
+        base_cfg: DictConfig = OmegaConf.structured(CommonPackages)
         if PKG_INFO_FILE.exists():
             self.log.debug("Loading common package update info", path=PKG_INFO_FILE)
-            cfg = OmegaConf.load(PKG_INFO_FILE)
+            cfg: DictConfig = typing.cast("DictConfig", OmegaConf.merge(base_cfg, OmegaConf.load(PKG_INFO_FILE)))
+
+            OmegaConf.to_container(cfg, throw_on_missing=True)
+            OmegaConf.set_readonly(cfg, True)
         else:
             self.log.warn("No common package update info found", path=PKG_INFO_FILE)
-            cfg = OmegaConf.structured(UpdateInfoConfig)
+            cfg = base_cfg
         try:
+            common_config: CommonPackages = typing.cast("CommonPackages", cfg)
             # omegaconf broken-ness on optional fields and converting to backclasses
-            self.pkgs: dict[str, PackageUpdateInfo] = {
-                pkg: PackageUpdateInfo(**pkg_cfg) for pkg, pkg_cfg in cfg.common_packages.items() if pkg not in self.pkgs
-            }
+            self.pkgs = common_config.common_packages
+            # self.pkgs: dict[str, PackageUpdateInfo] = {
+            #    pkg: PackageUpdateInfo(**pkg_cfg) for pkg, pkg_cfg in cfg.common_packages.items() if pkg not in self.pkgs
+            # }
         except (MissingMandatoryValue, ValidationError) as e:
-            self.log.error("Configuration error %s", e, path=PKG_INFO_FILE.as_posix())
+            self.log.serror("Configuration error %s", e, path=PKG_INFO_FILE.as_posix())
             raise
 
 
