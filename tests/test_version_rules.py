@@ -86,3 +86,89 @@ def test_pinned_digests() -> None:
 
     for policy in (VersionPolicy.AUTO, VersionPolicy.DIGEST, VersionPolicy.VERSION, VersionPolicy.VERSION_DIGEST):
         assert select_versions(policy, installed, latest) == ("e6a6298e67ae", "e6a6298e67ae", "repo-digest-7")
+
+
+def test_timestamp_matching_no_update() -> None:
+    """TIMESTAMP policy with same timestamp and same digest - no update available."""
+    installed = DockerImageInfo("foo", image_digest="b5c7fd5f595a", created="2024-01-15T10:30:00Z")
+    latest = DockerImageInfo("foo", image_digest="b5c7fd5f595a", created="2024-01-15T10:30:00Z")
+    assert select_versions(VersionPolicy.TIMESTAMP, installed, latest) == (
+        "2024-01-15T10:30:00Z",
+        "2024-01-15T10:30:00Z",
+        "timestamp-0-SDM",
+    )
+
+
+def test_timestamp_update_available() -> None:
+    """TIMESTAMP policy with newer timestamp and different digest - update available."""
+    installed = DockerImageInfo("foo", image_digest="917fd52395a", created="2024-01-15T10:30:00Z")
+    latest = DockerImageInfo("foo", image_digest="b5c7fd5f595a", created="2024-01-20T14:00:00Z")
+    assert select_versions(VersionPolicy.TIMESTAMP, installed, latest) == (
+        "2024-01-15T10:30:00Z",
+        "2024-01-20T14:00:00Z",
+        "timestamp-0",
+    )
+
+
+def test_timestamp_same_timestamp_different_digest_fallback() -> None:
+    """TIMESTAMP policy with same timestamp but different digest - inconsistent, falls back."""
+    installed = DockerImageInfo("foo", image_digest="917fd52395a", created="2024-01-15T10:30:00Z")
+    latest = DockerImageInfo("foo", image_digest="b5c7fd5f595a", created="2024-01-15T10:30:00Z")
+    # Inconsistent state: same timestamp but different digest, should fall back to version-digest
+    result = select_versions(VersionPolicy.TIMESTAMP, installed, latest)
+    assert result == ('917fd52395a', 'b5c7fd5f595a', 'digest-4')
+
+
+def test_timestamp_different_timestamp_same_digest_fallback() -> None:
+    """TIMESTAMP policy with different timestamp but same digest - inconsistent, falls back."""
+    installed = DockerImageInfo("foo", image_digest="b5c7fd5f595a", created="2024-01-15T10:30:00Z")
+    latest = DockerImageInfo("foo", image_digest="b5c7fd5f595a", created="2024-01-20T14:00:00Z")
+    # SDM shortcircuit triggers since digests match
+    result = select_versions(VersionPolicy.TIMESTAMP, installed, latest)
+    assert result == ('2024-01-15T10:30:00Z', '2024-01-15T10:30:00Z', 'timestamp-0-SDM')
+
+
+def test_timestamp_missing_installed_timestamp_fallback() -> None:
+    """TIMESTAMP policy with missing installed timestamp - falls back."""
+    installed = DockerImageInfo("foo", image_digest="917fd52395a")
+    latest = DockerImageInfo("foo", image_digest="b5c7fd5f595a", created="2024-01-20T14:00:00Z")
+    result = select_versions(VersionPolicy.TIMESTAMP, installed, latest)
+    # Should fall back to digest-based version
+    assert result == ('917fd52395a', 'b5c7fd5f595a', 'digest-4')
+
+
+def test_timestamp_missing_latest_timestamp_fallback() -> None:
+    """TIMESTAMP policy with missing latest timestamp - falls back."""
+    installed = DockerImageInfo("foo", image_digest="917fd52395a", created="2024-01-15T10:30:00Z")
+    latest = DockerImageInfo("foo", image_digest="b5c7fd5f595a")
+    result = select_versions(VersionPolicy.TIMESTAMP, installed, latest)
+    # Should fall back to digest-based version
+    assert result == ('917fd52395a', 'b5c7fd5f595a', 'digest-4')
+
+
+def test_timestamp_fallback_phase4() -> None:
+    """Timestamp used as fallback (phase 4) when no version available."""
+    installed = DockerImageInfo("foo", image_digest="917fd52395a", created="2024-01-15T10:30:00Z")
+    latest = DockerImageInfo("foo", image_digest="b5c7fd5f595a", created="2024-01-20T14:00:00Z")
+    # AUTO policy with no version info should fall back to timestamp at phase 4
+    assert select_versions(VersionPolicy.AUTO, installed, latest) == (
+        "2024-01-15T10:30:00Z",
+        "2024-01-20T14:00:00Z",
+        "timestamp-4",
+    )
+
+
+def test_timestamp_with_version_prefers_version() -> None:
+    """When both version and timestamp available, version policies should prefer version."""
+    installed = DockerImageInfo("foo", version="1.0.0", image_digest="917fd52395a", created="2024-01-15T10:30:00Z")
+    latest = DockerImageInfo("foo", version="1.1.0", image_digest="b5c7fd5f595a", created="2024-01-20T14:00:00Z")
+    # VERSION policy should use version, not timestamp
+    assert select_versions(VersionPolicy.VERSION, installed, latest) == ("1.0.0", "1.1.0", "version-0")
+    # AUTO policy should use semver when available
+    assert select_versions(VersionPolicy.AUTO, installed, latest) == ("1.0.0", "1.1.0", "semver-1")
+    # TIMESTAMP policy should still use timestamp
+    assert select_versions(VersionPolicy.TIMESTAMP, installed, latest) == (
+        "2024-01-15T10:30:00Z",
+        "2024-01-20T14:00:00Z",
+        "timestamp-0",
+    )
