@@ -273,7 +273,7 @@ def _select_annotation(
 
 
 def cherrypick_annotations(
-    local_info: DockerImageInfo | None, registry_info: DockerImageInfo | None
+    local_info: DockerImageInfo, registry_info: DockerImageInfo | None
 ) -> dict[str, str | float | int | bool | None]:
     """https://github.com/opencontainers/image-spec/blob/main/annotations.md"""
     results: dict[str, str | float | int | bool | None] = {}
@@ -293,12 +293,13 @@ def cherrypick_annotations(
         results.update(_select_annotation(either_name, either_label, local_info, registry_info))
     if (
         results.get("ref_name") == "ubuntu"
+        and local_info.name != "ubuntu"
         and results.get("image_version")
         and re.fullmatch(r"^2\d\.\d\d$", cast("str", results["image_version"]))
     ):
         log.debug(
             "Suppressing %s base %s version leaking into image version: %s",
-            (local_info and local_info.name) or "UNKNOWN",results["ref_name"], results["image_version"],
+            local_info.name, results["ref_name"], results["image_version"],
         )
         del results["image_version"]
     return results

@@ -9,6 +9,7 @@
 - Version Policy now includes `TIMESTAMP` for image creation date/time, which is also now part of
 auto version algorithm
 - Version policy can be also be set in `custom_packages.yaml` or in the `packages` section of config
+- Detect common mis-configuration where ubuntu base layer version published as derived image version
 ## 1.8.0
 ### Package Info
 - The `common_packages.yaml` that ships inside the Docker image can be extended, or overridden, using the `packages` section of the main config file
