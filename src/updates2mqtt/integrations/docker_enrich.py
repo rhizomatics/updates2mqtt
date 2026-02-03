@@ -297,7 +297,7 @@ def cherrypick_annotations(
         and re.fullmatch(r"^2\d\.\d\d$", cast("str", results["image_version"]))
     ):
         log.debug(
-            "Suppressing %s base %s version leaking into image version: %s, %s",
+            "Suppressing %s base %s version leaking into image version: %s",
             (local_info and local_info.name) or "UNKNOWN",results["ref_name"], results["image_version"],
         )
         del results["image_version"]
