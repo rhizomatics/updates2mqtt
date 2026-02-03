@@ -228,6 +228,7 @@ class DockerImageInfo(DiscoveryArtefactDetail):
 
     def as_dict(self, minimal: bool = True) -> dict[str, str | list | dict | bool | int | None]:
         result: dict[str, str | list | dict | bool | int | None] = {
+            "captured": self.captured.isoformat(),
             "image_ref": self.ref,
             "name": self.name,
             "version": self.version,
