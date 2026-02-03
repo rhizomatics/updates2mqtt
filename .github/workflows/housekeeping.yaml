@@ -6,6 +6,7 @@ on:
 
 jobs:
   free-disk-space:
+    permissions: {}
     runs-on: ubuntu-latest
     steps:
 
