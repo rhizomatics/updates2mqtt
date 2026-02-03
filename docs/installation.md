@@ -31,6 +31,19 @@ The example `docker-compose.yaml` mounts `/my/container/home` for this purpose, 
 `/my/container/home/app1`, `/my/container/home/app2` etc, then Updates2MQTT will be able to find them in
 order to restart them. Map as many root paths as needed.
 
+#### Ensuring Always Running
+
+Use cron to make sure the container is always up, this example will run once an hour, adapt the schedule
+and the location of `docker-compose.yaml` for your needs.
+
+```bash
+sudo crontab -e
+```
+
+```bash
+0 * * * * /usr/bin/docker compose -f /containers/updates2mqtt/docker-compose.yaml up -d --no-recreate
+```
+
 ### Without Docker
 
 Updates2MQTT is published as a [PyPI package](https://pypi.org/project/updates2mqtt/) on every release,
