@@ -294,12 +294,11 @@ def cherrypick_annotations(
     if (
         results.get("ref_name") == "ubuntu"
         and results.get("image_version")
-        and re.match(r"^2\d.\d\d$", cast("str", results["image_version"]))
+        and re.fullmatch(r"^2\d\.\d\d$", cast("str", results["image_version"]))
     ):
         log.debug(
-            "Suppressing ubuntu base version leaking into image version: %s, %s",
-            (local_info and local_info.name) or "UNKNOWN",
-            results["image_vesion"],
+            "Suppressing %s base %s version leaking into image version: %s, %s",
+            (local_info and local_info.name) or "UNKNOWN",results["ref_name"], results["image_version"],
         )
         del results["image_version"]
     return results
