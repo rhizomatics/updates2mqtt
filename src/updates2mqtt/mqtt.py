@@ -416,6 +416,6 @@ class MqttPublisher:
     def publish(self, topic: str, payload: dict, qos: int = 0, retain: bool = True) -> None:
         if self.client:
             info: MQTTMessageInfo = self.client.publish(topic, payload=json.dumps(payload), qos=qos, retain=retain)
-            log.debug("Publish to %s, mid: %s, published: %s", topic, info.mid, info.is_published)
+            log.debug("Publish to %s, mid: %s, published: %s", topic, info.mid, info.is_published())
         else:
             self.log.debug("No client to publish at %s", topic)

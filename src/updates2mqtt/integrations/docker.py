@@ -692,7 +692,8 @@ def select_versions(version_policy: VersionPolicy, installed: DockerImageInfo, l
         return condense_repo_id(latest), condense_repo_id(latest), basis("repo-digest")
 
     if installed_digest_available and not latest_digest_available:
-        return installed.short_digest, latest.short_digest, basis("digest")  # type: ignore[return-value]
+        # no new digest, so latest is the current
+        return installed.short_digest, installed.short_digest, basis("digest")  # type: ignore[return-value]
 
     log.warn("No versions can be determined for %s", installed.ref)
     phase = 999
