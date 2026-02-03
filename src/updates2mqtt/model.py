@@ -1,3 +1,4 @@
+import datetime as dt
 import json
 import time
 from abc import abstractmethod
@@ -6,12 +7,16 @@ from threading import Event
 from typing import Any
 
 import structlog
+from tzlocal import get_localzone
 
 from updates2mqtt.config import NodeConfig, PublishPolicy, UpdatePolicy, VersionPolicy
 from updates2mqtt.helpers import sanitize_name, timestamp
 
 
 class DiscoveryDetail:
+    def __init__(self) -> None:
+        self.captured: dt.datetime = dt.datetime.now(tz=get_localzone())
+
     @abstractmethod
     def as_dict(self) -> dict[str, str | list | dict | bool | int | None]:
         return {}
@@ -24,13 +29,15 @@ class DiscoveryDetail:
 class DiscoveryArtefactDetail(DiscoveryDetail):
     """Provider specific detail"""
 
-    pass
+    def __init__(self) -> None:
+        super().__init__()
 
 
 class DiscoveryInstallationDetail(DiscoveryDetail):
     """Provider specific detail"""
 
-    pass
+    def __init__(self) -> None:
+        super().__init__()
 
 
 class ReleaseDetail(DiscoveryDetail):
@@ -41,6 +48,7 @@ class ReleaseDetail(DiscoveryDetail):
     """
 
     def __init__(self, notes_url: str | None = None, summary: str | None = None) -> None:
+        super().__init__()
         self.source_platform: str | None = None
         self.source_repo_url: str | None = None
         self.source_url: str | None = None

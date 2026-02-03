@@ -107,6 +107,7 @@ class DockerImageInfo(DiscoveryArtefactDetail):
         version: str | None = None,  # test harness simplification
         created: str | None = None,
     ) -> None:
+        super().__init__()
         self.ref: str = ref
         self.version: str | None = version
         self.image_digest: str | None = image_digest
@@ -299,7 +300,9 @@ def cherrypick_annotations(
     ):
         log.debug(
             "Suppressing %s base %s version leaking into image version: %s",
-            local_info.name, results["ref_name"], results["image_version"],
+            local_info.name,
+            results["ref_name"],
+            results["image_version"],
         )
         del results["image_version"]
     return results
