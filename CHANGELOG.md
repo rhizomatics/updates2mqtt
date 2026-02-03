@@ -10,6 +10,8 @@
 auto version algorithm
 - Version policy can be also be set in `custom_packages.yaml` or in the `packages` section of config
 - Detect common mis-configuration where ubuntu base layer version published as derived image version
+### MQTT
+- MQTT result code, MID and publish status logged at debug, and at warning if non-success result code
 ## 1.8.0
 ### Package Info
 - The `common_packages.yaml` that ships inside the Docker image can be extended, or overridden, using the `packages` section of the main config file
