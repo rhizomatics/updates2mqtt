@@ -291,6 +291,17 @@ def cherrypick_annotations(
         ("source", "org.opencontainers.image.source"),
     ]:
         results.update(_select_annotation(either_name, either_label, local_info, registry_info))
+    if (
+        results.get("ref_name") == "ubuntu"
+        and results.get("image_version")
+        and re.match(r"^2\d.\d\d$", cast("str", results["image_version"]))
+    ):
+        log.debug(
+            "Suppressing ubuntu base version leaking into image version: %s, %s",
+            (local_info and local_info.name) or "UNKNOWN",
+            results["image_vesion"],
+        )
+        del results["image_version"]
     return results
 
 

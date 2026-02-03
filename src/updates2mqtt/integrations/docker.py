@@ -616,25 +616,25 @@ def select_versions(version_policy: VersionPolicy, installed: DockerImageInfo, l
         (installed.version == latest.version and installed.short_digest == latest.short_digest)
         or (installed.version != latest.version and installed.short_digest != latest.short_digest)
     ):
-        # detect semver, or casual semver (e.g. v1.030)
+        # detect semver, or v semver (e.g. v1.030)
         # only use this if both version and digest are consistently agreeing or disagreeing
         # if the strict conditions work, people see nice version numbers on screen rather than hashes
         if (
             installed.version
-            and re.match(SEMVER_RE, installed.version or "")
+            and re.fullmatch(SEMVER_RE, installed.version or "")
             and latest.version
-            and re.match(SEMVER_RE, latest.version or "")
+            and re.fullmatch(SEMVER_RE, latest.version or "")
         ):
             # Smells like semver, override if not using version_policy
             return installed.version, latest.version, basis("semver")
         if (
             installed.version
-            and re.match(VERSION_RE, installed.version or "")
+            and re.fullmatch(VERSION_RE, installed.version or "")
             and latest.version
-            and re.match(VERSION_RE, latest.version or "")
+            and re.fullmatch(VERSION_RE, latest.version or "")
         ):
             # Smells like casual semver, override if not using version_policy
-            return installed.version, latest.version, basis("causualver")
+            return installed.version, latest.version, basis("casualver")
 
     # AUTO or fallback
     phase = 2

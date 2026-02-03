@@ -104,8 +104,6 @@ common_packages:
   greptime:
     docker:
       image_name: greptime/greptimedb
-      version_policy: DIGEST
-      # image inherits the version of Ubuntu base image
     logo_url: https://avatars.githubusercontent.com/u/103400677?s=48&v=4
     source_repo_url: https://github.com/GrepTimeTeam/greptimedb
     
