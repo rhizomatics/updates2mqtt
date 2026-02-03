@@ -62,7 +62,7 @@ class ReleaseDetail(DiscoveryDetail):
 
     def as_dict(self) -> dict[str, str | list | dict | bool | int | None]:
         return {
-            "captured":self.captured.isoformat(),
+            "captured": self.captured.isoformat(),
             "title": self.title,
             "version": self.version,
             "source_platform": self.source_platform,

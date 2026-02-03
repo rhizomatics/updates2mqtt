@@ -10,7 +10,7 @@ from typing import Any
 import paho.mqtt.client as mqtt
 import paho.mqtt.subscribeoptions
 import structlog
-from paho.mqtt.client import MQTT_CLEAN_START_FIRST_ONLY, MQTTMessage
+from paho.mqtt.client import MQTT_CLEAN_START_FIRST_ONLY, MQTTMessage, MQTTMessageInfo
 from paho.mqtt.enums import CallbackAPIVersion, MQTTErrorCode, MQTTProtocolVersion
 from paho.mqtt.properties import Properties
 from paho.mqtt.reasoncodes import ReasonCode
@@ -415,4 +415,7 @@ class MqttPublisher:
 
     def publish(self, topic: str, payload: dict, qos: int = 0, retain: bool = True) -> None:
         if self.client:
-            self.client.publish(topic, payload=json.dumps(payload), qos=qos, retain=retain)
+            info: MQTTMessageInfo = self.client.publish(topic, payload=json.dumps(payload), qos=qos, retain=retain)
+            log.debug("Publish to %s, mid: %s, published: %s", topic, info.mid, info.is_published)
+        else:
+            self.log.debug("No client to publish at %s", topic)
