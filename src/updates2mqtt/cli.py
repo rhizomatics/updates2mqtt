@@ -160,19 +160,23 @@ async def dump(fmt: str, cli_conf: DictConfig) -> None:
         )
         async for discovery in docker_scanner.scan("cli", False):
             v = discovery.as_dict()
-            log.info(",".join([
-                v["name"],
-                v["installed_version"],
-                v["latest_version"],
-                v["version_basis"],
-                v["title"],
-                v["can_update"],
-                v["can_build"],
-                v["can_restart"],
-                v["update_type"],
-                v["status"],
-                v.get("last_scan", {}).get("throttled")  # type: ignore[union-attr]
-            ])
+            log.info(
+                ",".join(
+                    str(v)
+                    for v in (
+                        v["name"],
+                        v["installed_version"],
+                        v["latest_version"],
+                        v["version_basis"],
+                        v["title"],
+                        v["can_update"],
+                        v["can_build"],
+                        v["can_restart"],
+                        v["update_type"],
+                        v["status"],
+                        v.get("last_scan", {}).get("throttled"),  # type: ignore[union-attr]
+                    )
+                )
             )
     else:
         log.warning(f"Unsupported dump format {fmt}")
