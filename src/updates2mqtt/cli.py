@@ -1,3 +1,4 @@
+import json
 from typing import TYPE_CHECKING
 
 import structlog
@@ -197,6 +198,8 @@ async def dump(fmt: str, cli_conf: DictConfig) -> None:
                     )
                 )
             )
+    elif fmt == "json":
+        print_json(json.dumps([v.as_dict() async for v in docker_scanner.scan("cli", False)]))
     else:
         log.warning(f"Unsupported dump format {fmt}")
 
