@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, AsyncGenerator
+from typing import TYPE_CHECKING
 
 import structlog
 from omegaconf import DictConfig, OmegaConf
@@ -148,16 +148,30 @@ def docker_provider(cli_conf: DictConfig) -> DockerProvider:
 
 
 async def dump(fmt: str, cli_conf: DictConfig) -> None:
-    structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(cli_conf.get("log_level", "WARNING")))
+    structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(cli_conf.get("log_level", "ERROR")))
 
     docker_scanner: DockerProvider = docker_provider(cli_conf)
-    headered = False
     if fmt == "csv":
+        log.info(
+            "name,installed_version,latest_version,version_basis"
+            "title,can_update,can_build,can_restart"
+            "update_type,status,throttled"
+        )
         async for discovery in docker_scanner.scan("cli", False):
-            if not headered:
-                log.info(",".join(discovery.as_dict().keys()))
-                headered = True
-            log.info(",".join([str(v) for v in discovery.as_dict().values()]))
+            v = discovery.as_dict()
+            log.info(
+                v["name"],
+                v["installed_version"],
+                v["latest_version"],
+                v["version_basis"],
+                v["title"],
+                v["can_update"],
+                v["can_build"],
+                v["can_restart"],
+                v["update_type"],
+                v["status"],
+                v.get("last_scan", {}).get("throttled"),  # type: ignore[union-attr]
+            )
 
 
 def main() -> None:
@@ -172,6 +186,7 @@ def main() -> None:
         dump_url("tags", cli_conf.get("tags"), cli_conf)
     elif cli_conf.get("dump"):
         import asyncio
+
         asyncio.run(dump(cli_conf.get("dump"), cli_conf))
 
     else:
