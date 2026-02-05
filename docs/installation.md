@@ -62,3 +62,8 @@ pip install updates2mqtt
 python3 -m updates2mqtt
 ```
 
+### On Portainer
+
+Install an Updates2MQTT container on each Portainer host, this can be using a `docker-compose.yaml` file,
+or using the Portainer UI to define the image name and env vars ( no config file required ). Each
+of the containers will show up as a Docker Compose service as if Portainer even if it has been fully managed by Portainer without a manual `docker-compose.yaml` file.
