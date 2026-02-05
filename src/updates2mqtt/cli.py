@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 log = structlog.get_logger()
 
 
-"""
+HELP="""
 Super simple CLI
 
 Command can be `container`,`tags`,`manifest` or `blob`
@@ -215,6 +215,8 @@ def main() -> None:
         dump_url("manifest", cli_conf.get("manifest"), cli_conf)
     elif cli_conf.get("tags"):
         dump_url("tags", cli_conf.get("tags"), cli_conf)
+    elif cli_conf.get(key="help"):
+        log.info(HELP)
     elif cli_conf.get("dump"):
         import asyncio
 
