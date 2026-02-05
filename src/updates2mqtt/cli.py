@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 log = structlog.get_logger()
 
 
-HELP="""
+HELP = """
 Super simple CLI
 
 Command can be `container`,`tags`,`manifest` or `blob`
