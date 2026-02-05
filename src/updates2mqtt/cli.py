@@ -208,15 +208,15 @@ async def dump(fmt: str, cli_conf: DictConfig) -> None:
 def main() -> None:
     # will be a proper cli someday
     cli_conf: DictConfig = OmegaConf.from_cli()
-    log.info(cli_conf)
-    if cli_conf.get("blob"):
+
+    if "help" in cli_conf or "--help" in cli_conf:
+        log.info(HELP)
+    elif cli_conf.get("blob"):
         dump_url("blob", cli_conf.get("blob"), cli_conf)
     elif cli_conf.get("manifest"):
         dump_url("manifest", cli_conf.get("manifest"), cli_conf)
     elif cli_conf.get("tags"):
         dump_url("tags", cli_conf.get("tags"), cli_conf)
-    elif cli_conf.get(key="help"):
-        log.info(HELP)
     elif cli_conf.get("dump"):
         import asyncio
 
