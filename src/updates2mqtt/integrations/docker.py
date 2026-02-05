@@ -551,7 +551,12 @@ def select_versions(version_policy: VersionPolicy, installed: DockerImageInfo, l
     def basis(rule: str) -> str:
         return f"{rule}-{phase}" if not shortcircuit else f"{rule}-{phase}-{shortcircuit}"
 
+    #
+    # Detect No Update Available
+    # --------------------------
+    #
     # shortcircuit the logic if there's nothing to compare
+    #
     if latest.throttled:
         log.debug("Flattening versions for throttled update %s", installed.ref)
         shortcircuit = "THR"
@@ -579,11 +584,22 @@ def select_versions(version_policy: VersionPolicy, installed: DockerImageInfo, l
         shortcircuit = "FGB"
         latest = installed
 
+    #
+    # Explicit Policy Choice
+    # ----------------------
+    #
+
     if version_policy == VersionPolicy.VERSION and installed.version and latest.version:
         return installed.version, latest.version, basis("version")
 
     installed_digest_available: bool = installed.short_digest is not None and installed.short_digest != ""
     latest_digest_available: bool = latest.short_digest is not None and latest.short_digest != ""
+    matching_digest: bool = (
+        installed_digest_available and latest_digest_available and installed.short_digest == latest.short_digest
+    )
+    changed_digest: bool = (
+        installed_digest_available and latest_digest_available and installed.short_digest != latest.short_digest
+    )
 
     if version_policy == VersionPolicy.DIGEST and installed_digest_available and latest_digest_available:
         return installed.short_digest, latest.short_digest, basis("digest")  # type: ignore[return-value]
@@ -605,64 +621,83 @@ def select_versions(version_policy: VersionPolicy, installed: DockerImageInfo, l
         and installed.created
         and latest.created
         and (
-            (latest.created > installed.created and latest.short_digest != installed.short_digest)
-            or (latest.created == installed.created and latest.short_digest == installed.short_digest)
+            (latest.created > installed.created and changed_digest) or (latest.created == installed.created and matching_digest)
         )
     ):
         return installed.created, latest.created, basis("timestamp")
 
+    #
+    # Auto Policy - Humane Versions
+    # -----------------------------
+    #
     phase = 1
-    if version_policy == VersionPolicy.AUTO and (
-        (installed.version == latest.version and installed.short_digest == latest.short_digest)
-        or (installed.version != latest.version and installed.short_digest != latest.short_digest)
+    if (
+        version_policy == VersionPolicy.AUTO
+        and installed.version
+        and latest.version
+        and (
+            (installed.version == latest.version and matching_digest)
+            or (installed.version != latest.version and changed_digest)
+        )
     ):
         # detect semver, or v semver (e.g. v1.030)
         # only use this if both version and digest are consistently agreeing or disagreeing
         # if the strict conditions work, people see nice version numbers on screen rather than hashes
-        if (
-            installed.version
-            and re.fullmatch(SEMVER_RE, installed.version or "")
-            and latest.version
-            and re.fullmatch(SEMVER_RE, latest.version or "")
-        ):
+        if re.fullmatch(SEMVER_RE, installed.version or "") and re.fullmatch(SEMVER_RE, latest.version or ""):
             # Smells like semver, override if not using version_policy
             return installed.version, latest.version, basis("semver")
-        if (
-            installed.version
-            and re.fullmatch(VERSION_RE, installed.version or "")
-            and latest.version
-            and re.fullmatch(VERSION_RE, latest.version or "")
-        ):
+        if re.fullmatch(VERSION_RE, installed.version or "") and re.fullmatch(VERSION_RE, latest.version or ""):
             # Smells like casual semver, override if not using version_policy
             return installed.version, latest.version, basis("casualver")
 
-    # AUTO or fallback
+    if (
+        version_policy == VersionPolicy.AUTO
+        and installed.tag
+        and latest.tag
+        and ((installed.tag == latest.tag and matching_digest) or (installed.tag != latest.tag and changed_digest))
+    ):
+        if re.fullmatch(SEMVER_RE, installed.tag) and re.fullmatch(SEMVER_RE, latest.tag):
+            return installed.tag, latest.tag, basis("semver-tag")
+        if re.fullmatch(SEMVER_RE, installed.tag) and re.fullmatch(SEMVER_RE, latest.tag):
+            return installed.tag, latest.tag, basis("semver-tag")
+
+    #
+    # Local Builds
+    # ------------
+    #
     phase = 2
-    if installed.version and latest.version and installed_digest_available and latest_digest_available:
+    if installed.git_digest and latest.git_digest:
+        return f"git:{installed.git_digest}", f"git:{latest.git_digest}", basis("git")
+
+    #
+    #  Fall Back - Qualified Versions
+    # --------------------------------
+    #
+    phase = 3
+    if (
+        installed.version
+        and latest.version
+        and (
+            (installed.version == latest.version and matching_digest)
+            or (installed.version != latest.version and changed_digest)
+        )
+    ):
         return (
             f"{installed.version}:{installed.short_digest}",
             f"{latest.version}:{latest.short_digest}",
             basis("version-digest"),
         )
 
-        # and ((other_digest is None and other_version is None) or (other_digest is not None and other_version is not None))
+    #
+    # Fall Back - Timestamp, Digest, Version
+    # --------------------------------------
 
-    if installed.version and latest.version:
-        return installed.version, latest.version, basis("version")
-
-    # Check for local builds
-    phase = 3
-    if installed.git_digest and latest.git_digest:
-        return f"git:{installed.git_digest}", f"git:{latest.git_digest}", basis("git")
-
-    # Fall back to digests, image or repo index
     phase = 4
     if (
         installed.created
         and latest.created
         and (
-            (latest.created > installed.created and latest.short_digest != installed.short_digest)
-            or (latest.created == installed.created and latest.short_digest == installed.short_digest)
+            (latest.created > installed.created and changed_digest) or (latest.created == installed.created and matching_digest)
         )
     ):
         return installed.created, latest.created, basis("timestamp")
@@ -670,12 +705,18 @@ def select_versions(version_policy: VersionPolicy, installed: DockerImageInfo, l
         return installed.short_digest, latest.short_digest, basis("digest")  # type: ignore[return-value]
     if installed.version and not latest.version and not latest.short_digest and not latest.repo_digest:
         return installed.version, installed.version, basis("version")
+
+    #
+    # Fall Back - Missing Digests
+    # ---------------------------
     phase = 5
     if not installed_digest_available and latest_digest_available:
         # odd condition if local image has no identity, even out versions so no update alert
         return latest.short_digest, latest.short_digest, basis("digest")  # type: ignore[return-value]
 
-    # Fall back to repo digests
+    #
+    # Fall Back - Repo Digests
+    # ---------------------------
     phase = 6
 
     def condense_repo_id(i: DockerImageInfo) -> str:
@@ -695,6 +736,10 @@ def select_versions(version_policy: VersionPolicy, installed: DockerImageInfo, l
         # no new digest, so latest is the current
         return installed.short_digest, installed.short_digest, basis("digest")  # type: ignore[return-value]
 
+    #
+    # Failure to Find Any Version
+    # ---------------------------
+    #
     log.warn("No versions can be determined for %s", installed.ref)
     phase = 999
     return UNKNOWN_VERSION, UNKNOWN_VERSION, basis("failure")

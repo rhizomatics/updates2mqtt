@@ -95,6 +95,18 @@ common_packages:
     logo_url: https://avatars.githubusercontent.com/u/45698031?s=48&v=4
     source_repo_url: https://github.com/jellyfin/jellyfin
 
+  emqx:
+    docker: 
+      image_name: emqx/emqx
+    logo_url: https://avatars.githubusercontent.com/u/25221711?s=48&v=4
+    source_repo_url: https://github.com/emqx/emqx
+
+  mosquitto:
+    docker:
+      image_name: eclipse-mosquitto
+    logo_url: https://avatars.githubusercontent.com/u/185921483?s=48&v=4
+    source_repo_url: https://github.com/eclipse-mosquitto/mosquitto
+
   owntone:
     docker:
       image_name: owntone/owntone
@@ -113,6 +125,12 @@ common_packages:
       image_name: timberio/vector
     logo_url: https://avatars.githubusercontent.com/u/16866914?s=48&v=4
     source_repo_url: https://github.com/vectordotdev/vector
+
+  home-assistant:
+    docker:
+      image_name: ghcr.io/home-assistant/home-assistant
+    logo_url: https://avatars.githubusercontent.com/u/13844975?s=48&v=4
+    source_repo_url: https://github.com/home-assistant/docker
 
   homarr:
     docker:
@@ -142,3 +160,57 @@ common_packages:
     docker: 
       image_name: hertzg/rtl_433
     source_repo_url: https://github.com/merbanan/rtl_433
+
+  plex:
+    docker:
+      image_name: plexinc/pms-docker
+    source_repo_url: https://github.com/plexinc/pms-docker
+    logo_url: https://avatars.githubusercontent.com/u/324832?s=48&v=4
+
+  emby:
+    docker:
+      image_name: emby/embyserver
+    source_repo_url: https://github.com/MediaBrowser/Emby
+    logo_url: https://avatars.githubusercontent.com/u/3607473?s=48&v=4
+
+  tailscale:
+    docker:
+      image_name: tailscale/tailscale
+    source_repo_url: https://github.com/tailscale/tailscale
+    logo_url: https://avatars.githubusercontent.com/u/48932923?s=48&v=4
+
+  appwrite:
+    docker:
+      image_name: appwrite/appwrite
+    source_repo_url: https://github.com/appwrite/appwrite
+    logo_url: https://avatars.githubusercontent.com/u/25003669?s=48&v=4
+  
+  traefik:
+    docker:
+      image_name: traefik
+    source_repo_url: https://github.com/traefik/traefik
+    logo_url: https://avatars.githubusercontent.com/u/14280338?s=48&v=4
+
+  grafana:
+    docker:
+      image_name: grafana/grafana
+    source_repo_url: https://github.com/grafana/grafana
+    logo_url: https://avatars.githubusercontent.com/u/7195757?s=48&v=4
+  
+  prometheus:
+    docker:
+      image_name: prom/prometheus
+    source_repo_url: https://github.com/prometheus/prometheus
+    logo_url: https://avatars.githubusercontent.com/u/3380462?s=48&v=4
+
+  lychee:
+    docker:
+      image_name: lycheeorg/lychee
+    source_repo_url: https://github.com/LycheeOrg/Lychee
+    logo_url: https://avatars.githubusercontent.com/u/37916028?s=48&v=4
+
+  wud:
+    docker:
+      image_name: getwud/wud
+    source_repo_url: https://github.com/getwud/wud
+    logo_url: https://avatars.githubusercontent.com/u/185776544?s=48&v=4

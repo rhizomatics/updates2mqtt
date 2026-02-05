@@ -49,7 +49,7 @@ def test_git_local_versions() -> None:
     latest.git_digest = "9484341a"
 
     for policy in (VersionPolicy.AUTO, VersionPolicy.DIGEST, VersionPolicy.VERSION, VersionPolicy.VERSION_DIGEST):
-        assert select_versions(policy, installed, latest) == ("git:9484341a", "git:9484341a", "git-3")
+        assert select_versions(policy, installed, latest) == ("git:9484341a", "git:9484341a", "git-2")
 
 
 def test_repo_digests() -> None:
@@ -171,4 +171,14 @@ def test_timestamp_with_version_prefers_version() -> None:
         "2024-01-15T10:30:00Z",
         "2024-01-20T14:00:00Z",
         "timestamp-0",
+    )
+
+
+def test_semver_tag() -> None:
+    installed = DockerImageInfo("foo/foo:5.3.0", image_digest="b5c7fd5f595a", created="2024-01-15T10:30:00Z")
+    latest = DockerImageInfo("foo/foo:5.3.0", image_digest="b5c7fd5f595a", created="2024-01-15T10:30:00Z")
+    assert select_versions(VersionPolicy.AUTO, installed, latest) == (
+        "5.3.0",
+        "5.3.0",
+        "semver-tag-1-SDM",
     )

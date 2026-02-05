@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 1.8.2
+### Version Detection
+- Tighten up auto and fallback rules for cases where digests don't match
+- Use versions in tag where they are SemVer or casual versions
+### Common Packages
+- Added EMQX, Mosquitto, Plex, Emby, Tailscale, AppWrite, Traefik, Grafana, Prometheus, WhatsUpDocker, Lychee and HomeAssistant
 ## 1.8.1
 ### Home Assistant
 - Re-publish state every scan to ensure fresh
