@@ -31,6 +31,7 @@ Command can be `container`,`tags`,`manifest` or `blob`
 * `container=container-name`
 * `container=hash`
 * `dump=csv`
+* `dump=json`
 * `tags=ghcr.io/
 * `blob=mcr.microsoft.com/dotnet/sdk:latest`
 * `tags=quay.io/linuxserver.io/babybuddy`
