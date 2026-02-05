@@ -214,3 +214,15 @@ common_packages:
       image_name: getwud/wud
     source_repo_url: https://github.com/getwud/wud
     logo_url: https://avatars.githubusercontent.com/u/185776544?s=48&v=4
+
+  keycloak:
+    docker:
+      image_name: quay.io/keycloak/keycloak
+    source_repo_url: https://github.com/keycloak/keycloak
+    logo_url: https://avatars.githubusercontent.com/u/4921466?s=48&v=4
+
+  authentik:
+    docker:
+      image_name: ghcr.io/goauthentik/server
+    source_repo_url: https://github.com/goauthentik/authentik
+    logo_url: https://avatars.githubusercontent.com/u/82976448?s=48&v=4
