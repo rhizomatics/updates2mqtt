@@ -95,7 +95,7 @@ ALL_OCI_MEDIA_TYPES: list[str] = (
 
 
 def dump_url(doc_type: str, img_ref: str, cli_conf: DictConfig) -> None:
-    structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(cli_conf.get("log_level", "WARNING")))
+    structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(cli_conf.get("log_level", "ERROR")))
 
     lookup = ContainerDistributionAPIVersionLookup(Throttler(), RegistryConfig())
     img_info = DockerImageInfo(img_ref)
@@ -154,9 +154,9 @@ async def dump(fmt: str, cli_conf: DictConfig) -> None:
     docker_scanner: DockerProvider = docker_provider(cli_conf)
     if fmt == "csv":
         log.info(
-            "name,installed_version,latest_version,version_basis"
+            "name,ref,registry,installed_version,latest_version,version_basis"
             "title,can_update,can_build,can_restart"
-            "update_type,status,throttled"
+            "update_type,source,throttled"
         )
         async for discovery in docker_scanner.scan("cli", False):
             v = discovery.as_dict()
@@ -165,6 +165,8 @@ async def dump(fmt: str, cli_conf: DictConfig) -> None:
                     str(v)
                     for v in (
                         v["name"],
+                        v["current_detail"].get("image_ref"),  # type: ignore[union-attr]
+                        v["current_detail"].get("index_name"),  # type: ignore[union-attr]
                         v["installed_version"],
                         v["latest_version"],
                         v["version_basis"],
@@ -173,7 +175,7 @@ async def dump(fmt: str, cli_conf: DictConfig) -> None:
                         v["can_build"],
                         v["can_restart"],
                         v["update_type"],
-                        v["status"],
+                        v.get("release", {}).get("source"),  # type: ignore[union-attr]
                         v.get("last_scan", {}).get("throttled"),  # type: ignore[union-attr]
                     )
                 )

@@ -4,6 +4,8 @@
 ### Version Detection
 - Tighten up auto and fallback rules for cases where digests don't match
 - Use versions in tag where they are SemVer or casual versions
+### CLI
+- Added simple `dump=csv` option
 ### Common Packages
 - Added EMQX, Mosquitto, Plex, Emby, Tailscale, AppWrite, Traefik, Grafana, Prometheus, WhatsUpDocker, Lychee and HomeAssistant
 ## 1.8.1

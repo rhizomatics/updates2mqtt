@@ -465,7 +465,7 @@ class LinuxServerIOPackageEnricher(PackageEnricher):
                     release_notes_url=f"{repo['github_url']}/releases",
                 )
                 added += 1
-        self.log.info(f"Added {added} linuxserver.io package details")
+        self.log.debug(f"Added {added} linuxserver.io package details")
 
 
 class SourceReleaseEnricher:

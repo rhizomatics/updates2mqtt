@@ -244,3 +244,9 @@ If the package is installed locally then the `--with updates2mqtt` part can be o
 ```bash
 python updates2mqtt.cli container=frigate api=docker_client
 ```
+
+Get a dump to CSV rather than MQTT of local Docker containers
+
+```bash
+python updates2mqtt.cli dump=csv
+```
