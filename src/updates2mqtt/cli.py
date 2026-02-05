@@ -208,7 +208,7 @@ async def dump(fmt: str, cli_conf: DictConfig) -> None:
 def main() -> None:
     # will be a proper cli someday
     cli_conf: DictConfig = OmegaConf.from_cli()
-
+    log.info(cli_conf)
     if cli_conf.get("blob"):
         dump_url("blob", cli_conf.get("blob"), cli_conf)
     elif cli_conf.get("manifest"):
