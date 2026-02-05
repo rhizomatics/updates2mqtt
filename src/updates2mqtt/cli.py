@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 import structlog
 from omegaconf import DictConfig, OmegaConf
 from rich import print_json
+from rich.console import Console
 
 from updates2mqtt.config import DockerConfig, GitHubConfig, NodeConfig, RegistryConfig
 from updates2mqtt.helpers import Throttler
@@ -150,17 +151,18 @@ def docker_provider(cli_conf: DictConfig) -> DockerProvider:
 
 async def dump(fmt: str, cli_conf: DictConfig) -> None:
     structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(cli_conf.get("log_level", "ERROR")))
-
+    console=Console()
     docker_scanner: DockerProvider = docker_provider(cli_conf)
     if fmt == "csv":
-        log.info(
+        console.print(
             "name,ref,registry,installed_version,latest_version,version_basis,"
             "title,can_update,can_build,can_restart,"
-            "update_type,source,throttled"
+            "update_type,source,throttled", 
+            style="bold green"
         )
         async for discovery in docker_scanner.scan("cli", False):
             v = discovery.as_dict()
-            log.info(
+            console.print(
                 ",".join(
                     str(v)
                     for v in (
