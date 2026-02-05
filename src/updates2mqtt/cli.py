@@ -28,6 +28,7 @@ Command can be `container`,`tags`,`manifest` or `blob`
 
 * `container=container-name`
 * `container=hash`
+* `dump=csv`
 * `tags=ghcr.io/
 * `blob=mcr.microsoft.com/dotnet/sdk:latest`
 * `tags=quay.io/linuxserver.io/babybuddy`
@@ -159,7 +160,7 @@ async def dump(fmt: str, cli_conf: DictConfig) -> None:
         )
         async for discovery in docker_scanner.scan("cli", False):
             v = discovery.as_dict()
-            log.info(
+            log.info(",".join([
                 v["name"],
                 v["installed_version"],
                 v["latest_version"],
@@ -170,8 +171,11 @@ async def dump(fmt: str, cli_conf: DictConfig) -> None:
                 v["can_restart"],
                 v["update_type"],
                 v["status"],
-                v.get("last_scan", {}).get("throttled"),  # type: ignore[union-attr]
+                v.get("last_scan", {}).get("throttled")  # type: ignore[union-attr]
+            ])
             )
+    else:
+        log.warning(f"Unsupported dump format {fmt}")
 
 
 def main() -> None:
