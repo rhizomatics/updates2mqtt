@@ -151,20 +151,25 @@ def docker_provider(cli_conf: DictConfig) -> DockerProvider:
 
 async def dump(fmt: str, cli_conf: DictConfig) -> None:
     structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(cli_conf.get("log_level", "ERROR")))
-    console=Console()
+    console = Console()
     docker_scanner: DockerProvider = docker_provider(cli_conf)
     if fmt == "csv":
         console.print(
-            "name,ref,registry,installed_version,latest_version,version_basis,"
-            "title,can_update,can_build,can_restart,"
-            "update_type,source,throttled", 
-            style="bold white on black"
+            ",".join(
+                f'"{v}"'
+                for v in (
+                    "name,ref,registry,installed_version,latest_version,version_basis,"
+                    "title,can_update,can_build,can_restart,"
+                    "update_type,source,throttled"
+                )
+            ),
+            style="bold white on black",
         )
         async for discovery in docker_scanner.scan("cli", False):
             v = discovery.as_dict()
             console.print(
                 ",".join(
-                    str(v)
+                    f'"{v}"'
                     for v in (
                         v["name"],
                         v["current_detail"].get("image_ref"),  # type: ignore[union-attr]
