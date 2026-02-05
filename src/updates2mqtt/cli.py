@@ -154,8 +154,8 @@ async def dump(fmt: str, cli_conf: DictConfig) -> None:
     docker_scanner: DockerProvider = docker_provider(cli_conf)
     if fmt == "csv":
         log.info(
-            "name,ref,registry,installed_version,latest_version,version_basis"
-            "title,can_update,can_build,can_restart"
+            "name,ref,registry,installed_version,latest_version,version_basis,"
+            "title,can_update,can_build,can_restart,"
             "update_type,source,throttled"
         )
         async for discovery in docker_scanner.scan("cli", False):
