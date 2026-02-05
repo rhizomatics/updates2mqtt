@@ -158,7 +158,7 @@ async def dump(fmt: str, cli_conf: DictConfig) -> None:
             "name,ref,registry,installed_version,latest_version,version_basis,"
             "title,can_update,can_build,can_restart,"
             "update_type,source,throttled", 
-            style="bold green"
+            style="bold white on black"
         )
         async for discovery in docker_scanner.scan("cli", False):
             v = discovery.as_dict()
