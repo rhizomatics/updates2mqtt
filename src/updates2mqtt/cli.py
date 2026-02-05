@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, AsyncGenerator
 
 import structlog
 from omegaconf import DictConfig, OmegaConf
@@ -135,6 +135,30 @@ def dump_url(doc_type: str, img_ref: str, cli_conf: DictConfig) -> None:
         print_json(response.text)
 
 
+def docker_provider(cli_conf: DictConfig) -> DockerProvider:
+    docker_scanner = DockerProvider(
+        DockerConfig(registry=RegistryConfig(api=cli_conf.get("api", "OCI_V2"))),
+        NodeConfig(),
+        packages={},
+        github_cfg=GitHubConfig(access_token=cli_conf.get("github_token")),
+        self_bounce=None,
+    )
+    docker_scanner.initialize()
+    return docker_scanner
+
+
+async def dump(fmt: str, cli_conf: DictConfig) -> None:
+
+    docker_scanner: DockerProvider = docker_provider(cli_conf)
+    headered = False
+    if fmt == "csv":
+        async for discovery in docker_scanner.scan("cli", False):
+            if not headered:
+                log.info(",".join(discovery.as_dict().keys()))
+                headered = True
+            log.info(",".join([str(v) for v in discovery.as_dict().values()]))
+
+
 def main() -> None:
     # will be a proper cli someday
     cli_conf: DictConfig = OmegaConf.from_cli()
@@ -145,18 +169,14 @@ def main() -> None:
         dump_url("manifest", cli_conf.get("manifest"), cli_conf)
     elif cli_conf.get("tags"):
         dump_url("tags", cli_conf.get("tags"), cli_conf)
+    elif cli_conf.get("dump"):
+        import asyncio
+        asyncio.run(dump(cli_conf.get("dump"), cli_conf))
 
     else:
         structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(cli_conf.get("log_level", "INFO")))
 
-        docker_scanner = DockerProvider(
-            DockerConfig(registry=RegistryConfig(api=cli_conf.get("api", "OCI_V2"))),
-            NodeConfig(),
-            packages={},
-            github_cfg=GitHubConfig(access_token=cli_conf.get("github_token")),
-            self_bounce=None,
-        )
-        docker_scanner.initialize()
+        docker_scanner = docker_provider(cli_conf)
         discovery: Discovery | None = docker_scanner.rescan(
             Discovery(docker_scanner, cli_conf.get("container", "frigate"), "cli", "manual")
         )
