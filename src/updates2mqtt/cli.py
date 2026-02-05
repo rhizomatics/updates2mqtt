@@ -148,6 +148,7 @@ def docker_provider(cli_conf: DictConfig) -> DockerProvider:
 
 
 async def dump(fmt: str, cli_conf: DictConfig) -> None:
+    structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(cli_conf.get("log_level", "WARNING")))
 
     docker_scanner: DockerProvider = docker_provider(cli_conf)
     headered = False
