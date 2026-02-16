@@ -18,11 +18,11 @@ repos:
       - id: check-shebang-scripts-are-executable
         name: Check shell scripts are executable
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.10.0
+    rev: 0.10.3
     hooks:
       - id: uv-lock
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.0
+    rev: v0.15.1
     hooks:
      # Run the linter.
       - id: ruff-check
@@ -75,7 +75,7 @@ repos:
         additional_dependencies: ["bandit[toml]"]
 
   - repo: https://github.com/Mateusz-Grzelinski/actionlint-py
-    rev: v1.7.10.24
+    rev: v1.7.11.24
     hooks:
       - id: actionlint
 
