@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## 1.8.3
+### Release Info
+- Release summaries can now have a max length, using `release_summary_max_size`, default 16k
 ## 1.8.2
 ### Version Detection
 - Tighten up auto and fallback rules for cases where digests don't match

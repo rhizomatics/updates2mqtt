@@ -372,9 +372,7 @@ class MqttPublisher:
         self.publish(
             self.state_topic(discovery),
             hass_format_state(
-                discovery,
-                discovery.session,
-                in_progress=in_progress,
+                discovery, in_progress=in_progress, release_summary_max_size=self.hass_cfg.release_summary_max_size
             ),
         )
 
