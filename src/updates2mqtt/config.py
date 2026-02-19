@@ -141,7 +141,7 @@ class HomeAssistantConfig:
     force_command_topic: bool = False
     extra_attributes: bool = True
     area: str | None = None
-    release_summary_max_size: int = 16384
+    release_summary_max_size: int = 8192
 
 
 @dataclass

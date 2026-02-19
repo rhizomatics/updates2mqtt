@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 1.8.4
+### Release Info
+- Default max summary size now 8K, to avoid Home Assistant warnings on state
+  - This limit can be increased, or removed, if the Update entities are excluded from Home Assistant's state history
 ## 1.8.3
 ### Release Info
 - Release summaries can now have a max length, using `release_summary_max_size`, default 16k
