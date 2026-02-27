@@ -134,7 +134,7 @@ class MqttPublisher:
         if self.fatal_failure.is_set():
             return
         try:
-            logger.info("Starting clean cycle, max time: %s", max_time)
+            logger.info("Starting clean cycle, wait time: %s, max time: %s, initial: %s", wait_time, max_time, initial)
             cutoff_time: float = time.time() + max_time
             cleaner = mqtt.Client(
                 callback_api_version=CallbackAPIVersion.VERSION1,
