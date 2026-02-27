@@ -127,7 +127,9 @@ class MqttPublisher:
         else:
             self.log.warning("Disconnect failure from broker", result_code=rc)
 
-    async def clean_topics(self, provider: ReleaseProvider, wait_time: int = 5, max_time: int = 120) -> None:
+    async def clean_topics(
+        self, provider: ReleaseProvider, wait_time: int = 5, max_time: int = 120, initial: bool = False
+    ) -> None:
         logger = self.log.bind(action="clean")
         if self.fatal_failure.is_set():
             return
@@ -158,15 +160,23 @@ class MqttPublisher:
                 else:
                     logger.debug("Ignoring other topic ", topic=msg.topic)
                     return
-
                 results["discovered"] += 1
-                if discovery is not None:
-                    results["matched"] += 1
-                results["last_timestamp"] = time.time()
-                if discovery is None:
+                if not initial and discovery is None:
                     logger.debug("Removing unknown discovery", topic=msg.topic)
                     cleaner.publish(msg.topic, "", retain=True)
                     results["cleaned"] += 1
+                elif discovery is not None:
+                    results["matched"] += 1
+
+                try:
+                    payload = json.loads(msg.payload)
+                    if payload.get("in_progress") and initial:
+                        cleaner.publish(msg.topic, "", retain=True)
+                        results["cleaned"] += 1
+                except Exception as e:
+                    logger.warn("Invalid payload at %s: %s", msg.topic, e)
+
+                results["last_timestamp"] = time.time()
 
             cleaner.on_message = cleanup
             options = paho.mqtt.subscribeoptions.SubscribeOptions(noLocal=True)
