@@ -44,6 +44,7 @@ async def test_main_loop(
         [
             call.start(),
             call.subscribe_hass_command(uut.scanners[0]),
+            call.clean_topics(uut.scanners[0], initial=True),
             call.stop(),
         ]
     )  # pyright: ignore[reportAttributeAccessIssue]

@@ -169,10 +169,11 @@ class MqttPublisher:
                     results["matched"] += 1
 
                 try:
-                    payload = json.loads(msg.payload)
-                    if payload.get("in_progress") and initial:
-                        cleaner.publish(msg.topic, "", retain=True)
-                        results["cleaned"] += 1
+                    if msg.payload:
+                        payload = json.loads(msg.payload)
+                        if payload.get("in_progress") and initial:
+                            cleaner.publish(msg.topic, "", retain=True)
+                            results["cleaned"] += 1
                 except Exception as e:
                     logger.warn("Invalid payload at %s: %s", msg.topic, e)
                     cleaner.publish(msg.topic, "", retain=True)

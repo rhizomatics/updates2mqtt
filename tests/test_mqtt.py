@@ -574,6 +574,7 @@ async def test_clean_topics_removes_stale_discovery(mock_mqtt_client: Mock, mock
                 # Create a mock retained message with old session
                 msg = Mock()
                 msg.retain = True
+                msg.payload = {}
                 msg.topic = f"homeassistant/update/cleannode_{mock_provider.source_type}_container1/update/config"
                 on_message_callback(mock_cleaner, None, msg)
 
@@ -609,6 +610,7 @@ async def test_clean_topics_retains_current_discoveries(mock_mqtt_client: Mock, 
                 on_message_callback = mock_cleaner.on_message
                 msg = Mock()
                 msg.retain = True
+                msg.payload = {}
                 msg.topic = f"homeassistant/update/cleannode_{mock_provider.source_type}_fooey/update/config"
                 on_message_callback(mock_cleaner, None, msg)
 
@@ -644,6 +646,7 @@ async def test_clean_topics_force_removes_untrackable(mock_mqtt_client: Mock, mo
                 on_message_callback = mock_cleaner.on_message
                 msg = Mock()
                 msg.retain = True
+                msg.payload = {}
                 msg.topic = f"homeassistant/update/cleannode_{mock_provider.source_type}_container1/update/config"
                 on_message_callback(mock_cleaner, None, msg)
 
