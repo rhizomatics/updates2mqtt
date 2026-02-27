@@ -190,7 +190,7 @@ class MqttPublisher:
                 f"Cleaned - discovered:{results['discovered']}, matched:{results['matched']}, cleaned:{results['cleaned']}"
             )
         except Exception as e:
-            logger.error("Cleaning topics of stale entries failed: %s", e)
+            logger.exception("Cleaning topics of stale entries failed: %s", e)
 
     def safe_json_decode(self, jsonish: str | bytes | None) -> dict:
         if jsonish is None:
