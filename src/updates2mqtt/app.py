@@ -108,8 +108,8 @@ class App:
 
         for scanner in self.scanners:
             scanner.initialize()
-            await self.publisher.clean_topics(scanner, initial=True)
             self.publisher.subscribe_hass_command(scanner)
+            await self.publisher.clean_topics(scanner, initial=True)
 
         while not self.stopped.is_set() and self.publisher.is_available():
             await self.scan()

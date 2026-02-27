@@ -328,7 +328,7 @@ class MqttPublisher:
         )
         if match and len(match.groups()) == 1:
             discovery_name: str = match.group(1)
-            if discovery_name in self.providers_by_type[source_type].discoveries:
+            if source_type in self.providers_by_type and discovery_name in self.providers_by_type[source_type].discoveries:
                 return self.providers_by_type[source_type].discoveries[discovery_name]
 
         self.log.debug("MQTT CONFIG no match for %s", topic)
