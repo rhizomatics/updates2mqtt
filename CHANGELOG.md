@@ -1,5 +1,7 @@
 # CHANGELOG
 
+## 1.8.5
+- Initial clean of MQTT topic on startup to remove any hanging in-progress status
 ## 1.8.4
 ### Release Info
 - Default max summary size now 8K, to avoid Home Assistant warnings on state
