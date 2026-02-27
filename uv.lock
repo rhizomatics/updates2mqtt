@@ -1374,6 +1374,7 @@ docs = [
     { name = "mkdocs-minify-plugin" },
     { name = "mkdocs-pagetree-plugin" },
     { name = "pngquant" },
+    { name = "puremagic" },
     { name = "pymdown-extensions" },
 ]
 
@@ -1418,6 +1419,7 @@ docs = [
     { name = "mkdocs-minify-plugin" },
     { name = "mkdocs-pagetree-plugin" },
     { name = "pngquant" },
+    { name = "puremagic", specifier = "==2.0.0" },
     { name = "pymdown-extensions" },
 ]
 
