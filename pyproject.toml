@@ -74,7 +74,8 @@ docs=[
     "mkdocs-meta-descriptions-plugin",
     "pngquant",
     "mkdocs-mermaid2-plugin",
-    "mkdocs-htmlproofer-plugin"
+    "mkdocs-htmlproofer-plugin",
+    "puremagic==1.3.0"
 ]
 
 [build-system]

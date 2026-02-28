@@ -39,6 +39,15 @@ wheels = [
 ]
 
 [[package]]
+name = "argparse"
+version = "1.4.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/18/dd/e617cfc3f6210ae183374cd9f6a26b20514bbb5a792af97949c5aacddf0f/argparse-1.4.0.tar.gz", hash = "sha256:62b089a55be1d8949cd2bc7e0df0bddb9e028faefc8c32038cc84862aefdd6e4", size = 70508, upload-time = "2015-09-12T20:22:16.217Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f2/94/3af39d34be01a24a6e65433d19e107099374224905f1e0cc6bbe1fd22a2f/argparse-1.4.0-py2.py3-none-any.whl", hash = "sha256:c31647edb69fd3d465a847ea3157d37bed1f95f19760b11a47aa91c04b666314", size = 23000, upload-time = "2015-09-14T16:03:16.137Z" },
+]
+
+[[package]]
 name = "babel"
 version = "2.18.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1042,11 +1051,14 @@ wheels = [
 
 [[package]]
 name = "puremagic"
-version = "2.0.0"
+version = "1.3"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/dc/df/a2ee3bbf55f036acb9725b35732e3a785cb06f5c5b9fe47bde8c05ab873a/puremagic-2.0.0.tar.gz", hash = "sha256:224fe42b6b3467276a45914e12b5f40905dea0e87963adbe5289667e7c607851", size = 1119578, upload-time = "2026-02-20T13:37:53.262Z" }
+dependencies = [
+    { name = "argparse" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/17/98/ccf403df50c5bce9179739a825804a4c399542c608afb675feb5305bde41/puremagic-1.3.tar.gz", hash = "sha256:6df47fdcd87dc7202ff71a58f4ac661ebb7a065a3b81d331669574919b191492", size = 7340, upload-time = "2017-04-03T04:26:31.887Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/79/03/f4a28d560494cfdf6a619c61ae5664390fac4f4b640df82e304d48f457e3/puremagic-2.0.0-py3-none-any.whl", hash = "sha256:c86aee5c15d6a346e72c5b964f1d930d42bc7dc058afdf4ac63ab92f26086aaf", size = 65924, upload-time = "2026-02-20T13:37:51.992Z" },
+    { url = "https://files.pythonhosted.org/packages/f4/7a/57583e43a749cd14ec19c74c0d2ae138428af6dbe91008b6ec88e3c5d8d8/puremagic-1.3-py3-none-any.whl", hash = "sha256:b362ddc1f0ba25a6a3bb4a8ba04c81f2b2062c96dd8a5462c09714370695e348", size = 29147, upload-time = "2017-04-03T04:26:36.073Z" },
 ]
 
 [[package]]
@@ -1487,6 +1499,7 @@ docs = [
     { name = "mkdocs-minify-plugin" },
     { name = "mkdocs-pagetree-plugin" },
     { name = "pngquant" },
+    { name = "puremagic" },
     { name = "pymdown-extensions" },
 ]
 
@@ -1531,6 +1544,7 @@ docs = [
     { name = "mkdocs-minify-plugin" },
     { name = "mkdocs-pagetree-plugin" },
     { name = "pngquant" },
+    { name = "puremagic", specifier = "==1.3.0" },
     { name = "pymdown-extensions" },
 ]
 
