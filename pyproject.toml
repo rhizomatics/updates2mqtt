@@ -65,7 +65,7 @@ dev = [
 ]
 docs=[
     "mkdocs",
-    "mkdocs-material",
+    "mkdocs-material[imaging]",
     "mkdocs-minify-plugin",
     "mkdocs-autorefs",
     "mkdocs-pagetree-plugin",
@@ -74,8 +74,7 @@ docs=[
     "mkdocs-meta-descriptions-plugin",
     "pngquant",
     "mkdocs-mermaid2-plugin",
-    "mkdocs-htmlproofer-plugin",
-    "puremagic==2.0.0"
+    "mkdocs-htmlproofer-plugin"
 ]
 
 [build-system]
