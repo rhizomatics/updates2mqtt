@@ -123,6 +123,7 @@ class GithubReleaseEnricher:
             api_result = fetch_url(
                 f"https://api.github.com/users/{org_or_user}/packages/container/{package}/versions",
                 cache_ttl=self.gh_cfg.mutable_cache_ttl,
+                bearer_token=self.gh_cfg.access_token,
             )
         if not api_result:
             self.log.warn("Unable to retrieve GitHub packages API result, null response")
@@ -131,6 +132,9 @@ class GithubReleaseEnricher:
             self.log.warn(
                 "Unable to retrieve GitHub packages API result, %s response: %s", api_result.status_code, api_result.text
             )
+            if api_result.status_code == 401:
+                self.log.warn("Disabling Github access token for this session")
+                self.gh_cfg.access_token = None
             return None
 
         pkg_releases = api_result.json()
