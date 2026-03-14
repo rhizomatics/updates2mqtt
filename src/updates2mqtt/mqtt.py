@@ -376,6 +376,8 @@ class MqttPublisher:
         self.log.debug("Discovery publish: %s", discovery)
         payload: dict[str, Any] = discovery.as_dict()
         payload["update"]["in_progress"] = in_progress  # ty:ignore[invalid-assignment]
+        if payload.get("release", {}).get("summary") and self.hass_cfg.release_summary_max_size:
+            payload["release"]["summary"] = payload["release"]["summary"][: self.hass_cfg.release_summary_max_size]
         self.publish(self.general_topic(discovery), payload)
 
     def publish_hass_state(self, discovery: Discovery, in_progress: bool = False) -> None:
