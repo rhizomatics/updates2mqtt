@@ -1,7 +1,10 @@
 # CHANGELOG
 
-## 1.8.6
+## 1.9.0
+- Use the GitHub package versions API for GHCR images without a valid tag in image
 - CLI improved to allow single container dump
+- Github API now has its own `cache_ttl` config
+- Refactor GitHub API code to separate module
 ## 1.8.5
 - Initial clean of MQTT topic on startup to remove any hanging in-progress status
 - Default max summary size now 6K

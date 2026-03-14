@@ -8,6 +8,7 @@ from updates2mqtt.config import DockerConfig, DockerPackageUpdateInfo, MetadataS
 from updates2mqtt.integrations.docker import Throttler
 from updates2mqtt.integrations.docker_enrich import (
     DIFF_URL_TEMPLATES,
+    REGISTRY_GHCR,
     RELEASE_URL_TEMPLATES,
     SOURCE_PLATFORM_GITHUB,
     CommonPackageEnricher,
@@ -69,7 +70,7 @@ def test_docker_image_info_with_digest_qualifier() -> None:
 
 def test_docker_image_info_with_digest() -> None:
     uut = DockerImageInfo("ghcr.io/immich-app/postgres@sha256:41eacbe83eca995561fe43814fd4891e16e39632806253848efaf04d3c8a8b84")
-    assert uut.index_name == "ghcr.io"
+    assert uut.index_name == REGISTRY_GHCR
     assert uut.tag_or_digest == "sha256:41eacbe83eca995561fe43814fd4891e16e39632806253848efaf04d3c8a8b84"
     assert uut.tag is None
     assert uut.pinned_digest == "sha256:41eacbe83eca995561fe43814fd4891e16e39632806253848efaf04d3c8a8b84"
@@ -87,7 +88,7 @@ def test_docker_image_info_with_pinned_tag() -> None:
             ]
         },
     )
-    assert uut.index_name == "ghcr.io"
+    assert uut.index_name == REGISTRY_GHCR
     assert uut.tag_or_digest == "sha256:41eacbe83eca995561fe43814fd4891e16e39632806253848efaf04d3c8a8b84"
     assert uut.tag == "14-vectorchord0.4.3-pgvectors0.2.0"
     assert uut.repo_digest is None
@@ -110,7 +111,7 @@ def test_docker_image_info_with_pinned_tag_not_pulled() -> None:
             ]
         },
     )
-    assert uut.index_name == "ghcr.io"
+    assert uut.index_name == REGISTRY_GHCR
     assert uut.tag_or_digest == "sha256:41eacbe83eca995561fe43814fd4891e16e39632806253848efaf04d3c8a8b84"
     assert uut.tag == "14-vectorchord0.4.3-pgvectors0.2.0"
     assert uut.repo_digest == "sha256:2c496e3b9d476ea723e6f0df05d1f690fed2d79b61f4ed75597679892d86311a"

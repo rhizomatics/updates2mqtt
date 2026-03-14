@@ -227,6 +227,21 @@ def validate_url(url: str, cache_ttl: int = 1500) -> bool:
     return response is not None and response.status_code != 404
 
 
+def httpx_json_content(response: Response, default: Any = None) -> Any | None:
+    if response and "json" in response.headers.get("content-type", ""):
+        try:
+            return response.json()
+        except Exception:
+            log.debug("Failed to parse JSON response: %s", response.text)
+    elif response and response.headers.get("content-type", "") == "application/octet-stream":
+        # blob could return a gzip layer tarball, however assumed only index, manifest or config requested
+        try:
+            return response.json()
+        except Exception:
+            log.debug("Failed to parse assumed JSON response: %s", response.text)
+    return default
+
+
 def sanitize_name(name: str, replacement: str = "_", max_len: int = 64) -> str:
     """Strict sanitization that removes/replaces common problematic characters for MQTT or HA
 

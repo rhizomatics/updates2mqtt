@@ -15,6 +15,15 @@ VERSION_RE = r"[vVr]?[0-9]+(\.[0-9]+)*"
 # source: https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
 SEMVER_RE = r"^(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$"  # noqa: E501
 
+SOURCE_PLATFORM_GITHUB = "GitHub"
+SOURCE_PLATFORM_CODEBERG = "CodeBerg"
+SOURCE_PLATFORM_GITLAB = "GitLab"
+SOURCE_PLATFORMS = {
+    SOURCE_PLATFORM_GITHUB: r"https://github.com/.*",
+    SOURCE_PLATFORM_GITLAB: r"https://gitlab.com/.*",
+    SOURCE_PLATFORM_CODEBERG: r"https://codeberg.org/.*",
+}
+
 
 class UpdatePolicy(StrEnum):
     AUTO = "Auto"
@@ -70,6 +79,7 @@ class MqttConfig:
 @dataclass
 class GitHubConfig:
     access_token: str | None = None
+    mutable_cache_ttl: int = 60 * 60 * 15
 
 
 @dataclass

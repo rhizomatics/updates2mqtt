@@ -47,10 +47,17 @@ class ReleaseDetail(DiscoveryDetail):
     For example, some Docker images report the main source repo, and others where the Dockerfile deploy project lives
     """
 
-    def __init__(self, notes_url: str | None = None, summary: str | None = None) -> None:
+    def __init__(
+        self,
+        name: str | None = None,
+        notes_url: str | None = None,
+        summary: str | None = None,
+        source_repo_url: str | None = None,
+    ) -> None:
         super().__init__()
+        self.name = name
         self.source_platform: str | None = None
-        self.source_repo_url: str | None = None
+        self.source_repo_url: str | None = source_repo_url
         self.source_url: str | None = None
         self.version: str | None = None
         self.revision: str | None = None
@@ -59,9 +66,13 @@ class ReleaseDetail(DiscoveryDetail):
         self.title: str | None = None
         self.summary: str | None = summary
         self.net_score: int | None = None
-        self.tag_name: str | None = None
 
     def as_dict(self) -> dict[str, str | list | dict | bool | int | None]:
+        if not self.summary and self.diff_url:
+            summary: str | None = f"<a href='{self.diff_url}'>{self.version or self.revision} Diff</a>"
+        else:
+            summary = self.summary
+
         return {
             "captured": self.captured.isoformat(),
             "title": self.title,
@@ -72,8 +83,7 @@ class ReleaseDetail(DiscoveryDetail):
             "revision": self.revision,
             "diff_url": self.diff_url,
             "notes_url": self.notes_url,
-            "summary": self.summary,
-            "tag_name": self.tag_name,
+            "summary": summary,
             "net_score": str(self.net_score) if self.net_score is not None else None,
         }
 

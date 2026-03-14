@@ -64,7 +64,9 @@ def test_discovery_with_all_fields(mock_provider: ReleaseProvider) -> None:
         update_type="Docker Build",
         update_policy=UpdatePolicy.AUTO,
         current_detail=DockerImageInfo("nginx:latest"),
-        release_detail=ReleaseDetail(notes_url="https://github.com/example/releases", summary="Bug fixes and improvements"),
+        release_detail=ReleaseDetail(
+            name="example", notes_url="https://github.com/example/releases", summary="Bug fixes and improvements"
+        ),
         device_icon="mdi:docker",
         previous=previous,
     )
@@ -346,7 +348,7 @@ def test_discovery_as_dict_all_fields(mock_provider: ReleaseProvider) -> None:
         status="off",
         publish_policy=PublishPolicy.MQTT,
         update_type="Docker",
-        release_detail=ReleaseDetail(notes_url="https://github.com/test/releases", summary="Bug fixes"),
+        release_detail=ReleaseDetail(name="example", notes_url="https://github.com/test/releases", summary="Bug fixes"),
         device_icon="mdi:docker",
         custom={"image_ref": "test:latest"},
     )

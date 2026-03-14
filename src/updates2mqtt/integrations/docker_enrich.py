@@ -6,14 +6,22 @@ from typing import Any, cast
 import structlog
 from docker.auth import resolve_repository_name
 from docker.models.containers import Container
-from httpx import Response
 from omegaconf import MissingMandatoryValue, OmegaConf, ValidationError
 
-from updates2mqtt.helpers import APIStatsCounter, CacheMetadata, ThrottledError, Throttler, fetch_url, validate_url
+from updates2mqtt.helpers import (
+    APIStatsCounter,
+    CacheMetadata,
+    ThrottledError,
+    Throttler,
+    fetch_url,
+    httpx_json_content,
+    validate_url,
+)
 from updates2mqtt.model import DiscoveryArtefactDetail, DiscoveryInstallationDetail, ReleaseDetail
 
 if typing.TYPE_CHECKING:
     from docker.models.images import RegistryData
+    from httpx import Response
     from omegaconf.dictconfig import DictConfig
 from http import HTTPStatus
 
@@ -22,10 +30,12 @@ import docker.errors
 
 from updates2mqtt.config import (
     PKG_INFO_FILE,
+    SOURCE_PLATFORM_GITHUB,
+    SOURCE_PLATFORM_GITLAB,
+    SOURCE_PLATFORMS,
     CommonPackages,
     DockerConfig,
     DockerPackageUpdateInfo,
-    GitHubConfig,
     PackageUpdateInfo,
     RegistryConfig,
     VersionPolicy,
@@ -33,14 +43,6 @@ from updates2mqtt.config import (
 
 log: Any = structlog.get_logger()
 
-SOURCE_PLATFORM_GITHUB = "GitHub"
-SOURCE_PLATFORM_CODEBERG = "CodeBerg"
-SOURCE_PLATFORM_GITLAB = "GitLab"
-SOURCE_PLATFORMS = {
-    SOURCE_PLATFORM_GITHUB: r"https://github.com/.*",
-    SOURCE_PLATFORM_GITLAB: r"https://gitlab.com/.*",
-    SOURCE_PLATFORM_CODEBERG: r"https://codeberg.org/.*",
-}
 DIFF_URL_TEMPLATES = {
     SOURCE_PLATFORM_GITHUB: "{repo}/commit/{revision}",
 }
@@ -53,27 +55,36 @@ UNKNOWN_RELEASE_URL_TEMPLATES = {
 }
 MISSING_VAL = "**MISSING**"
 UNKNOWN_REGISTRY = "**UNKNOWN_REGISTRY**"
+UNKNOWN_NAME = "**UNKNOWN_NAME**"
 
 HEADER_DOCKER_DIGEST = "docker-content-digest"
 HEADER_DOCKER_API = "docker-distribution-api-version"
 
 TOKEN_URL_TEMPLATE = "https://{auth_host}/token?scope=repository:{image_name}:pull&service={service}"  # noqa: S105 # nosec
 
+REGISTRY_GHCR = "ghcr.io"
+REGISTRY_DOCKER = "docker.io"
+REGISTRY_MCR = "mcr.microsoft.com"
+REGISTRY_QUAY = "quay.io"
+REGISTRY_LSCR = "lscr.io"
+REGISTRY_CODEBERG = "codeberg.org"
+REGISTRY_GITLAB = "registry.gitlab.com"
+
 REGISTRIES: dict[str, tuple[str | None, str, str, str | None, str | None]] = {
     # registry: (auth_host, api_host, service, url_template, repo_template)
-    "docker.io": ("auth.docker.io", "registry-1.docker.io", "registry.docker.io", TOKEN_URL_TEMPLATE, None),
-    "mcr.microsoft.com": (None, "mcr.microsoft.com", "mcr.microsoft.com", None, None),
-    "quay.io": (None, "quay.io", "quay.io", TOKEN_URL_TEMPLATE, None),
-    "ghcr.io": ("ghcr.io", "ghcr.io", "ghcr.io", TOKEN_URL_TEMPLATE, "https://github.com/{image_name}"),
+    REGISTRY_DOCKER: ("auth.docker.io", "registry-1.docker.io", "registry.docker.io", TOKEN_URL_TEMPLATE, None),
+    REGISTRY_MCR: (None, "mcr.microsoft.com", "mcr.microsoft.com", None, None),
+    REGISTRY_QUAY: (None, "quay.io", "quay.io", TOKEN_URL_TEMPLATE, None),
+    REGISTRY_GHCR: ("ghcr.io", "ghcr.io", "ghcr.io", TOKEN_URL_TEMPLATE, "https://github.com/{image_name}"),
     "lscr.io": ("ghcr.io", "lscr.io", "ghcr.io", TOKEN_URL_TEMPLATE, None),
-    "codeberg.org": (
+    REGISTRY_CODEBERG: (
         "codeberg.org",
         "codeberg.org",
         "container_registry",
         TOKEN_URL_TEMPLATE,
         "https://codeberg.org/{image_name}",
     ),
-    "registry.gitlab.com": (
+    REGISTRY_GITLAB: (
         "www.gitlab.com",
         "registry.gitlab.com",
         "container_registry",
@@ -170,6 +181,10 @@ class DockerImageInfo(DiscoveryArtefactDetail):
             log.warning("Invalid OCI image name: %s", self.name)
         if self.tag and not re.match(OCI_TAG_RE, self.tag):
             log.warning("Invalid OCI image tag: %s", self.tag)
+        if "/" in self.name:
+            self.unqualified_name: str = self.name.split("/", 1)[1]
+        else:
+            self.unqualified_name = self.name
 
         if self.os and self.arch:
             self.platform = "/".join(
@@ -469,14 +484,13 @@ class LinuxServerIOPackageEnricher(PackageEnricher):
 
 
 class SourceReleaseEnricher:
-    def __init__(self, gh_cfg: GitHubConfig | None = None) -> None:
+    def __init__(self) -> None:
         self.log: Any = structlog.get_logger().bind(integration="docker")
-        self.gh_cfg: GitHubConfig | None = gh_cfg
 
     def enrich(
         self, registry_info: DockerImageInfo, source_repo_url: str | None = None, notes_url: str | None = None
     ) -> ReleaseDetail | None:
-        detail = ReleaseDetail()
+        detail = ReleaseDetail(registry_info.name or UNKNOWN_NAME)
 
         detail.notes_url = notes_url
         detail.version = registry_info.annotations.get("org.opencontainers.image.version")
@@ -543,79 +557,11 @@ class SourceReleaseEnricher:
                 self.log.debug("Setting default unknown release notes url: %s", platform_notes_url)
                 detail.notes_url = platform_notes_url
 
-        if detail.source_platform == SOURCE_PLATFORM_GITHUB and detail.source_repo_url and detail.version is not None:
-            access_token: str | None = self.gh_cfg.access_token if self.gh_cfg else None
-            if access_token:
-                self.log.debug("Using configured bearer token (%s chars) for GitHub API", len(access_token))
-            base_api = detail.source_repo_url.replace("https://github.com", "https://api.github.com/repos")
-
-            api_response: Response | None = fetch_url(
-                f"{base_api}/releases/tags/{detail.version}", bearer_token=access_token, allow_stale=True
-            )
-            if api_response and api_response.status_code == 404:
-                # possible that source version doesn't match release gag
-                alt_api_response: Response | None = fetch_url(f"{base_api}/releases/latest", bearer_token=access_token)
-                if alt_api_response and alt_api_response.is_success:
-                    alt_api_results = httpx_json_content(alt_api_response, {})
-                    if alt_api_results and re.fullmatch(f"(V|v|r|R)?{detail.version}", alt_api_results.get("tag_name")):
-                        self.log.info(
-                            f"Matched {registry_info.name} {detail.version} to latest release {alt_api_results['tag_name']}"
-                        )
-                        api_response = alt_api_response
-                    elif alt_api_results:
-                        self.log.debug(
-                            "Failed to match %s release %s on GitHub, found tag %s for name %s published at %s",
-                            registry_info.name,
-                            detail.version,
-                            alt_api_results.get("tag_name"),
-                            alt_api_results.get("name"),
-                            alt_api_results.get("published_at"),
-                        )
-
-            if api_response and api_response.is_success:
-                api_results: Any = httpx_json_content(api_response, {})
-                detail.summary = api_results.get("body")  # ty:ignore[possibly-missing-attribute]
-                detail.tag_name = api_results.get("tag_name")
-                reactions = api_results.get("reactions")  # ty:ignore[possibly-missing-attribute]
-                if reactions:
-                    detail.net_score = reactions.get("+1", 0) - reactions.get("-1", 0)
-            elif api_response:
-                api_results = httpx_json_content(api_response, default={})
-                self.log.debug(
-                    "Failed to find %s release %s on GitHub, status %s, errors; %s",
-                    registry_info.name,
-                    detail.version,
-                    api_response.status_code,
-                    api_results.get("errors"),
-                )
-            else:
-                self.log.debug(
-                    "Failed to fetch GitHub release info",
-                    url=f"{base_api}/releases/tags/{detail.version}",
-                    status_code=(api_response and api_response.status_code) or None,
-                )
-        if not detail.summary and detail.diff_url:
-            detail.summary = f"<a href='{detail.diff_url}'>{detail.version or detail.revision} Diff</a>"
         return detail
 
 
 class AuthError(Exception):
     pass
-
-
-def httpx_json_content(response: Response, default: Any = None) -> Any | None:
-    if response and "json" in response.headers.get("content-type", ""):
-        try:
-            return response.json()
-        except Exception:
-            log.debug("Failed to parse JSON response: %s", response.text)
-    elif response and response.headers.get("content-type", "") == "application/octet-stream":
-        # blob could return a gzip layer tarball, however assumed only index, manifest or config requested
-        try:
-            return response.json()
-        except Exception:
-            log.debug("Failed to parse assumed JSON response: %s", response.text)
-    return default
 
 
 class VersionLookup:

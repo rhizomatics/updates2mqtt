@@ -16,6 +16,7 @@ from docker.models.containers import Container
 
 from updates2mqtt.config import (
     SEMVER_RE,
+    SOURCE_PLATFORM_GITHUB,
     UNKNOWN_VERSION,
     VERSION_RE,
     DockerConfig,
@@ -40,6 +41,7 @@ from updates2mqtt.integrations.docker_enrich import (
     PackageEnricher,
     SourceReleaseEnricher,
 )
+from updates2mqtt.integrations.github_enrich import GithubReleaseEnricher
 from updates2mqtt.model import Discovery, ReleaseDetail, ReleaseProvider
 
 from .git_utils import git_check_update_available, git_iso_timestamp, git_local_digest, git_pull, git_trust
@@ -149,7 +151,11 @@ class DockerProvider(ReleaseProvider):
             self.client, self.throttler, self.cfg.registry, self.cfg.default_api_backoff
         )
         self.registry_image_lookup = ContainerDistributionAPIVersionLookup(self.throttler, self.cfg.registry)
-        self.release_enricher = SourceReleaseEnricher(github_cfg)
+        self.release_enricher = SourceReleaseEnricher()
+        if github_cfg:
+            self.github_enricher: GithubReleaseEnricher | None = GithubReleaseEnricher(github_cfg)
+        else:
+            self.github_enricher = None
         self.local_info_builder = LocalContainerInfo()
 
     def initialize(self) -> None:
@@ -360,6 +366,12 @@ class DockerProvider(ReleaseProvider):
                 notes_url=customization.relnotes or pkg_info.release_notes_url,
             )
             logger.debug("Enriched release info: %s", release_info)
+
+            if latest_info.image_digest and release_info:
+                if self.github_enricher and release_info.source_platform == SOURCE_PLATFORM_GITHUB:
+                    self.github_enricher.enrich(latest_info, release_info)
+                else:
+                    self.log.debug("Not a github release or no github configured")
 
             if service_info.git_repo_path and service_info.compose_path:
                 full_repo_path: Path = Path(service_info.compose_path).joinpath(service_info.git_repo_path)
