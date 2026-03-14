@@ -59,6 +59,7 @@ class ReleaseDetail(DiscoveryDetail):
         self.title: str | None = None
         self.summary: str | None = summary
         self.net_score: int | None = None
+        self.tag_name: str | None = None
 
     def as_dict(self) -> dict[str, str | list | dict | bool | int | None]:
         return {

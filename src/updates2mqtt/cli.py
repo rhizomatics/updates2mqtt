@@ -33,6 +33,7 @@ Command can be `container`,`tags`,`manifest` or `blob`
 * `container=hash`
 * `dump=csv`
 * `dump=json`
+* `dump=json container=frigate`
 * `tags=ghcr.io/
 * `blob=mcr.microsoft.com/dotnet/sdk:latest`
 * `tags=quay.io/linuxserver.io/babybuddy`
