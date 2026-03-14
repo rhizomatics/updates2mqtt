@@ -50,10 +50,10 @@ jobs:
           echo "No changes to badges"
         fi
 
-    - name: Prep for mkdocs
-      run:  uv pip compile pyproject.toml -o requirements_docs.txt --group docs
-    - name: Deploy docs
-      run: uv run mkdocs gh-deploy
+    - name: Mkdocs
+      run:  |
+        uv sync --dev --group docs
+        uv run mkdocs gh-deploy
 
 
 
