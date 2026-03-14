@@ -53,12 +53,8 @@ jobs:
     - name: Prep for mkdocs
       run:  uv pip compile pyproject.toml -o requirements_docs.txt --group docs
     - name: Deploy docs
-      uses: mhausenblas/mkdocs-deploy-gh-pages@master
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        EXTRA_PACKAGES: pngquant
-        REQUIREMENTS: requirements_docs.txt
-        CUSTOM_DOMAIN: updates2mqtt.rhizomatics.org.uk
+      run: uv run mkdocs gh-deploy
+
 
 
 
