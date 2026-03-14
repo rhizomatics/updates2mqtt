@@ -52,6 +52,7 @@ jobs:
 
     - name: Mkdocs
       run:  |
+        git pull
         uv sync --dev --group docs
         sudo apt-get install pngquant
         uv run mkdocs gh-deploy
