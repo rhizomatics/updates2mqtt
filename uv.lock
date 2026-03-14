@@ -1521,7 +1521,7 @@ dev = [
     { name = "ruff", specifier = ">=0.15.0" },
 ]
 docs = [
-    { name = "mkdocs" },
+    { name = "mkdocs", specifier = "<2.0.0" },
     { name = "mkdocs-autorefs" },
     { name = "mkdocs-coverage" },
     { name = "mkdocs-htmlproofer-plugin" },

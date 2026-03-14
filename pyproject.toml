@@ -64,7 +64,7 @@ dev = [
     "actionlint-py"
 ]
 docs=[
-    "mkdocs",
+    "mkdocs<2.0.0",
     "mkdocs-material[imaging]",
     "mkdocs-minify-plugin",
     "mkdocs-autorefs",
