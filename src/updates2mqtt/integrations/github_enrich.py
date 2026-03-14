@@ -140,11 +140,14 @@ class GithubReleaseEnricher:
         pkg_releases = api_result.json()
         for release in pkg_releases:
             if release.get("name") == package_digest:
+                self.log.info(
+                    "Matched %s image digest for release %s, metadata %s", package, release.get("id"), release.get("metadata")
+                )
                 return (
                     release.get("metadata", {}).get("container", {}).get("tags", []),
                     release.get("html_url"),
                     release.get("created_at"),
                     release.get("updated_at"),
                 )
-        self.log.debug("No matching %s release found on GitHub", package)
+        self.log.debug("No matching %s release found on GitHub for %s", package, package_digest)
         return None
