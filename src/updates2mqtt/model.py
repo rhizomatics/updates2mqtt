@@ -73,6 +73,7 @@ class ReleaseDetail(DiscoveryDetail):
             "diff_url": self.diff_url,
             "notes_url": self.notes_url,
             "summary": self.summary,
+            "tag_name": self.tag_name,
             "net_score": str(self.net_score) if self.net_score is not None else None,
         }
 
