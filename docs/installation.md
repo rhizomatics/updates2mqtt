@@ -67,3 +67,13 @@ python3 -m updates2mqtt
 Install an Updates2MQTT container on each Portainer host, this can be using a `docker-compose.yaml` file,
 or using the Portainer UI to define the image name and env vars ( no config file required ). Each
 of the containers will show up as a Docker Compose service as if Portainer even if it has been fully managed by Portainer without a manual `docker-compose.yaml` file.
+
+### Github Token
+
+A GitHub access token is optional, however when supplied additional API calls can be made for GHCR images, and the
+quotas for all APIs may be higher.
+
+When creating the access token, ensure it has the `packages:read` permission.
+
+One case where access tokens help is if there either no version label in the image, or the label isn't a version (
+for example, Homarr has `main` as the version for all images.) In these case, the authenticated only [packages API calls](https://docs.github.com/en/rest/packages/packages) will be made to match a version from the image digest.
