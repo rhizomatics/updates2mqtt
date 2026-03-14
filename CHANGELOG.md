@@ -1,5 +1,7 @@
 # CHANGELOG
 
+## 1.8.6
+- CLI improved to allow single container dump
 ## 1.8.5
 - Initial clean of MQTT topic on startup to remove any hanging in-progress status
 - Default max summary size now 6K

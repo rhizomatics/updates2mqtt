@@ -1,4 +1,5 @@
 import json
+from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING
 
 import structlog
@@ -155,6 +156,17 @@ async def dump(fmt: str, cli_conf: DictConfig) -> None:
     structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(cli_conf.get("log_level", "ERROR")))
     console = Console()
     docker_scanner: DockerProvider = docker_provider(cli_conf)
+    if cli_conf.get("container"):
+
+        async def single_discovery() -> AsyncGenerator[Discovery]:
+            result = docker_scanner.rescan(Discovery(docker_scanner, cli_conf["container"], "cli", "manual"))
+            if result:
+                yield result
+
+        source: AsyncGenerator[Discovery] = single_discovery()
+    else:
+        source = docker_scanner.scan("cli", False)
+
     if fmt == "csv":
         console.print(
             ",".join(
@@ -177,7 +189,7 @@ async def dump(fmt: str, cli_conf: DictConfig) -> None:
             ),
             style="bold white on black",
         )
-        async for discovery in docker_scanner.scan("cli", False):
+        async for discovery in source:
             v = discovery.as_dict()
             console.print(
                 ",".join(
@@ -200,7 +212,7 @@ async def dump(fmt: str, cli_conf: DictConfig) -> None:
                 )
             )
     elif fmt == "json":
-        print_json(json.dumps([v.as_dict() async for v in docker_scanner.scan("cli", False)]))
+        print_json(json.dumps([v.as_dict() async for v in source]))
     else:
         log.warning(f"Unsupported dump format {fmt}")
 
