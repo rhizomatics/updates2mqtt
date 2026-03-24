@@ -137,3 +137,16 @@ This component relies on several open source packages:
 - The Astral [uv](https://docs.astral.sh/uv/) and [ruff](https://docs.astral.sh/ruff/) tools for development and build
 - [pytest](https://docs.pytest.org/en/stable/) and supporting add-ins for automated testing
 - [usingversion](https://pypi.org/project/usingversion/) to log current version info
+
+##  Rhizomatics Open Source for Home Assistant
+
+### HACS
+- [AutoArm](https://autoarm.rhizomatics.org.uk) - Automatically arm and disarm Home Assistant alarm control panels using physical buttons, presence, calendars, sun and more
+- [Remote Logger](https://remote-logger.rhizomatics.org.uk) - OpenTelemetry (OTLP) and Syslog event capture for Home Assistant
+- [Supernotify](https://supernotify.rhizomatics.org.uk) - Unified notification for easy multi-channel messaging, including powerful chime and security camera integration.
+
+
+### Python / Docker
+
+- [Anpr2MQTT](https://anpr2mqtt.rhizomatics.org.uk) - Integrate with ANPR/ALPR licence plate cameras via file system (NAS/FTP) to MQTT with optional image analysis and UK DVLA integration.
+- [Updates2MQTT](https://updates2mqtt.rhizomatics.org.uk) - Automatically notify via MQTT on Docker image updates, with advanced handling to extract versions and release notes from images, and option to remotely pull and restart containers from Home Assistant. Also available on [PyPI](https://pypi.org/project/updates2mqtt/)
