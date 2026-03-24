@@ -32,6 +32,12 @@ theme:
     - search.suggest
     - search
     - search.share
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/rhizomatics
+
 plugins:
   - search
   - htmlproofer:
