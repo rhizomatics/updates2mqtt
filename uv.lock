@@ -1194,14 +1194,14 @@ wheels = [
 
 [[package]]
 name = "pytest-subprocess"
-version = "1.5.3"
+version = "1.5.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pytest" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/32/ae/3ad5c609a5088936608af12f42ad72567a877d3c64303500ebc3b7df0297/pytest_subprocess-1.5.3.tar.gz", hash = "sha256:c00b1140fb0211b3153e09500d770db10770baccbe6e05ee9c140036d1d811d5", size = 42282, upload-time = "2025-01-04T13:08:16.877Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/df/8d/963aa75dafbd8e601e5d8f8ba586f64792a18257a7d6eb74ce346ce1aa64/pytest_subprocess-1.5.4.tar.gz", hash = "sha256:889e6618e3b2f8425deec15d0e9c2d846aa22ba352ab5764b633b3ab0d612ae8", size = 44908, upload-time = "2026-03-21T07:24:51.85Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/1b/82/a038e8fdb86d5494a39b8730547ec79767731d02ecb556121e40c0892803/pytest_subprocess-1.5.3-py3-none-any.whl", hash = "sha256:b62580f5a84335fb9f2ec65d49e56a3c93f4722c148fe1771a002835d310a75b", size = 21759, upload-time = "2025-01-04T13:08:13.775Z" },
+    { url = "https://files.pythonhosted.org/packages/5d/e1/52aa41c22cc353ec4c05ba20c1c9683f6c693cf2ee1264c2bbc9918e12bd/pytest_subprocess-1.5.4-py3-none-any.whl", hash = "sha256:8cf7c1245433afcda31b5bdf47bc386d573cee4787a6edafdd35cf04535e6bf6", size = 22521, upload-time = "2026-03-21T07:24:50.207Z" },
 ]
 
 [[package]]
