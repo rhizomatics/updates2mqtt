@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## 1.9.1
+- Translations for Dutch, French, German, Hindi, Italian, Japanese, Polish, Portuguese, Simplified Chinese and Spanish
+- Vertalingen voor Nederlands, Traductions en français, Übersetzungen auf Deutsch, हिंदी में अनुवाद, Traduzioni in italiano, 日本語の翻訳, Tłumaczenia po polsku, Traduções em português, 简体中文翻译 en traducciones al español
 ## 1.9.0
 - Use the GitHub package versions API for GHCR images without a valid tag in image
 - CLI improved to allow single container dump
