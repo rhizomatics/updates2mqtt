@@ -18,11 +18,11 @@ repos:
       - id: check-shebang-scripts-are-executable
         name: Check shell scripts are executable
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.10.12
+    rev: 0.11.3
     hooks:
       - id: uv-lock
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.7
+    rev: v0.15.9
     hooks:
      # Run the linter.
       - id: ruff-check
@@ -33,14 +33,9 @@ repos:
     rev: v2.4.2
     hooks:
       - id: codespell
-        args:
-          - --ignore-words-list=hass,alot,datas,dof,dur,farenheit,hist,iff,ines,ist,lightsensor,mut,nd,pres,referer,ser,serie,te,technik,ue,uint,visability,wan,wanna,withing
-          - --skip="./.*,*.csv,*.json"
-          - --quiet-level=2
-        exclude_types: [csv, json]
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.19.1
+    rev: v1.20.0
     hooks:
       - id: mypy
         args:
@@ -75,7 +70,7 @@ repos:
         additional_dependencies: ["bandit[toml]"]
 
   - repo: https://github.com/Mateusz-Grzelinski/actionlint-py
-    rev: v1.7.11.24
+    rev: v1.7.12.24
     hooks:
       - id: actionlint
 

@@ -84,3 +84,15 @@ validation:
   absolute_links: warn
   unrecognized_links: warn
   anchors: warn 
+
+not_in_nav: |
+  de/
+  es/
+  fr/
+  hi/
+  it/
+  ja/
+  nl/
+  pl/
+  pt/
+  zh-Hans/

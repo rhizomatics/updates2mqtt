@@ -7,7 +7,7 @@ authors = [
 ]
 
 requires-python = ">=3.13"
-version = "1.9.0"
+version = "1.9.1"
 license="Apache-2.0"
 keywords=["mqtt", "docker", "oci","container","updates", "automation","home-assistant","homeassistant","selfhosting"]
 
@@ -46,6 +46,7 @@ cli = "updates2mqtt.cli:main"
 [tool.uv]
 compile-bytecode = true
 managed = true
+exclude-newer = "5 days"
 
 [dependency-groups]
 dev = [
@@ -62,7 +63,8 @@ dev = [
     "coverage",
     "icdiff",
     "genbadge[all]",
-    "actionlint-py"
+    "actionlint-py",
+    "codespell"
 ]
 docs=[
     "mkdocs<2.0.0",
@@ -182,6 +184,12 @@ output="cov.xml"
 
 [tool.coverage.html]
 directory="htmlcov"
+
+[tool.codespell]
+skip = ".venv,.git,htmlcov,site,./.*,*.csv,*.json,README.*.md,support"
+count = true
+quiet-level = 2
+ignore-words-list="hass,referer,uint"
 
 [tool.mypy]
 mypy_path=["./src","./tests"]

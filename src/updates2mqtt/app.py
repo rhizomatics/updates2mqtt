@@ -180,7 +180,7 @@ class App:
             scanner.stop()
         interrupt_task = asyncio.get_event_loop().create_task(
             self.interrupt_tasks(),
-            eager_start=True,  # type: ignore[call-arg] # pyright: ignore[reportCallIssue]
+            eager_start=True,  # pyright: ignore[reportCallIssue]
             name="interrupt",
         )
         for t in asyncio.all_tasks():
