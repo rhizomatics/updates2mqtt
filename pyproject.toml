@@ -24,7 +24,6 @@ dependencies = [
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
-    "License :: Other/Proprietary License",
     "Natural Language :: English",
     "Operating System :: OS Independent",
     "Environment :: Console",
@@ -32,7 +31,6 @@ classifiers = [
     "Topic :: System :: Systems Administration",
     "Topic :: System :: Monitoring",
     "Intended Audience :: System Administrators",
-    "License :: OSI Approved :: Apache Software License",
     "Typing :: Typed",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3.13",
