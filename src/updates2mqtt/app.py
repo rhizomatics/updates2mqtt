@@ -76,7 +76,7 @@ class App:
             ],
         )
 
-        log.debug("Logging initialized", level=self.cfg.log.level)
+        log.debug("Logging initialized", level=self.cfg.log.level, json=self.cfg.log.json, tty=sys.stderr.isatty())
 
         self.publisher = MqttPublisher(self.cfg.mqtt, self.cfg.node, self.cfg.homeassistant)
 
