@@ -1,5 +1,6 @@
 log:
   level: INFO
+  json: false
 node:
   name: mydockerpc
   git_path: /usr/bin/git
