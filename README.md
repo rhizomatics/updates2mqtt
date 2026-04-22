@@ -110,8 +110,7 @@ restarter:
       - UPD2MQTT_UPDATE=AUTO
 ```
 
-Automated updates can also apply to local builds, where a `git_repo_path` has been defined - if there are remote
-commits available to pull, then a `git pull`, `docker compose build` and `docker compose up` will be executed.
+Automated updates can also apply to local builds, where a `git_repo_path` has been defined - if there are remote commits available to pull, then a `git pull`, `docker compose build` and `docker compose up` will be executed.
 
 
 ## Related Projects
@@ -131,7 +130,7 @@ This component relies on several open source packages:
 - [docker-py](https://docker-py.readthedocs.io/en/stable/) SDK for Python for access to Docker APIs
 - [Eclipse Paho](https://eclipse.dev/paho/files/paho.mqtt.python/html/client.html) MQTT client
 - [OmegaConf](https://omegaconf.readthedocs.io) for configuration and validation
-- [structlog](https://www.structlog.org/en/stable/) for structured logging and [rich](https://rich.readthedocs.io/en/stable/) for better exception reporting
+- [structlog](https://www.structlog.org/en/stable/) for structured logging (optionally JSON) and [rich](https://rich.readthedocs.io/en/stable/) for better exception reporting
 - [hishel](https://hishel.com/) for caching metadata
 - [httpx](https://www.python-httpx.org) for retrieving metadata
 - The Astral [uv](https://docs.astral.sh/uv/) and [ruff](https://docs.astral.sh/ruff/) tools for development and build
