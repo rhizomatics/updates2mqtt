@@ -1,7 +1,10 @@
 # CHANGELOG
 
 ## 1.9.3
-- Fixed stacktrace logs on headless tty having `rich` library's box drawing ANSI codes
+### Logging
+- New option to emit JSON structured logs when running as server (not attached to terminal)
+- Fixed stacktrace logs on server having `rich` library's box drawing special chars
+- Loggers cached as per structlog best practice, and colour switched off for headless tty
 ## 1.9.2
 - Fix handling of expired Github access token
 ## 1.9.1

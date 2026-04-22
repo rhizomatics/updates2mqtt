@@ -2,7 +2,6 @@ import asyncio
 import logging
 import sys
 import time
-import traceback as tb
 import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -11,6 +10,7 @@ from threading import Event
 from typing import Any
 
 import structlog
+import structlog.dev
 
 import updates2mqtt
 from updates2mqtt.model import Discovery, ReleaseProvider
@@ -47,7 +47,24 @@ class App:
         self.cfg: Config = app_config
         self.self_bounce: Event = Event()
 
+        if not self.cfg.log.json or sys.stderr.isatty():
+            # Pretty printing when we run in a terminal session.
+            # Automatically prints pretty tracebacks when "rich" is installed
+            renderers: list[Any] = [
+                structlog.dev.ConsoleRenderer(
+                    colors=sys.stderr.isatty(),
+                    exception_formatter=(
+                        structlog.dev.RichTracebackFormatter() if sys.stderr.isatty() else structlog.dev.plain_traceback
+                    ),
+                ),
+            ]
+        else:
+            renderers = [
+                structlog.processors.dict_tracebacks,
+                structlog.processors.JSONRenderer(),
+            ]
         structlog.configure(
+            cache_logger_on_first_use=True,
             wrapper_class=structlog.make_filtering_bound_logger(getattr(logging, str(self.cfg.log.level))),
             processors=[
                 structlog.contextvars.merge_contextvars,
@@ -55,14 +72,7 @@ class App:
                 structlog.processors.StackInfoRenderer(),
                 structlog.dev.set_exc_info,
                 structlog.processors.TimeStamper(fmt="iso"),
-                structlog.dev.ConsoleRenderer(
-                    colors=sys.stderr.isatty(),
-                    exception_formatter=(
-                        structlog.dev.RichTracebackFormatter()
-                        if sys.stderr.isatty()
-                        else lambda sio, exc_info: tb.print_exception(*exc_info, file=sio)
-                    ),
-                ),
+                *renderers,
             ],
         )
 

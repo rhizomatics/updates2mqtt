@@ -171,6 +171,7 @@ class NodeConfig:
 @dataclass
 class LogConfig:
     level: LogLevel = "${oc.decode:${oc.env:U2M_LOG_LEVEL,INFO}}"  # type: ignore[assignment] # pyright: ignore[reportAssignmentType]
+    json: bool = field(default=False, doc="Use JSON structured logging for non-interactive running")
 
 
 @dataclass
