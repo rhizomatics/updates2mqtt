@@ -2,6 +2,7 @@ import asyncio
 import logging
 import sys
 import time
+import traceback as tb
 import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -54,7 +55,14 @@ class App:
                 structlog.processors.StackInfoRenderer(),
                 structlog.dev.set_exc_info,
                 structlog.processors.TimeStamper(fmt="iso"),
-                structlog.dev.ConsoleRenderer(colors=sys.stderr.isatty()),
+                structlog.dev.ConsoleRenderer(
+                    colors=sys.stderr.isatty(),
+                    exception_formatter=(
+                        structlog.dev.RichTracebackFormatter()
+                        if sys.stderr.isatty()
+                        else lambda sio, exc_info: tb.print_exception(*exc_info, file=sio)
+                    ),
+                ),
             ],
         )
 

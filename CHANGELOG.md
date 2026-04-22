@@ -1,7 +1,7 @@
 # CHANGELOG
 
 ## 1.9.3
-- Fixed stacktrace logs on headless tty having ANSI codes
+- Fixed stacktrace logs on headless tty having `rich` library's box drawing ANSI codes
 ## 1.9.2
 - Fix handling of expired Github access token
 ## 1.9.1
