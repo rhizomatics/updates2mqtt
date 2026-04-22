@@ -46,7 +46,18 @@ class App:
         self.cfg: Config = app_config
         self.self_bounce: Event = Event()
 
-        structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(getattr(logging, str(self.cfg.log.level))))
+        structlog.configure(
+            wrapper_class=structlog.make_filtering_bound_logger(getattr(logging, str(self.cfg.log.level))),
+            processors=[
+                structlog.contextvars.merge_contextvars,
+                structlog.processors.add_log_level,
+                structlog.processors.StackInfoRenderer(),
+                structlog.dev.set_exc_info,
+                structlog.processors.TimeStamper(fmt="iso"),
+                structlog.dev.ConsoleRenderer(colors=sys.stderr.isatty()),
+            ],
+        )
+
         log.debug("Logging initialized", level=self.cfg.log.level)
 
         self.publisher = MqttPublisher(self.cfg.mqtt, self.cfg.node, self.cfg.homeassistant)

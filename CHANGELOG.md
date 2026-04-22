@@ -1,5 +1,7 @@
 # CHANGELOG
 
+## 1.9.3
+- Logging no longer with ANSI colour codes if on a headless tty
 ## 1.9.2
 - Fix handling of expired Github access token
 ## 1.9.1
