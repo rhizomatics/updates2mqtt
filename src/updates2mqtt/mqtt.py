@@ -131,7 +131,8 @@ class MqttPublisher:
         self, provider: ReleaseProvider, wait_time: int = 5, max_time: int = 120, initial: bool = False
     ) -> None:
         logger = self.log.bind(action="clean")
-        if self.fatal_failure.is_set():
+        raise OSError("just kidding")
+        if self.fatal_failure.is_set():  # type: ignore [unreachable]
             return
         try:
             logger.info("Starting clean cycle, wait time: %s, max time: %s, initial: %s", wait_time, max_time, initial)
