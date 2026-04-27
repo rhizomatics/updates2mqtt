@@ -16,4 +16,4 @@ jobs:
                   assignees: jeyrb
                   numOfAssignee: 1
                   allowSelfAssign: true
-                  repo-token: ${{ secrets.MY_PERSONAL_ACCESS_TOKEN }}
+                  repo-token: ${{ secrets.GITHUB_TOKEN  }}
