@@ -73,7 +73,7 @@ of the containers will show up as a Docker Compose service as if Portainer even 
 A GitHub access token is optional, however when supplied additional API calls can be made for GHCR images, and the
 quotas for all APIs may be higher.
 
-When creating the access token, ensure it has the `packages:read` permission.
+When creating the access token, ensure it has the `packages:read` permission, or use the 'Classic' rather than fine-grained token.
 
 One case where access tokens help is if there either no version label in the image, or the label isn't a version (
 for example, Homarr has `main` as the version for all images.) In these case, the authenticated only [packages API calls](https://docs.github.com/en/rest/packages/packages) will be made to match a version from the image digest.
