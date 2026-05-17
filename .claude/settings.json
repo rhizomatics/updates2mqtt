@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -n *)",
+      "Read(//dev/**)",
+      "Bash(xargs ls -la)",
+      "Bash(pkill -f \"pytest\")"
+    ]
+  }
+}

@@ -718,3 +718,91 @@ async def test_clean_topics_subscribes_to_correct_topics(mock_mqtt_client: Mock,
 
             assert "homeassistant/update/#" in topics_subscribed
             assert f"updates2mqtt/cleannode/{mock_provider.source_type}/#" in topics_subscribed
+
+
+# === missing branch coverage ===
+
+
+def test_stop_when_client_is_none() -> None:
+    """stop() with no client should be a no-op."""
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+
+    uut = MqttPublisher(config, node_config, hass_config)
+    assert uut.client is None
+    uut.stop()  # should not raise
+    assert uut.client is None
+
+
+def test_on_disconnect_non_zero_rc_logs_warning(mock_mqtt_client: Mock) -> None:
+    """on_disconnect with non-zero rc should log a warning without raising."""
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+
+    with (
+        patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client),
+        patch("asyncio.get_event_loop"),
+    ):
+        uut = MqttPublisher(config, node_config, hass_config)
+        uut.start()
+
+    rc = ReasonCode(PacketTypes.DISCONNECT, "Session taken over")
+    uut.on_disconnect(mock_mqtt_client, None, Mock(), rc, None)  # should not raise
+
+
+def test_on_connect_when_client_is_none() -> None:
+    """on_connect called before start() (client is None) should log and return."""
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+
+    uut = MqttPublisher(config, node_config, hass_config)
+    rc = ReasonCode(PacketTypes.CONNACK, "Success")
+    uut.on_connect(Mock(), None, Mock(), rc, None)  # should not raise even with no client
+
+
+def test_on_connect_non_zero_non_auth_rc_logs_warning(mock_mqtt_client: Mock) -> None:
+    """on_connect with a non-zero rc that isn't 'Not authorized' should log a warning."""
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+
+    with (
+        patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client),
+        patch("asyncio.get_event_loop"),
+    ):
+        uut = MqttPublisher(config, node_config, hass_config)
+        uut.start()
+
+    rc = Mock()
+    rc.getName.return_value = "Server unavailable"
+    rc.__ne__ = Mock(return_value=True)  # type:ignore [method-assign]
+    rc.__eq__ = Mock(return_value=False)  # type:ignore [method-assign]
+    uut.on_connect(mock_mqtt_client, None, Mock(), rc, None)  # should log warning, not raise
+
+
+def test_publish_logs_debug_on_success(mock_mqtt_client: Mock) -> None:
+    """publish() logs debug (not warning) when rc == MQTT_ERR_SUCCESS."""
+    from paho.mqtt.enums import MQTTErrorCode
+
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+
+    success_info = Mock()
+    success_info.rc = MQTTErrorCode.MQTT_ERR_SUCCESS
+    success_info.mid = 1
+    success_info.is_published.return_value = True
+    mock_mqtt_client.publish.return_value = success_info
+
+    with (
+        patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client),
+        patch("asyncio.get_event_loop"),
+    ):
+        uut = MqttPublisher(config, node_config, hass_config)
+        uut.start()
+
+    uut.publish("test/topic", {"key": "value"})
+    mock_mqtt_client.publish.assert_called_once()

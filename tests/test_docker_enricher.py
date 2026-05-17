@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING
+from unittest.mock import Mock, patch
 
 import docker
 import pytest
@@ -510,3 +511,133 @@ def test_linuxserverio_enricher_enriches() -> None:
     info: PackageUpdateInfo | None = enricher.enrich(DockerImageInfo("lscr.io/linuxserver/homeassistant"))
     assert info is not None
     assert info.release_notes_url == "https://github.com/linuxserver/docker-homeassistant/releases"
+
+
+# === DockerImageInfo edge cases ===
+
+
+def test_docker_image_info_invalid_oci_name_logs_warning() -> None:
+    """Uppercase letter in non-library image name triggers OCI name warning."""
+    # "Upper/MyImage" has uppercase — re.match(OCI_NAME_RE, "Upper/MyImage") fails
+    info = DockerImageInfo("docker.io/Upper/MyImage:latest")
+    assert info.name is not None  # constructed despite warning
+
+
+def test_docker_image_info_invalid_oci_tag_logs_warning() -> None:
+    """Tag starting with '-' is not valid per OCI_TAG_RE and triggers a warning."""
+    info = DockerImageInfo("docker.io/org/image:-badtag")
+    assert info.name is not None
+
+
+def test_docker_image_info_platform_computed_from_attributes() -> None:
+    """Platform string is built from Os/Architecture attributes."""
+    info = DockerImageInfo(
+        "ghcr.io/org/repo:latest",
+        attributes={"Os": "linux", "Architecture": "amd64", "RepoDigests": []},
+    )
+    assert info.platform == "linux/amd64"
+
+
+def test_docker_image_info_platform_with_variant() -> None:
+    info = DockerImageInfo(
+        "ghcr.io/org/repo:latest",
+        attributes={"Os": "linux", "Architecture": "arm", "Variant": "v7", "RepoDigests": []},
+    )
+    assert info.platform == "linux/arm/v7"
+
+
+def test_as_dict_non_minimal_includes_attributes_and_annotations() -> None:
+    info = DockerImageInfo("ghcr.io/org/repo:latest", annotations={"label": "value"})
+    result = info.as_dict(minimal=False)
+    assert "annotations" in result
+    assert "attributes" in result
+    assert result["annotations"] == {"label": "value"}
+
+
+def test_condense_digest_exception_returns_none() -> None:
+    """Passing a non-string to condense_digest triggers the except branch."""
+    info = DockerImageInfo("ghcr.io/org/repo:latest")
+    result = info.condense_digest(None)  # type: ignore[arg-type]
+    assert result is None
+
+
+# === ContainerDistributionAPIVersionLookup.fetch_token ===
+
+
+@patch("updates2mqtt.integrations.docker_enrich.fetch_url")
+def test_fetch_token_mcr_no_auth_host_returns_none(mock_fetch: Mock) -> None:
+    """MCR registry has auth_host=None so fetch_token returns None without fetching."""
+    from updates2mqtt.config import RegistryConfig
+    from updates2mqtt.integrations.docker_enrich import ContainerDistributionAPIVersionLookup
+
+    lookup = ContainerDistributionAPIVersionLookup(Mock(), RegistryConfig())
+    result = lookup.fetch_token("mcr.microsoft.com", "dotnet/sdk")
+    assert result is None
+    mock_fetch.assert_not_called()
+
+
+@patch("updates2mqtt.integrations.docker_enrich.fetch_url")
+def test_fetch_token_401_with_www_authenticate_returns_token(mock_fetch: Mock) -> None:
+    """401 response with a valid www-authenticate header triggers realm-based token fetch."""
+    from updates2mqtt.config import RegistryConfig
+    from updates2mqtt.integrations.docker_enrich import ContainerDistributionAPIVersionLookup
+
+    r401 = Mock()
+    r401.status_code = 401
+    r401.is_success = False
+    r401.headers = {"www-authenticate": 'realm="https://auth.example.com",service="example",scope="repository:org/repo:pull"'}
+
+    r200 = Mock()
+    r200.is_success = True
+    r200.json.return_value = {"token": "secrettoken"}
+
+    mock_fetch.side_effect = [r401, r200]
+
+    lookup = ContainerDistributionAPIVersionLookup(Mock(), RegistryConfig())
+    token = lookup.fetch_token("unknown-registry.io", "org/repo")
+    assert token == "secrettoken"  # noqa: S105
+
+
+@patch("updates2mqtt.integrations.docker_enrich.fetch_url")
+def test_fetch_token_401_no_www_authenticate_raises(mock_fetch: Mock) -> None:
+    """401 with no www-authenticate header raises AuthError."""
+    from updates2mqtt.config import RegistryConfig
+    from updates2mqtt.integrations.docker_enrich import AuthError, ContainerDistributionAPIVersionLookup
+
+    r401 = Mock()
+    r401.status_code = 401
+    r401.is_success = False
+    r401.headers = {}  # no www-authenticate
+
+    mock_fetch.return_value = r401
+
+    lookup = ContainerDistributionAPIVersionLookup(Mock(), RegistryConfig())
+    with pytest.raises(AuthError, match="No www-authenticate"):
+        lookup.fetch_token("unknown-registry.io", "org/repo")
+
+
+@patch("updates2mqtt.integrations.docker_enrich.fetch_url")
+def test_fetch_token_404_probe_then_401_with_auth_header(mock_fetch: Mock) -> None:
+    """404 on token URL triggers /v2 probe; 401 on probe is then handled via www-authenticate."""
+    from updates2mqtt.config import RegistryConfig
+    from updates2mqtt.integrations.docker_enrich import ContainerDistributionAPIVersionLookup
+
+    r404 = Mock()
+    r404.status_code = 404
+    r404.is_success = False
+
+    r401 = Mock()
+    r401.status_code = 401
+    r401.is_success = False
+    r401.headers = {"www-authenticate": 'realm="https://auth.example.com",service="example",scope="repository:org/repo:pull"'}
+
+    r200 = Mock()
+    r200.is_success = True
+    r200.json.return_value = {"token": "probetoken"}
+
+    mock_fetch.side_effect = [r404, r401, r200]
+
+    lookup = ContainerDistributionAPIVersionLookup(Mock(), RegistryConfig())
+    token = lookup.fetch_token("unknown-registry.io", "org/repo")
+    assert token == "probetoken"  # noqa: S105
+    assert mock_fetch.call_count == 3

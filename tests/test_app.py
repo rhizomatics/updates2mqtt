@@ -5,7 +5,7 @@ import time
 import types
 from collections.abc import AsyncGenerator, Coroutine
 from typing import Any, NoReturn
-from unittest.mock import call
+from unittest.mock import Mock, PropertyMock, call
 
 import pytest
 
@@ -129,3 +129,105 @@ def test_run_handles_asyncio_cancellederror(monkeypatch) -> None:  # noqa: ANN00
 
     # If we reached here, the CancelledError was handled; also ensure DummyApp was instantiated
     assert DummyApp.instance is not None
+
+
+# === on_discovery policy branches ===
+
+
+async def test_on_discovery_mqtt_policy(
+    app_with_mocked_external_dependencies: App,
+    mock_discoveries: list[Discovery],
+) -> None:
+    """MQTT publish policy skips hass-specific publishes but calls publish_discovery."""
+    from updates2mqtt.config import PublishPolicy
+
+    uut = app_with_mocked_external_dependencies
+    discovery = mock_discoveries[0]
+    discovery.publish_policy = PublishPolicy.MQTT
+
+    await uut.on_discovery(discovery)
+
+    uut.publisher.publish_hass_config.assert_not_called()  # type: ignore[attr-defined]
+    uut.publisher.publish_hass_state.assert_not_called()  # type: ignore[attr-defined]
+    uut.publisher.publish_discovery.assert_called_once_with(discovery)  # type: ignore[attr-defined]
+
+
+def _auto_update_discovery(update_last_attempt: float | None) -> Mock:
+    """Build a mock Discovery configured for AUTO update testing."""
+    from updates2mqtt.config import PublishPolicy, UpdatePolicy
+
+    disc = Mock(spec=Discovery)
+    disc.name = "testpkg"
+    disc.publish_policy = PublishPolicy.HOMEASSISTANT
+    disc.update_policy = UpdatePolicy.AUTO
+    type(disc).can_update = PropertyMock(return_value=True)
+    disc.latest_version = "2.0.0"
+    disc.current_version = "1.0.0"
+    disc.update_last_attempt = update_last_attempt
+    return disc
+
+
+async def test_on_discovery_auto_update_triggered(
+    app_with_mocked_external_dependencies: App,
+) -> None:
+    """AUTO update policy with a version diff and no prior attempt triggers local_message."""
+    uut = app_with_mocked_external_dependencies
+    discovery = _auto_update_discovery(update_last_attempt=None)
+
+    await uut.on_discovery(discovery)
+
+    uut.publisher.local_message.assert_called_once_with(discovery, "install")  # type: ignore[attr-defined]
+
+
+async def test_on_discovery_auto_update_skipped_when_recent(
+    app_with_mocked_external_dependencies: App,
+) -> None:
+    """AUTO update skips install when last attempt was recent (< UPDATE_INTERVAL)."""
+    uut = app_with_mocked_external_dependencies
+    discovery = _auto_update_discovery(update_last_attempt=time.time())
+
+    await uut.on_discovery(discovery)
+
+    uut.publisher.local_message.assert_not_called()  # type: ignore[attr-defined]
+
+
+# === healthcheck ===
+
+
+async def test_healthcheck_publishes_when_publisher_available(
+    app_with_mocked_external_dependencies: App,
+) -> None:
+    uut = app_with_mocked_external_dependencies
+    uut.publisher.is_available.return_value = True  # type: ignore[attr-defined]
+
+    await uut.healthcheck()
+
+    uut.publisher.publish.assert_called_once()  # type: ignore[attr-defined]
+    payload = uut.publisher.publish.call_args.kwargs["payload"]  # type: ignore[attr-defined]
+    assert "heartbeat_raw" in payload
+
+
+async def test_healthcheck_skips_when_publisher_unavailable(
+    app_with_mocked_external_dependencies: App,
+) -> None:
+    uut = app_with_mocked_external_dependencies
+    uut.publisher.is_available.return_value = False  # type: ignore[attr-defined]
+
+    await uut.healthcheck()
+
+    uut.publisher.publish.assert_not_called()  # type: ignore[attr-defined]
+
+
+# === shutdown ===
+
+
+async def test_shutdown_with_self_bounce_uses_exit_code_1(
+    app_with_mocked_external_dependencies: App,
+) -> None:
+    uut = app_with_mocked_external_dependencies
+    uut.self_bounce.set()
+
+    with pytest.raises(SystemExit) as exc_info:
+        uut.shutdown()
+
+    assert exc_info.value.code == 1
