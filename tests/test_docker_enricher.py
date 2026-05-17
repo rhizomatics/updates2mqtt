@@ -501,3 +501,12 @@ def test_linuxserverio_enricher_handles_empty_response(httpx_mock: HTTPXMock) ->
     enricher.initialize()
 
     assert len(enricher.pkgs) == 0
+
+
+def test_linuxserverio_enricher_enriches() -> None:
+    cfg = DockerConfig()
+    enricher = LinuxServerIOPackageEnricher(cfg)
+    enricher.initialize()
+    info: PackageUpdateInfo | None = enricher.enrich(DockerImageInfo("lscr.io/linuxserver/homeassistant"))
+    assert info is not None
+    assert info.release_notes_url == "https://github.com/linuxserver/docker-homeassistant/releases"

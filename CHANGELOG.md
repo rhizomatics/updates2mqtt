@@ -1,5 +1,7 @@
 # CHANGELOG
 
+## 1.9.4
+- More defensive access to linuxserver.io docker image info to handle missing fields, prompted by changes to HomeAssistant image in early May 2026
 ## 1.9.3
 ### Logging
 - New option to emit JSON structured logs when running as server (not attached to terminal)

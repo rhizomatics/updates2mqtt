@@ -70,21 +70,29 @@ REGISTRY_LSCR = "lscr.io"
 REGISTRY_CODEBERG = "codeberg.org"
 REGISTRY_GITLAB = "registry.gitlab.com"
 
-REGISTRIES: dict[str, tuple[str | None, str, str, str | None, str | None]] = {
-    # registry: (auth_host, api_host, service, url_template, repo_template)
-    REGISTRY_DOCKER: ("auth.docker.io", "registry-1.docker.io", "registry.docker.io", TOKEN_URL_TEMPLATE, None),
-    REGISTRY_MCR: (None, "mcr.microsoft.com", "mcr.microsoft.com", None, None),
-    REGISTRY_QUAY: (None, "quay.io", "quay.io", TOKEN_URL_TEMPLATE, None),
-    REGISTRY_GHCR: ("ghcr.io", "ghcr.io", "ghcr.io", TOKEN_URL_TEMPLATE, "https://github.com/{image_name}"),
-    "lscr.io": ("ghcr.io", "lscr.io", "ghcr.io", TOKEN_URL_TEMPLATE, None),
-    REGISTRY_CODEBERG: (
+
+class RegistryInfo(typing.NamedTuple):
+    auth_host: str | None
+    api_host: str
+    service: str
+    url_template: str | None
+    repo_template: str | None
+
+
+REGISTRIES: dict[str, RegistryInfo] = {
+    REGISTRY_DOCKER: RegistryInfo("auth.docker.io", "registry-1.docker.io", "registry.docker.io", TOKEN_URL_TEMPLATE, None),
+    REGISTRY_MCR: RegistryInfo(None, "mcr.microsoft.com", "mcr.microsoft.com", None, None),
+    REGISTRY_QUAY: RegistryInfo(None, "quay.io", "quay.io", TOKEN_URL_TEMPLATE, None),
+    REGISTRY_GHCR: RegistryInfo("ghcr.io", "ghcr.io", "ghcr.io", TOKEN_URL_TEMPLATE, "https://github.com/{image_name}"),
+    "lscr.io": RegistryInfo("ghcr.io", "lscr.io", "ghcr.io", TOKEN_URL_TEMPLATE, None),
+    REGISTRY_CODEBERG: RegistryInfo(
         "codeberg.org",
         "codeberg.org",
         "container_registry",
         TOKEN_URL_TEMPLATE,
         "https://codeberg.org/{image_name}",
     ),
-    REGISTRY_GITLAB: (
+    REGISTRY_GITLAB: RegistryInfo(
         "www.gitlab.com",
         "registry.gitlab.com",
         "container_registry",
@@ -312,7 +320,7 @@ def cherrypick_annotations(
         results.get("ref_name") == "ubuntu"
         and local_info.name != "ubuntu"
         and results.get("image_version")
-        and re.fullmatch(r"^2\d\.\d\d$", cast("str", results["image_version"]))
+        and re.fullmatch(r"^2\d\.\d\d$", str(results["image_version"]))
     ):
         log.debug(
             "Suppressing %s base %s version leaking into image version: %s",
@@ -474,10 +482,11 @@ class LinuxServerIOPackageEnricher(PackageEnricher):
         for repo in repos:
             image_name = repo.get("name")
             if image_name and image_name not in self.pkgs:
+                github_url: str | None = repo.get("github_url")
                 self.pkgs[image_name] = PackageUpdateInfo(
                     DockerPackageUpdateInfo(f"lscr.io/linuxserver/{image_name}"),
-                    logo_url=repo["project_logo"],
-                    release_notes_url=f"{repo['github_url']}/releases",
+                    logo_url=repo.get("project_logo"),
+                    release_notes_url=f"{github_url}/releases" if github_url else None,
                 )
                 added += 1
         self.log.debug(f"Added {added} linuxserver.io package details")
@@ -499,10 +508,8 @@ class SourceReleaseEnricher:
         detail.source_url = source_repo_url or registry_info.annotations.get("org.opencontainers.image.source")
 
         if detail.source_url is None and registry_info is not None and registry_info.index_name is not None:
-            registry_config: tuple[str | None, str, str, str | None, str | None] | None = REGISTRIES.get(
-                registry_info.index_name
-            )
-            repo_template: str | None = registry_config[4] if registry_config else None
+            registry_config: RegistryInfo | None = REGISTRIES.get(registry_info.index_name)
+            repo_template: str | None = registry_config.repo_template if registry_config else None
             if repo_template:
                 source_url = repo_template.format(image_name=registry_info.name)
                 if validate_url(source_url, cache_ttl=86400):
@@ -530,32 +537,35 @@ class SourceReleaseEnricher:
             "source": detail.source_url or MISSING_VAL,
         }
 
-        diff_url_template: str | None = DIFF_URL_TEMPLATES.get(detail.source_platform)
-        diff_url: str | None = diff_url_template.format(**template_vars) if diff_url_template else None
-        if diff_url and MISSING_VAL not in diff_url and validate_url(diff_url, cache_ttl=3600):
-            detail.diff_url = diff_url
-        else:
-            diff_url = None
+        try:
+            diff_url_template: str | None = DIFF_URL_TEMPLATES.get(detail.source_platform)
+            diff_url: str | None = diff_url_template.format(**template_vars) if diff_url_template else None
+            if diff_url and MISSING_VAL not in diff_url and validate_url(diff_url, cache_ttl=3600):
+                detail.diff_url = diff_url
+            else:
+                diff_url = None
 
-        if detail.notes_url is None and detail.source_platform in RELEASE_URL_TEMPLATES:
-            platform_notes_url: str | None = RELEASE_URL_TEMPLATES[detail.source_platform].format(**template_vars)
-            if (
-                platform_notes_url
-                and MISSING_VAL not in platform_notes_url
-                and validate_url(platform_notes_url, cache_ttl=86400)
-            ):
-                self.log.debug("Setting default known release notes url: %s", platform_notes_url)
-                detail.notes_url = platform_notes_url
+            if detail.notes_url is None and detail.source_platform in RELEASE_URL_TEMPLATES:
+                platform_notes_url: str | None = RELEASE_URL_TEMPLATES[detail.source_platform].format(**template_vars)
+                if (
+                    platform_notes_url
+                    and MISSING_VAL not in platform_notes_url
+                    and validate_url(platform_notes_url, cache_ttl=86400)
+                ):
+                    self.log.debug("Setting default known release notes url: %s", platform_notes_url)
+                    detail.notes_url = platform_notes_url
 
-        if detail.notes_url is None and detail.source_platform in UNKNOWN_RELEASE_URL_TEMPLATES:
-            platform_notes_url = UNKNOWN_RELEASE_URL_TEMPLATES[detail.source_platform].format(**template_vars)
-            if (
-                platform_notes_url
-                and MISSING_VAL not in platform_notes_url
-                and validate_url(platform_notes_url, cache_ttl=86400)
-            ):
-                self.log.debug("Setting default unknown release notes url: %s", platform_notes_url)
-                detail.notes_url = platform_notes_url
+            if detail.notes_url is None and detail.source_platform in UNKNOWN_RELEASE_URL_TEMPLATES:
+                platform_notes_url = UNKNOWN_RELEASE_URL_TEMPLATES[detail.source_platform].format(**template_vars)
+                if (
+                    platform_notes_url
+                    and MISSING_VAL not in platform_notes_url
+                    and validate_url(platform_notes_url, cache_ttl=86400)
+                ):
+                    self.log.debug("Setting default unknown release notes url: %s", platform_notes_url)
+                    detail.notes_url = platform_notes_url
+        except Exception as e:
+            self.log.error("Failed formatting enriched URLs with %s: %s", template_vars, e)
 
         return detail
 
@@ -581,13 +591,14 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
         self.api_stats = APIStatsCounter()
 
     def fetch_token(self, registry: str, image_name: str) -> str | None:
-        default_host: tuple[str, str, str, str, None] = (registry, registry, registry, TOKEN_URL_TEMPLATE, None)
-        auth_host: str | None = REGISTRIES.get(registry, default_host)[0]
+        default_info = RegistryInfo(registry, registry, registry, TOKEN_URL_TEMPLATE, None)
+        registry_info_: RegistryInfo = REGISTRIES.get(registry, default_info)
+        auth_host: str | None = registry_info_.auth_host
         if auth_host is None:
             return None
 
-        service: str = REGISTRIES.get(registry, default_host)[2]
-        url_template: str | None = REGISTRIES.get(registry, default_host)[3]
+        service: str = registry_info_.service
+        url_template: str | None = registry_info_.url_template
         auth_url: str | None = (
             url_template.format(auth_host=auth_host, image_name=image_name, service=service) if url_template else None
         )
@@ -775,9 +786,11 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
         index_cache_metadata: CacheMetadata | None = None
         manifest_cache_metadata: CacheMetadata | None = None
         config_cache_metadata: CacheMetadata | None = None
+        idx = local_image_info.index_name
         api_host: str | None = REGISTRIES.get(
-            local_image_info.index_name, (local_image_info.index_name, local_image_info.index_name)
-        )[1]
+            idx,
+            RegistryInfo(idx, idx, idx, TOKEN_URL_TEMPLATE, None),
+        ).api_host
         if api_host is None:
             self.log("No API host can be determined for %s", local_image_info.index_name)
             return result
@@ -790,7 +803,11 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
         if index:
             result.annotations = index.get("annotations", {})
             for m in index.get("manifests", []):
-                platform_info = m.get("platform", {})
+                try:
+                    platform_info = m.get("platform", {})
+                except Exception as e:
+                    self.log.warning("Failed analyzing manifest data: %s: %s", m, e)
+                    continue
                 if (
                     platform_info.get("os") == local_image_info.os
                     and platform_info.get("architecture") == local_image_info.arch
@@ -814,7 +831,8 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
                             result.throttled = True
 
                     if manifest:
-                        digest = manifest.get("config", {}).get("digest")
+                        manifest_config: dict[str, Any] = manifest.get("config", {})
+                        digest = manifest_config.get("digest")
                         if digest is None:
                             self.log.warning("Empty digest for %s %s %s", api_host, digest, media_type)
                         else:
@@ -826,22 +844,30 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
                         else:
                             self.log.debug("No annotations found in manifest: %s", manifest)
 
-                        if not minimal and manifest.get("config"):
+                        if (
+                            not minimal
+                            and manifest_config
+                            and manifest_config.get("mediaType")
+                            and manifest_config.get("digest")
+                        ):
                             try:
                                 img_config, config_cache_metadata = self.fetch_object(
                                     api_host=api_host,
                                     local_image_info=local_image_info,
-                                    media_type=manifest["config"].get("mediaType"),
-                                    digest=manifest["config"].get("digest"),
+                                    media_type=manifest_config["mediaType"],
+                                    digest=manifest_config["digest"],
                                     token=token,
                                     follow_redirects=True,
                                     api_type="blobs",
                                 )
                                 if img_config:
                                     config = img_config.get("config") or img_config.get("Config")
-                                    if config and "Labels" in config:
-                                        result.annotations.update(config.get("Labels") or {})
-                                    result.annotations.update(img_config.get("annotations") or {})
+                                    try:
+                                        if config and "Labels" in config:
+                                            result.annotations.update(config.get("Labels") or {})
+                                        result.annotations.update(img_config.get("annotations") or {})
+                                    except Exception as e:
+                                        self.log.warning("Failure handling labels/annotations %s: %s", config, e)
                                     result.created = config.get("created") or config.get("Created")
                                 else:
                                     self.log.debug("No config found: %s", manifest)
