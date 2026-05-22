@@ -45,6 +45,7 @@ cli = "updates2mqtt.cli:main"
 compile-bytecode = true
 managed = true
 exclude-newer = "5 days"
+add-bounds = "major"
 
 [dependency-groups]
 dev = [
