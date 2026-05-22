@@ -13,8 +13,8 @@ keywords=["mqtt", "docker", "oci","container","updates", "automation","home-assi
 
 dependencies = [
   "docker>=7.1.0",
-  "paho-mqtt>=2.1.0",
-  "omegaconf>=2.3.0",
+  "paho-mqtt>=2.1.0,<3.0.0",
+  "omegaconf>=2.3.0,<3.0.0",
   "structlog>=25.4.0",
   "rich>=14.0.0",
   "httpx>=0.28.1",
