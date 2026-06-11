@@ -25,6 +25,20 @@ def timestamp(time_value: float | None) -> str | None:
         return None
 
 
+def human_timespan(span_secs: float | None) -> str:
+    if span_secs is None:
+        return ""
+    days: int = int(span_secs // 86400)
+    hours: int = int((span_secs - (days * 86400)) // 3600)
+    mins: int = int((span_secs - (days * 86400) - (hours * 3600)) // 60)
+    secs: float = span_secs % 60
+    if days > 0:
+        return f"{days} days, {hours} hours"
+    if hours > 0:
+        return f"{hours} hours, {mins} mins"
+    return f"{mins} mins, {secs} secs"
+
+
 class Selection:
     def __init__(self, selector: Selector, value: str | None) -> None:
         self.result: bool = True
@@ -209,7 +223,7 @@ def fetch_url(
                     response.status_code,
                     cache_metadata.from_cache,
                     cache_metadata.revalidated,
-                    cache_metadata.age,
+                    human_timespan(cache_metadata.age),
                     cache_metadata.stored,
                 )
             if api_stats_counter:

@@ -5,7 +5,7 @@ from unittest.mock import Mock
 from httpx import Response
 
 from updates2mqtt.config import Selector
-from updates2mqtt.helpers import APIStats, APIStatsCounter, Selection, sanitize_name, timestamp
+from updates2mqtt.helpers import APIStats, APIStatsCounter, Selection, human_timespan, sanitize_name, timestamp
 
 # === Selection Filtering Tests ===
 
@@ -149,6 +149,29 @@ def test_timestamp_with_invalid_value() -> None:
     # Very large number that can't be converted
     result = timestamp(float("inf"))
     assert result is None
+
+
+# === human_timespan helper function tests ===
+
+
+def test_human_timespan_seconds_only() -> None:
+    assert human_timespan(45.5) == "0 mins, 45.5 secs"
+
+
+def test_human_timespan_minutes() -> None:
+    assert human_timespan(125) == "2 mins, 5 secs"
+
+
+def test_human_timespan_hours() -> None:
+    assert human_timespan(2 * 3600 + 5 * 60) == "2 hours, 5 mins"
+
+
+def test_human_timespan_days() -> None:
+    assert human_timespan(3 * 86400 + 4 * 3600) == "3 days, 4 hours"
+
+
+def test_human_timespan_zero() -> None:
+    assert human_timespan(0) == "0 mins, 0 secs"
 
 
 def _mock_response(
