@@ -11,9 +11,14 @@
 # Arguments
 MQTT_TOPIC=$1
 TIMEOUT_SECONDS=${2:-480}  # How old the heartbeat can be before failing
+log_file="/var/log/healthcheck.log"
+
+log() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" | tee -a $log_file
+}
 
 if [ -z "$MQTT_TOPIC" ] ; then
-    echo "ERROR: MQTT topic not provided as first argument" >&2
+    log "ERROR: MQTT topic not provided as first argument"
     exit $EXIT_DEPENDENCY_ERROR
 fi
 
@@ -31,12 +36,12 @@ EXIT_DEPENDENCY_ERROR=4
 
 # Check if required commands are available
 if ! command -v mosquitto_sub &> /dev/null; then
-    echo "ERROR: mosquitto_sub command not found" >&2
+    log "ERROR: mosquitto_sub command not found"
     exit $EXIT_DEPENDENCY_ERROR
 fi
 
 if ! command -v jq &> /dev/null; then
-    echo "ERROR: jq command not found (required for JSON parsing)" >&2
+    log "ERROR: jq command not found (required for JSON parsing)"
     exit $EXIT_DEPENDENCY_ERROR
 fi
 
@@ -50,14 +55,14 @@ sub_result=$?
 
 # Check if mosquitto_sub succeeded
 if [ $sub_result -ne 0 ]; then
-    echo "ERROR: Failed to receive message from MQTT broker" >&2
-    echo "mosquitto_sub output: $mqtt_payload" >&2
+    log "ERROR: Failed to receive message from MQTT broker"
+    log "mosquitto_sub output: $mqtt_payload"
     exit $EXIT_NO_MESSAGE
 fi
 
 # Check if we got empty payload
 if [ -z "$mqtt_payload" ]; then
-    echo "ERROR: No message received within ${SUBSCRIBE_TIMEOUT}s timeout" >&2
+    log "ERROR: No message received within ${SUBSCRIBE_TIMEOUT}s timeout"
     exit $EXIT_NO_MESSAGE
 fi
 
@@ -67,7 +72,8 @@ echo "Received payload: $mqtt_payload" >&2
 heartbeat_raw=$(echo "$mqtt_payload" | jq -r '.heartbeat_raw // empty' 2>/dev/null)
 
 if [ -z "$heartbeat_raw" ] || [ "$heartbeat_raw" == "null" ]; then
-    echo "ERROR: Could not extract heartbeat_raw from payload" >&2
+    log "ERROR: Could not extract heartbeat_raw from payload"
+    log "PAYLOAD: $mqtt_payload"
     exit $EXIT_INVALID_DATA
 fi
 
@@ -83,12 +89,12 @@ echo "Heartbeat age: ${age}s" >&2
 
 # Check if heartbeat is too old
 if [ $age -gt $TIMEOUT_SECONDS ]; then
-    echo "FAILED: Heartbeat is ${age}s old (threshold: ${TIMEOUT_SECONDS}s)" >&2
+    log "FAILED: Heartbeat is ${age}s old (threshold: ${TIMEOUT_SECONDS}s)"
     # Docker does not restart containers solely because a healthcheck fails, it just
     # marks them unhealthy. If the main process is wedged (e.g. a self-update via
     # `docker compose up` blocked waiting for this container to stop), kill PID 1 so
     # the container exits and "restart: always" brings it back up.
-    echo "Killing main process (PID 1) to force a restart" >&2
+    log "Killing main process (PID 1) to force a restart"
     kill -TERM 1 2>/dev/null
     exit $EXIT_STALE_HEARTBEAT
 fi
