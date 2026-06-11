@@ -94,13 +94,13 @@ class App:
                 )
             )
         self.stopped = Event()
-        self.healthcheck_topic = self.cfg.node.healthcheck.topic_template.format(node_name=self.cfg.node.name)
+        self.heartbeat_topic = self.cfg.node.healthcheck.topic_template.format(node_name=self.cfg.node.name)
 
         log.info(
             "App configured",
             node=self.cfg.node.name,
             scan_interval=self.cfg.scan_interval,
-            healthcheck_topic=self.healthcheck_topic,
+            heartbeat_topic=self.heartbeat_topic,
         )
 
     async def scan(self) -> None:
@@ -127,12 +127,10 @@ class App:
         self.publisher.start()
 
         if self.cfg.node.healthcheck.enabled:
-            await self.healthcheck()  # initial eager healthcheck
-            log.info(
-                f"Setting up healthcheck every {self.cfg.node.healthcheck.interval} seconds to topic {self.healthcheck_topic}"
-            )
-            self.healthcheck_loop_task = asyncio.create_task(
-                repeated_call(self.healthcheck, interval=self.cfg.node.healthcheck.interval), name="healthcheck"
+            await self.heartbeat()  # initial eager heartbeat
+            log.info(f"Setting up heartbeat every {self.cfg.node.healthcheck.interval} seconds to topic {self.heartbeat_topic}")
+            self.heartbeat_loop_task = asyncio.create_task(
+                repeated_call(self.heartbeat, interval=self.cfg.node.healthcheck.interval), name="heartbeat"
             )
 
         for scanner in self.scanners:
@@ -193,7 +191,7 @@ class App:
         log.info(f"Cancelling {len(running_tasks)} tasks")
         for t in running_tasks:
             log.debug("Cancelling task", task=t.get_name())
-            if t.get_name() == "healthcheck" or t.get_name().startswith("discovery-"):
+            if t.get_name() == "heartbeat" or t.get_name().startswith("discovery-"):
                 t.cancel()
         await asyncio.gather(*running_tasks, return_exceptions=True)
         log.debug("Cancellation task completed")
@@ -219,13 +217,13 @@ class App:
         log.info("Shutdown handling complete")
         sys.exit(exit_code)  # SIGTERM Graceful Exit = 143
 
-    async def healthcheck(self) -> None:
+    async def heartbeat(self) -> None:
         if not self.publisher.is_available():
             return
         heartbeat_stamp: str = datetime.now(UTC).isoformat()
         log.debug("Publishing health check", heartbeat_stamp=heartbeat_stamp)
         self.publisher.publish(
-            topic=self.healthcheck_topic,
+            topic=self.heartbeat_topic,
             payload={
                 "version": updates2mqtt.version,  # pyright: ignore[reportAttributeAccessIssue]
                 "node": self.cfg.node.name,

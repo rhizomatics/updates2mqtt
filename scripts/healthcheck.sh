@@ -66,7 +66,7 @@ if [ -z "$mqtt_payload" ]; then
     exit $EXIT_NO_MESSAGE
 fi
 
-echo "Received payload: $mqtt_payload" >&2
+echo "Received heartbeat payload: $mqtt_payload" >&2
 
 # Extract heartbeat_raw timestamp from JSON
 heartbeat_raw=$(echo "$mqtt_payload" | jq -r '.heartbeat_raw // empty' 2>/dev/null)

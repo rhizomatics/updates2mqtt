@@ -191,29 +191,29 @@ async def test_on_discovery_auto_update_skipped_when_recent(
     uut.publisher.local_message.assert_not_called()  # type: ignore[attr-defined]
 
 
-# === healthcheck ===
+# === heartbeat ===
 
 
-async def test_healthcheck_publishes_when_publisher_available(
+async def test_heartbeat_publishes_when_publisher_available(
     app_with_mocked_external_dependencies: App,
 ) -> None:
     uut = app_with_mocked_external_dependencies
     uut.publisher.is_available.return_value = True  # type: ignore[attr-defined]
 
-    await uut.healthcheck()
+    await uut.heartbeat()
 
     uut.publisher.publish.assert_called_once()  # type: ignore[attr-defined]
     payload = uut.publisher.publish.call_args.kwargs["payload"]  # type: ignore[attr-defined]
     assert "heartbeat_raw" in payload
 
 
-async def test_healthcheck_skips_when_publisher_unavailable(
+async def test_heartbeat_skips_when_publisher_unavailable(
     app_with_mocked_external_dependencies: App,
 ) -> None:
     uut = app_with_mocked_external_dependencies
     uut.publisher.is_available.return_value = False  # type: ignore[attr-defined]
 
-    await uut.healthcheck()
+    await uut.heartbeat()
 
     uut.publisher.publish.assert_not_called()  # type: ignore[attr-defined]
 

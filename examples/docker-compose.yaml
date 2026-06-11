@@ -17,4 +17,12 @@ services:
       retries: 3
       start_period: 60s
 
+  restarter:
+    image: docker:cli
+    volumes: ["/var/run/docker.sock:/var/run/docker.sock"]
+    command: ["/bin/sh", "-c", "while true; do sleep 86400; docker restart updates2mqtt; done"]
+    restart: unless-stopped
+    environment:
+      - UPD2MQTT_UPDATE=AUTO
+
 

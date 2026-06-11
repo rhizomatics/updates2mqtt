@@ -157,7 +157,7 @@ class HomeAssistantConfig:
 @dataclass
 class HealthCheckConfig:
     enabled: bool = True
-    interval: int = 300  # Interval in seconds to publish healthcheck message, 0 to disable
+    interval: int = 300  # Interval in seconds to publish heartbeat message, 0 to disable
     topic_template: str = "healthcheck/{node_name}/updates2mqtt"
 
 
