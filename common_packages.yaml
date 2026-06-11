@@ -47,7 +47,7 @@ common_packages:
     logo_url: https://raw.githubusercontent.com/go-gitea/gitea/47b878858ada27fc4c74eeadcc1e467d2da90e04/assets/logo.svg
     source_repo_url: https://github.com/go-gitea/gitea
 
-  forejo:
+  forgejo:
     docker:
       image_name: codeberg.org/forgejo/forgejo
     logo_url: https://codeberg.org/forgejo/forgejo/raw/branch/forgejo/assets/logo.svg
@@ -226,3 +226,21 @@ common_packages:
       image_name: ghcr.io/goauthentik/server
     source_repo_url: https://github.com/goauthentik/authentik
     logo_url: https://avatars.githubusercontent.com/u/82976448?s=48&v=4
+
+  mariadb:
+    docker:
+      image_name: mariadb
+    logo_url: https://avatars.githubusercontent.com/u/4739304?s=48&v=4
+    source_repo_url: https://github.com/MariaDB/server
+
+  redis:
+    docker:
+      image_name: redis
+    logo_url: https://avatars.githubusercontent.com/u/1529926?s=48&v=4
+    source_repo_url: https://github.com/redis/redis
+
+  msmtpd:
+    docker:
+      image_name: crazymax/msmtpd
+    logo_url: https://avatars.githubusercontent.com/u/1951866?s=48&v=4
+    source_repo_url: https://github.com/crazy-max/docker-msmtpd

@@ -84,6 +84,12 @@ echo "Heartbeat age: ${age}s" >&2
 # Check if heartbeat is too old
 if [ $age -gt $TIMEOUT_SECONDS ]; then
     echo "FAILED: Heartbeat is ${age}s old (threshold: ${TIMEOUT_SECONDS}s)" >&2
+    # Docker does not restart containers solely because a healthcheck fails, it just
+    # marks them unhealthy. If the main process is wedged (e.g. a self-update via
+    # `docker compose up` blocked waiting for this container to stop), kill PID 1 so
+    # the container exits and "restart: always" brings it back up.
+    echo "Killing main process (PID 1) to force a restart" >&2
+    kill -TERM 1 2>/dev/null
     exit $EXIT_STALE_HEARTBEAT
 fi
 

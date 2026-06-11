@@ -1,4 +1,6 @@
 #!/bin/bash
+echo "Pull in auto bot PRs ..."
+git pull
 echo "Upgrading uv ..."
 uv self update
 echo "Upgrading uv deps ..."

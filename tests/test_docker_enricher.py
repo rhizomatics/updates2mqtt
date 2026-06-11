@@ -155,13 +155,16 @@ def test_common_enricher() -> None:
     assert len(uut.pkgs) > 0
     source_repos = 0
     for pkg_name, pkg in uut.pkgs.items():
+        assert isinstance(pkg_name, str)
         assert pkg_name
         assert pkg.docker is not None
+        assert isinstance(pkg.docker.image_name, str)
         assert pkg.docker.image_name
-        assert pkg.logo_url or pkg.logo_url is None
-        assert pkg.release_notes_url or pkg.release_notes_url is None
-        assert pkg.source_repo_url or pkg.source_repo_url is None
         assert isinstance(pkg.docker.version_policy, VersionPolicy)
+        for url in (pkg.logo_url, pkg.release_notes_url, pkg.source_repo_url):
+            assert isinstance(url, str | None)
+            if url is not None:
+                assert url.startswith("https://") or url.startswith("http://")
         if pkg.source_repo_url:
             source_repos += 1
     assert source_repos > 0
