@@ -3,7 +3,6 @@
 ## 1.9.5
 - Dependencies update
 - Additional common packaged added for logos and repos, including MariaDB and Redis
-- Healthcheck tries harder to restart a docker instance updating itself, and added healthcheck error logging
 ## 1.9.4
 - More defensive access to linuxserver.io docker image info to handle missing fields, prompted by changes to HomeAssistant image in early May 2026
 - Better defensive data access on registry manifests, versions, labels, annotations
