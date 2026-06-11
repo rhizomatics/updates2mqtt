@@ -2,10 +2,11 @@ import time
 from datetime import timedelta
 from unittest.mock import Mock
 
+import pytest
 from httpx import Response
 
 from updates2mqtt.config import Selector
-from updates2mqtt.helpers import APIStats, APIStatsCounter, Selection, human_timespan, sanitize_name, timestamp
+from updates2mqtt.helpers import APIStats, APIStatsCounter, Selection, humanize_timespan, sanitize_name, timestamp
 
 # === Selection Filtering Tests ===
 
@@ -155,23 +156,23 @@ def test_timestamp_with_invalid_value() -> None:
 
 
 def test_human_timespan_seconds_only() -> None:
-    assert human_timespan(45.5) == "0 mins, 45.5 secs"
+    assert humanize_timespan(45.5) == "0 mins, 45.5 secs"
 
 
 def test_human_timespan_minutes() -> None:
-    assert human_timespan(125) == "2 mins, 5 secs"
+    assert humanize_timespan(125) == "2 mins, 5 secs"
 
 
 def test_human_timespan_hours() -> None:
-    assert human_timespan(2 * 3600 + 5 * 60) == "2 hours, 5 mins"
+    assert humanize_timespan(2 * 3600 + 5 * 60) == "2 hours, 5 mins"
 
 
 def test_human_timespan_days() -> None:
-    assert human_timespan(3 * 86400 + 4 * 3600) == "3 days, 4 hours"
+    assert humanize_timespan(3 * 86400 + 4 * 3600) == "3 days, 4 hours"
 
 
 def test_human_timespan_zero() -> None:
-    assert human_timespan(0) == "0 mins, 0 secs"
+    assert humanize_timespan(0) == "0 mins, 0 secs"
 
 
 def _mock_response(
@@ -204,8 +205,8 @@ def test_api_stats_tick_success_response() -> None:
     assert stats.fetches == 1
     assert stats.cached == 0
     assert stats.failed == {}
-    assert stats.elapsed == 0.25
-    assert stats.average_elapsed() == 0.25
+    assert stats.elapsed == pytest.approx(0.25)
+    assert stats.average_elapsed() == pytest.approx(0.25)
 
 
 def test_api_stats_tick_cached_response() -> None:
@@ -289,7 +290,7 @@ def test_api_stats_tick_accumulates_elapsed_time() -> None:
     stats.tick(_mock_response(elapsed_seconds=0.25))
 
     assert stats.fetches == 3
-    assert stats.elapsed == 2.25
+    assert stats.elapsed == pytest.approx(2.25)
 
 
 def test_api_stats_tick_tracks_max_cache_age() -> None:
@@ -329,7 +330,7 @@ def test_api_stats_hit_ratio_all_cached() -> None:
     stats.tick(_mock_response(from_cache=True))
     stats.tick(_mock_response(from_cache=True))
 
-    assert stats.hit_ratio() == 1.0
+    assert stats.hit_ratio() == pytest.approx(1.0)
 
 
 def test_api_stats_hit_ratio_mixed() -> None:
@@ -340,7 +341,7 @@ def test_api_stats_hit_ratio_mixed() -> None:
     stats.tick(_mock_response(from_cache=True))
     stats.tick(_mock_response(from_cache=False))
 
-    assert stats.hit_ratio() == 0.5
+    assert stats.hit_ratio() == pytest.approx(0.5)
 
 
 def test_api_stats_average_elapsed_calculation() -> None:
@@ -350,7 +351,7 @@ def test_api_stats_average_elapsed_calculation() -> None:
     stats.tick(_mock_response(elapsed_seconds=2.0))
     stats.tick(_mock_response(elapsed_seconds=3.0))
 
-    assert stats.average_elapsed() == 2.0
+    assert stats.average_elapsed() == pytest.approx(2.0)
 
 
 def test_api_stats_counter_handles_bad_url() -> None:

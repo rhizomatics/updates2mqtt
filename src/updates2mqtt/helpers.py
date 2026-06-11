@@ -25,7 +25,7 @@ def timestamp(time_value: float | None) -> str | None:
         return None
 
 
-def human_timespan(span_secs: float | None) -> str:
+def humanize_timespan(span_secs: float | None) -> str:
     if span_secs is None:
         return ""
     days: int = int(span_secs // 86400)
@@ -160,7 +160,7 @@ class APIStats:
         return (
             f"fetches: {self.fetches}, cache ratio: {self.hit_ratio():.2%}, revalidated: {self.revalidated}, "
             + f"errors: {', '.join(f'{status_code}:{fails}' for status_code, fails in self.failed.items()) or '0'}, "
-            + f"oldest cache hit: {self.max_cache_age:.2f}s, avg elapsed: {self.average_elapsed()}s"
+            + f"oldest cache hit: {humanize_timespan(self.max_cache_age)}, avg elapsed: {self.average_elapsed()}s"
         )
 
 
@@ -223,7 +223,7 @@ def fetch_url(
                     response.status_code,
                     cache_metadata.from_cache,
                     cache_metadata.revalidated,
-                    human_timespan(cache_metadata.age),
+                    humanize_timespan(cache_metadata.age),
                     cache_metadata.stored,
                 )
             if api_stats_counter:
