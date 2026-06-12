@@ -236,15 +236,13 @@ class MqttPublisher:
             log.exception("JSON decode fail (%s)", jsonish[1:-1])
         return {}
 
-    async def execute_command(
-        self, msg: MQTTMessage | LocalMessage, on_update_start: Callable, on_update_end: Callable
-    ) -> None:
-        # TODO: defer handling of commands where repository is throttled
+    def validate_command(self, msg: MQTTMessage | LocalMessage) -> tuple[ReleaseProvider, str, str] | None:
+
         logger = self.log.bind(topic=msg.topic, payload=msg.payload)
         comp_name: str | None = None
         command: str | None = None
         try:
-            logger.info("Execution starting for %s", msg.topic)
+            logger.info("Command received for %s", msg.topic)
             source_type: str | None = None
 
             payload: str | None = None
@@ -254,46 +252,69 @@ class MqttPublisher:
                 payload = msg.payload
             if payload and "|" in payload:
                 source_type, comp_name, command = payload.split("|")
-            logger.debug("Executing %s:%s:%s", source_type, comp_name, command)
+            else:
+                logger.warn("Invalid command format, expecting `source_type|comp_name|command`")
+                return None
+            logger.debug("Validating %s:%s:%s", source_type, comp_name, command)
 
             provider: ReleaseProvider | None = self.providers_by_topic.get(msg.topic) if msg.topic else None
-            in_progress_key: tuple[str, str] | None = None
+
             if not provider:
                 logger.warn("Unexpected provider type %s", msg.topic)
-            elif source_type is None or provider.source_type != source_type:
+                return None
+            if source_type is None or provider.source_type != source_type:
                 logger.warn("Unexpected source type %s", source_type)
-            elif command != "install":
-                logger.warn("Invalid command: %s", command)
-            elif not comp_name:
+                return None
+            if command != "install":
+                logger.warn("Unknown command: %s", command)
+                return None
+            if not comp_name:
                 logger.warn("Missing comp_name in command message: %s", msg.payload)
-            elif (source_type, comp_name) in self.commands_in_progress:
+                return None
+
+            in_progress_key: tuple[str, str] = (source_type, comp_name)
+            if in_progress_key in self.commands_in_progress:
                 logger.warn("Ignoring duplicate %s command for %s, already in progress", command, comp_name)
             else:
-                in_progress_key = (source_type, comp_name)
                 self.commands_in_progress.add(in_progress_key)
-                logger.info(
-                    "Passing %s command to %s scanner for %s",
-                    command,
-                    source_type,
-                    comp_name,
-                )
-                try:
-                    updated: bool = provider.command(comp_name, command, on_update_start, on_update_end)
-                    discovery = provider.resolve(comp_name)
-                    if updated and discovery:
-                        if discovery.publish_policy == PublishPolicy.HOMEASSISTANT and self.hass_cfg.discovery.enabled:
-                            self.publish_hass_config(discovery)
-                        if discovery.publish_policy in (PublishPolicy.HOMEASSISTANT, PublishPolicy.MQTT):
-                            self.publish_discovery(discovery)
-                        if discovery and discovery.publish_policy == PublishPolicy.HOMEASSISTANT:
-                            self.publish_hass_state(discovery)
-                    else:
-                        logger.debug("No change to republish after execution")
-                finally:
+                return (provider, comp_name, command)
+        except Exception:
+            logger.error("Unexpected error validating command")
+        return None
+
+    async def execute_command(
+        self, provider: ReleaseProvider, comp_name: str, command: str, on_update_start: Callable, on_update_end: Callable
+    ) -> None:
+        # TODO: defer handling of commands where repository is throttled
+        logger = self.log.bind(source_type=provider.source_type, comp_name=comp_name, command=command)
+        try:
+            logger.info("Execution starting for %s %s", command, comp_name)
+
+            in_progress_key: tuple[str, str] = (provider.source_type, comp_name)
+            logger.info(
+                "Passing %s command to %s scanner for %s",
+                command,
+                provider.source_type,
+                comp_name,
+            )
+            try:
+                updated: bool = provider.command(comp_name, command, on_update_start, on_update_end)
+                discovery = provider.resolve(comp_name)
+                if updated and discovery:
+                    if discovery.publish_policy == PublishPolicy.HOMEASSISTANT and self.hass_cfg.discovery.enabled:
+                        self.publish_hass_config(discovery)
+                    if discovery.publish_policy in (PublishPolicy.HOMEASSISTANT, PublishPolicy.MQTT):
+                        self.publish_discovery(discovery)
+                    if discovery and discovery.publish_policy == PublishPolicy.HOMEASSISTANT:
+                        self.publish_hass_state(discovery)
+                else:
+                    logger.debug("No change to republish after execution")
+            finally:
+                if in_progress_key in self.commands_in_progress:
                     self.commands_in_progress.discard(in_progress_key)
             logger.info("Execution ended")
         except Exception:
-            logger.exception("Execution failed", component=comp_name, command=command)
+            logger.exception("Execution failed")
 
     def local_message(self, discovery: Discovery, command: str) -> None:
         """Simulate an incoming MQTT message for local commands"""
@@ -352,9 +373,19 @@ class MqttPublisher:
         #  TODO: fix double publish on callback and in command exec
         if self.event_loop is not None:
             self.log.debug("Executing command topic", topic=msg.topic)
-            asyncio.run_coroutine_threadsafe(
-                self.execute_command(msg=msg, on_update_start=update_start, on_update_end=update_end), loop=self.event_loop
-            )
+            parsed: tuple[ReleaseProvider, str, str] | None = self.validate_command(msg=msg)
+            if parsed is not None:
+                provider, comp_name, command = parsed
+                asyncio.run_coroutine_threadsafe(
+                    self.execute_command(
+                        provider=provider,
+                        comp_name=comp_name,
+                        command=command,
+                        on_update_start=update_start,
+                        on_update_end=update_end,
+                    ),
+                    loop=self.event_loop,
+                )
         else:
             self.log.error("No event loop to handle message", topic=msg.topic)
 

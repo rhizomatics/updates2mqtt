@@ -76,7 +76,10 @@ async def test_execute_command_remote(mock_mqtt_client: Mock, mock_provider: Rel
 
         mqtt_bytes_msg = MQTTMessage(topic=b"updates2mqtt/TESTBED/unit_test")
         mqtt_bytes_msg.payload = b"unit_test|fooey|install"
-        await uut.execute_command(mqtt_bytes_msg, Mock(), Mock())
+        parsed = uut.validate_command(mqtt_bytes_msg)
+        assert parsed is not None
+        provider, comp_name, command = parsed
+        await uut.execute_command(provider, comp_name, command, Mock(), Mock())
 
         mock_mqtt_client.publish.assert_called_with(
             "updates2mqtt/TESTBED/unit_test/fooey/state",
@@ -111,8 +114,9 @@ async def test_execute_command_ignores_duplicate_in_progress(mock_mqtt_client: M
         mqtt_bytes_msg.payload = b"unit_test|fooey|install"
 
         uut.commands_in_progress.add(("unit_test", "fooey"))
-        await uut.execute_command(mqtt_bytes_msg, Mock(), Mock())
+        parsed = uut.validate_command(mqtt_bytes_msg)
 
+        assert parsed is None
         mock_provider.command.assert_not_called()  # type: ignore[attr-defined]
 
 
@@ -523,9 +527,10 @@ async def test_execute_command_invalid_payload(mock_mqtt_client: Mock, mock_prov
         msg = MQTTMessage(topic=b"updates2mqtt/testnode/unit_test")
         msg.payload = b"invalid_payload_no_pipes"
 
-        await uut.execute_command(msg, Mock(), Mock())
+        parsed = uut.validate_command(msg)
 
         # Should not call provider.command with invalid payload
+        assert parsed is None
         mock_provider.command.assert_not_called()  # type: ignore[attr-defined]
 
 
@@ -545,8 +550,9 @@ async def test_execute_command_wrong_source_type(mock_mqtt_client: Mock, mock_pr
         msg = MQTTMessage(topic=b"updates2mqtt/testnode/unit_test")
         msg.payload = b"wrong_source|comp|install"
 
-        await uut.execute_command(msg, Mock(), Mock())
+        parsed = uut.validate_command(msg)
 
+        assert parsed is None
         mock_provider.command.assert_not_called()  # type: ignore[attr-defined]
 
 
