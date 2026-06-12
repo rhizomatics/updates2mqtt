@@ -170,7 +170,10 @@ class DockerProvider(ReleaseProvider):
 
     def update(self, discovery: Discovery) -> bool:
         logger: Any = self.log.bind(container=discovery.name, action="update")
-        logger.info("Updating - last at %s", discovery.update_last_attempt)
+        if discovery.update_last_attempt:
+            logger.info("Updating - last at %s", discovery.update_last_attempt)
+        else:
+            logger.info("Updating - first this session")
         discovery.update_last_attempt = time.time()
         self.fetch(discovery)
         restarted = self.restart(discovery)
