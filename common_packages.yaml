@@ -258,3 +258,23 @@ common_packages:
       image_name: crazymax/msmtpd
     logo_url: https://avatars.githubusercontent.com/u/1951866?s=48&v=4
     source_repo_url: https://github.com/crazy-max/docker-msmtpd
+
+  certbot:
+    docker:
+      image_name: 
+        - certbot/certbot
+        - certbot/dns-route53
+        - certbot/dns-cloudflare
+        - certbot/dns-cloudxns
+        - certbot/dns-digitalocean
+        - certbot/dns-dnsimple
+        - certbot/dns-dnsmadeeasy
+        - certbot/dns-gehirn
+        - certbot/dns-linode
+        - certbot/dns-luadns
+        - certbot/dns-nsone
+        - certbot/dns-ovh
+        - certbot/dns-rfc2136
+        - certbot/dns-sakuracloud
+    logo_url: https://avatars.githubusercontent.com/u/17889013?s=48&v=4
+    source_repo_url: https://github.com/certbot/certbot
