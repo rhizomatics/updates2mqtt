@@ -157,7 +157,7 @@ class App:
             if discovery.publish_policy == PublishPolicy.HOMEASSISTANT and self.cfg.homeassistant.discovery.enabled:
                 # Switch off MQTT discovery if not Home Assistant enabled
                 self.publisher.publish_hass_config(discovery)
-            if discovery.publish_policy in (PublishPolicy.HOMEASSISTANT):
+            if discovery.publish_policy == PublishPolicy.HOMEASSISTANT:
                 self.publisher.publish_hass_state(discovery)
             if discovery.publish_policy in (PublishPolicy.HOMEASSISTANT, PublishPolicy.MQTT):
                 self.publisher.publish_discovery(discovery)
