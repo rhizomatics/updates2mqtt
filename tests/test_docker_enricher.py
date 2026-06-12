@@ -180,6 +180,28 @@ def test_common_enricher() -> None:
     assert source_repos > 0
 
 
+def test_docker_image_names_single_string() -> None:
+    assert docker_image_names(DockerPackageUpdateInfo(image_name="foo/bar")) == ["foo/bar"]
+
+
+def test_docker_image_names_list() -> None:
+    assert docker_image_names(DockerPackageUpdateInfo(image_name=["foo/bar", "baz/qux"])) == ["foo/bar", "baz/qux"]
+
+
+def test_package_enricher_matches_any_image_name_in_list() -> None:
+    pkgs = {
+        "multi": PackageUpdateInfo(
+            docker=DockerPackageUpdateInfo(image_name=["foo/bar", "baz/qux"]),
+            logo_url="https://example/logo",
+        )
+    }
+    uut = PackageEnricher(DockerConfig(), pkgs)
+
+    assert uut.enrich(DockerImageInfo("foo/bar")) is pkgs["multi"]
+    assert uut.enrich(DockerImageInfo("baz/qux")) is pkgs["multi"]
+    assert uut.enrich(DockerImageInfo("other/image")) is None
+
+
 @pytest.mark.httpx_mock(assert_all_requests_were_expected=False)
 def test_discover_metadata(httpx_mock: HTTPXMock) -> None:
     httpx_mock.add_response(
