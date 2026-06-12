@@ -110,10 +110,8 @@ class App:
             if self.stopped.is_set():
                 break
             slog.info("Scanning ...")
-            async with asyncio.TaskGroup() as tg:
-                # xtype: ignore[attr-defined]
-                async for discovery in scanner.scan(session):
-                    tg.create_task(self.on_discovery(discovery), name=f"discovery-{discovery.name}")
+            async for discovery in scanner.scan(session):
+                await self.on_discovery(discovery)
             if self.stopped.is_set():
                 slog.debug("Breaking scan loop on stopped event")
                 break
@@ -191,7 +189,7 @@ class App:
         log.info(f"Cancelling {len(running_tasks)} tasks")
         for t in running_tasks:
             log.debug("Cancelling task", task=t.get_name())
-            if t.get_name() == "heartbeat" or t.get_name().startswith("discovery-"):
+            if t.get_name() == "heartbeat":
                 t.cancel()
         await asyncio.gather(*running_tasks, return_exceptions=True)
         log.debug("Cancellation task completed")
