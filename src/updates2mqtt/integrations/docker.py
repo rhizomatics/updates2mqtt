@@ -6,7 +6,7 @@ import typing
 from collections.abc import AsyncGenerator, Callable
 from enum import Enum
 from pathlib import Path
-from threading import Event
+from threading import Event, Timer
 from typing import Any, cast
 
 import docker
@@ -57,6 +57,11 @@ log = structlog.get_logger()
 class DockerComposeCommand(Enum):
     BUILD = "build"
     UP = "up"
+
+
+# Seconds to wait before recreating ourselves on self-bounce, giving the in-flight
+# update command time to finish and publish its final (non in-progress) state.
+SELF_BOUNCE_DELAY = 5
 
 
 def safe_json_dt(t: float | None) -> str | None:
@@ -256,19 +261,35 @@ class DockerProvider(ReleaseProvider):
         installed_info: DockerImageInfo | None = cast("DockerImageInfo|None", discovery.current_detail)
         service_info: DockerServiceDetails | None = cast("DockerServiceDetails|None", discovery.installation_detail)
 
-        if (
+        if service_info is None:
+            return False
+
+        is_self_bounce: bool = bool(
             self.self_bounce is not None
             and installed_info
-            and service_info
             and (
                 "ghcr.io/rhizomatics/updates2mqtt" in installed_info.ref
                 or (service_info.git_repo_path and service_info.git_repo_path.endswith("updates2mqtt"))
             )
-        ):
-            logger.warning("Attempting to self-bounce")
+        )
+        if is_self_bounce and self.self_bounce is not None:
+            logger.warning("Attempting to self-bounce, deferring recreation by %ss", SELF_BOUNCE_DELAY)
             self.self_bounce.set()
-        if service_info is None:
-            return False
+            # Defer the recreate so that the in-flight command handling can finish and publish
+            # the final (non in-progress) state before this container is stopped/replaced.
+            Timer(
+                SELF_BOUNCE_DELAY,
+                self.execute_compose,
+                kwargs={
+                    "command": DockerComposeCommand.UP,
+                    "args": "--detach --yes",
+                    "service": service_info.compose_service,
+                    "cwd": service_info.compose_path,
+                    "logger": logger,
+                },
+            ).start()
+            return True
+
         return self.execute_compose(
             command=DockerComposeCommand.UP,
             args="--detach --yes",

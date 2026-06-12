@@ -172,8 +172,16 @@ class MqttPublisher:
                 try:
                     if msg.payload:
                         payload = json.loads(msg.payload)
-                        if payload.get("in_progress") and initial:
-                            cleaner.publish(msg.topic, "", retain=True)
+                        update_section = payload.get("update") if isinstance(payload.get("update"), dict) else None
+                        lingering_in_progress = payload.get("in_progress") or (
+                            update_section and update_section.get("in_progress")
+                        )
+                        if lingering_in_progress and initial:
+                            logger.info("Clearing lingering in-progress state at %s", msg.topic)
+                            payload["in_progress"] = False
+                            if update_section is not None:
+                                update_section["in_progress"] = False
+                            cleaner.publish(msg.topic, json.dumps(payload), retain=True)
                             results["cleaned"] += 1
                 except Exception as e:
                     logger.warn("Invalid payload at %s: %s", msg.topic, e)
