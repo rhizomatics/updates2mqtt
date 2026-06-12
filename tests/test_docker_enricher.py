@@ -158,8 +158,11 @@ def test_common_enricher() -> None:
         assert isinstance(pkg_name, str)
         assert pkg_name
         assert pkg.docker is not None
-        assert isinstance(pkg.docker.image_name, str)
-        assert pkg.docker.image_name
+        image_names = pkg.docker.image_names
+        assert image_names
+        for image_name in image_names:
+            assert isinstance(image_name, str)
+            assert image_name
         assert isinstance(pkg.docker.version_policy, VersionPolicy)
         for url in (pkg.logo_url, pkg.release_notes_url, pkg.source_repo_url):
             assert isinstance(url, str | None)
