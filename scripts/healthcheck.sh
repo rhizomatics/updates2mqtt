@@ -14,11 +14,11 @@ TIMEOUT_SECONDS=${2:-480}  # How old the heartbeat can be before failing
 log_file="/var/log/healthcheck.log"
 
 info() {
-    echo $1 > &2
+    echo $1 >&2
 }
 
 error() {
-    echo "ERROR: $1" > &2
+    echo "ERROR: $1" >&2
 }
 
 if [ -z "$MQTT_TOPIC" ] ; then
