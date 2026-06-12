@@ -156,6 +156,11 @@ common_packages:
     logo_url: https://www.docker.com/app/uploads/2023/05/cli_1@2x.png
     release_notes_url: https://github.com/docker-library/docker/commits/master/29/cli
 
+  docker_dind:
+    docker:
+      image_name: docker
+    release_notes_url: https://github.com/docker-library/docker/commits/master/29/dind
+
   rtl_433:
     docker: 
       image_name: hertzg/rtl_433
