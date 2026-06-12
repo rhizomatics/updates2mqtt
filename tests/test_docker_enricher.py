@@ -5,7 +5,14 @@ import docker
 import pytest
 from pytest_httpx import HTTPXMock
 
-from updates2mqtt.config import DockerConfig, DockerPackageUpdateInfo, MetadataSourceConfig, PackageUpdateInfo, RegistryConfig
+from updates2mqtt.config import (
+    DockerConfig,
+    DockerPackageUpdateInfo,
+    MetadataSourceConfig,
+    PackageUpdateInfo,
+    RegistryConfig,
+    docker_image_names,
+)
 from updates2mqtt.integrations.docker import Throttler
 from updates2mqtt.integrations.docker_enrich import (
     DIFF_URL_TEMPLATES,
@@ -158,7 +165,7 @@ def test_common_enricher() -> None:
         assert isinstance(pkg_name, str)
         assert pkg_name
         assert pkg.docker is not None
-        image_names = pkg.docker.image_names
+        image_names = docker_image_names(pkg.docker)
         assert image_names
         for image_name in image_names:
             assert isinstance(image_name, str)

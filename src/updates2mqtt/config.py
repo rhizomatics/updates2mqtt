@@ -107,11 +107,11 @@ class DockerPackageUpdateInfo:
     image_name: typing.Any = MISSING  # untagged image ref, either a single string or a list of strings
     version_policy: VersionPolicy = VersionPolicy.AUTO
 
-    @property
-    def image_names(self) -> list[str]:
-        if isinstance(self.image_name, str):
-            return [self.image_name]
-        return list(self.image_name)
+
+def docker_image_names(docker_info: DockerPackageUpdateInfo) -> list[str]:
+    if isinstance(docker_info.image_name, str):
+        return [docker_info.image_name]
+    return list(docker_info.image_name)
 
 
 @dataclass
