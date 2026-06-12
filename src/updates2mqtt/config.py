@@ -104,8 +104,14 @@ class VersionPolicy(StrEnum):
 
 @dataclass
 class DockerPackageUpdateInfo:
-    image_name: str = MISSING  # untagged image ref
+    image_name: typing.Any = MISSING  # untagged image ref, either a single string or a list of strings
     version_policy: VersionPolicy = VersionPolicy.AUTO
+
+    @property
+    def image_names(self) -> list[str]:
+        if isinstance(self.image_name, str):
+            return [self.image_name]
+        return list(self.image_name)
 
 
 @dataclass

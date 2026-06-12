@@ -408,9 +408,10 @@ class PackageEnricher:
     def enrich(self, image_info: DockerImageInfo) -> PackageUpdateInfo | None:
         def match(pkg: PackageUpdateInfo) -> bool:
             if pkg is not None and pkg.docker is not None and pkg.docker.image_name is not None:
-                if image_info.untagged_ref is not None and image_info.untagged_ref == pkg.docker.image_name:
+                image_names = pkg.docker.image_names
+                if image_info.untagged_ref is not None and image_info.untagged_ref in image_names:
                     return True
-                if image_info.ref is not None and image_info.ref == pkg.docker.image_name:
+                if image_info.ref is not None and image_info.ref in image_names:
                     return True
             return False
 
