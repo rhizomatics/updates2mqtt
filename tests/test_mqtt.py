@@ -39,7 +39,7 @@ async def test_handler(mock_mqtt_client: Mock) -> None:
     hass_config = OmegaConf.structured(HomeAssistantConfig)
     node_config = OmegaConf.structured(NodeConfig)
     node_config.name = "testing"
-    with patch("updates2mqtt.mqtt.mqtt.Client", new=mock_mqtt_client):
+    with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
         uut = MqttPublisher(config, node_config, hass_config)
         uut.start(event_loop=asyncio.get_running_loop())
 
@@ -91,6 +91,29 @@ async def test_execute_command_remote(mock_mqtt_client: Mock, mock_provider: Rel
             qos=0,
             retain=True,
         )
+
+
+@pytest.mark.asyncio
+async def test_execute_command_ignores_duplicate_in_progress(mock_mqtt_client: Mock, mock_provider: ReleaseProvider) -> None:
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+    node_config.name = "TESTBED"
+
+    with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
+        uut = MqttPublisher(config, node_config, hass_config)
+        uut.providers_by_topic = {}
+        uut.start(event_loop=asyncio.get_running_loop())
+
+        uut.subscribe_hass_command(mock_provider)
+
+        mqtt_bytes_msg = MQTTMessage(topic=b"updates2mqtt/TESTBED/unit_test")
+        mqtt_bytes_msg.payload = b"unit_test|fooey|install"
+
+        uut.commands_in_progress.add(("unit_test", "fooey"))
+        await uut.execute_command(mqtt_bytes_msg, Mock(), Mock())
+
+        mock_provider.command.assert_not_called()  # type: ignore[attr-defined]
 
 
 @pytest.mark.asyncio

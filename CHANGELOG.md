@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 1.9.6
+- MQTT now has a `connect_timeout` defaulting to 10 seconds, and will wait for this before attempting to publish scan updates
+- Drop duplicate update commands when update for that component already in hand
+
 ## 1.9.5
 - Dependencies update
 - Additional common packages added for logos and repos, including MariaDB and Redis

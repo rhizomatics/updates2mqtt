@@ -41,6 +41,8 @@ class MqttPublisher:
         self.event_loop: asyncio.AbstractEventLoop | None = None
         self.client: mqtt.Client | None = None
         self.fatal_failure = Event()
+        self.connected = Event()
+        self.commands_in_progress: set[tuple[str, str]] = set()
         self.log = structlog.get_logger().bind(host=cfg.host, integration="mqtt")
 
     def start(self, event_loop: asyncio.AbstractEventLoop | None = None) -> None:
@@ -82,6 +84,9 @@ class MqttPublisher:
 
             self.client.loop_start()
 
+            if not self.connected.wait(timeout=self.cfg.connect_timeout) and not self.fatal_failure.is_set():
+                logger.warning("Timed out waiting for broker connection, continuing anyway", timeout=self.cfg.connect_timeout)
+
             logger.debug("MQTT Publisher loop started", host=self.cfg.host, port=self.cfg.port)
         except Exception as e:
             logger.error("Failed to connect to broker", host=self.cfg.host, port=self.cfg.port, error=str(e))
@@ -92,6 +97,7 @@ class MqttPublisher:
             self.client.loop_stop()
             self.client.disconnect()
             self.client = None
+        self.connected.clear()
 
     def is_available(self) -> bool:
         return self.client is not None and not self.fatal_failure.is_set()
@@ -110,6 +116,7 @@ class MqttPublisher:
             self.log.warning("Connection failed to broker", result_code=rc)
         else:
             self.log.debug("Connected to broker", result_code=rc)
+            self.connected.set()
             for topic, provider in self.providers_by_topic.items():
                 self.log.debug("(Re)subscribing", topic=topic, provider=provider.source_type)
                 self.client.subscribe(topic)
@@ -122,6 +129,7 @@ class MqttPublisher:
         rc: ReasonCode,
         _props: Properties | None,
     ) -> None:
+        self.connected.clear()
         if rc == 0:
             self.log.debug("Disconnected from broker", result_code=rc)
         else:
@@ -236,7 +244,7 @@ class MqttPublisher:
         comp_name: str | None = None
         command: str | None = None
         try:
-            logger.info("Execution starting")
+            logger.info("Execution starting for %s", msg.topic)
             source_type: str | None = None
 
             payload: str | None = None
@@ -249,30 +257,40 @@ class MqttPublisher:
             logger.debug("Executing %s:%s:%s", source_type, comp_name, command)
 
             provider: ReleaseProvider | None = self.providers_by_topic.get(msg.topic) if msg.topic else None
+            in_progress_key: tuple[str, str] | None = None
             if not provider:
                 logger.warn("Unexpected provider type %s", msg.topic)
-            elif provider.source_type != source_type:
+            elif source_type is None or provider.source_type != source_type:
                 logger.warn("Unexpected source type %s", source_type)
-            elif command != "install" or not comp_name:
-                logger.warn("Invalid payload in command message: %s", msg.payload)
+            elif command != "install":
+                logger.warn("Invalid command: %s", command)
+            elif not comp_name:
+                logger.warn("Missing comp_name in command message: %s", msg.payload)
+            elif (source_type, comp_name) in self.commands_in_progress:
+                logger.warn("Ignoring duplicate %s command for %s, already in progress", command, comp_name)
             else:
+                in_progress_key = (source_type, comp_name)
+                self.commands_in_progress.add(in_progress_key)
                 logger.info(
                     "Passing %s command to %s scanner for %s",
                     command,
                     source_type,
                     comp_name,
                 )
-                updated: bool = provider.command(comp_name, command, on_update_start, on_update_end)
-                discovery = provider.resolve(comp_name)
-                if updated and discovery:
-                    if discovery.publish_policy == PublishPolicy.HOMEASSISTANT and self.hass_cfg.discovery.enabled:
-                        self.publish_hass_config(discovery)
-                    if discovery.publish_policy in (PublishPolicy.HOMEASSISTANT, PublishPolicy.MQTT):
-                        self.publish_discovery(discovery)
-                    if discovery and discovery.publish_policy == PublishPolicy.HOMEASSISTANT:
-                        self.publish_hass_state(discovery)
-                else:
-                    logger.debug("No change to republish after execution")
+                try:
+                    updated: bool = provider.command(comp_name, command, on_update_start, on_update_end)
+                    discovery = provider.resolve(comp_name)
+                    if updated and discovery:
+                        if discovery.publish_policy == PublishPolicy.HOMEASSISTANT and self.hass_cfg.discovery.enabled:
+                            self.publish_hass_config(discovery)
+                        if discovery.publish_policy in (PublishPolicy.HOMEASSISTANT, PublishPolicy.MQTT):
+                            self.publish_discovery(discovery)
+                        if discovery and discovery.publish_policy == PublishPolicy.HOMEASSISTANT:
+                            self.publish_hass_state(discovery)
+                    else:
+                        logger.debug("No change to republish after execution")
+                finally:
+                    self.commands_in_progress.discard(in_progress_key)
             logger.info("Execution ended")
         except Exception:
             logger.exception("Execution failed", component=comp_name, command=command)

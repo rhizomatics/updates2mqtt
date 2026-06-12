@@ -13,6 +13,8 @@ from docker import DockerClient
 from docker.models.containers import Container, ContainerCollection
 from docker.models.images import Image, RegistryData
 from omegaconf import DictConfig, OmegaConf
+from paho.mqtt.packettypes import PacketTypes
+from paho.mqtt.reasoncodes import ReasonCode
 from pytest_httpx import HTTPXMock
 
 import updates2mqtt.app
@@ -119,7 +121,14 @@ def mock_publisher(mock_mqtt_client: paho.mqtt.client.Client) -> MqttPublisher:
 
 @pytest.fixture
 def mock_mqtt_client() -> paho.mqtt.client.Client:
-    return MagicMock(spec=paho.mqtt.client.Client, name="MQTT Client Fixture")
+    client = MagicMock(spec=paho.mqtt.client.Client, name="MQTT Client Fixture")
+
+    def _loop_start() -> None:
+        if client.on_connect:
+            client.on_connect(client, None, Mock(), ReasonCode(PacketTypes.CONNACK, "Success"), None)
+
+    client.loop_start.side_effect = _loop_start
+    return client
 
 
 DIGESTS: dict[str, tuple[str, str]] = {}
