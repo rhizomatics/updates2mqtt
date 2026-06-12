@@ -513,6 +513,7 @@ class DockerProvider(ReleaseProvider):
         logger.info("Executing Command")
         discovery: Discovery | None = None
         updated: bool = False
+        in_progress: Discovery | None = None
         try:
             discovery = self.resolve(discovery_name)
             if not discovery:
@@ -524,6 +525,7 @@ class DockerProvider(ReleaseProvider):
                     rediscovery: Discovery | None = None
                     logger.info("Starting update ...")
                     on_update_start(discovery)
+                    in_progress = discovery
                     if self.update(discovery):
                         logger.debug("Rescanning ...")
                         rediscovery = self.rescan(discovery)
@@ -531,13 +533,16 @@ class DockerProvider(ReleaseProvider):
                         logger.info("Rescanned, updated:%s", updated)
                     else:
                         logger.info("Rescan with no result")
-                    on_update_end(rediscovery or discovery)
+                    in_progress = rediscovery or discovery
+                    on_update_end(in_progress)
+                    in_progress = None
                 else:
                     logger.warning("Update not supported for this container")
         except Exception:
             logger.exception("Failed to handle", discovery_name=discovery_name, command=command)
-            if discovery:
-                on_update_end(discovery)
+        finally:
+            if in_progress:
+                on_update_end(in_progress)
         return updated
 
     def resolve(self, discovery_name: str) -> Discovery | None:
