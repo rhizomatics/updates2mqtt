@@ -119,6 +119,17 @@ common_packages:
     logo_url: https://avatars.githubusercontent.com/u/103400677?s=48&v=4
     source_repo_url: https://github.com/GrepTimeTeam/greptimedb
     
+  openobserve_enterprise:
+    docker:
+      image_name: o2cr.ai/openobserve/openobserve-enterprise
+    logo_url: https://avatars.githubusercontent.com/u/95867656?s=48&v=4
+    source_repo_url: https://github.com/openobserve/openobserve
+
+  openobserve_community:
+    docker:
+      image_name: o2cr.ai/openobserve/openobserve
+    logo_url: https://avatars.githubusercontent.com/u/95867656?s=48&v=4
+    source_repo_url: https://github.com/openobserve/openobserve
 
   vector:
     docker:
