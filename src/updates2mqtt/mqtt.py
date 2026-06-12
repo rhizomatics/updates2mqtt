@@ -183,6 +183,17 @@ class MqttPublisher:
                                 update_section["in_progress"] = False
                             cleaner.publish(msg.topic, json.dumps(payload), retain=True)
                             results["cleaned"] += 1
+                        elif (
+                            initial
+                            and msg.topic.endswith("/state")
+                            and (payload.get("installed_version") is None or payload.get("latest_version") is None)
+                        ):
+                            # Stale/incomplete state message (e.g. from an older schema) leaves HA showing
+                            # "unknown" forever, since it has nothing to compare against. Clear it so the
+                            # upcoming scan can publish a complete replacement.
+                            logger.info("Clearing stale incomplete state at %s", msg.topic)
+                            cleaner.publish(msg.topic, "", retain=True)
+                            results["cleaned"] += 1
                 except Exception as e:
                     logger.warn("Invalid payload at %s: %s", msg.topic, e)
                     cleaner.publish(msg.topic, "", retain=True)
