@@ -5,7 +5,8 @@
 - Additional common packaged added for logos and repos, including MariaDB and Redis
 - Cache age stats easier to understand
 - Common packages can have a list of image names
-- Improve self-bounce behavior, allow more time for command to complete before exit, clean up lingering in progress state from previous update
+- Improve self-bounce behavior, allow more time for command to complete before exit
+- Clean up lingering in progress state from previous update
 ## 1.9.4
 - More defensive access to linuxserver.io docker image info to handle missing fields, prompted by changes to HomeAssistant image in early May 2026
 - Better defensive data access on registry manifests, versions, labels, annotations
