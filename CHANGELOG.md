@@ -2,7 +2,7 @@
 
 ## 1.9.5
 - Dependencies update
-- Additional common packaged added for logos and repos, including MariaDB and Redis
+- Additional common packages added for logos and repos, including MariaDB and Redis
 - Cache age stats easier to understand
 - Common packages can have a list of image names
 - Improve self-bounce behavior, allow more time for command to complete before exit
