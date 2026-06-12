@@ -36,6 +36,7 @@ from updates2mqtt.config import (
     CommonPackages,
     DockerConfig,
     DockerPackageUpdateInfo,
+    MetadataSourceConfig,
     PackageUpdateInfo,
     RegistryConfig,
     VersionPolicy,
@@ -465,7 +466,7 @@ class CommonPackageEnricher(PackageEnricher):
 
 class LinuxServerIOPackageEnricher(PackageEnricher):
     def initialize(self) -> None:
-        cfg = self.cfg.discover_metadata.get("linuxserver.io")
+        cfg: MetadataSourceConfig | None = self.cfg.discover_metadata.get("linuxserver.io")
         if cfg is None or not cfg.enabled:
             return
 
