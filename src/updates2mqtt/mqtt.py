@@ -115,7 +115,7 @@ class MqttPublisher:
         if rc != 0:
             self.log.warning("Connection failed to broker", result_code=rc)
         else:
-            self.log.info("Connected successfully to MQTT broker")
+            self.log.debug("Connected successfully to MQTT broker")
             self.connected.set()
             for topic, provider in self.providers_by_topic.items():
                 self.log.debug("(Re)subscribing", topic=topic, provider=provider.source_type)
