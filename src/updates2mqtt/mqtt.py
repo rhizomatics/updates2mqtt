@@ -71,7 +71,7 @@ class MqttPublisher:
             rc: MQTTErrorCode = self.client.connect(
                 host=self.cfg.host,
                 port=self.cfg.port,
-                keepalive=60,
+                keepalive=self.cfg.keepalive,
                 clean_start=MQTT_CLEAN_START_FIRST_ONLY,
             )
             logger.info("Client connection requested", result_code=rc)
@@ -152,7 +152,7 @@ class MqttPublisher:
             )
             results = {"cleaned": 0, "matched": 0, "discovered": 0, "last_timestamp": time.time()}
             cleaner.username_pw_set(self.cfg.user, password=self.cfg.password)
-            cleaner.connect(host=self.cfg.host, port=self.cfg.port, keepalive=60)
+            cleaner.connect(host=self.cfg.host, port=self.cfg.port, keepalive=self.cfg.keepalive)
 
             def cleanup(_client: mqtt.Client, _userdata: Any, msg: mqtt.MQTTMessage) -> None:
                 discovery: Discovery | None = None

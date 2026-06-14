@@ -75,6 +75,7 @@ class MqttConfig:
     topic_root: str = "updates2mqtt"
     protocol: str = "${oc.env:MQTT_VERSION,3.11}"
     connect_timeout: float = 10
+    keepalive: int = 30
 
 
 @dataclass

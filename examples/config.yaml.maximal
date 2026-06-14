@@ -15,6 +15,8 @@ mqtt:
   password: mysecret
   topic_root: updates2mqtt
   protocol: 5
+  keepalive: 30
+  connect_timeout: 10
 homeassistant:
   discovery:
     prefix: homeassistant
