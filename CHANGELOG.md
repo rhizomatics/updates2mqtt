@@ -4,7 +4,7 @@
 - Reduce MQTT login churn where broker keep alive <= client keep alive
 - Add configurable MQTT keep alive, defaulting to 30 secs (previously hardcoded to 60s)
 - Moved connection log line back to debug
-
+- MQTT QoS changed to 1, so queued messages are resent if there is a disconnect
 ## 1.9.6
 - MQTT now has a `connect_timeout` defaulting to 10 seconds, and will wait for this before attempting to publish scan updates
 - Drop duplicate update commands when update for that component already in hand
