@@ -495,7 +495,7 @@ class MqttPublisher:
         if self.client:
             self.client.loop()
 
-    def publish(self, topic: str, payload: dict, qos: int = 0, retain: bool = True) -> None:
+    def publish(self, topic: str, payload: dict, qos: int = 1, retain: bool = True) -> None:
         if self.client:
             info: MQTTMessageInfo = self.client.publish(topic, payload=json.dumps(payload), qos=qos, retain=retain)
             if info.rc == MQTTErrorCode.MQTT_ERR_SUCCESS:
