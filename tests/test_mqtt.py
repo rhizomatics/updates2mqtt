@@ -30,7 +30,7 @@ def test_publish(mock_mqtt_client: Mock, protocol: str, node_cfg: NodeConfig) ->
 
         uut.publish("test.topic.123", {"foo": "a8", "bar": False})
         mock_mqtt_client.connect.assert_called_once()
-        mock_mqtt_client.publish.assert_called_with("test.topic.123", payload='{"foo": "a8", "bar": false}', qos=0, retain=True)
+        mock_mqtt_client.publish.assert_called_with("test.topic.123", payload='{"foo": "a8", "bar": false}', qos=1, retain=True)
 
 
 @pytest.mark.asyncio
@@ -91,7 +91,7 @@ async def test_execute_command_remote(mock_mqtt_client: Mock, mock_provider: Rel
                     "in_progress": False,
                 }
             ),
-            qos=0,
+            qos=1,
             retain=True,
         )
 
@@ -149,7 +149,7 @@ async def test_execute_command_local(mock_mqtt_client: Mock, mock_provider: Rele
                     "in_progress": False,
                 }
             ),
-            qos=0,
+            qos=1,
             retain=True,
         )
 

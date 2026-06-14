@@ -16,7 +16,7 @@ mqtt:
   topic_root: updates2mqtt
   protocol: 5
   keepalive: 30
-  connect_timeout: 10
+  connect_timeout: 20
 homeassistant:
   discovery:
     prefix: homeassistant

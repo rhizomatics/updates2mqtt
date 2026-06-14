@@ -74,7 +74,7 @@ class MqttConfig:
     port: int = "${oc.decode:${oc.env:MQTT_PORT,1883}}"  # type: ignore[assignment]
     topic_root: str = "updates2mqtt"
     protocol: str = "${oc.env:MQTT_VERSION,3.11}"
-    connect_timeout: float = 10
+    connect_timeout: float = 20
     keepalive: int = 30
 
 
