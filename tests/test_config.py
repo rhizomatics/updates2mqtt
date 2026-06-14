@@ -1,4 +1,5 @@
 import os
+import re
 import tempfile
 import uuid
 from collections import namedtuple
@@ -43,6 +44,47 @@ def test_config(config_name: str, monkeypatch) -> None:  # noqa: ANN001
         assert pkg.source_repo_url is None or not None
         if pkg.docker:
             assert isinstance(pkg.docker.version_policy, VersionPolicy)
+
+
+def test_minimal_example_config(monkeypatch) -> None:  # noqa: ANN001
+    monkeypatch.setenv("MQTT_USER", "tester")
+    monkeypatch.setenv("MQTT_PASS", uuid.uuid4().hex)
+    config_path: Path = Path(EXAMPLES_ROOT) / "config.yaml.minimal"
+    validated_config = load_app_config(config_path)
+    assert validated_config is not None
+    assert validated_config.mqtt.host == "127.0.0.1"
+    assert validated_config.mqtt.port == 1883
+    assert validated_config.mqtt.user == "tester"
+    assert validated_config.mqtt.keepalive == 30
+    assert validated_config.node.name == "dockernuc"
+    assert validated_config.docker.enabled is True
+    assert validated_config.homeassistant.discovery.enabled is True
+
+
+def test_maximal_example_config() -> None:
+    config_path: Path = Path(EXAMPLES_ROOT) / "config.yaml.maximal"
+    validated_config = load_app_config(config_path)
+    assert validated_config is not None
+    assert validated_config.log.level == LogLevel.INFO
+    assert validated_config.node.name == "mydockerpc"
+    assert validated_config.node.healthcheck.interval == 300
+    assert validated_config.mqtt.host == "localhost"
+    assert validated_config.mqtt.user == "mymqttuser"
+    assert validated_config.mqtt.password == "mysecret"  # noqa: S105
+    assert validated_config.mqtt.protocol == "5"
+    assert validated_config.mqtt.keepalive == 30
+    assert validated_config.homeassistant.area == "Server Room"
+    assert validated_config.docker.compose_version == "v2"
+    assert validated_config.docker.version_policy == VersionPolicy.VERSION_DIGEST
+    assert validated_config.docker.image_ref_select.exclude == [".*dev", ".*nightly"]
+    assert validated_config.scan_interval == 10800
+    assert validated_config.github.access_token is not None
+    assert re.match(r"github_pat_\d{28}", validated_config.github.access_token)
+    assert "my_custom_pkg" in validated_config.packages
+    pkg = validated_config.packages["my_custom_pkg"]
+    assert pkg.docker is not None
+    assert pkg.docker.image_name == "ghcr.io/dummy/my_custom"
+    assert pkg.docker.version_policy == VersionPolicy.DIGEST
 
 
 def test_round_trip_config() -> None:
