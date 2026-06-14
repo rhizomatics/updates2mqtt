@@ -499,8 +499,17 @@ class MqttPublisher:
         if self.client:
             info: MQTTMessageInfo = self.client.publish(topic, payload=json.dumps(payload), qos=qos, retain=retain)
             if info.rc == MQTTErrorCode.MQTT_ERR_SUCCESS:
-                self.log.debug("Publish to %s, mid: %s, published: %s, rc: %s", topic, info.mid, info.is_published(), info.rc)
+                self.log.debug(
+                    "Publish to %s, mid: %s, published: %s, qos: %s, rc: %s", topic, info.mid, info.is_published(), qos, info.rc
+                )
+            elif info.rc == MQTTErrorCode.MQTT_ERR_NO_CONN and qos > 0:
+                self.log.debug(
+                    "Not currently connected, queued for delivery on reconnect: %s, mid: %s, qos: %s",
+                    topic,
+                    info.mid,
+                    qos,
+                )
             else:
-                self.log.warning("Problem publishing to %s, mid: %s, rc: %s", topic, info.mid, info.rc)
+                self.log.warning("Problem publishing to %s, mid: %s, qos: %s, rc: %s", topic, info.mid, qos, info.rc)
         else:
             self.log.debug("No client to publish at %s", topic)
