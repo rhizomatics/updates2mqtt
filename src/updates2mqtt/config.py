@@ -77,10 +77,11 @@ class MqttConfig:
     connect_timeout: float = 20
     keepalive: int = 30
     # TLS
-    tls: bool = "${oc.decode:${oc.env:MQTT_TLS,False}}"  
+    tls: bool = "${oc.decode:${oc.env:MQTT_TLS,False}}"
     ca_cert: str | None = "${oc.env:MQTT_CA_CERT,}"
     client_cert: str | None = "${oc.env:MQTT_CLIENT_CERT,}"
     client_key: str | None = "${oc.env:MQTT_CLIENT_KEY,}"
+
 
 @dataclass
 class GitHubConfig:
