@@ -68,6 +68,13 @@ class MqttPublisher:
                 protocol=protocol,
             )
             self.client.username_pw_set(self.cfg.user, password=self.cfg.password)
+            #TLS
+			if self.cfg.tls:
+                self.client.tls_set(
+                    ca_certs=self.cfg.ca_cert or None,
+                    certfile=self.cfg.client_cert or None,
+                    keyfile=self.cfg.client_key or None,
+                )
             rc: MQTTErrorCode = self.client.connect(
                 host=self.cfg.host,
                 port=self.cfg.port,
