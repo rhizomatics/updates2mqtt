@@ -68,12 +68,14 @@ class MqttPublisher:
                 protocol=protocol,
             )
             self.client.username_pw_set(self.cfg.user, password=self.cfg.password)
-            #TLS
-			if self.cfg.tls:
+
+            if self.cfg.ca_certs:
+                logger.debug("Configuring TLS, ca_certs=%s,cert_reqs=%s", self.cfg.ca_certs, self.cfg.cert_reqs)
                 self.client.tls_set(
-                    ca_certs=self.cfg.ca_cert or None,
+                    ca_certs=self.cfg.ca_certs or None,
                     certfile=self.cfg.client_cert or None,
                     keyfile=self.cfg.client_key or None,
+                    cert_reqs=self.cfg.cert_reqs or None,
                 )
             rc: MQTTErrorCode = self.client.connect(
                 host=self.cfg.host,

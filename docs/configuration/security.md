@@ -11,9 +11,7 @@ mqtt:
 
 ## Running as non-root
 
-It is good practice not to run Docker containers as root, and `updates2mqtt` will
-work with any user so long as it has Docker permissions, usually as a result
-of being a member of the `docker` group.
+It is good practice not to run Docker containers as root, and `updates2mqtt` will work with any user so long as it has Docker permissions, usually as a result of being a member of the `docker` group.
 
 To create a suitable use, use the shell command below - it will create a user
 that can only be used for this purpose, and can't otherwise login. It assumes there is already a group called `docker` with access to the Docker Daemon, if you dont
@@ -47,6 +45,21 @@ secure installations, only use secure ports with validated certificates, althoug
 require more complicated setup and ongoing support, including using host names rather than
 IP addresses, and with [LetsEncrypt](https://letsencrypt.org) to update certificates.
 
-The two brokers most commonly used with Home Assistant, **Mosquitto** and **EMQX**, both have
-access control mechanisms, so you can restrict the user account for Updates2MQTT to only be able
-to read and write its own topics.
+The two brokers most commonly used with Home Assistant, **Mosquitto** and **EMQX**, both have access control mechanisms, so you can restrict the user account for Updates2MQTT to only be able to read and write its own topics.
+
+## MQTT TLS
+
+Encrypt MQTT broker communication with TLS ( using Python's standard [`ssl`](https://docs.python.org/3/library/ssl.html#ssl.SSLContext) module to wrap socket communication).
+
+This can be used in basic non-auth mode, where only `ca_certs` are
+provided in the `mqtt` config section, or using client certificates too with `client_cert` and `client_key`. `cert_reqs` can be used with any of the python SSL values, e.g. `CERT_REQUIRED`.
+
+```yaml
+mqtt:
+  host: localhost
+  port: 1883
+  ca_certs: ssl/ca_cert.crt
+  client_cert: ssl/client_cert.pem
+  client_key: ssl/client_key.pem
+  cert_reqs: CERT_OPTIONAL
+```

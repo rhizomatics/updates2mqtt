@@ -1,9 +1,11 @@
 # CHANGELOG
 
 ## 1.9.8
-- Dependency refresh
+- TLS support for MQTT brokers
+  - Password is no longer mandatory, to support client-cert auth, or no-auth
 - Node name now defaults to $NODE_NAME if set, where no node name in config, failing which back to `os.uname()` as before
-- Updated common Docker images
+- Updated common Docker images, including Valkey, OpenClaw and Vaultwarden
+- Dependency refresh
 
 ## 1.9.7
 - Reduce MQTT login churn where broker keep alive <= client keep alive

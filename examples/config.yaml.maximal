@@ -17,6 +17,10 @@ mqtt:
   protocol: 5
   keepalive: 30
   connect_timeout: 20
+  ca_certs: ssl/ca_cert.crt
+  client_cert: ssl/client_cert.pem
+  client_key: ssl/client_key.pem
+  cert_reqs: CERT_OPTIONAL
 homeassistant:
   discovery:
     prefix: homeassistant

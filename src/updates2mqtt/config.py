@@ -1,4 +1,5 @@
 import os
+import ssl
 import typing
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -70,17 +71,16 @@ class RegistryConfig:
 class MqttConfig:
     host: str = "${oc.env:MQTT_HOST,localhost}"
     user: str = f"${{oc.env:MQTT_USER,{MISSING}}}"
-    password: str = f"${{oc.env:MQTT_PASS,{MISSING}}}"
+    password: str | None = "${oc.env:MQTT_PASS,}"  # noqa: S105
     port: int = "${oc.decode:${oc.env:MQTT_PORT,1883}}"  # type: ignore[assignment]
     topic_root: str = "updates2mqtt"
     protocol: str = "${oc.env:MQTT_VERSION,3.11}"
     connect_timeout: float = 20
     keepalive: int = 30
-    # TLS
-    tls: bool = "${oc.decode:${oc.env:MQTT_TLS,False}}"
-    ca_cert: str | None = "${oc.env:MQTT_CA_CERT,}"
+    ca_certs: str | None = "${oc.env:MQTT_CA_CERTS,}"
     client_cert: str | None = "${oc.env:MQTT_CLIENT_CERT,}"
     client_key: str | None = "${oc.env:MQTT_CLIENT_KEY,}"
+    cert_reqs: ssl.VerifyMode = ssl.CERT_REQUIRED
 
 
 @dataclass
@@ -239,8 +239,8 @@ def load_app_config(conf_file_path: Path, return_invalid: bool = False) -> Confi
         OmegaConf.set_readonly(cfg, True)
         config: Config = typing.cast("Config", cfg)
 
-        if config.mqtt.user in ("", MISSING) or config.mqtt.password in ("", MISSING):
-            log.info("The config has place holders for MQTT user and/or password")
+        if config.mqtt.user in ("", MISSING):
+            log.info("The config has place holders for MQTT user")
             if not return_invalid:
                 return None
         return config

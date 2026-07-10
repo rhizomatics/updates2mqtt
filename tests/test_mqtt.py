@@ -1,5 +1,6 @@
 import asyncio
 import json
+import ssl
 import time
 from unittest import mock
 from unittest.mock import Mock, patch
@@ -31,6 +32,51 @@ def test_publish(mock_mqtt_client: Mock, protocol: str, node_cfg: NodeConfig) ->
         uut.publish("test.topic.123", {"foo": "a8", "bar": False})
         mock_mqtt_client.connect.assert_called_once()
         mock_mqtt_client.publish.assert_called_with("test.topic.123", payload='{"foo": "a8", "bar": false}', qos=1, retain=True)
+
+
+def test_start_configures_tls_ca_certs_only(mock_mqtt_client: Mock, node_cfg: NodeConfig) -> None:
+    config = OmegaConf.structured(MqttConfig)
+    config.ca_certs = "ssl/ca_cert.crt"
+    config.client_cert = None
+    config.client_key = None
+    hass_config = HomeAssistantConfig()
+
+    with (
+        patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client),
+        patch("asyncio.get_event_loop"),
+    ):
+        uut = MqttPublisher(config, node_cfg, hass_config)
+        uut.start()
+
+    mock_mqtt_client.tls_set.assert_called_once_with(
+        ca_certs="ssl/ca_cert.crt",
+        certfile=None,
+        keyfile=None,
+        cert_reqs=ssl.CERT_REQUIRED,
+    )
+
+
+def test_start_configures_tls_with_client_certs(mock_mqtt_client: Mock, node_cfg: NodeConfig) -> None:
+    config = OmegaConf.structured(MqttConfig)
+    config.ca_certs = "ssl/ca_cert.crt"
+    config.client_cert = "ssl/client_cert.pem"
+    config.client_key = "ssl/client_key.pem"
+    config.cert_reqs = ssl.CERT_OPTIONAL
+    hass_config = HomeAssistantConfig()
+
+    with (
+        patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client),
+        patch("asyncio.get_event_loop"),
+    ):
+        uut = MqttPublisher(config, node_cfg, hass_config)
+        uut.start()
+
+    mock_mqtt_client.tls_set.assert_called_once_with(
+        ca_certs="ssl/ca_cert.crt",
+        certfile="ssl/client_cert.pem",
+        keyfile="ssl/client_key.pem",
+        cert_reqs=ssl.CERT_OPTIONAL,
+    )
 
 
 @pytest.mark.asyncio
