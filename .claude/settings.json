@@ -4,7 +4,8 @@
       "Bash(grep -n *)",
       "Read(//dev/**)",
       "Bash(xargs ls -la)",
-      "Bash(pkill -f \"pytest\")"
+      "Bash(pkill -f \"pytest\")",
+      "Bash(python3 -c ' *)"
     ]
   }
 }

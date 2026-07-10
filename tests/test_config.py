@@ -121,8 +121,9 @@ uname: type = namedtuple("uname", ["nodename"])
         "U2M_LOG_LEVEL": "WARNING",
         "U2M_AUTOGEN_CONFIG": "0",
     },
+    clear=True,
 )
-@patch("os.uname", Mock(return_value=uname("xunit003a")))
+@patch("os.uname", Mock(return_value=uname("xunit003a.local")))
 def test_env_only_config() -> None:
     generated_config = load_app_config(Path("no_such_dir/no_such_file.yaml"))
     assert generated_config is not None
@@ -132,4 +133,16 @@ def test_env_only_config() -> None:
     assert generated_config.mqtt.password == "toosecret123!"  # noqa: S105
     assert generated_config.node.name == "xunit003a"
     assert generated_config.log.level == LogLevel.WARNING
+    assert not Path("no_such_dir").exists()
+
+
+@patch.dict(
+    os.environ,
+    {"MQTT_USER": "u2macct", "MQTT_PASS": "toosecret123!", "NODE_NAME": "xunit003b", "U2M_AUTOGEN_CONFIG": "0"},
+    clear=True,
+)
+def test_nodename_from_env() -> None:
+    generated_config = load_app_config(Path("no_such_dir/no_such_file.yaml"))
+    assert generated_config is not None
+    assert generated_config.node.name == "xunit003b"
     assert not Path("no_such_dir").exists()

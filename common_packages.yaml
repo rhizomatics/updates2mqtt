@@ -11,229 +11,11 @@ common_packages:
     logo_url: https://avatars.githubusercontent.com/u/162821163?s=48&v=4
     source_repo_url: https://github.com/rhizomatics/anpr2mqtt
 
-  frigate:
-    docker:
-      image_name: ghcr.io/blakeblackshear/frigate
-    logo_url: https://frigate.video/images/logo.svg
-    source_repo_url: https://github.com/blakeblackshear/frigate
-
-  librenms:
-    docker:
-      image_name: librenms/librenms
-    logo_url: https://www.librenms.org/images/LibreNMS-Logo.svg
-    source_repo_url: https://github.com/librenms/librenms
-
-  unifi-jacobalberty:
-    docker:
-      image_name: jacobalberty/unifi
-    logo_url: https://pbs.twimg.com/profile_images/1610157462321254402/tMCv8T-y_400x400.png
-    source_repo_url: https://github.com/jacobalberty/unifi-docker
-
-  caddy:
-    docker:
-      image_name: caddy
-    logo_url: https://avatars.githubusercontent.com/u/12955528?s=48&v=4
-    source_repo_url: https://github.com/caddyserver/caddy
-
-  uptime-kuma:
-    docker:
-      image_name: louislam/uptime-kuma
-    logo_url: https://raw.githubusercontent.com/louislam/uptime-kuma/0d846be10e4334bc5ac565c9dd9a95eec545fa3c/public/icon.svg
-    source_repo_url: https://github.com/louislam/uptime-kuma
-
-  gitea:
-    docker:
-      image_name: gitea/gitea
-    logo_url: https://raw.githubusercontent.com/go-gitea/gitea/47b878858ada27fc4c74eeadcc1e467d2da90e04/assets/logo.svg
-    source_repo_url: https://github.com/go-gitea/gitea
-
-  forgejo:
-    docker:
-      image_name: codeberg.org/forgejo/forgejo
-    logo_url: https://codeberg.org/forgejo/forgejo/raw/branch/forgejo/assets/logo.svg
-    release_notes_url: https://forgejo.org/releases/
-
-  pocketid:
-    docker:
-      image_name: ghcr.io/pocket-id/pocket-id
-    logo_url: https://avatars.githubusercontent.com/u/197418917?s=48&v=4
-    source_repo_url: https://github.com/pocket-id/pocket-id
-
-  portainer:
-    docker:
-      image_name: portainer/portainer-ce
-    logo_url: https://raw.githubusercontent.com/portainer/portainer/develop/build/docker-extension/portainer.svg
-    source_repo_url: https://github.com/portainer/portainer
-
-  graylog:
-    docker:
-      image_name: graylog/graylog
-    logo_url: https://raw.githubusercontent.com/Graylog2/documentation/6de01bbddba6bb688c8b3de4f353629f24702fce/images/logo.svg
-    release_notes_url: https://graylog.org/releases/
-
-  influxdb:
-    docker:
-      image_name: influxdb
-    logo_url: https://raw.githubusercontent.com/gilbarbara/logos/refs/heads/main/logos/influxdb.svg
-    source_repo_url: https://github.com/influxdata/influxdb
-
-  immich-server:
-    docker:
-      image_name: ghcr.io/immich-app/immich-server
-    logo_url: https://raw.githubusercontent.com/immich-app/immich/6474a78b8be31cf6a3c2fabf2f3177ffd40624e1/design/immich-logo.svg
-    source_repo_url: https://github.com/immich-app/immich
-  
-  immich-machine-learning:
-    docker:
-      image_name: ghcr.io/immich-app/immich-machine-learning
-    logo_url: https://raw.githubusercontent.com/immich-app/immich/6474a78b8be31cf6a3c2fabf2f3177ffd40624e1/design/immich-logo.svg
-    source_repo_url: https://github.com/immich-app/immich
-
-  jellyfin:
-    docker:
-      image_name: jellyfin/jellyfin
-    logo_url: https://avatars.githubusercontent.com/u/45698031?s=48&v=4
-    source_repo_url: https://github.com/jellyfin/jellyfin
-
-  emqx:
-    docker: 
-      image_name: emqx/emqx
-    logo_url: https://avatars.githubusercontent.com/u/25221711?s=48&v=4
-    source_repo_url: https://github.com/emqx/emqx
-
-  mosquitto:
-    docker:
-      image_name: eclipse-mosquitto
-    logo_url: https://avatars.githubusercontent.com/u/185921483?s=48&v=4
-    source_repo_url: https://github.com/eclipse-mosquitto/mosquitto
-
-  owntone:
-    docker:
-      image_name: owntone/owntone
-    logo_url: https://raw.githubusercontent.com/owntone/owntone-server/443fb684871e005a7e442a08cc4d610208abbe6c/docs/assets/logo.svg
-    source_repo_url: https://github.com/owntone/owntone-server
-
-  greptime:
-    docker:
-      image_name: greptime/greptimedb
-    logo_url: https://avatars.githubusercontent.com/u/103400677?s=48&v=4
-    source_repo_url: https://github.com/GrepTimeTeam/greptimedb
-    
-  openobserve:
-    docker:
-      image_name: 
-       - o2cr.ai/openobserve/openobserve-enterprise
-       - public.ecr.aws/zinclabs/openobserve-enterprise
-       - o2cr.ai/openobserve/openobserve
-       - public.ecr.aws/zinclabs/openobserve
-    logo_url: https://avatars.githubusercontent.com/u/95867656?s=48&v=4
-    source_repo_url: https://github.com/openobserve/openobserve
-
-  vector:
-    docker:
-      image_name: timberio/vector
-    logo_url: https://avatars.githubusercontent.com/u/16866914?s=48&v=4
-    source_repo_url: https://github.com/vectordotdev/vector
-
-  home-assistant:
-    docker:
-      image_name: ghcr.io/home-assistant/home-assistant
-    logo_url: https://avatars.githubusercontent.com/u/13844975?s=48&v=4
-    source_repo_url: https://github.com/home-assistant/docker
-
-  homarr:
-    docker:
-      image_name: ghcr.io/homarr-labs/homarr
-    logo_url: https://github.com/homarr-labs/homarr/blob/dev/docs/img/logo/2340450-2-title.png?raw=true
-    source_repo_url: https://github.com/homarr-labs/homarr
-
-  nextcloud:
-    docker:
-      image_name: nextcloud
-    logo_url: https://avatars.githubusercontent.com/u/19211038?s=48&v=4
-    source_repo_url: https://github.com/nextcloud/docker
-
-  n8n:
-    docker:
-      image_name: docker.n8n.io/n8nio/n8n
-    logo_url: https://avatars.githubusercontent.com/u/45487711?s=48&v=4
-    source_repo_url: https://github.com/n8n-io/n8n
-
-  docker_cli:
-    docker:
-      image_name: docker:cli
-    logo_url: https://www.docker.com/app/uploads/2023/05/cli_1@2x.png
-    release_notes_url: https://github.com/docker-library/docker/commits/master/29/cli
-
-  docker_dind:
-    docker:
-      image_name: docker
-    release_notes_url: https://github.com/docker-library/docker/commits/master/29/dind
-
-  rtl_433:
-    docker: 
-      image_name: hertzg/rtl_433
-    source_repo_url: https://github.com/merbanan/rtl_433
-
-  plex:
-    docker:
-      image_name: plexinc/pms-docker
-    source_repo_url: https://github.com/plexinc/pms-docker
-    logo_url: https://avatars.githubusercontent.com/u/324832?s=48&v=4
-
-  emby:
-    docker:
-      image_name: emby/embyserver
-    source_repo_url: https://github.com/MediaBrowser/Emby
-    logo_url: https://avatars.githubusercontent.com/u/3607473?s=48&v=4
-
-  tailscale:
-    docker:
-      image_name: tailscale/tailscale
-    source_repo_url: https://github.com/tailscale/tailscale
-    logo_url: https://avatars.githubusercontent.com/u/48932923?s=48&v=4
-
   appwrite:
     docker:
       image_name: appwrite/appwrite
     source_repo_url: https://github.com/appwrite/appwrite
     logo_url: https://avatars.githubusercontent.com/u/25003669?s=48&v=4
-  
-  traefik:
-    docker:
-      image_name: traefik
-    source_repo_url: https://github.com/traefik/traefik
-    logo_url: https://avatars.githubusercontent.com/u/14280338?s=48&v=4
-
-  grafana:
-    docker:
-      image_name: grafana/grafana
-    source_repo_url: https://github.com/grafana/grafana
-    logo_url: https://avatars.githubusercontent.com/u/7195757?s=48&v=4
-  
-  prometheus:
-    docker:
-      image_name: prom/prometheus
-    source_repo_url: https://github.com/prometheus/prometheus
-    logo_url: https://avatars.githubusercontent.com/u/3380462?s=48&v=4
-
-  lychee:
-    docker:
-      image_name: lycheeorg/lychee
-    source_repo_url: https://github.com/LycheeOrg/Lychee
-    logo_url: https://avatars.githubusercontent.com/u/37916028?s=48&v=4
-
-  wud:
-    docker:
-      image_name: getwud/wud
-    source_repo_url: https://github.com/getwud/wud
-    logo_url: https://avatars.githubusercontent.com/u/185776544?s=48&v=4
-
-  keycloak:
-    docker:
-      image_name: quay.io/keycloak/keycloak
-    source_repo_url: https://github.com/keycloak/keycloak
-    logo_url: https://avatars.githubusercontent.com/u/4921466?s=48&v=4
 
   authentik:
     docker:
@@ -241,23 +23,11 @@ common_packages:
     source_repo_url: https://github.com/goauthentik/authentik
     logo_url: https://avatars.githubusercontent.com/u/82976448?s=48&v=4
 
-  mariadb:
+  caddy:
     docker:
-      image_name: mariadb
-    logo_url: https://avatars.githubusercontent.com/u/4739304?s=48&v=4
-    source_repo_url: https://github.com/MariaDB/server
-
-  redis:
-    docker:
-      image_name: redis
-    logo_url: https://avatars.githubusercontent.com/u/1529926?s=48&v=4
-    source_repo_url: https://github.com/redis/redis
-
-  msmtpd:
-    docker:
-      image_name: crazymax/msmtpd
-    logo_url: https://avatars.githubusercontent.com/u/1951866?s=48&v=4
-    source_repo_url: https://github.com/crazy-max/docker-msmtpd
+      image_name: caddy
+    logo_url: https://avatars.githubusercontent.com/u/12955528?s=48&v=4
+    source_repo_url: https://github.com/caddyserver/caddy
 
   certbot:
     docker:
@@ -278,3 +48,257 @@ common_packages:
         - certbot/dns-sakuracloud
     logo_url: https://avatars.githubusercontent.com/u/17889013?s=48&v=4
     source_repo_url: https://github.com/certbot/certbot
+
+  docker_cli:
+    docker:
+      image_name: docker:cli
+    logo_url: https://www.docker.com/app/uploads/2023/05/cli_1@2x.png
+    release_notes_url: https://github.com/docker-library/docker/commits/master/29/cli
+
+  docker_dind:
+    docker:
+      image_name: docker
+    release_notes_url: https://github.com/docker-library/docker/commits/master/29/dind
+
+  emby:
+    docker:
+      image_name: emby/embyserver
+    source_repo_url: https://github.com/MediaBrowser/Emby
+    logo_url: https://avatars.githubusercontent.com/u/3607473?s=48&v=4
+
+  emqx:
+    docker: 
+      image_name: emqx/emqx
+    logo_url: https://avatars.githubusercontent.com/u/25221711?s=48&v=4
+    source_repo_url: https://github.com/emqx/emqx
+
+  forgejo:
+    docker:
+      image_name: codeberg.org/forgejo/forgejo
+    logo_url: https://codeberg.org/forgejo/forgejo/raw/branch/forgejo/assets/logo.svg
+    release_notes_url: https://forgejo.org/releases/
+
+  frigate:
+    docker:
+      image_name: ghcr.io/blakeblackshear/frigate
+    logo_url: https://frigate.video/images/logo.svg
+    source_repo_url: https://github.com/blakeblackshear/frigate
+
+  gitea:
+    docker:
+      image_name: gitea/gitea
+    logo_url: https://raw.githubusercontent.com/go-gitea/gitea/47b878858ada27fc4c74eeadcc1e467d2da90e04/assets/logo.svg
+    source_repo_url: https://github.com/go-gitea/gitea
+
+  grafana:
+    docker:
+      image_name: grafana/grafana
+    source_repo_url: https://github.com/grafana/grafana
+    logo_url: https://avatars.githubusercontent.com/u/7195757?s=48&v=4
+
+  graylog:
+    docker:
+      image_name: graylog/graylog
+    logo_url: https://raw.githubusercontent.com/Graylog2/documentation/6de01bbddba6bb688c8b3de4f353629f24702fce/images/logo.svg
+    release_notes_url: https://graylog.org/releases/
+
+  greptime:
+    docker:
+      image_name: greptime/greptimedb
+    logo_url: https://avatars.githubusercontent.com/u/103400677?s=48&v=4
+    source_repo_url: https://github.com/GrepTimeTeam/greptimedb
+
+  home-assistant:
+    docker:
+      image_name: ghcr.io/home-assistant/home-assistant
+    logo_url: https://avatars.githubusercontent.com/u/13844975?s=48&v=4
+    source_repo_url: https://github.com/home-assistant/docker
+
+  homarr:
+    docker:
+      image_name: ghcr.io/homarr-labs/homarr
+    logo_url: https://github.com/homarr-labs/homarr/blob/dev/docs/img/logo/2340450-2-title.png?raw=true
+    source_repo_url: https://github.com/homarr-labs/homarr
+
+  immich-server:
+    docker:
+      image_name: ghcr.io/immich-app/immich-server
+    logo_url: https://raw.githubusercontent.com/immich-app/immich/6474a78b8be31cf6a3c2fabf2f3177ffd40624e1/design/immich-logo.svg
+    source_repo_url: https://github.com/immich-app/immich
+  
+  immich-machine-learning:
+    docker:
+      image_name: ghcr.io/immich-app/immich-machine-learning
+    logo_url: https://raw.githubusercontent.com/immich-app/immich/6474a78b8be31cf6a3c2fabf2f3177ffd40624e1/design/immich-logo.svg
+    source_repo_url: https://github.com/immich-app/immich
+
+  influxdb:
+    docker:
+      image_name: influxdb
+    logo_url: https://raw.githubusercontent.com/gilbarbara/logos/refs/heads/main/logos/influxdb.svg
+    source_repo_url: https://github.com/influxdata/influxdb
+
+  jellyfin:
+    docker:
+      image_name: jellyfin/jellyfin
+    logo_url: https://avatars.githubusercontent.com/u/45698031?s=48&v=4
+    source_repo_url: https://github.com/jellyfin/jellyfin
+
+  keycloak:
+    docker:
+      image_name: quay.io/keycloak/keycloak
+    source_repo_url: https://github.com/keycloak/keycloak
+    logo_url: https://avatars.githubusercontent.com/u/4921466?s=48&v=4
+
+  librenms:
+    docker:
+      image_name: librenms/librenms
+    logo_url: https://www.librenms.org/images/LibreNMS-Logo.svg
+    source_repo_url: https://github.com/librenms/librenms
+
+  lychee:
+    docker:
+      image_name: lycheeorg/lychee
+    source_repo_url: https://github.com/LycheeOrg/Lychee
+    logo_url: https://avatars.githubusercontent.com/u/37916028?s=48&v=4
+
+  mariadb:
+    docker:
+      image_name: mariadb
+    logo_url: https://avatars.githubusercontent.com/u/4739304?s=48&v=4
+    source_repo_url: https://github.com/MariaDB/server
+
+  mosquitto:
+    docker:
+      image_name: eclipse-mosquitto
+    logo_url: https://avatars.githubusercontent.com/u/185921483?s=48&v=4
+    source_repo_url: https://github.com/eclipse-mosquitto/mosquitto
+
+  msmtpd:
+    docker:
+      image_name: crazymax/msmtpd
+    logo_url: https://avatars.githubusercontent.com/u/1951866?s=48&v=4
+    source_repo_url: https://github.com/crazy-max/docker-msmtpd
+
+  n8n:
+    docker:
+      image_name: docker.n8n.io/n8nio/n8n
+    logo_url: https://avatars.githubusercontent.com/u/45487711?s=48&v=4
+    source_repo_url: https://github.com/n8n-io/n8n
+
+  nextcloud:
+    docker:
+      image_name: nextcloud
+    logo_url: https://avatars.githubusercontent.com/u/19211038?s=48&v=4
+    source_repo_url: https://github.com/nextcloud/docker
+
+  openclaw:
+    docker:
+      image_name: 
+      - ghcr.io/openclaw/openclaw
+      - openclaw/openclaw
+    logo_url: https://avatars.githubusercontent.com/u/252820863?s=48&v=4
+    source_repo_url: https://github.com/openclaw/openclaw
+
+  openobserve:
+    docker:
+      image_name: 
+       - o2cr.ai/openobserve/openobserve-enterprise
+       - public.ecr.aws/zinclabs/openobserve-enterprise
+       - o2cr.ai/openobserve/openobserve
+       - public.ecr.aws/zinclabs/openobserve
+    logo_url: https://avatars.githubusercontent.com/u/95867656?s=48&v=4
+    source_repo_url: https://github.com/openobserve/openobserve
+
+  owntone:
+    docker:
+      image_name: owntone/owntone
+    logo_url: https://raw.githubusercontent.com/owntone/owntone-server/443fb684871e005a7e442a08cc4d610208abbe6c/docs/assets/logo.svg
+    source_repo_url: https://github.com/owntone/owntone-server
+
+  plex:
+    docker:
+      image_name: plexinc/pms-docker
+    source_repo_url: https://github.com/plexinc/pms-docker
+    logo_url: https://avatars.githubusercontent.com/u/324832?s=48&v=4
+
+  pocketid:
+    docker:
+      image_name: ghcr.io/pocket-id/pocket-id
+    logo_url: https://avatars.githubusercontent.com/u/197418917?s=48&v=4
+    source_repo_url: https://github.com/pocket-id/pocket-id
+
+  portainer:
+    docker:
+      image_name: portainer/portainer-ce
+    logo_url: https://raw.githubusercontent.com/portainer/portainer/develop/build/docker-extension/portainer.svg
+    source_repo_url: https://github.com/portainer/portainer
+
+  prometheus:
+    docker:
+      image_name: prom/prometheus
+    source_repo_url: https://github.com/prometheus/prometheus
+    logo_url: https://avatars.githubusercontent.com/u/3380462?s=48&v=4
+
+  redis:
+    docker:
+      image_name: redis
+    logo_url: https://avatars.githubusercontent.com/u/1529926?s=48&v=4
+    source_repo_url: https://github.com/redis/redis
+   
+  rtl_433:
+    docker: 
+      image_name: hertzg/rtl_433
+    source_repo_url: https://github.com/merbanan/rtl_433
+
+  tailscale:
+    docker:
+      image_name: tailscale/tailscale
+    source_repo_url: https://github.com/tailscale/tailscale
+    logo_url: https://avatars.githubusercontent.com/u/48932923?s=48&v=4
+
+  traefik:
+    docker:
+      image_name: traefik
+    source_repo_url: https://github.com/traefik/traefik
+    logo_url: https://avatars.githubusercontent.com/u/14280338?s=48&v=4
+
+  unifi-jacobalberty:
+    docker:
+      image_name: jacobalberty/unifi
+    logo_url: https://pbs.twimg.com/profile_images/1610157462321254402/tMCv8T-y_400x400.png
+    source_repo_url: https://github.com/jacobalberty/unifi-docker
+
+  uptime-kuma:
+    docker:
+      image_name: louislam/uptime-kuma
+    logo_url: https://raw.githubusercontent.com/louislam/uptime-kuma/0d846be10e4334bc5ac565c9dd9a95eec545fa3c/public/icon.svg
+    source_repo_url: https://github.com/louislam/uptime-kuma
+
+  valkey:
+    docker:
+      image_name: valkey/valkey
+    logo_url: https://avatars.githubusercontent.com/u/164458127?s=48&v=4
+    source_repo_url: https://github.com/valkey-io/valkey
+
+  vaultwarden:
+    docker:
+      image_name:
+        - ghcr.io/dani-garcia/vaultwarden
+        - docker.io/vaultwarden/server
+        - quay.io/vaultwarden/server
+        - vaultwarden/server
+    logo_url: https://avatars.githubusercontent.com/u/725423?s=48&v=4
+    source_repo_url: https://github.com/dani-garcia/vaultwarden
+
+  vector:
+    docker:
+      image_name: timberio/vector
+    logo_url: https://avatars.githubusercontent.com/u/16866914?s=48&v=4
+    source_repo_url: https://github.com/vectordotdev/vector
+
+  wud:
+    docker:
+      image_name: getwud/wud
+    source_repo_url: https://github.com/getwud/wud
+    logo_url: https://avatars.githubusercontent.com/u/185776544?s=48&v=4

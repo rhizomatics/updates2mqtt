@@ -1,11 +1,14 @@
+from collections import defaultdict
 from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
 
 import docker
 import pytest
+import yaml
 from pytest_httpx import HTTPXMock
 
 from updates2mqtt.config import (
+    PKG_INFO_FILE,
     DockerConfig,
     DockerPackageUpdateInfo,
     MetadataSourceConfig,
@@ -178,6 +181,44 @@ def test_common_enricher() -> None:
         if pkg.source_repo_url:
             source_repos += 1
     assert source_repos > 0
+
+
+class _DuplicateKeyLoader(yaml.SafeLoader):
+    """SafeLoader variant that rejects duplicate mapping keys, which PyYAML otherwise silently overwrites."""
+
+
+def _construct_mapping_no_duplicates(loader: yaml.SafeLoader, node: yaml.Node) -> dict:
+    mapping: dict = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node)
+        if key in mapping:
+            raise ValueError(f"Duplicate key {key!r} in {PKG_INFO_FILE}")
+        mapping[key] = loader.construct_object(value_node)
+    return mapping
+
+
+_DuplicateKeyLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _construct_mapping_no_duplicates)
+
+
+def test_common_packages_yaml_no_duplicate_keys() -> None:
+    with PKG_INFO_FILE.open() as f:
+        raw = yaml.load(f, Loader=_DuplicateKeyLoader)  # noqa: S506
+
+    assert raw["common_packages"]
+
+
+def test_common_packages_yaml_unique_image_names() -> None:
+    uut = CommonPackageEnricher(DockerConfig())
+    uut.initialize()
+
+    owners: dict[str, list[str]] = defaultdict(list)
+    for pkg_name, pkg in uut.pkgs.items():
+        assert pkg.docker is not None
+        for image_name in docker_image_names(pkg.docker):
+            owners[image_name].append(pkg_name)
+
+    duplicates = {image_name: pkg_names for image_name, pkg_names in owners.items() if len(pkg_names) > 1}
+    assert not duplicates, f"docker image names must map to exactly one common package: {duplicates}"
 
 
 def test_docker_image_names_single_string() -> None:

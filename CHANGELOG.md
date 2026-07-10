@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 1.9.8
+- Dependency refresh
+- Node name now defaults to $NODE_NAME if set, where no node name in config, failing which back to `os.uname()` as before
+- Updated common Docker images
+
 ## 1.9.7
 - Reduce MQTT login churn where broker keep alive <= client keep alive
 - Add configurable MQTT keep alive, defaulting to 30 secs (previously hardcoded to 60s)

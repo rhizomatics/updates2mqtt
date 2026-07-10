@@ -171,7 +171,7 @@ class HealthCheckConfig:
 
 @dataclass
 class NodeConfig:
-    name: str = field(default_factory=lambda: os.uname().nodename.replace(".local", ""))
+    name: str = field(default_factory=lambda: os.getenv("NODE_NAME", os.uname().nodename.replace(".local", "")))
     git_path: str = "/usr/bin/git"
     healthcheck: HealthCheckConfig = field(default_factory=HealthCheckConfig)
 
