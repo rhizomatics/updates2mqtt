@@ -1610,7 +1610,7 @@ wheels = [
 
 [[package]]
 name = "updates2mqtt"
-version = "1.9.8"
+version = "1.10.0"
 source = { editable = "." }
 dependencies = [
     { name = "docker" },
