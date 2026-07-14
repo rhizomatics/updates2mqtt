@@ -19,10 +19,12 @@ SEMVER_RE = r"^(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d
 SOURCE_PLATFORM_GITHUB = "GitHub"
 SOURCE_PLATFORM_CODEBERG = "CodeBerg"
 SOURCE_PLATFORM_GITLAB = "GitLab"
-SOURCE_PLATFORMS = {
+SOURCE_PLATFORM_SOURCEHUT = "SourceHut"
+SOURCE_PLATFORMS: dict[str, str] = {
     SOURCE_PLATFORM_GITHUB: r"https://github.com/.*",
     SOURCE_PLATFORM_GITLAB: r"https://gitlab.com/.*",
     SOURCE_PLATFORM_CODEBERG: r"https://codeberg.org/.*",
+    SOURCE_PLATFORM_SOURCEHUT: r"https://sr.ht/.*",
 }
 
 

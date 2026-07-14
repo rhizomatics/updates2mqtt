@@ -71,6 +71,7 @@ REGISTRY_QUAY = "quay.io"
 REGISTRY_LSCR = "lscr.io"
 REGISTRY_CODEBERG = "codeberg.org"
 REGISTRY_GITLAB = "registry.gitlab.com"
+REGISTRY_BITBUCKET = "crg.apkg.io"
 
 
 class RegistryInfo(typing.NamedTuple):
@@ -86,7 +87,7 @@ REGISTRIES: dict[str, RegistryInfo] = {
     REGISTRY_MCR: RegistryInfo(None, "mcr.microsoft.com", "mcr.microsoft.com", None, None),
     REGISTRY_QUAY: RegistryInfo(None, "quay.io", "quay.io", TOKEN_URL_TEMPLATE, None),
     REGISTRY_GHCR: RegistryInfo("ghcr.io", "ghcr.io", "ghcr.io", TOKEN_URL_TEMPLATE, "https://github.com/{image_name}"),
-    "lscr.io": RegistryInfo("ghcr.io", "lscr.io", "ghcr.io", TOKEN_URL_TEMPLATE, None),
+    REGISTRY_LSCR: RegistryInfo("ghcr.io", "lscr.io", "ghcr.io", TOKEN_URL_TEMPLATE, None),
     REGISTRY_CODEBERG: RegistryInfo(
         "codeberg.org",
         "codeberg.org",
@@ -94,6 +95,7 @@ REGISTRIES: dict[str, RegistryInfo] = {
         TOKEN_URL_TEMPLATE,
         "https://codeberg.org/{image_name}",
     ),
+    REGISTRY_BITBUCKET: RegistryInfo("crg.apkg.io", "crg.apkg.io", "crg.apkg.io", TOKEN_URL_TEMPLATE, repo_template=None),
     REGISTRY_GITLAB: RegistryInfo(
         "www.gitlab.com",
         "registry.gitlab.com",
