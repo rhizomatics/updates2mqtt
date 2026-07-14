@@ -71,15 +71,15 @@ class RegistryConfig:
 class MqttConfig:
     host: str = "${oc.env:MQTT_HOST,localhost}"
     user: str = f"${{oc.env:MQTT_USER,{MISSING}}}"
-    password: str | None = "${oc.env:MQTT_PASS,}"  # noqa: S105
+    password: str | None = "${oc.env:MQTT_PASS,''}"  # noqa: S105
     port: int = "${oc.decode:${oc.env:MQTT_PORT,1883}}"  # type: ignore[assignment]
     topic_root: str = "updates2mqtt"
     protocol: str = "${oc.env:MQTT_VERSION,3.11}"
     connect_timeout: float = 20
     keepalive: int = 30
-    ca_certs: str | None = "${oc.env:MQTT_CA_CERTS,}"
-    client_cert: str | None = "${oc.env:MQTT_CLIENT_CERT,}"
-    client_key: str | None = "${oc.env:MQTT_CLIENT_KEY,}"
+    ca_certs: str | None = "${oc.env:MQTT_CA_CERTS,''}"
+    client_cert: str | None = "${oc.env:MQTT_CLIENT_CERT,''}"
+    client_key: str | None = "${oc.env:MQTT_CLIENT_KEY,''}"
     cert_reqs: ssl.VerifyMode = ssl.CERT_REQUIRED
 
 

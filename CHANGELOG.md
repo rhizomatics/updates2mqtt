@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 1.9.8
+## 1.10.0
 - TLS support for MQTT brokers
   - Password is no longer mandatory, to support client-cert auth, or no-auth
 - Node name now defaults to $NODE_NAME if set, where no node name in config, failing which back to `os.uname()` as before
