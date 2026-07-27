@@ -66,8 +66,8 @@
             <a id="indexLink" class="nav" href="covindex.html">&Hat; index</a> &nbsp; &nbsp;
             <a id="nextFileLink" class="nav" href="z_f9ecd2ed143243b9_model_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
-            <a class="nav" href="https://coverage.readthedocs.io/en/7.15.1">coverage.py v7.15.1</a>,
-            created at 2026-07-20 20:21 +0000
+            <a class="nav" href="https://coverage.readthedocs.io/en/7.15.2">coverage.py v7.15.2</a>,
+            created at 2026-07-27 08:28 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -211,14 +211,14 @@
     <p class="run run2"><span class="n"><a id="t127" href="#t127">127</a></span><span class="t">                <span class="nam">bearer_token</span><span class="op">=</span><span class="nam">self</span><span class="op">.</span><span class="nam">gh_token</span><span class="op">,</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t128" href="#t128">128</a></span><span class="t">            <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t129" href="#t129">129</a></span><span class="t">        <span class="key">if</span> <span class="key">not</span> <span class="nam">api_result</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t130" href="#t130">130</a></span><span class="t">            <span class="nam">self</span><span class="op">.</span><span class="nam">log</span><span class="op">.</span><span class="nam">warn</span><span class="op">(</span><span class="str">"Unable to retrieve GitHub packages API result, null response"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t130" href="#t130">130</a></span><span class="t">            <span class="nam">self</span><span class="op">.</span><span class="nam">log</span><span class="op">.</span><span class="nam">warning</span><span class="op">(</span><span class="str">"Unable to retrieve GitHub packages API result, null response"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t131" href="#t131">131</a></span><span class="t">            <span class="key">return</span> <span class="key">None</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t132" href="#t132">132</a></span><span class="t">        <span class="key">if</span> <span class="key">not</span> <span class="nam">api_result</span><span class="op">.</span><span class="nam">is_success</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t133" href="#t133">133</a></span><span class="t">            <span class="nam">self</span><span class="op">.</span><span class="nam">log</span><span class="op">.</span><span class="nam">warn</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t133" href="#t133">133</a></span><span class="t">            <span class="nam">self</span><span class="op">.</span><span class="nam">log</span><span class="op">.</span><span class="nam">warning</span><span class="op">(</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t134" href="#t134">134</a></span><span class="t">                <span class="str">"Unable to retrieve GitHub packages API result, %s response: %s"</span><span class="op">,</span> <span class="nam">api_result</span><span class="op">.</span><span class="nam">status_code</span><span class="op">,</span> <span class="nam">api_result</span><span class="op">.</span><span class="nam">text</span>&nbsp;</span><span class="r"></span></p>
     <p class="run run2"><span class="n"><a id="t135" href="#t135">135</a></span><span class="t">            <span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t136" href="#t136">136</a></span><span class="t">            <span class="key">if</span> <span class="nam">api_result</span><span class="op">.</span><span class="nam">status_code</span> <span class="op">==</span> <span class="num">401</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t137" href="#t137">137</a></span><span class="t">                <span class="nam">self</span><span class="op">.</span><span class="nam">log</span><span class="op">.</span><span class="nam">warn</span><span class="op">(</span><span class="str">"Disabling Github access token for this session"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t137" href="#t137">137</a></span><span class="t">                <span class="nam">self</span><span class="op">.</span><span class="nam">log</span><span class="op">.</span><span class="nam">warning</span><span class="op">(</span><span class="str">"Disabling Github access token for this session"</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t138" href="#t138">138</a></span><span class="t">                <span class="nam">self</span><span class="op">.</span><span class="nam">gh_token</span> <span class="op">=</span> <span class="key">None</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t139" href="#t139">139</a></span><span class="t">            <span class="key">return</span> <span class="key">None</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t140" href="#t140">140</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
@@ -247,8 +247,8 @@
             <a class="nav" href="covindex.html">&Hat; index</a> &nbsp; &nbsp;
             <a class="nav" href="z_f9ecd2ed143243b9_model_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
-            <a class="nav" href="https://coverage.readthedocs.io/en/7.15.1">coverage.py v7.15.1</a>,
-            created at 2026-07-20 20:21 +0000
+            <a class="nav" href="https://coverage.readthedocs.io/en/7.15.2">coverage.py v7.15.2</a>,
+            created at 2026-07-27 08:28 +0000
         </p>
     </div>
 </footer>

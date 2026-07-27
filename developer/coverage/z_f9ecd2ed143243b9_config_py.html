@@ -66,8 +66,8 @@
             <a id="indexLink" class="nav" href="covindex.html">&Hat; index</a> &nbsp; &nbsp;
             <a id="nextFileLink" class="nav" href="z_f9ecd2ed143243b9_hass_formatter_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
-            <a class="nav" href="https://coverage.readthedocs.io/en/7.15.1">coverage.py v7.15.1</a>,
-            created at 2026-07-20 20:21 +0000
+            <a class="nav" href="https://coverage.readthedocs.io/en/7.15.2">coverage.py v7.15.2</a>,
+            created at 2026-07-27 08:28 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -98,7 +98,7 @@
     <p class="run"><span class="n"><a id="t14" href="#t14">14</a></span><span class="t"><span class="nam">UNKNOWN_VERSION</span> <span class="op">=</span> <span class="str">"UNKNOWN"</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t15" href="#t15">15</a></span><span class="t"><span class="nam">VERSION_RE</span> <span class="op">=</span> <span class="str">r"[vVr]?[0-9]+(\.[0-9]+)*"</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t16" href="#t16">16</a></span><span class="t"><span class="com"># source: https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t17" href="#t17">17</a></span><span class="t"><span class="nam">SEMVER_RE</span> <span class="op">=</span> <span class="str">r"^(?P&lt;major>0|[1-9]\d*)\.(?P&lt;minor>0|[1-9]\d*)\.(?P&lt;patch>0|[1-9]\d*)(?:-(?P&lt;prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?P&lt;buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$"</span>  <span class="com"># noqa: E501</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t17" href="#t17">17</a></span><span class="t"><span class="nam">SEMVER_RE</span> <span class="op">=</span> <span class="str">r"^(?P&lt;major>0|[1-9]\d*)\.(?P&lt;minor>0|[1-9]\d*)\.(?P&lt;patch>0|[1-9]\d*)(?:-(?P&lt;prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?P&lt;buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$"</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t18" href="#t18">18</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t19" href="#t19">19</a></span><span class="t"><span class="nam">SOURCE_PLATFORM_GITHUB</span> <span class="op">=</span> <span class="str">"GitHub"</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t20" href="#t20">20</a></span><span class="t"><span class="nam">SOURCE_PLATFORM_CODEBERG</span> <span class="op">=</span> <span class="str">"CodeBerg"</span>&nbsp;</span><span class="r"></span></p>
@@ -157,7 +157,7 @@
     <p class="run"><span class="n"><a id="t73" href="#t73">73</a></span><span class="t"><span class="key">class</span> <span class="nam">MqttConfig</span><span class="op">:</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t74" href="#t74">74</a></span><span class="t">    <span class="nam">host</span><span class="op">:</span> <span class="nam">str</span> <span class="op">=</span> <span class="str">"${oc.env:MQTT_HOST,localhost}"</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t75" href="#t75">75</a></span><span class="t">    <span class="nam">user</span><span class="op">:</span> <span class="nam">str</span> <span class="op">=</span> <span class="fst">f"</span><span class="fst">${{</span><span class="fst">oc.env:MQTT_USER,</span><span class="op">{</span><span class="nam">MISSING</span><span class="op">}</span><span class="fst">}}</span><span class="fst">"</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t76" href="#t76">76</a></span><span class="t">    <span class="nam">password</span><span class="op">:</span> <span class="nam">str</span> <span class="op">|</span> <span class="key">None</span> <span class="op">=</span> <span class="str">"${oc.env:MQTT_PASS,''}"</span>  <span class="com"># noqa: S105</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t76" href="#t76">76</a></span><span class="t">    <span class="nam">password</span><span class="op">:</span> <span class="nam">str</span> <span class="op">|</span> <span class="key">None</span> <span class="op">=</span> <span class="str">"${oc.env:MQTT_PASS,''}"</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t77" href="#t77">77</a></span><span class="t">    <span class="nam">port</span><span class="op">:</span> <span class="nam">int</span> <span class="op">=</span> <span class="str">"${oc.decode:${oc.env:MQTT_PORT,1883}}"</span>  <span class="com"># type: ignore[assignment]</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t78" href="#t78">78</a></span><span class="t">    <span class="nam">topic_root</span><span class="op">:</span> <span class="nam">str</span> <span class="op">=</span> <span class="str">"updates2mqtt"</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t79" href="#t79">79</a></span><span class="t">    <span class="nam">protocol</span><span class="op">:</span> <span class="nam">str</span> <span class="op">=</span> <span class="str">"${oc.env:MQTT_VERSION,3.11}"</span>&nbsp;</span><span class="r"></span></p>
@@ -343,8 +343,8 @@
             <a class="nav" href="covindex.html">&Hat; index</a> &nbsp; &nbsp;
             <a class="nav" href="z_f9ecd2ed143243b9_hass_formatter_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
-            <a class="nav" href="https://coverage.readthedocs.io/en/7.15.1">coverage.py v7.15.1</a>,
-            created at 2026-07-20 20:21 +0000
+            <a class="nav" href="https://coverage.readthedocs.io/en/7.15.2">coverage.py v7.15.2</a>,
+            created at 2026-07-27 08:28 +0000
         </p>
     </div>
 </footer>
