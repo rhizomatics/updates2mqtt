@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## 1.11.0
+### MQTT TLS
+- `ca_certs` is now optional for TLS, so can default to built-in certificate authorities where broker has a public verified cert
+- `tls_mode` can be `on`,`off` or `insecure`
+- TLS keyfile password can be set using `client_key_password` in config or `MQTT_CLIENT_KEY_PASS` env var
+### MQTT Transport
+- The default `tcp` transport can now be overridden by using `transport` in MQTT configuration, for either `websockets` or `unix`
+### Internal
+- Minor dependency update
+- Upgraded ruff to `0.16.0` and enabled its huge number of new checks in that version, fixing minor issues identified
+
 ## 1.10.0
 - TLS support for MQTT brokers
   - Password is no longer mandatory, to support client-cert auth, or no-auth

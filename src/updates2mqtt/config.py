@@ -2,7 +2,7 @@ import os
 import ssl
 import typing
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import EnumMeta, StrEnum, auto
 from pathlib import Path
 
 import structlog
@@ -69,6 +69,17 @@ class RegistryConfig:
     token_cache_ttl: int | None = None  # default to server cache hint
 
 
+class CaseInsensitiveEnumMeta(EnumMeta):
+    def __getitem__(self, name):
+        return self._member_map_[name] if name in self._member_map_ else self._member_map_[name.upper()]
+
+
+class TlsMode(StrEnum, metaclass=CaseInsensitiveEnumMeta):
+    ON = auto()
+    OFF = auto()
+    INSECURE = auto()
+
+
 @dataclass
 class MqttConfig:
     host: str = "${oc.env:MQTT_HOST,localhost}"
@@ -77,11 +88,14 @@ class MqttConfig:
     port: int = "${oc.decode:${oc.env:MQTT_PORT,1883}}"  # type: ignore[assignment]
     topic_root: str = "updates2mqtt"
     protocol: str = "${oc.env:MQTT_VERSION,3.11}"
+    transport: str = "tcp"
     connect_timeout: float = 20
     keepalive: int = 30
+    tls_mode: TlsMode = TlsMode.OFF
     ca_certs: str | None = "${oc.env:MQTT_CA_CERTS,''}"
-    client_cert: str | None = "${oc.env:MQTT_CLIENT_CERT,''}"
-    client_key: str | None = "${oc.env:MQTT_CLIENT_KEY,''}"
+    client_cert: str | None = "${oc.env:MQTT_CLIENT_CERT,''}"  # certfile
+    client_key: str | None = "${oc.env:MQTT_CLIENT_KEY,''}"  # keyfile
+    client_key_password: str | None = "${oc.env:MQTT_CLIENT_KEY_PASS,''}"  # keyfile_password
     cert_reqs: ssl.VerifyMode = ssl.CERT_REQUIRED
 
 

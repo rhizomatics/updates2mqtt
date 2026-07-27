@@ -12,7 +12,7 @@ from paho.mqtt.client import MQTTMessage
 from paho.mqtt.packettypes import PacketTypes
 from paho.mqtt.reasoncodes import ReasonCode
 
-from updates2mqtt.config import HomeAssistantConfig, MqttConfig, NodeConfig
+from updates2mqtt.config import HomeAssistantConfig, MqttConfig, NodeConfig, TlsMode
 from updates2mqtt.model import Discovery, ReleaseProvider
 from updates2mqtt.mqtt import MqttPublisher
 
@@ -39,6 +39,7 @@ def test_start_configures_tls_ca_certs_only(mock_mqtt_client: Mock, node_cfg: No
     config.ca_certs = "ssl/ca_cert.crt"
     config.client_cert = None
     config.client_key = None
+    config.tls_mode = TlsMode.ON
     hass_config = HomeAssistantConfig()
 
     with (
@@ -52,8 +53,10 @@ def test_start_configures_tls_ca_certs_only(mock_mqtt_client: Mock, node_cfg: No
         ca_certs="ssl/ca_cert.crt",
         certfile=None,
         keyfile=None,
+        keyfile_password=None,
         cert_reqs=ssl.CERT_REQUIRED,
     )
+    mock_mqtt_client.tls_insecure_set.assert_not_called()
 
 
 def test_start_configures_tls_with_client_certs(mock_mqtt_client: Mock, node_cfg: NodeConfig) -> None:
@@ -62,6 +65,7 @@ def test_start_configures_tls_with_client_certs(mock_mqtt_client: Mock, node_cfg
     config.client_cert = "ssl/client_cert.pem"
     config.client_key = "ssl/client_key.pem"
     config.cert_reqs = ssl.CERT_OPTIONAL
+    config.tls_mode = TlsMode.ON
     hass_config = HomeAssistantConfig()
 
     with (
@@ -75,8 +79,32 @@ def test_start_configures_tls_with_client_certs(mock_mqtt_client: Mock, node_cfg
         ca_certs="ssl/ca_cert.crt",
         certfile="ssl/client_cert.pem",
         keyfile="ssl/client_key.pem",
+        keyfile_password=None,
         cert_reqs=ssl.CERT_OPTIONAL,
     )
+    mock_mqtt_client.tls_insecure_set.assert_not_called()
+
+
+def test_start_configures_insecure_tls(mock_mqtt_client: Mock, node_cfg: NodeConfig) -> None:
+    config = OmegaConf.structured(MqttConfig)
+    config.tls_mode = TlsMode.INSECURE
+    hass_config = HomeAssistantConfig()
+
+    with (
+        patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client),
+        patch("asyncio.get_event_loop"),
+    ):
+        uut = MqttPublisher(config, node_cfg, hass_config)
+        uut.start()
+
+    mock_mqtt_client.tls_set.assert_called_once_with(
+        ca_certs=None,
+        certfile=None,
+        keyfile=None,
+        keyfile_password=None,
+        cert_reqs=ssl.CERT_REQUIRED,
+    )
+    mock_mqtt_client.tls_insecure_set.assert_called_once_with(True)
 
 
 @pytest.mark.asyncio

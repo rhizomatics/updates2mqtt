@@ -5,7 +5,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from threading import Event
-from typing import Any
+from typing import Any, Literal, cast
 
 import paho.mqtt.client as mqtt
 import paho.mqtt.subscribeoptions
@@ -17,7 +17,7 @@ from paho.mqtt.reasoncodes import ReasonCode
 
 from updates2mqtt.model import Discovery, ReleaseProvider
 
-from .config import HomeAssistantConfig, MqttConfig, NodeConfig, PublishPolicy
+from .config import HomeAssistantConfig, MqttConfig, NodeConfig, PublishPolicy, TlsMode
 from .hass_formatter import hass_format_config, hass_format_state
 
 log = structlog.get_logger()
@@ -66,17 +66,25 @@ class MqttPublisher:
                 client_id=f"updates2mqtt_{self.node_cfg.name}",
                 clean_session=True if protocol != MQTTProtocolVersion.MQTTv5 else None,
                 protocol=protocol,
+                transport=cast(Literal["tcp", "websockets", "unix"], self.cfg.transport),
             )
             self.client.username_pw_set(self.cfg.user, password=self.cfg.password)
 
-            if self.cfg.ca_certs:
+            if self.cfg.tls_mode != TlsMode.OFF:
                 logger.debug("Configuring TLS, ca_certs=%s,cert_reqs=%s", self.cfg.ca_certs, self.cfg.cert_reqs)
+                # https://eclipse.dev/paho/files/paho.mqtt.python/html/client.html#paho.mqtt.client.Client.tls_set
                 self.client.tls_set(
                     ca_certs=self.cfg.ca_certs or None,
                     certfile=self.cfg.client_cert or None,
                     keyfile=self.cfg.client_key or None,
+                    keyfile_password=self.cfg.client_key_password or None,
                     cert_reqs=self.cfg.cert_reqs or None,
                 )
+                if self.cfg.tls_mode == TlsMode.INSECURE:
+                    self.client.tls_insecure_set(True)
+                    logger.warning(
+                        "TLS set to insecure mode, broker host name will not be validated, do not use for production."
+                    )
             rc: MQTTErrorCode = self.client.connect(
                 host=self.cfg.host,
                 port=self.cfg.port,

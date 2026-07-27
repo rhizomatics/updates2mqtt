@@ -49,17 +49,21 @@ The two brokers most commonly used with Home Assistant, **Mosquitto** and **EMQX
 
 ## MQTT TLS
 
-Encrypt MQTT broker communication with TLS ( using Python's standard [`ssl`](https://docs.python.org/3/library/ssl.html#ssl.SSLContext) module to wrap socket communication).
+`tls_mode` defaults to `off`, and can be switched to `on` or to `insecure` for testing with mismatched hostnames.
 
-This can be used in basic non-auth mode, where only `ca_certs` are
-provided in the `mqtt` config section, or using client certificates too with `client_cert` and `client_key`. `cert_reqs` can be used with any of the python SSL values, e.g. `CERT_REQUIRED`.
+Encrypt MQTT broker communication with TLS to wrap socket communication and optionally verify client and.or server identity.
+
+This can be used in basic non-auth mode, (using default public certificate authorities, or local ones located at  `ca_certs` in the `mqtt` config section), or using client certificates too with `client_cert` and `client_key`. `cert_reqs` can be used with any of the python SSL values, e.g. `CERT_REQUIRED`.
 
 ```yaml
 mqtt:
   host: localhost
   port: 1883
+  tls_mode: ON
   ca_certs: ssl/ca_cert.crt
   client_cert: ssl/client_cert.pem
   client_key: ssl/client_key.pem
   cert_reqs: CERT_OPTIONAL
 ```
+
+See the [Paho MQTT `tls_set`](https://eclipse.dev/paho/files/paho.mqtt.python/html/client.html#paho.mqtt.client.Client.tls_set) API documentation for more on the underlying config, which is based on Python's [ssl](https://docs.python.org/3/library/ssl.html) module.

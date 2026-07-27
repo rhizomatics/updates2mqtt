@@ -15,8 +15,10 @@ mqtt:
   password: mysecret
   topic_root: updates2mqtt
   protocol: 5
+  transport: tcp
   keepalive: 30
   connect_timeout: 20
+  tls_mode: insecure
   ca_certs: ssl/ca_cert.crt
   client_cert: ssl/client_cert.pem
   client_key: ssl/client_key.pem
