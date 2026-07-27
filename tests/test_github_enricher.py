@@ -25,7 +25,7 @@ def mock_response(status_code: int = 200, json_data: dict | None = None) -> Magi
 
 @pytest.mark.slow
 def test_pkg_enricher_live() -> None:
-    uut = GithubReleaseEnricher(gh_cfg=GitHubConfig(access_token="<insert_temp_token>"))  # noqa: S106
+    uut = GithubReleaseEnricher(gh_cfg=GitHubConfig(access_token="<insert_temp_token>"))
     detail = ReleaseDetail("homarr", source_repo_url="https://github.com/homarr-labs/homarr")
     uut.enrich(
         DockerImageInfo(
@@ -229,13 +229,13 @@ def test_enrich_passes_bearer_token(mock_fetch: Mock, mock_json: Mock) -> None:
     mock_fetch.return_value = mock_response(200)
     mock_json.return_value = {"body": "authed notes", "tag_name": "1.2.3"}
 
-    enricher = GithubReleaseEnricher(GitHubConfig(access_token="ghp_secret"))  # noqa: S106
+    enricher = GithubReleaseEnricher(GitHubConfig(access_token="ghp_secret"))
     detail = make_detail()
     enricher.enrich(DockerImageInfo("ghcr.io/example-labs/example", image_digest="sha256:fake0123456789abcedf"), detail)
 
     mock_fetch.assert_called_once_with(
         "https://api.github.com/repos/org/repo/releases/tags/1.2.3",
-        bearer_token="ghp_secret",  # noqa: S106
+        bearer_token="ghp_secret",
         cache_ttl=54000,
         allow_stale=True,
     )
@@ -246,7 +246,7 @@ def test_enrich_passes_bearer_token(mock_fetch: Mock, mock_json: Mock) -> None:
 
 def test_enrich_no_version_no_digest_skips_package_match() -> None:
     # Branch 35->50: image has no digest → GHCR block is skipped entirely
-    enricher = GithubReleaseEnricher(GitHubConfig(access_token="ghp_token"))  # noqa: S106
+    enricher = GithubReleaseEnricher(GitHubConfig(access_token="ghp_token"))
     detail = make_detail(version=None)
     enricher.enrich(DockerImageInfo("docker.io/library/nginx:latest"), detail)
     assert detail.summary is None
@@ -261,7 +261,7 @@ def test_enrich_version_resolved_from_ghcr_tags(mock_fetch: Mock, mock_match: Mo
     mock_fetch.return_value = mock_response(200)
     mock_json.return_value = {"body": "resolved release notes"}
 
-    enricher = GithubReleaseEnricher(GitHubConfig(access_token="ghp_token"))  # noqa: S106
+    enricher = GithubReleaseEnricher(GitHubConfig(access_token="ghp_token"))
     detail = make_detail(version=None)
     enricher.enrich(DockerImageInfo("ghcr.io/org/repo:latest", image_digest="sha256:abc123"), detail)
 
@@ -275,7 +275,7 @@ def test_enrich_matched_tags_none_match_version_re(mock_fetch: Mock, mock_match:
     # match_packages returns tags but none match VERSION_RE → version stays None, no API call
     mock_match.return_value = (["latest", "edge"], "https://example.com/pkg/1", "2024-01-01", "2024-01-02")
 
-    enricher = GithubReleaseEnricher(GitHubConfig(access_token="ghp_token"))  # noqa: S106
+    enricher = GithubReleaseEnricher(GitHubConfig(access_token="ghp_token"))
     detail = make_detail(version=None)
     enricher.enrich(DockerImageInfo("ghcr.io/org/repo:latest", image_digest="sha256:abc123"), detail)
 
@@ -316,7 +316,7 @@ def test_enrich_404_alt_api_empty_body_leaves_summary_none(mock_fetch: Mock, moc
 
 
 def test_match_packages_invalid_source_url() -> None:
-    enricher = GithubReleaseEnricher(GitHubConfig(access_token="ghp_token"))  # noqa: S106
+    enricher = GithubReleaseEnricher(GitHubConfig(access_token="ghp_token"))
     result = enricher.match_packages("myimage", "sha256:abc", "https://notgithub.com/org/repo")
     assert result is None
 
@@ -325,7 +325,7 @@ def test_match_packages_invalid_source_url() -> None:
 def test_match_packages_null_api_response(mock_fetch: Mock) -> None:
     mock_fetch.return_value = None
 
-    enricher = GithubReleaseEnricher(GitHubConfig(access_token="ghp_token"))  # noqa: S106
+    enricher = GithubReleaseEnricher(GitHubConfig(access_token="ghp_token"))
     result = enricher.match_packages("myimage", "sha256:abc", "https://github.com/org/repo")
 
     assert result is None
@@ -335,7 +335,7 @@ def test_match_packages_null_api_response(mock_fetch: Mock) -> None:
 def test_match_packages_non_success_non_401_returns_none(mock_fetch: Mock) -> None:
     mock_fetch.return_value = mock_response(403)
 
-    enricher = GithubReleaseEnricher(GitHubConfig(access_token="ghp_token"))  # noqa: S106
+    enricher = GithubReleaseEnricher(GitHubConfig(access_token="ghp_token"))
     result = enricher.match_packages("myimage", "sha256:abc", "https://github.com/org/repo")
 
     assert result is None
@@ -346,7 +346,7 @@ def test_match_packages_non_success_non_401_returns_none(mock_fetch: Mock) -> No
 def test_match_packages_401_disables_token(mock_fetch: Mock) -> None:
     mock_fetch.return_value = mock_response(401)
 
-    enricher = GithubReleaseEnricher(GitHubConfig(access_token="ghp_token"))  # noqa: S106
+    enricher = GithubReleaseEnricher(GitHubConfig(access_token="ghp_token"))
     assert enricher.gh_token is not None
 
     result = enricher.match_packages("myimage", "sha256:abc", "https://github.com/org/repo")
@@ -362,7 +362,7 @@ def test_match_packages_orgs_404_falls_back_to_users(mock_fetch: Mock) -> None:
     users_response.json.return_value = [{"name": "sha256:different"}]
     mock_fetch.side_effect = [mock_response(404), users_response]
 
-    enricher = GithubReleaseEnricher(GitHubConfig(access_token="ghp_token"))  # noqa: S106
+    enricher = GithubReleaseEnricher(GitHubConfig(access_token="ghp_token"))
     result = enricher.match_packages("myimage", digest, "https://github.com/org/repo")
 
     assert result is None  # no matching digest in users response
@@ -377,7 +377,7 @@ def test_match_packages_no_matching_digest_returns_none(mock_fetch: Mock) -> Non
     response.json.return_value = [{"name": "sha256:nomatch", "metadata": {"container": {"tags": ["1.0.0"]}}}]
     mock_fetch.return_value = response
 
-    enricher = GithubReleaseEnricher(GitHubConfig(access_token="ghp_token"))  # noqa: S106
+    enricher = GithubReleaseEnricher(GitHubConfig(access_token="ghp_token"))
     result = enricher.match_packages("myimage", "sha256:abc", "https://github.com/org/repo")
 
     assert result is None
@@ -399,7 +399,7 @@ def test_match_packages_matching_digest_returns_tags(mock_fetch: Mock) -> None:
     ]
     mock_fetch.return_value = response
 
-    enricher = GithubReleaseEnricher(GitHubConfig(access_token="ghp_token"))  # noqa: S106
+    enricher = GithubReleaseEnricher(GitHubConfig(access_token="ghp_token"))
     result = enricher.match_packages("myimage", digest, "https://github.com/org/repo")
 
     assert result is not None

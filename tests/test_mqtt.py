@@ -97,11 +97,11 @@ async def test_handler(mock_mqtt_client: Mock) -> None:
         topic_name = uut.subscribe_hass_command(provider)
         mock_message = Mock()
         mock_message.topic = topic_name
-        mock_message.payload = "|".join([provider.source_type, "qux", "install"])
+        mock_message.payload = f"{provider.source_type}|qux|install"
         uut.handle_message(mock_message)
 
         cutoff = time.time() + 10
-        while time.time() <= cutoff and not provider.command.called:  # noqa: ASYNC110
+        while time.time() <= cutoff and not provider.command.called:
             await asyncio.sleep(0.5)
 
         provider.command.assert_called_with("qux", "install", mock.ANY, mock.ANY)

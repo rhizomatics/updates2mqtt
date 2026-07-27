@@ -27,15 +27,15 @@ from updates2mqtt.helpers import Throttler
 from updates2mqtt.model import Discovery, ReleaseProvider
 
 
-def pytest_addoption(parser) -> None:  # noqa: ANN001
+def pytest_addoption(parser) -> None:
     parser.addoption("--runslow", action="store_true", default=False, help="run slow tests")
 
 
-def pytest_configure(config) -> None:  # noqa: ANN001
+def pytest_configure(config) -> None:
     config.addinivalue_line("markers", "slow: mark test as slow to run")
 
 
-def pytest_collection_modifyitems(config, items) -> None:  # noqa: ANN001
+def pytest_collection_modifyitems(config, items) -> None:
     if config.getoption("--runslow"):
         # --runslow given in cli: do not skip slow tests
         return
@@ -54,7 +54,7 @@ def mock_throttler() -> Throttler:
 
 @pytest.fixture
 def app_with_mocked_external_dependencies(
-    monkeypatch,  # noqa: ANN001
+    monkeypatch,
     mock_provider_class: type,
     mock_publisher_class: type,
 ) -> App:
@@ -73,7 +73,7 @@ def mock_discoveries(mock_provider: ReleaseProvider) -> list[Discovery]:
 
 @pytest.fixture
 def mock_discovery_generator(mock_discoveries: list[Discovery]) -> Callable[..., AsyncGenerator[Discovery, Any]]:
-    async def g(*args: Any) -> AsyncGenerator[Discovery]:  # noqa: ARG001
+    async def g(*args: Any) -> AsyncGenerator[Discovery]:
         for d in mock_discoveries:
             await asyncio.sleep(0.001)
             yield d
@@ -84,7 +84,7 @@ def mock_discovery_generator(mock_discoveries: list[Discovery]) -> Callable[...,
 @pytest.fixture
 def mock_provider_class(mock_provider: ReleaseProvider) -> type:
     class MockReleaseProvider(ReleaseProvider):
-        def __new__(cls, *args: Any, **kwargs: Any) -> "MockReleaseProvider":  # noqa: ARG004
+        def __new__(cls, *args: Any, **kwargs: Any) -> "MockReleaseProvider":  # noqa: PYI034
             return cast("MockReleaseProvider", mock_provider)
 
     return MockReleaseProvider
@@ -93,7 +93,7 @@ def mock_provider_class(mock_provider: ReleaseProvider) -> type:
 @pytest.fixture
 def mock_publisher_class(mock_publisher: MqttPublisher) -> type:
     class MockPublisher(MqttPublisher):
-        def __new__(cls, *args: Any, **kwargs: Any) -> "MockPublisher":  # noqa: ARG004
+        def __new__(cls, *args: Any, **kwargs: Any) -> "MockPublisher":  # noqa: PYI034
             return cast("MockPublisher", mock_publisher)
 
     return MockPublisher

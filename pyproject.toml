@@ -45,6 +45,7 @@ cli = "updates2mqtt.cli:main"
 compile-bytecode = true
 managed = true
 exclude-newer = "5 days"
+exclude-newer-package = { ruff="2 days" }
 add-bounds = "major"
 
 [dependency-groups]
@@ -132,14 +133,13 @@ exclude = [
 ]
 
 [tool.ruff.lint]
-select = ["E", "C","R", "F", "B", "W", "I", "C90", "N", "D", "UP", "YTT", 
-    "RUF","PGH","PT","T20","DTZ","TD","PTH","ARG","INT","TCH","TID","SIM","PERF","ASYNC","ANN","S","A","COM","C4"]
 ignore = [
     "W191","E111","E114","E117","D206","D300","Q000","Q001","COM812","COM819","ISC001","ISC002", # std formatter conflicts
     "D203","D213", # other formatter clashes
     "TD002","TD003","TD005",
     "D103","D100","D101","D102","D104","D107","D415","D400","D415","ANN401",
     "S101","C901","FURB113",
+    "BLE001",# catch Exception
     "S602","S607","S404" ] # subprocess usage
 unfixable = ["B"]
 

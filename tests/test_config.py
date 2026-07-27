@@ -16,7 +16,7 @@ EXAMPLES_ROOT = "examples"
 examples = [str(p.name) for p in Path(EXAMPLES_ROOT).iterdir() if p.name.startswith("config")]
 
 
-def test_envvar_config(monkeypatch) -> None:  # noqa: ANN001
+def test_envvar_config(monkeypatch) -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         monkeypatch.setenv("MQTT_HOST", "193.11.55.12")
         monkeypatch.setenv("MQTT_USER", "tester")
@@ -32,7 +32,7 @@ def test_envvar_config(monkeypatch) -> None:  # noqa: ANN001
 
 
 @pytest.mark.parametrize("config_name", examples)
-def test_config(config_name: str, monkeypatch) -> None:  # noqa: ANN001
+def test_config(config_name: str, monkeypatch) -> None:
     monkeypatch.setenv("MQTT_USER", "tester")
     monkeypatch.setenv("MQTT_PASS", uuid.uuid4().hex)
     config_path: Path = Path(EXAMPLES_ROOT) / config_name
@@ -46,7 +46,7 @@ def test_config(config_name: str, monkeypatch) -> None:  # noqa: ANN001
             assert isinstance(pkg.docker.version_policy, VersionPolicy)
 
 
-def test_minimal_example_config(monkeypatch) -> None:  # noqa: ANN001
+def test_minimal_example_config(monkeypatch) -> None:
     monkeypatch.setenv("MQTT_USER", "tester")
     monkeypatch.setenv("MQTT_PASS", uuid.uuid4().hex)
     config_path: Path = Path(EXAMPLES_ROOT) / "config.yaml.minimal"
@@ -70,7 +70,7 @@ def test_maximal_example_config() -> None:
     assert validated_config.node.healthcheck.interval == 300
     assert validated_config.mqtt.host == "localhost"
     assert validated_config.mqtt.user == "mymqttuser"
-    assert validated_config.mqtt.password == "mysecret"  # noqa: S105
+    assert validated_config.mqtt.password == "mysecret"
     assert validated_config.mqtt.protocol == "5"
     assert validated_config.mqtt.keepalive == 30
     assert validated_config.homeassistant.area == "Server Room"
@@ -130,7 +130,7 @@ def test_env_only_config() -> None:
     assert generated_config.mqtt.host == "192.168.3.4"
     assert generated_config.mqtt.port == 2883
     assert generated_config.mqtt.user == "u2macct"
-    assert generated_config.mqtt.password == "toosecret123!"  # noqa: S105
+    assert generated_config.mqtt.password == "toosecret123!"
     assert generated_config.node.name == "xunit003a"
     assert generated_config.log.level == LogLevel.WARNING
     assert not Path("no_such_dir").exists()

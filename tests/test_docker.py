@@ -291,7 +291,7 @@ def test_rescan_returns_none_on_api_error(mock_docker_client: DockerClient) -> N
 
 
 @pytest.mark.httpx_mock(assert_all_requests_were_expected=False)
-def test_command_install_success(mock_docker_client: DockerClient, mock_registry: HTTPXMock) -> None:  # noqa: ARG001
+def test_command_install_success(mock_docker_client: DockerClient, mock_registry: HTTPXMock) -> None:
     from unittest.mock import MagicMock
 
     from conftest import build_mock_container

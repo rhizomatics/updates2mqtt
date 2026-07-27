@@ -244,7 +244,6 @@ class ReleaseProvider:
 
     def initialize(self) -> None:
         """Initialize any loops or background tasks, make any startup API calls"""
-        pass
 
     def stop(self) -> None:
         """Stop any loops or background tasks"""

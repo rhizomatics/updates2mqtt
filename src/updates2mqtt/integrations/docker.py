@@ -193,13 +193,13 @@ class DockerProvider(ReleaseProvider):
             if image:
                 logger.info("Pulled", image_id=image.id, image_ref=image_ref, platform=platform)
             else:
-                logger.warn("Unable to pull", image_ref=image_ref, platform=platform)
+                logger.warning("Unable to pull", image_ref=image_ref, platform=platform)
         elif discovery.can_build and service_info:
             compose_path: str | None = service_info.compose_path
             git_repo_path: str | None = service_info.git_repo_path
             logger.debug("can_build check", git_repo=git_repo_path)
             if not compose_path or not git_repo_path:
-                logger.warn("No compose path or git repo path configured, skipped build")
+                logger.warning("No compose path or git repo path configured, skipped build")
                 return
 
             full_repo_path: Path = self.full_repo_path(compose_path, git_repo_path)
@@ -220,7 +220,7 @@ class DockerProvider(ReleaseProvider):
         service_info: DockerServiceDetails | None = cast("DockerServiceDetails|None", discovery.installation_detail)
 
         if not service_info or not service_info.compose_path:
-            logger.warn("No service_info available on compose")
+            logger.warning("No service_info available on compose")
             return False
         logger.info("Building", compose_path=service_info.compose_path, service=service_info.compose_service)
         return self.execute_compose(
@@ -235,7 +235,7 @@ class DockerProvider(ReleaseProvider):
         self, command: DockerComposeCommand, args: str, service: str | None, cwd: str | None, logger: structlog.BoundLogger
     ) -> bool:
         if not cwd or not Path(cwd).is_dir():
-            logger.warn("Invalid compose path, skipped %s", command)
+            logger.warning("Invalid compose path, skipped %s", command)
             return False
 
         cmd: str = "docker-compose" if self.cfg.compose_version == "v1" else "docker compose"
@@ -253,7 +253,7 @@ class DockerProvider(ReleaseProvider):
         if proc.stderr and "unknown command: docker compose" in proc.stderr:
             logger.warning("docker compose set to wrong version, seems like v1 installed")
             self.cfg.compose_version = "v1"
-        logger.warn(
+        logger.warning(
             f"{command} failed: %s",
             proc.returncode,
         )
@@ -310,9 +310,9 @@ class DockerProvider(ReleaseProvider):
                 if rediscovery and not rediscovery.throttled:
                     self.discoveries[rediscovery.name] = rediscovery
                     return rediscovery
-            logger.warn("Unable to find container for rescan")
+            logger.warning("Unable to find container for rescan")
         except docker.errors.NotFound:
-            logger.warn("Container not found in Docker")
+            logger.warning("Container not found in Docker")
         except docker.errors.APIError:
             logger.exception("Docker API error retrieving container")
         return None
@@ -321,10 +321,10 @@ class DockerProvider(ReleaseProvider):
         logger = self.log.bind(container=c.name, action="analyze")
 
         if c.attrs is None or not c.attrs:
-            logger.warn("No container attributes found, discovery rejected")
+            logger.warning("No container attributes found, discovery rejected")
             return None
         if c.name is None:
-            logger.warn("No container name found, discovery rejected")
+            logger.warning("No container name found, discovery rejected")
             return None
 
         customization: ContainerCustomization = ContainerCustomization(c)
@@ -541,9 +541,9 @@ class DockerProvider(ReleaseProvider):
         try:
             discovery = self.resolve(discovery_name)
             if not discovery:
-                logger.warn("Unknown entity", entity=discovery_name)
+                logger.warning("Unknown entity", entity=discovery_name)
             elif command != "install":
-                logger.warn("Unknown command")
+                logger.warning("Unknown command")
             else:
                 if discovery.can_update:
                     rediscovery: Discovery | None = None
@@ -781,6 +781,6 @@ def select_versions(version_policy: VersionPolicy, installed: DockerImageInfo, l
     # Failure to Find Any Version
     # ---------------------------
     #
-    log.warn("No versions can be determined for %s", installed.ref)
+    log.warning("No versions can be determined for %s", installed.ref)
     phase = 999
     return UNKNOWN_VERSION, UNKNOWN_VERSION, basis("failure")

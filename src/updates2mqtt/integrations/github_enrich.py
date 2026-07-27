@@ -127,14 +127,14 @@ class GithubReleaseEnricher:
                 bearer_token=self.gh_token,
             )
         if not api_result:
-            self.log.warn("Unable to retrieve GitHub packages API result, null response")
+            self.log.warning("Unable to retrieve GitHub packages API result, null response")
             return None
         if not api_result.is_success:
-            self.log.warn(
+            self.log.warning(
                 "Unable to retrieve GitHub packages API result, %s response: %s", api_result.status_code, api_result.text
             )
             if api_result.status_code == 401:
-                self.log.warn("Disabling Github access token for this session")
+                self.log.warning("Disabling Github access token for this session")
                 self.gh_token = None
             return None
 

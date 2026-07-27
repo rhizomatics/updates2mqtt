@@ -17,7 +17,7 @@ async def test_scan(
     app_with_mocked_external_dependencies: App,
     mock_discoveries: list[Discovery],
     mock_discovery_generator: AsyncGenerator[Discovery],
-    monkeypatch,  # noqa: ANN001
+    monkeypatch,
 ) -> None:
     uut: App = app_with_mocked_external_dependencies
     monkeypatch.setattr(uut.scanners[0], "scan", mock_discovery_generator)
@@ -31,7 +31,7 @@ async def test_scan(
 async def test_main_loop(
     app_with_mocked_external_dependencies: App,
     mock_discovery_generator: AsyncGenerator[Discovery],
-    monkeypatch,  # noqa: ANN001
+    monkeypatch,
 ) -> None:
     uut: App = app_with_mocked_external_dependencies
     monkeypatch.setattr(uut.scanners[0], "scan", mock_discovery_generator)
@@ -67,11 +67,11 @@ class DummyApp:
         # an async method to mirror the real App.run signature
         self.run_called = True
 
-    def shutdown(self, *args: Any, **kwargs: Any) -> None:  # noqa: ARG002
+    def shutdown(self, *args: Any, **kwargs: Any) -> None:
         self.shutdown_called = True
 
 
-def test_run_sets_signal_and_calls_asyncio_run(monkeypatch) -> None:  # noqa: ANN001
+def test_run_sets_signal_and_calls_asyncio_run(monkeypatch) -> None:
     calls: dict[str, Any] = {}
 
     # Replace signal.signal so we capture its arguments
@@ -90,7 +90,6 @@ def test_run_sets_signal_and_calls_asyncio_run(monkeypatch) -> None:  # noqa: AN
     def fake_asyncio_run(coro: Coroutine, debug: bool = False) -> None:
         calls["coro"] = coro
         calls["debug"] = debug
-        return
 
     monkeypatch.setattr(asyncio, "run", fake_asyncio_run)
 
@@ -109,17 +108,17 @@ def test_run_sets_signal_and_calls_asyncio_run(monkeypatch) -> None:  # noqa: AN
     assert isinstance(coro, types.CoroutineType)
 
 
-def test_run_handles_asyncio_cancellederror(monkeypatch) -> None:  # noqa: ANN001
+def test_run_handles_asyncio_cancellederror(monkeypatch) -> None:
     # Ensure App is replaced so run() will create DummyApp without side effects
     import updates2mqtt.app as app_module
 
     monkeypatch.setattr(app_module, "App", DummyApp)
 
     # Patch signal.signal to a noop to avoid altering test process handlers
-    monkeypatch.setattr(signal, "signal", lambda *args, **kwargs: None)  # noqa: ARG005
+    monkeypatch.setattr(signal, "signal", lambda *args, **kwargs: None)
 
     # Patch asyncio.run to raise CancelledError to exercise the except branch
-    def raising_asyncio_run(_coro: Coroutine, debug: bool = False) -> NoReturn:  # noqa: ARG001
+    def raising_asyncio_run(_coro: Coroutine, debug: bool = False) -> NoReturn:
         raise asyncio.CancelledError()
 
     monkeypatch.setattr(asyncio, "run", raising_asyncio_run)

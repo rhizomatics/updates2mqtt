@@ -14,7 +14,7 @@ PKG_INFO_FILE = Path("./common_packages.yaml")
 UNKNOWN_VERSION = "UNKNOWN"
 VERSION_RE = r"[vVr]?[0-9]+(\.[0-9]+)*"
 # source: https://semver.org/#is-there-a-suggested-regular-expression-regex-to-check-a-semver-string
-SEMVER_RE = r"^(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$"  # noqa: E501
+SEMVER_RE = r"^(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)(?:-(?P<prerelease>(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+(?P<buildmetadata>[0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$"
 
 SOURCE_PLATFORM_GITHUB = "GitHub"
 SOURCE_PLATFORM_CODEBERG = "CodeBerg"
@@ -73,7 +73,7 @@ class RegistryConfig:
 class MqttConfig:
     host: str = "${oc.env:MQTT_HOST,localhost}"
     user: str = f"${{oc.env:MQTT_USER,{MISSING}}}"
-    password: str | None = "${oc.env:MQTT_PASS,''}"  # noqa: S105
+    password: str | None = "${oc.env:MQTT_PASS,''}"
     port: int = "${oc.decode:${oc.env:MQTT_PORT,1883}}"  # type: ignore[assignment]
     topic_root: str = "updates2mqtt"
     protocol: str = "${oc.env:MQTT_VERSION,3.11}"

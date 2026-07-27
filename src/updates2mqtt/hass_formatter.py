@@ -74,7 +74,7 @@ def hass_format_state(discovery: Discovery, in_progress: bool = False, release_s
     if discovery.release_detail:
         if discovery.release_detail.summary:
             if len(discovery.release_detail.summary) > release_summary_max_size:
-                log.warn("Release notes for %s truncated to %s", discovery.name, release_summary_max_size)
+                log.warning("Release notes for %s truncated to %s", discovery.name, release_summary_max_size)
             state["release_summary"] = discovery.release_detail.summary[:release_summary_max_size]
         if discovery.release_detail.notes_url:
             state["release_url"] = discovery.release_detail.notes_url

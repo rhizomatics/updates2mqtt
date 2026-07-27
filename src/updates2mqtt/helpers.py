@@ -99,7 +99,7 @@ class Throttler:
     ) -> None:
         index_name = index_name or self.DEFAULT_SITE
         retry_secs = retry_secs if retry_secs and retry_secs > 0 else self.api_throttle_pause
-        self.log.warn("%s throttling requests for %s seconds, %s", index_name, retry_secs, explanation)
+        self.log.warning("%s throttling requests for %s seconds, %s", index_name, retry_secs, explanation)
         self.pause_api_until[index_name] = time.time() + retry_secs
         if raise_exception:
             raise ThrottledError(explanation or f"{index_name} throttled request", retry_secs)

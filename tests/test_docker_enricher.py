@@ -177,7 +177,7 @@ def test_common_enricher() -> None:
         for url in (pkg.logo_url, pkg.release_notes_url, pkg.source_repo_url):
             assert isinstance(url, str | None)
             if url is not None:
-                assert url.startswith("https://") or url.startswith("http://")
+                assert url.startswith(("https://", "http://"))
         if pkg.source_repo_url:
             source_repos += 1
     assert source_repos > 0
@@ -202,7 +202,7 @@ _DuplicateKeyLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_T
 
 def test_common_packages_yaml_no_duplicate_keys() -> None:
     with PKG_INFO_FILE.open() as f:
-        raw = yaml.load(f, Loader=_DuplicateKeyLoader)  # noqa: S506
+        raw = yaml.load(f, Loader=_DuplicateKeyLoader)
 
     assert raw["common_packages"]
 
@@ -671,7 +671,7 @@ def test_fetch_token_401_with_www_authenticate_returns_token(mock_fetch: Mock) -
 
     lookup = ContainerDistributionAPIVersionLookup(Mock(), RegistryConfig())
     token = lookup.fetch_token("unknown-registry.io", "org/repo")
-    assert token == "secrettoken"  # noqa: S105
+    assert token == "secrettoken"
 
 
 @patch("updates2mqtt.integrations.docker_enrich.fetch_url")
@@ -715,5 +715,5 @@ def test_fetch_token_404_probe_then_401_with_auth_header(mock_fetch: Mock) -> No
 
     lookup = ContainerDistributionAPIVersionLookup(Mock(), RegistryConfig())
     token = lookup.fetch_token("unknown-registry.io", "org/repo")
-    assert token == "probetoken"  # noqa: S105
+    assert token == "probetoken"
     assert mock_fetch.call_count == 3

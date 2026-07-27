@@ -62,7 +62,7 @@ UNKNOWN_NAME = "**UNKNOWN_NAME**"
 HEADER_DOCKER_DIGEST = "docker-content-digest"
 HEADER_DOCKER_API = "docker-distribution-api-version"
 
-TOKEN_URL_TEMPLATE = "https://{auth_host}/token?scope=repository:{image_name}:pull&service={service}"  # noqa: S105 # nosec
+TOKEN_URL_TEMPLATE = "https://{auth_host}/token?scope=repository:{image_name}:pull&service={service}"  # nosec
 
 REGISTRY_GHCR = "ghcr.io"
 REGISTRY_DOCKER = "docker.io"
@@ -452,7 +452,7 @@ class CommonPackageEnricher(PackageEnricher):
             OmegaConf.to_container(cfg, throw_on_missing=True)
             OmegaConf.set_readonly(cfg, True)
         else:
-            self.log.warn("No common package update info found", path=PKG_INFO_FILE)
+            self.log.warning("No common package update info found", path=PKG_INFO_FILE)
             cfg = base_cfg
         try:
             common_config: CommonPackages = typing.cast("CommonPackages", cfg)
@@ -584,7 +584,7 @@ class VersionLookup:
         self.log: Any = structlog.get_logger().bind(integration="docker", tool="version_lookup")
 
     @abstractmethod
-    def lookup(self, local_image_info: DockerImageInfo, **kwargs) -> DockerImageInfo:  # noqa: ANN003
+    def lookup(self, local_image_info: DockerImageInfo, **kwargs) -> DockerImageInfo:
         pass
 
 
@@ -765,7 +765,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
         local_image_info: DockerImageInfo,
         token: str | None = None,
         minimal: bool = False,
-        **kwargs,  # noqa: ANN003, ARG002
+        **kwargs,
     ) -> DockerImageInfo:
         result: DockerImageInfo = DockerImageInfo(local_image_info.ref)
         if not local_image_info.name or not local_image_info.index_name:
@@ -916,7 +916,7 @@ class DockerClientVersionLookup(VersionLookup):
         self.api_backoff: int = api_backoff
         self.log: Any = structlog.get_logger().bind(integration="docker", tool="version_lookup")
 
-    def lookup(self, local_image_info: DockerImageInfo, retries: int = 3, **kwargs) -> DockerImageInfo:  # noqa: ANN003, ARG002
+    def lookup(self, local_image_info: DockerImageInfo, retries: int = 3, **kwargs) -> DockerImageInfo:
         retries_left = retries
         retry_secs: int = self.api_backoff
         reg_data: RegistryData | None = None
@@ -959,7 +959,7 @@ class DockerClientVersionLookup(VersionLookup):
                 result.error = str(e)
                 retries_left -= 1
                 if retries_left == 0 or e.is_client_error():
-                    self.log.warn("Failed to fetch registry data: [%s] %s", e.errno, e.explanation)
+                    self.log.warning("Failed to fetch registry data: [%s] %s", e.errno, e.explanation)
                 else:
                     self.log.debug("Failed to fetch registry data, retrying: %s", e)
 

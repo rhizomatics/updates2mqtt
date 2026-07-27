@@ -115,7 +115,7 @@ class MqttPublisher:
         self, _client: mqtt.Client, _userdata: Any, _flags: mqtt.ConnectFlags, rc: ReasonCode, _props: Properties | None
     ) -> None:
         if not self.client or self.fatal_failure.is_set():
-            self.log.warn("No client, check if started and authorized")
+            self.log.warning("No client, check if started and authorized")
             return
         if rc.getName() == "Not authorized":
             self.fatal_failure.set()
@@ -212,7 +212,7 @@ class MqttPublisher:
                             cleaner.publish(msg.topic, "", retain=True)
                             results["cleaned"] += 1
                 except Exception as e:
-                    logger.warn("Invalid payload at %s: %s", msg.topic, e)
+                    logger.warning("Invalid payload at %s: %s", msg.topic, e)
                     cleaner.publish(msg.topic, "", retain=True)
                     results["cleaned"] += 1
 
@@ -229,8 +229,8 @@ class MqttPublisher:
             logger.info(
                 f"Cleaned - discovered:{results['discovered']}, matched:{results['matched']}, cleaned:{results['cleaned']}"
             )
-        except Exception as e:
-            logger.exception("Cleaning topics of stale entries failed: %s", e)
+        except Exception:
+            logger.exception("Cleaning topics of stale entries failed")
 
     def safe_json_decode(self, jsonish: str | bytes | None) -> dict:
         if jsonish is None:
@@ -262,28 +262,28 @@ class MqttPublisher:
             if payload and "|" in payload:
                 source_type, comp_name, command = payload.split("|")
             else:
-                logger.warn("Invalid command format, expecting `source_type|comp_name|command`")
+                logger.warning("Invalid command format, expecting `source_type|comp_name|command`")
                 return None
             logger.debug("Validating %s:%s:%s", source_type, comp_name, command)
 
             provider: ReleaseProvider | None = self.providers_by_topic.get(msg.topic) if msg.topic else None
 
             if not provider:
-                logger.warn("Unexpected provider type %s", msg.topic)
+                logger.warning("Unexpected provider type %s", msg.topic)
                 return None
             if source_type is None or provider.source_type != source_type:
-                logger.warn("Unexpected source type %s", source_type)
+                logger.warning("Unexpected source type %s", source_type)
                 return None
             if command != "install":
-                logger.warn("Unknown command: %s", command)
+                logger.warning("Unknown command: %s", command)
                 return None
             if not comp_name:
-                logger.warn("Missing comp_name in command message: %s", msg.payload)
+                logger.warning("Missing comp_name in command message: %s", msg.payload)
                 return None
 
             in_progress_key: tuple[str, str] = (source_type, comp_name)
             if in_progress_key in self.commands_in_progress:
-                logger.warn("Ignoring duplicate %s command for %s, already in progress", command, comp_name)
+                logger.warning("Ignoring duplicate %s command for %s, already in progress", command, comp_name)
             else:
                 self.commands_in_progress.add(in_progress_key)
                 return (provider, comp_name, command)
@@ -328,7 +328,7 @@ class MqttPublisher:
     def local_message(self, discovery: Discovery, command: str) -> None:
         """Simulate an incoming MQTT message for local commands"""
         msg = LocalMessage(
-            topic=self.command_topic(discovery.provider), payload="|".join([discovery.source_type, discovery.name, command])
+            topic=self.command_topic(discovery.provider), payload=f"{discovery.source_type}|{discovery.name}|{command}"
         )
         self.handle_message(msg)
 
@@ -357,7 +357,7 @@ class MqttPublisher:
         )
 
     def on_message(self, _client: mqtt.Client, _userdata: Any, msg: mqtt.MQTTMessage) -> None:
-        """Callback for incoming MQTT messages"""  # noqa: D401
+        """Callback for incoming MQTT messages"""
         if msg.topic in self.providers_by_topic:
             self.handle_message(msg)
         else:
@@ -489,7 +489,7 @@ class MqttPublisher:
             ),
         )
 
-    def subscribe_hass_command(self, provider: ReleaseProvider):  # noqa: ANN201
+    def subscribe_hass_command(self, provider: ReleaseProvider):
         topic = self.command_topic(provider)
         if topic in self.providers_by_topic or self.client is None:
             self.log.debug("Skipping subscription", topic=topic)

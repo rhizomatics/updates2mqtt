@@ -140,10 +140,10 @@ def test_discovery_str_is_valid_json(mock_provider: ReleaseProvider) -> None:
 def test_release_provider_stop(node_cfg: NodeConfig) -> None:
     # Create a real ReleaseProvider to test stop()
     class TestProvider(ReleaseProvider):
-        def update(self, discovery: Discovery) -> bool:  # noqa: ARG002
+        def update(self, discovery: Discovery) -> bool:
             return False
 
-        def rescan(self, discovery: Discovery) -> Discovery | None:  # noqa: ARG002
+        def rescan(self, discovery: Discovery) -> Discovery | None:
             return None
 
         async def scan(self, session: str) -> AsyncGenerator[Discovery]:
@@ -151,14 +151,14 @@ def test_release_provider_stop(node_cfg: NodeConfig) -> None:
 
         def command(
             self,
-            discovery_name: str,  # noqa: ARG002
-            command: str,  # noqa: ARG002
-            on_update_start: object,  # noqa: ARG002
-            on_update_end: object,  # noqa: ARG002
+            discovery_name: str,
+            command: str,
+            on_update_start: object,
+            on_update_end: object,
         ) -> bool:
             return False
 
-        def resolve(self, discovery_name: str) -> Discovery | None:  # noqa: ARG002
+        def resolve(self, discovery_name: str) -> Discovery | None:
             return None
 
     provider = TestProvider(node_cfg, source_type="test_provider")
@@ -169,10 +169,10 @@ def test_release_provider_stop(node_cfg: NodeConfig) -> None:
 
 def test_release_provider_str(node_cfg: NodeConfig) -> None:
     class TestProvider(ReleaseProvider):
-        def update(self, discovery: Discovery) -> bool:  # noqa: ARG002
+        def update(self, discovery: Discovery) -> bool:
             return False
 
-        def rescan(self, discovery: Discovery) -> Discovery | None:  # noqa: ARG002
+        def rescan(self, discovery: Discovery) -> Discovery | None:
             return None
 
         async def scan(self, session: str) -> AsyncGenerator[Discovery]:
@@ -180,14 +180,14 @@ def test_release_provider_str(node_cfg: NodeConfig) -> None:
 
         def command(
             self,
-            discovery_name: str,  # noqa: ARG002
-            command: str,  # noqa: ARG002
-            on_update_start: object,  # noqa: ARG002
-            on_update_end: object,  # noqa: ARG002
+            discovery_name: str,
+            command: str,
+            on_update_start: object,
+            on_update_end: object,
         ) -> bool:
             return False
 
-        def resolve(self, discovery_name: str) -> Discovery | None:  # noqa: ARG002
+        def resolve(self, discovery_name: str) -> Discovery | None:
             return None
 
     provider = TestProvider(node_cfg, source_type="my_source")
