@@ -80,8 +80,8 @@ class GithubReleaseEnricher:
 
             if api_response and api_response.is_success:
                 api_results: Any = httpx_json_content(api_response, {})
-                detail.summary = api_results.get("body")  # ty:ignore[possibly-missing-attribute]
-                reactions = api_results.get("reactions")  # ty:ignore[possibly-missing-attribute]
+                detail.summary = api_results.get("body")
+                reactions = api_results.get("reactions")
                 if reactions:
                     detail.net_score = reactions.get("+1", 0) - reactions.get("-1", 0)
                 return
@@ -92,7 +92,7 @@ class GithubReleaseEnricher:
                     image.name,
                     detail.version,
                     api_response.status_code,
-                    api_results.get("errors"),
+                    api_results.get("errors") if api_results else "NO_RESULTS",
                 )
             else:
                 self.log.debug(

@@ -208,7 +208,7 @@ class DockerProvider(ReleaseProvider):
             else:
                 logger.debug("Skipping git_pull, no update")
 
-    def full_repo_path(self, compose_path: str, git_repo_path: str) -> Path:
+    def full_repo_path(self, compose_path: str | None, git_repo_path: str | None) -> Path:
         if compose_path is None or git_repo_path is None:
             raise ValueError("Unexpected null paths")
         if compose_path and not Path(git_repo_path).is_absolute():
@@ -424,9 +424,7 @@ class DockerProvider(ReleaseProvider):
                             "Local build ignored for git_repo_path=%s because no compose_path", service_info.git_repo_path
                         )
                 else:
-                    full_repo_path = self.full_repo_path(
-                        cast("str", service_info.compose_path), cast("str", service_info.git_repo_path)
-                    )
+                    full_repo_path = self.full_repo_path(service_info.compose_path, service_info.git_repo_path)
                     if local_info.local_build and full_repo_path:
                         git_versionish = git_local_digest(full_repo_path, Path(self.node_cfg.git_path))
                         if git_versionish:

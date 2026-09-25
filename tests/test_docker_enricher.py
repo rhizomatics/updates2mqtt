@@ -633,7 +633,7 @@ def test_as_dict_non_minimal_includes_attributes_and_annotations() -> None:
 def test_condense_digest_exception_returns_none() -> None:
     """Passing a non-string to condense_digest triggers the except branch."""
     info = DockerImageInfo("ghcr.io/org/repo:latest")
-    result = info.condense_digest(None)  # type: ignore[arg-type]
+    result = info.condense_digest(None)
     assert result is None
 
 
@@ -717,3 +717,139 @@ def test_fetch_token_404_probe_then_401_with_auth_header(mock_fetch: Mock) -> No
     token = lookup.fetch_token("unknown-registry.io", "org/repo")
     assert token == "probetoken"
     assert mock_fetch.call_count == 3
+
+
+# === ContainerDistributionAPIVersionLookup.lookup, index vs single platform manifest ===
+
+IMAGE_DIGEST = "sha256:6de8be84e66e4f10bea1a0817d65690f1901da67ac6815303030fea06aaedc74"
+PLATFORM_MANIFEST_DIGEST = "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+CONFIG_DIGEST = "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+
+
+def _response(body: dict, digest: str | None = None) -> Mock:
+    response = Mock()
+    response.is_success = True
+    response.status_code = 200
+    response.json.return_value = body
+    response.headers = {"content-type": body.get("mediaType", "application/json")}
+    if digest:
+        response.headers["docker-content-digest"] = digest
+    response.extensions = {}
+    return response
+
+
+def _platform_manifest(media_type: str, config_media_type: str) -> dict:
+    return {
+        "schemaVersion": 2,
+        "mediaType": media_type,
+        "config": {"mediaType": config_media_type, "digest": CONFIG_DIGEST, "size": 1234},
+        "layers": [],
+    }
+
+
+IMAGE_CONFIG = {
+    "architecture": "amd64",
+    "os": "linux",
+    "created": "2026-09-01T00:00:00Z",
+    "config": {"Labels": {"org.opencontainers.image.version": "1.0.43"}},
+}
+
+
+def _registry(index_reply: dict, index_digest: str = IMAGE_DIGEST) -> Mock:
+    def fetch(url: str, **_kwargs) -> Mock:
+        if url.endswith("/manifests/latest"):
+            return _response(index_reply, index_digest)
+        if url.endswith(f"/manifests/{PLATFORM_MANIFEST_DIGEST}"):
+            return _response(
+                _platform_manifest("application/vnd.oci.image.manifest.v1+json", "application/vnd.oci.image.config.v1+json"),
+                PLATFORM_MANIFEST_DIGEST,
+            )
+        if url.endswith(f"/blobs/{CONFIG_DIGEST}"):
+            return _response(IMAGE_CONFIG, CONFIG_DIGEST)
+        raise AssertionError(f"Unexpected url {url}")
+
+    return Mock(side_effect=fetch)
+
+
+def _local_image() -> DockerImageInfo:
+    return DockerImageInfo(
+        "szabis/iventoy:latest",
+        attributes={
+            "Os": "linux",
+            "Architecture": "amd64",
+            "RepoDigests": ["szabis/iventoy@sha256:24eb769a52ec27284804fbf2a55526fefe197eb14dbd8076b1b15a036a6aa8b6"],
+        },
+    )
+
+
+def _assert_found_update(result: DockerImageInfo) -> None:
+    assert result.image_digest == IMAGE_DIGEST
+    assert result.short_digest == "6de8be84e66e"
+    assert result.repo_digest == CONFIG_DIGEST
+    assert result.created == "2026-09-01T00:00:00Z"
+    assert result.annotations["org.opencontainers.image.version"] == "1.0.43"
+    assert result.origin == "OCI_V2"
+
+
+def test_lookup_multi_platform_index() -> None:
+    index = {
+        "schemaVersion": 2,
+        "mediaType": "application/vnd.oci.image.index.v1+json",
+        "manifests": [
+            {
+                "mediaType": "application/vnd.oci.image.manifest.v1+json",
+                "digest": PLATFORM_MANIFEST_DIGEST,
+                "platform": {"os": "linux", "architecture": "amd64"},
+            }
+        ],
+    }
+    with patch("updates2mqtt.integrations.docker_enrich.fetch_url", _registry(index)):
+        result = ContainerDistributionAPIVersionLookup(Mock(check_throttle=Mock(return_value=False)), RegistryConfig()).lookup(
+            _local_image(), token="token"
+        )
+    _assert_found_update(result)
+
+
+@pytest.mark.parametrize(
+    ("media_type", "config_media_type"),
+    [
+        ("application/vnd.docker.distribution.manifest.v2+json", "application/vnd.docker.container.image.v1+json"),
+        ("application/vnd.oci.image.manifest.v1+json", "application/vnd.oci.image.config.v1+json"),
+    ],
+)
+def test_lookup_single_platform_manifest_without_index(media_type: str, config_media_type: str) -> None:
+    """Issue #175 - registry returns the image manifest directly where no index published"""
+    with patch(
+        "updates2mqtt.integrations.docker_enrich.fetch_url", _registry(_platform_manifest(media_type, config_media_type))
+    ):
+        result = ContainerDistributionAPIVersionLookup(Mock(check_throttle=Mock(return_value=False)), RegistryConfig()).lookup(
+            _local_image(), token="token"
+        )
+    _assert_found_update(result)
+
+
+def test_lookup_single_platform_manifest_minimal_skips_config() -> None:
+    manifest = _platform_manifest(
+        "application/vnd.docker.distribution.manifest.v2+json", "application/vnd.docker.container.image.v1+json"
+    )
+    fetcher = _registry(manifest)
+    with patch("updates2mqtt.integrations.docker_enrich.fetch_url", fetcher):
+        result = ContainerDistributionAPIVersionLookup(Mock(check_throttle=Mock(return_value=False)), RegistryConfig()).lookup(
+            _local_image(), token="token", minimal=True
+        )
+    assert result.image_digest == IMAGE_DIGEST
+    assert result.repo_digest == CONFIG_DIGEST
+    assert result.origin == "OCI_V2_MINIMAL"
+    assert fetcher.call_count == 1
+
+
+def test_fetch_index_accepts_single_platform_manifest_types() -> None:
+    fetcher = _registry({"manifests": []})
+    with patch("updates2mqtt.integrations.docker_enrich.fetch_url", fetcher):
+        ContainerDistributionAPIVersionLookup(Mock(), RegistryConfig()).fetch_index(
+            "registry-1.docker.io", _local_image(), "token"
+        )
+    accepted = fetcher.call_args.kwargs["response_type"]
+    assert "application/vnd.docker.distribution.manifest.v2+json" in accepted
+    assert "application/vnd.oci.image.manifest.v1+json" in accepted
+    assert accepted[0] == "application/vnd.oci.image.index.v1+json"

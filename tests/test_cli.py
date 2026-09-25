@@ -298,3 +298,14 @@ def test_main_default_no_discovery_result(mock_oc: Mock, mock_dp: Mock) -> None:
     mock_dp.return_value = mock_scanner
 
     main()  # should not raise when rescan returns None
+
+
+@patch("updates2mqtt.cli.DockerProvider")
+def test_docker_provider_api_case_insensitive(mock_provider: Mock) -> None:
+    from omegaconf import OmegaConf
+
+    from updates2mqtt.cli import docker_provider
+    from updates2mqtt.config import RegistryAPI
+
+    docker_provider(OmegaConf.create({"api": "docker_client"}))
+    assert mock_provider.call_args.args[0].registry.api == RegistryAPI.DOCKER_CLIENT

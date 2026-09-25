@@ -319,7 +319,7 @@ def test_discovery_as_dict_basic_fields(mock_provider: ReleaseProvider) -> None:
 def test_discovery_as_dict_timestamps(mock_provider: ReleaseProvider) -> None:
     """as_dict should format timestamps correctly"""
     discovery = Discovery(mock_provider, "test", "session1", "node1")
-    result = discovery.as_dict()
+    result: dict[str, str | list[Any] | dict[Any, Any] | int | None] = discovery.as_dict()
 
     assert "first_scan" in result
     assert "timestamp" in result["first_scan"]  # type: ignore[operator]

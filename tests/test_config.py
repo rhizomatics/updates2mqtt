@@ -9,7 +9,7 @@ from unittest.mock import Mock, patch
 import pytest
 from omegaconf import OmegaConf
 
-from updates2mqtt.config import LogLevel, MqttConfig, load_app_config
+from updates2mqtt.config import LogLevel, MqttConfig, RegistryAPI, RegistryConfig, load_app_config
 from updates2mqtt.model import VersionPolicy
 
 EXAMPLES_ROOT = "examples"
@@ -146,3 +146,23 @@ def test_nodename_from_env() -> None:
     assert generated_config is not None
     assert generated_config.node.name == "xunit003b"
     assert not Path("no_such_dir").exists()
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("DOCKER_CLIENT", RegistryAPI.DOCKER_CLIENT),
+        ("docker_client", RegistryAPI.DOCKER_CLIENT),
+        ("oci_v2", RegistryAPI.OCI_V2),
+        ("OCI_V2_MINIMAL", RegistryAPI.OCI_V2_MINIMAL),
+        ("disabled", RegistryAPI.DISABLED),
+    ],
+)
+def test_registry_api_case_insensitive(value: str, expected: RegistryAPI) -> None:
+    cfg = OmegaConf.merge(OmegaConf.structured(RegistryConfig), {"api": value})
+    assert cfg.api == expected
+
+
+def test_registry_api_minimal_distinct_from_oci_v2() -> None:
+    assert RegistryAPI.OCI_V2_MINIMAL != RegistryAPI.OCI_V2
+    assert len(RegistryAPI) == 4

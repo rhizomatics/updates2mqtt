@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## 1.11.1
+### Fixes
+- Fix for [#175](https://github.com/rhizomatics/updates2mqtt/issues/175) (OCI_V2 lookup never finds an update for single-platform images without an image index)
+- OCI_V2_MINIMAL mode now fixed
+- CLI fixed for case sensitive API names
+- Tag responses could be over-cached, registry `mutable_cache_ttl` now defaults to 1 hour
+- Image creation time now read correctly from OCI image config
+- Python 3.13 compatibility issue found in config validation and resolved
+### Internal
+- Minor dependency update
+- Documentation site generation switched from mkdocs to ProperDocs
+- `ty` now also used for type checking, and minor type fixes made
+
 ## 1.11.0
 ### MQTT TLS
 - `ca_certs` is now optional for TLS, so can default to built-in certificate authorities where broker has a public verified cert

@@ -7,7 +7,7 @@ authors = [
 ]
 
 requires-python = ">=3.13"
-version = "1.11.0"
+version = "1.11.1"
 license="Apache-2.0"
 keywords=["mqtt", "docker", "oci","container","updates", "automation","home-assistant","homeassistant","selfhosting"]
 
@@ -65,10 +65,12 @@ dev = [
     "genbadge[all]",
     "actionlint-py",
     "codespell",
-    "mypy"
+    "mypy",
+    "types-docker>=7.2.0.20260827,<8.0.0.0",
+    "types-pyyaml>=6.0.12.20260906,<7.0.0.0",
 ]
 docs=[
-    "mkdocs<2.0.0",
+    "properdocs",
     "mkdocs-material[imaging]",
     "mkdocs-minify-plugin",
     "mkdocs-autorefs",
@@ -94,6 +96,10 @@ exclude_dirs = ["tests"]
 skips=["B404", #import subprocess
 "B602" #popen with shell=True
 ]
+
+[tool.ty.src]
+include = ["src"]
+exclude = ["tests"]
 
 [tool.ruff]
 line-length = 128
@@ -156,6 +162,10 @@ skip-magic-trailing-comma = false
 
 # Like Black, automatically detect the appropriate line ending.
 line-ending = "auto"
+
+[[tool.mypy.overrides]]
+module = ["usingversion"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

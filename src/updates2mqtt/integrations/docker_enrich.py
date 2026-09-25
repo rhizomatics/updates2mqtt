@@ -208,7 +208,7 @@ class DockerImageInfo(DiscoveryArtefactDetail):
 
         if self.image_digest is not None:
             self.image_digest = self.condense_digest(self.image_digest, short=False)
-            self.short_digest = self.condense_digest(self.image_digest)  # type: ignore[arg-type]
+            self.short_digest = self.condense_digest(self.image_digest)
 
     @property
     def repo_digests(self) -> list[str]:
@@ -235,7 +235,9 @@ class DockerImageInfo(DiscoveryArtefactDetail):
     def variant(self) -> str | None:
         return self.attributes.get("Variant")
 
-    def condense_digest(self, digest: str, short: bool = True) -> str | None:
+    def condense_digest(self, digest: str | None, short: bool = True) -> str | None:
+        if digest is None:
+            return None
         try:
             digest = digest.split("@")[1] if "@" in digest else digest  # fully qualified RepoDigest
             if short:
@@ -372,8 +374,11 @@ class LocalContainerInfo:
         # container image can be none if someone ran `docker rmi -f`
         # so although this could be sourced from image, like `container.image.tags[0]`
         # use the container ref instead, which survives monkeying about with images
-        image_ref: str = container.attrs.get("Config", {}).get("Image") or ""
-        image_digest = container.attrs.get("Image")
+        image_ref: str = ""
+        image_digest: str | None = None
+        if container.attrs:
+            image_ref = container.attrs.get("Config", {}).get("Image") or ""
+            image_digest = container.attrs.get("Image")
 
         image_info: DockerImageInfo = DockerImageInfo(
             image_ref,
@@ -421,10 +426,10 @@ class PackageEnricher:
 
         if image_info.untagged_ref is not None and image_info.ref is not None:
             for pkg in self.pkgs.values():
-                if match(pkg):
+                if match(pkg) and pkg.docker:
                     self.log.debug(
                         "Found common package",
-                        image_name=pkg.docker.image_name,  # type: ignore [union-attr]
+                        image_name=pkg.docker.image_name,
                         logo_url=pkg.logo_url,
                         relnotes_url=pkg.release_notes_url,
                     )
@@ -681,6 +686,9 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
             response_type=[
                 "application/vnd.oci.image.index.v1+json",
                 "application/vnd.docker.distribution.manifest.list.v2+json",
+                # single platform images may have no index, so accept manifest directly
+                "application/vnd.oci.image.manifest.v1+json",
+                "application/vnd.docker.distribution.manifest.v2+json",
             ],
             api_stats_counter=self.api_stats,
         )
@@ -760,6 +768,75 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
             self.log.error("Empty response from %s", api_url)
         return None, None
 
+    def process_manifest(
+        self,
+        result: DockerImageInfo,
+        manifest: dict[str, Any],
+        api_host: str,
+        local_image_info: DockerImageInfo,
+        token: str | None,
+        minimal: bool,
+    ) -> CacheMetadata | None:
+        """Extract repo digest, annotations and image config from a single platform image manifest"""
+        config_cache_metadata: CacheMetadata | None = None
+        manifest_config: dict[str, Any] = manifest.get("config", {})
+        digest: str | None = manifest_config.get("digest")
+        if digest is None:
+            self.log.warning("Empty config digest for %s %s", api_host, local_image_info.ref)
+        else:
+            result.repo_digest = result.condense_digest(digest, short=False)
+            self.log.debug("Setting %s repo digest: %s", result.name, result.repo_digest)
+
+        if manifest.get("annotations"):
+            result.annotations.update(manifest.get("annotations", {}))
+        else:
+            self.log.debug("No annotations found in manifest: %s", manifest)
+
+        if not minimal and manifest_config and manifest_config.get("mediaType") and manifest_config.get("digest"):
+            try:
+                img_config, config_cache_metadata = self.fetch_object(
+                    api_host=api_host,
+                    local_image_info=local_image_info,
+                    media_type=manifest_config["mediaType"],
+                    digest=manifest_config["digest"],
+                    token=token,
+                    follow_redirects=True,
+                    api_type="blobs",
+                )
+                if img_config:
+                    if (
+                        img_config.get("os")
+                        and local_image_info.os
+                        and (
+                            img_config.get("os") != local_image_info.os
+                            or img_config.get("architecture") != local_image_info.arch
+                        )
+                    ):
+                        self.log.warning(
+                            "Registry image %s is single platform %s/%s, not matching local %s/%s",
+                            local_image_info.ref,
+                            img_config.get("os"),
+                            img_config.get("architecture"),
+                            local_image_info.os,
+                            local_image_info.arch,
+                        )
+                    config = img_config.get("config") or img_config.get("Config")
+                    try:
+                        if config and "Labels" in config:
+                            result.annotations.update(config.get("Labels") or {})
+                        result.annotations.update(img_config.get("annotations") or {})
+                    except Exception as e:
+                        self.log.warning("Failure handling labels/annotations %s: %s", config, e)
+                    # OCI image config has created at top level, older Docker config may nest it
+                    result.created = img_config.get("created") or (config and (config.get("created") or config.get("Created")))
+                else:
+                    self.log.debug("No config found: %s", manifest)
+            except ThrottledError:
+                result.throttled = True
+            except Exception as e:
+                self.log.warning("Failed to extract %s image info from config: %s", local_image_info.ref, e)
+        return config_cache_metadata
+
     def lookup(
         self,
         local_image_info: DockerImageInfo,
@@ -807,6 +884,13 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
 
         if index:
             result.annotations = index.get("annotations", {})
+            if "manifests" not in index and "config" in index:
+                # single platform image, registry returned the image manifest directly, no index
+                if index_digest:
+                    result.image_digest = index_digest
+                    result.short_digest = result.condense_digest(index_digest)
+                    self.log.debug("Setting %s single platform image digest %s", result.name, result.short_digest)
+                config_cache_metadata = self.process_manifest(result, index, api_host, local_image_info, token, minimal)
             for m in index.get("manifests", []):
                 try:
                     platform_info = m.get("platform", {})
@@ -836,48 +920,9 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
                             result.throttled = True
 
                     if manifest:
-                        manifest_config: dict[str, Any] = manifest.get("config", {})
-                        digest = manifest_config.get("digest")
-                        if digest is None:
-                            self.log.warning("Empty digest for %s %s %s", api_host, digest, media_type)
-                        else:
-                            result.repo_digest = result.condense_digest(digest, short=False)
-                            self.log.debug("Setting %s repo digest: %s", result.name, result.repo_digest)
-
-                        if manifest.get("annotations"):
-                            result.annotations.update(manifest.get("annotations", {}))
-                        else:
-                            self.log.debug("No annotations found in manifest: %s", manifest)
-
-                        if (
-                            not minimal
-                            and manifest_config
-                            and manifest_config.get("mediaType")
-                            and manifest_config.get("digest")
-                        ):
-                            try:
-                                img_config, config_cache_metadata = self.fetch_object(
-                                    api_host=api_host,
-                                    local_image_info=local_image_info,
-                                    media_type=manifest_config["mediaType"],
-                                    digest=manifest_config["digest"],
-                                    token=token,
-                                    follow_redirects=True,
-                                    api_type="blobs",
-                                )
-                                if img_config:
-                                    config = img_config.get("config") or img_config.get("Config")
-                                    try:
-                                        if config and "Labels" in config:
-                                            result.annotations.update(config.get("Labels") or {})
-                                        result.annotations.update(img_config.get("annotations") or {})
-                                    except Exception as e:
-                                        self.log.warning("Failure handling labels/annotations %s: %s", config, e)
-                                    result.created = config.get("created") or config.get("Created")
-                                else:
-                                    self.log.debug("No config found: %s", manifest)
-                            except Exception as e:
-                                self.log.warning("Failed to extract %s image info from config: %s", local_image_info.ref, e)
+                        config_cache_metadata = self.process_manifest(
+                            result, manifest, api_host, local_image_info, token, minimal
+                        )
 
         if not result.annotations:
             self.log.debug("No annotations found from registry data")
@@ -950,7 +995,8 @@ class DockerClientVersionLookup(VersionLookup):
                 if e.status_code == HTTPStatus.TOO_MANY_REQUESTS:
                     retry_secs = round(retry_secs**1.5)
                     try:
-                        retry_secs = int(e.response.headers.get("Retry-After", -1))  # type: ignore[union-attr]
+                        if e.response and e.response.headers:
+                            retry_secs = int(e.response.headers.get("Retry-After", -1))
                     except Exception as e2:
                         self.log.debug("Failed to access headers for retry info: %s", e2)
                     self.throttler.throttle(local_image_info.index_name, retry_secs, e.explanation)

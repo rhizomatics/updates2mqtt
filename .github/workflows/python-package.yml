@@ -50,12 +50,12 @@ jobs:
           echo "No changes to badges"
         fi
 
-    - name: Mkdocs
+    - name: ProperDocs
       run:  |
         git pull
         uv sync --dev --group docs
         sudo apt-get install pngquant
-        uv run mkdocs gh-deploy
+        uv run properdocs gh-deploy
 
 
 

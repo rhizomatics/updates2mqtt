@@ -196,7 +196,7 @@ def fetch_url(
     api_stats_counter: APIStatsCounter | None = None,
 ) -> Response | None:
     try:
-        headers = [("cache-control", f"max-age={cache_ttl}")]
+        headers = [("cache-control", f"max-age={cache_ttl}")] if cache_ttl is not None else []
         if bearer_token:
             headers.append(("Authorization", f"Bearer {bearer_token}"))
         if response_type:

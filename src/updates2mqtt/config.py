@@ -39,6 +39,11 @@ class PublishPolicy(StrEnum):
     SILENT = "Silent"
 
 
+class CaseInsensitiveEnumMeta(EnumMeta):
+    def __getitem__(self, name):
+        return self._member_map_[name] if name in self._member_map_ else self._member_map_[name.upper()]
+
+
 class LogLevel(StrEnum):
     DEBUG = "DEBUG"
     INFO = "INFO"
@@ -47,9 +52,9 @@ class LogLevel(StrEnum):
     CRITICAL = "CRITICAL"
 
 
-class RegistryAPI(StrEnum):
+class RegistryAPI(StrEnum, metaclass=CaseInsensitiveEnumMeta):
     OCI_V2 = "OCI_V2"
-    OCI_V2_MINIMAL = "OCI_V2"
+    OCI_V2_MINIMAL = "OCI_V2_MINIMAL"
     DOCKER_CLIENT = "DOCKER_CLIENT"
     DISABLED = "DISABLED"
 
@@ -64,14 +69,9 @@ class VersionType:
 @dataclass
 class RegistryConfig:
     api: RegistryAPI = RegistryAPI.OCI_V2
-    mutable_cache_ttl: int | None = None  # default to server cache hint
+    mutable_cache_ttl: int | None = 60 * 60  # tags can move, so expire before next scan
     immutable_cache_ttl: int | None = 7776000  # 90 days
     token_cache_ttl: int | None = None  # default to server cache hint
-
-
-class CaseInsensitiveEnumMeta(EnumMeta):
-    def __getitem__(self, name):
-        return self._member_map_[name] if name in self._member_map_ else self._member_map_[name.upper()]
 
 
 class TlsMode(StrEnum, metaclass=CaseInsensitiveEnumMeta):
@@ -85,7 +85,7 @@ class MqttConfig:
     host: str = "${oc.env:MQTT_HOST,localhost}"
     user: str = f"${{oc.env:MQTT_USER,{MISSING}}}"
     password: str | None = "${oc.env:MQTT_PASS,''}"
-    port: int = "${oc.decode:${oc.env:MQTT_PORT,1883}}"  # type: ignore[assignment]
+    port: int = "${oc.decode:${oc.env:MQTT_PORT,1883}}"  # type: ignore[assignment] # ty: ignore[invalid-assignment]
     topic_root: str = "updates2mqtt"
     protocol: str = "${oc.env:MQTT_VERSION,3.11}"
     transport: str = "tcp"
@@ -199,8 +199,8 @@ class NodeConfig:
 
 @dataclass
 class LogConfig:
-    level: LogLevel = "${oc.decode:${oc.env:U2M_LOG_LEVEL,INFO}}"  # type: ignore[assignment] # pyright: ignore[reportAssignmentType]
-    json: bool = field(default=False, doc="Use JSON structured logging for non-interactive running")
+    level: LogLevel = "${oc.decode:${oc.env:U2M_LOG_LEVEL,INFO}}"  # type: ignore[assignment] # pyright: ignore[reportAssignmentType] # ty: ignore[invalid-assignment]
+    json: bool = False  # Use JSON structured logging for non-interactive running
 
 
 @dataclass

@@ -7,7 +7,7 @@ from omegaconf import DictConfig, OmegaConf
 from rich import print_json
 from rich.console import Console
 
-from updates2mqtt.config import DockerConfig, GitHubConfig, NodeConfig, RegistryConfig
+from updates2mqtt.config import DockerConfig, GitHubConfig, NodeConfig, RegistryAPI, RegistryConfig
 from updates2mqtt.helpers import Throttler
 from updates2mqtt.integrations.docker import DockerProvider
 from updates2mqtt.integrations.docker_enrich import (
@@ -143,7 +143,7 @@ def dump_url(doc_type: str, img_ref: str, cli_conf: DictConfig) -> None:
 
 def docker_provider(cli_conf: DictConfig) -> DockerProvider:
     docker_scanner = DockerProvider(
-        DockerConfig(registry=RegistryConfig(api=cli_conf.get("api", "OCI_V2"))),
+        DockerConfig(registry=RegistryConfig(api=RegistryAPI[str(cli_conf.get("api", "OCI_V2"))])),
         NodeConfig(),
         packages={},
         github_cfg=GitHubConfig(access_token=cli_conf.get("github_token")),
@@ -197,8 +197,8 @@ async def dump(fmt: str, cli_conf: DictConfig) -> None:
                     f'"{v}"'
                     for v in (
                         v["name"],
-                        v["current_detail"].get("image_ref"),  # type: ignore[union-attr]
-                        v["current_detail"].get("index_name"),  # type: ignore[union-attr]
+                        v["current_detail"].get("image_ref"),  # type: ignore[union-attr] #ty: ignore[unresolved-attribute]
+                        v["current_detail"].get("index_name"),  # type: ignore[union-attr] #ty: ignore[unresolved-attribute]
                         v["installed_version"],
                         v["latest_version"],
                         v["version_basis"],
@@ -207,8 +207,8 @@ async def dump(fmt: str, cli_conf: DictConfig) -> None:
                         v["can_build"],
                         v["can_restart"],
                         v["update_type"],
-                        v.get("release", {}).get("source"),  # type: ignore[union-attr]
-                        v.get("last_scan", {}).get("throttled"),  # type: ignore[union-attr]
+                        v.get("release", {}).get("source"),  # type: ignore[union-attr] #ty: ignore[unresolved-attribute]
+                        v.get("last_scan", {}).get("throttled"),  # type: ignore[union-attr] #ty: ignore[unresolved-attribute]
                     )
                 )
             )

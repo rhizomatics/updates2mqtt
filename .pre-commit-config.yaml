@@ -12,17 +12,17 @@ repos:
       - id: check-yaml
         name: Check for un-parseable yaml
         args: [--allow-multiple-documents]
-        exclude: mkdocs.yml
+        exclude: properdocs.yml
       - id: check-executables-have-shebangs
         name: Check shell script for shebang lines
       - id: check-shebang-scripts-are-executable
         name: Check shell scripts are executable
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.12.17
+    rev: 0.12.19
     hooks:
       - id: uv-lock
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.8
+    rev: v0.16.9
     hooks:
      # Run the linter.
       - id: ruff-check
@@ -70,7 +70,13 @@ repos:
         additional_dependencies: ["bandit[toml]"]
 
   - repo: https://github.com/Mateusz-Grzelinski/actionlint-py
-    rev: v1.7.12.24
+    rev: v1.7.12.25
     hooks:
       - id: actionlint
+
+  - repo: https://github.com/astral-sh/ty-pre-commit
+    rev: v0.0.84
+    hooks:
+      - id: ty
+
 
