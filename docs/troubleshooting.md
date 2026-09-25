@@ -73,14 +73,14 @@ The CLI can show the MQTT settings Updates2MQTT will use, and try a connection t
 Run it inside the running container, so it sees exactly the same environment and config file:
 
 ```bash
-docker exec -it updates2mqtt updates2mqtt-cli mqtt=check
+docker exec -it updates2mqtt u2m-cli mqtt=check
 ```
 
 Or from anywhere with uv, with the MQTT environment variables set, and optionally a config file:
 
 ```bash
-MQTT_HOST=192.168.1.10 MQTT_USER=u2m MQTT_PASS=xxx uvx --from updates2mqtt updates2mqtt-cli mqtt=check
-uvx --from updates2mqtt updates2mqtt-cli mqtt=check config=/path/to/config.yaml
+MQTT_HOST=192.168.1.10 MQTT_USER=u2m MQTT_PASS=xxx uvx --from updates2mqtt u2m-cli mqtt=check
+uvx --from updates2mqtt u2m-cli mqtt=check config=/path/to/config.yaml
 ```
 
 The check reports missing required values (such as `MQTT_USER`) and certificate files that don't exist, and doesn't try to connect if any are found. It exits with status 0 if the broker connection succeeds, and 1 otherwise, so it can also be used in scripts. It uses its own MQTT client id, so is safe to run alongside a live Updates2MQTT without disconnecting it.
@@ -238,32 +238,32 @@ Use the *container* hash, or a container name if one has been given ( easy to fi
 There's no need to install Updates2MQTT to use the manifest and blob fetching ability. 
 
 ```bash
-uvx --from updates2mqtt updates2mqtt-cli manifest=ghcr.io/blakeblackshear/frigate:stable
+uvx --from updates2mqtt u2m-cli manifest=ghcr.io/blakeblackshear/frigate:stable
 ```
 
 The following examples will all work from any Python context, and don't need a local Docker or any Docker access.
 
 ```bash
-uvx --from updates2mqtt updates2mqtt-cli manifest=ghcr.io/blakeblackshear/frigate:stable
-uvx --from updates2mqtt updates2mqtt-cli blob=ghcr.io/blakeblackshear/frigate@sha256:ef8d56a7d50b545af176e950ce328aec7f0b7bc5baebdca189fe661d97924980
-uvx --from updates2mqtt updates2mqtt-cli manifest=ghcr.io/blakeblackshear/frigate@sha256:c68fd78fd3237c9ba81b5aa927f17b54f46705990f43b4b5d5596cfbbb626af4
-uvx --from updates2mqtt updates2mqtt-cli tags=ghcr.io/blakeblackshear/frigate
-uvx --from updates2mqtt updates2mqtt-cli manifest=mcr.microsoft.com/dotnet/sdk:latest
+uvx --from updates2mqtt u2m-cli manifest=ghcr.io/blakeblackshear/frigate:stable
+uvx --from updates2mqtt u2m-cli blob=ghcr.io/blakeblackshear/frigate@sha256:ef8d56a7d50b545af176e950ce328aec7f0b7bc5baebdca189fe661d97924980
+uvx --from updates2mqtt u2m-cli manifest=ghcr.io/blakeblackshear/frigate@sha256:c68fd78fd3237c9ba81b5aa927f17b54f46705990f43b4b5d5596cfbbb626af4
+uvx --from updates2mqtt u2m-cli tags=ghcr.io/blakeblackshear/frigate
+uvx --from updates2mqtt u2m-cli manifest=mcr.microsoft.com/dotnet/sdk:latest
 ```
 
 These examples refer to locally running containers, displaying the local info as well as remote registry
 
 ```bash
-uvx --from updates2mqtt updates2mqtt-cli container=frigate
-uvx --from updates2mqtt updates2mqtt-cli container=f4f02e182f5e api=docker_client
-uvx --from updates2mqtt updates2mqtt-cli container=frigate api=docker_client log_level=DEBUG
+uvx --from updates2mqtt u2m-cli container=frigate
+uvx --from updates2mqtt u2m-cli container=f4f02e182f5e api=docker_client
+uvx --from updates2mqtt u2m-cli container=frigate api=docker_client log_level=DEBUG
 ```
 
-To keep it installed as a command, add it as a uv tool, which puts `updates2mqtt-cli` on the path:
+To keep it installed as a command, add it as a uv tool, which puts `u2m-cli` on the path:
 
 ```bash
 uv tool install updates2mqtt
-updates2mqtt-cli container=frigate api=docker_client
+u2m-cli container=frigate api=docker_client
 ```
 
 If the package is installed in a local Python environment, it can also be run directly:
