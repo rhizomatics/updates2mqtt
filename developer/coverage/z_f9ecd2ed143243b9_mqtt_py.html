@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="covindex.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.1">coverage.py v7.16.1</a>,
-            created at 2026-09-21 20:38 +0000
+            created at 2026-09-25 10:02 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -545,7 +545,7 @@
     <p class="mis show_mis"><span class="n"><a id="t461" href="#t461">461</a></span><span class="t">            <span class="key">return</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t462" href="#t462">462</a></span><span class="t">        <span class="nam">self</span><span class="op">.</span><span class="nam">log</span><span class="op">.</span><span class="nam">debug</span><span class="op">(</span><span class="str">&quot;Discovery publish: %s&quot;</span><span class="op">,</span> <span class="nam">discovery</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t463" href="#t463">463</a></span><span class="t">        <span class="nam">payload</span><span class="op">:</span> <span class="nam">dict</span><span class="op">[</span><span class="nam">str</span><span class="op">,</span> <span class="nam">Any</span><span class="op">]</span> <span class="op">=</span> <span class="nam">discovery</span><span class="op">.</span><span class="nam">as_dict</span><span class="op">(</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t464" href="#t464">464</a></span><span class="t">        <span class="nam">payload</span><span class="op">[</span><span class="str">&quot;update&quot;</span><span class="op">]</span><span class="op">[</span><span class="str">&quot;in_progress&quot;</span><span class="op">]</span> <span class="op">=</span> <span class="nam">in_progress</span>  <span class="com"># ty:ignore[invalid-assignment]</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t464" href="#t464">464</a></span><span class="t">        <span class="nam">payload</span><span class="op">[</span><span class="str">&quot;update&quot;</span><span class="op">]</span><span class="op">[</span><span class="str">&quot;in_progress&quot;</span><span class="op">]</span> <span class="op">=</span> <span class="nam">in_progress</span>&nbsp;</span><span class="r"></span></p>
     <p class="par run show_par"><span class="n"><a id="t465" href="#t465">465</a></span><span class="t">        <span class="key">if</span> <span class="nam">payload</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="str">&quot;release&quot;</span><span class="op">,</span> <span class="op">{</span><span class="op">}</span><span class="op">)</span><span class="op">.</span><span class="nam">get</span><span class="op">(</span><span class="str">&quot;summary&quot;</span><span class="op">)</span> <span class="key">and</span> <span class="nam">self</span><span class="op">.</span><span class="nam">hass_cfg</span><span class="op">.</span><span class="nam">release_summary_max_size</span><span class="op">:</span>&nbsp;</span><span class="r"><span class="annotate short">465&#x202F;&#x219B;&#x202F;466</span><span class="annotate long">line 465 didn't jump to line 466 because the condition on line 465 was never true</span></span></p>
     <p class="mis show_mis"><span class="n"><a id="t466" href="#t466">466</a></span><span class="t">            <span class="nam">payload</span><span class="op">[</span><span class="str">&quot;release&quot;</span><span class="op">]</span><span class="op">[</span><span class="str">&quot;summary&quot;</span><span class="op">]</span> <span class="op">=</span> <span class="nam">payload</span><span class="op">[</span><span class="str">&quot;release&quot;</span><span class="op">]</span><span class="op">[</span><span class="str">&quot;summary&quot;</span><span class="op">]</span><span class="op">[</span><span class="op">:</span> <span class="nam">self</span><span class="op">.</span><span class="nam">hass_cfg</span><span class="op">.</span><span class="nam">release_summary_max_size</span><span class="op">]</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t467" href="#t467">467</a></span><span class="t">        <span class="nam">self</span><span class="op">.</span><span class="nam">publish</span><span class="op">(</span><span class="nam">self</span><span class="op">.</span><span class="nam">general_topic</span><span class="op">(</span><span class="nam">discovery</span><span class="op">)</span><span class="op">,</span> <span class="nam">payload</span><span class="op">)</span>&nbsp;</span><span class="r"></span></p>
@@ -623,7 +623,7 @@
             <a class="nav" href="covindex.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.1">coverage.py v7.16.1</a>,
-            created at 2026-09-21 20:38 +0000
+            created at 2026-09-25 10:02 +0000
         </p>
     </div>
 </footer>
