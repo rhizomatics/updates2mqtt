@@ -6,6 +6,7 @@
 - OCI_V2_MINIMAL mode now fixed
 - CLI fixed for case sensitive API names
 - Tag responses could be over-cached, registry `mutable_cache_ttl` now defaults to 1 hour
+  - Older caches entries will persist until cache directory cleaned out
 - Image creation time now read correctly from OCI image config
 - Python 3.13 compatibility issue found in config validation and resolved
 ### Internal
