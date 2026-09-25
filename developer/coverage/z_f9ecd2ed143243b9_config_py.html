@@ -67,7 +67,7 @@
             <a id="nextFileLink" class="nav" href="z_f9ecd2ed143243b9_hass_formatter_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.1">coverage.py v7.16.1</a>,
-            created at 2026-09-25 10:08 +0000
+            created at 2026-09-25 11:08 +0000
         </p>
         <aside class="hidden">
             <button type="button" class="button_next_chunk" data-shortcut="j"></button>
@@ -172,15 +172,15 @@
     <p class="run"><span class="n"><a id="t88" href="#t88">88</a></span><span class="t">    <span class="nam">port</span><span class="op">:</span> <span class="nam">int</span> <span class="op">=</span> <span class="str">&quot;${oc.decode:${oc.env:MQTT_PORT,1883}}&quot;</span>  <span class="com"># type: ignore[assignment] # ty: ignore[invalid-assignment]</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t89" href="#t89">89</a></span><span class="t">    <span class="nam">topic_root</span><span class="op">:</span> <span class="nam">str</span> <span class="op">=</span> <span class="str">&quot;updates2mqtt&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t90" href="#t90">90</a></span><span class="t">    <span class="nam">protocol</span><span class="op">:</span> <span class="nam">str</span> <span class="op">=</span> <span class="str">&quot;${oc.env:MQTT_VERSION,3.11}&quot;</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t91" href="#t91">91</a></span><span class="t">    <span class="nam">transport</span><span class="op">:</span> <span class="nam">str</span> <span class="op">=</span> <span class="str">&quot;tcp&quot;</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t91" href="#t91">91</a></span><span class="t">    <span class="nam">transport</span><span class="op">:</span> <span class="nam">str</span> <span class="op">=</span> <span class="str">&quot;${oc.env:MQTT_TRANSPORT,&#x27;tcp&#x27;}&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t92" href="#t92">92</a></span><span class="t">    <span class="nam">connect_timeout</span><span class="op">:</span> <span class="nam">float</span> <span class="op">=</span> <span class="num">20</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t93" href="#t93">93</a></span><span class="t">    <span class="nam">keepalive</span><span class="op">:</span> <span class="nam">int</span> <span class="op">=</span> <span class="num">30</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t94" href="#t94">94</a></span><span class="t">    <span class="nam">tls_mode</span><span class="op">:</span> <span class="nam">TlsMode</span> <span class="op">=</span> <span class="nam">TlsMode</span><span class="op">.</span><span class="nam">OFF</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t94" href="#t94">94</a></span><span class="t">    <span class="nam">tls_mode</span><span class="op">:</span> <span class="nam">TlsMode</span> <span class="op">=</span> <span class="str">&quot;${oc.env:MQTT_TLS_MODE,off}&quot;</span>  <span class="com"># type: ignore[assignment] # ty: ignore[invalid-assignment]</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t95" href="#t95">95</a></span><span class="t">    <span class="nam">ca_certs</span><span class="op">:</span> <span class="nam">str</span> <span class="op">|</span> <span class="key">None</span> <span class="op">=</span> <span class="str">&quot;${oc.env:MQTT_CA_CERTS,&#x27;&#x27;}&quot;</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t96" href="#t96">96</a></span><span class="t">    <span class="nam">client_cert</span><span class="op">:</span> <span class="nam">str</span> <span class="op">|</span> <span class="key">None</span> <span class="op">=</span> <span class="str">&quot;${oc.env:MQTT_CLIENT_CERT,&#x27;&#x27;}&quot;</span>  <span class="com"># certfile</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t97" href="#t97">97</a></span><span class="t">    <span class="nam">client_key</span><span class="op">:</span> <span class="nam">str</span> <span class="op">|</span> <span class="key">None</span> <span class="op">=</span> <span class="str">&quot;${oc.env:MQTT_CLIENT_KEY,&#x27;&#x27;}&quot;</span>  <span class="com"># keyfile</span>&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t98" href="#t98">98</a></span><span class="t">    <span class="nam">client_key_password</span><span class="op">:</span> <span class="nam">str</span> <span class="op">|</span> <span class="key">None</span> <span class="op">=</span> <span class="str">&quot;${oc.env:MQTT_CLIENT_KEY_PASS,&#x27;&#x27;}&quot;</span>  <span class="com"># keyfile_password</span>&nbsp;</span><span class="r"></span></p>
-    <p class="run"><span class="n"><a id="t99" href="#t99">99</a></span><span class="t">    <span class="nam">cert_reqs</span><span class="op">:</span> <span class="nam">ssl</span><span class="op">.</span><span class="nam">VerifyMode</span> <span class="op">=</span> <span class="nam">ssl</span><span class="op">.</span><span class="nam">CERT_REQUIRED</span>&nbsp;</span><span class="r"></span></p>
+    <p class="run"><span class="n"><a id="t99" href="#t99">99</a></span><span class="t">    <span class="nam">cert_reqs</span><span class="op">:</span> <span class="nam">ssl</span><span class="op">.</span><span class="nam">VerifyMode</span> <span class="op">=</span> <span class="str">&quot;${oc.env:MQTT_CERT_REQUIRED,CERT_REQUIRED}&quot;</span>  <span class="com"># type: ignore[assignment] # ty: ignore[invalid-assignment]</span>&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t100" href="#t100">100</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="pln"><span class="n"><a id="t101" href="#t101">101</a></span><span class="t">&nbsp;</span><span class="r"></span></p>
     <p class="run"><span class="n"><a id="t102" href="#t102">102</a></span><span class="t"><span class="op">@</span><span class="nam">dataclass</span>&nbsp;</span><span class="r"></span></p>
@@ -358,7 +358,7 @@
             <a class="nav" href="z_f9ecd2ed143243b9_hass_formatter_py.html">&#xbb; next</a>
             &nbsp; &nbsp; &nbsp;
             <a class="nav" href="https://coverage.readthedocs.io/en/7.16.1">coverage.py v7.16.1</a>,
-            created at 2026-09-25 10:08 +0000
+            created at 2026-09-25 11:08 +0000
         </p>
     </div>
 </footer>
