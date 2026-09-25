@@ -101,7 +101,11 @@ class MqttPublisher:
 
             self.client.loop_start()
 
-            if not self.connected.wait(timeout=self.cfg.connect_timeout) and not self.fatal_failure.is_set():
+            # poll so a credentials rejection ends the wait early rather than running to timeout
+            deadline: float = time.monotonic() + self.cfg.connect_timeout
+            while not self.connected.wait(timeout=0.1) and not self.fatal_failure.is_set() and time.monotonic() < deadline:
+                pass
+            if not self.connected.is_set() and not self.fatal_failure.is_set():
                 logger.warning("Timed out waiting for broker connection, continuing anyway", timeout=self.cfg.connect_timeout)
 
             logger.debug("MQTT Publisher loop started", host=self.cfg.host, port=self.cfg.port)

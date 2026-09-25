@@ -88,15 +88,15 @@ class MqttConfig:
     port: int = "${oc.decode:${oc.env:MQTT_PORT,1883}}"  # type: ignore[assignment] # ty: ignore[invalid-assignment]
     topic_root: str = "updates2mqtt"
     protocol: str = "${oc.env:MQTT_VERSION,3.11}"
-    transport: str = "tcp"
+    transport: str = "${oc.env:MQTT_TRANSPORT,'tcp'}"
     connect_timeout: float = 20
     keepalive: int = 30
-    tls_mode: TlsMode = TlsMode.OFF
+    tls_mode: TlsMode = "${oc.env:MQTT_TLS_MODE,off}"  # type: ignore[assignment] # ty: ignore[invalid-assignment]
     ca_certs: str | None = "${oc.env:MQTT_CA_CERTS,''}"
     client_cert: str | None = "${oc.env:MQTT_CLIENT_CERT,''}"  # certfile
     client_key: str | None = "${oc.env:MQTT_CLIENT_KEY,''}"  # keyfile
     client_key_password: str | None = "${oc.env:MQTT_CLIENT_KEY_PASS,''}"  # keyfile_password
-    cert_reqs: ssl.VerifyMode = ssl.CERT_REQUIRED
+    cert_reqs: ssl.VerifyMode = "${oc.env:MQTT_CERT_REQUIRED,CERT_REQUIRED}"  # type: ignore[assignment] # ty: ignore[invalid-assignment]
 
 
 @dataclass

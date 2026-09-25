@@ -7,7 +7,7 @@ authors = [
 ]
 
 requires-python = ">=3.13"
-version = "1.11.1"
+version = "1.12.0"
 license="Apache-2.0"
 keywords=["mqtt", "docker", "oci","container","updates", "automation","home-assistant","homeassistant","selfhosting"]
 
@@ -39,7 +39,7 @@ classifiers = [
 
 [project.scripts]
 updates2mqtt = "updates2mqtt.app:run"
-cli = "updates2mqtt.cli:main"
+updates2mqtt-cli = "updates2mqtt.cli:main"
 
 [tool.uv]
 compile-bytecode = true

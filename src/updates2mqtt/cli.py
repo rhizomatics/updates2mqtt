@@ -1,13 +1,30 @@
+import asyncio
 import json
+import re
+import ssl
+import sys
+import typing
 from collections.abc import AsyncGenerator
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import structlog
-from omegaconf import DictConfig, OmegaConf
+from docker.errors import DockerException
+from omegaconf import MISSING, DictConfig, MissingMandatoryValue, OmegaConf, ValidationError
 from rich import print_json
 from rich.console import Console
 
-from updates2mqtt.config import DockerConfig, GitHubConfig, NodeConfig, RegistryAPI, RegistryConfig
+from updates2mqtt.app import CONF_FILE
+from updates2mqtt.config import (
+    DockerConfig,
+    GitHubConfig,
+    HomeAssistantConfig,
+    MqttConfig,
+    NodeConfig,
+    RegistryAPI,
+    RegistryConfig,
+    TlsMode,
+)
 from updates2mqtt.helpers import Throttler
 from updates2mqtt.integrations.docker import DockerProvider
 from updates2mqtt.integrations.docker_enrich import (
@@ -17,6 +34,7 @@ from updates2mqtt.integrations.docker_enrich import (
     fetch_url,
 )
 from updates2mqtt.model import Discovery
+from updates2mqtt.mqtt import MqttPublisher
 
 if TYPE_CHECKING:
     from httpx import Response
@@ -27,7 +45,7 @@ log = structlog.get_logger()
 HELP = """
 Super simple CLI
 
-Command can be `container`,`tags`,`manifest` or `blob`
+Command can be `container`,`dump`,`tags`,`manifest`,`blob` or `mqtt`
 
 * `container=container-name`
 * `container=hash`
@@ -38,6 +56,7 @@ Command can be `container`,`tags`,`manifest` or `blob`
 * `blob=mcr.microsoft.com/dotnet/sdk:latest`
 * `tags=quay.io/linuxserver.io/babybuddy`
 * `blob=ghcr.io/blakeblackshear/frigate@sha256:759c36ee869e3e60258350a2e221eae1a4ba1018613e0334f1bc84eb09c4bbbc`
+* `mqtt=check` to show MQTT settings and test the broker connection, optionally with `config=path/to/config.yaml`
 
 In addition, a `log_level=DEBUG` or other level can be added, `github_token` to try a personal access
 token for GitHub release info retrieval, or `api=docker_client` to use the older API (defaults to `api=OCI_V2`)
@@ -218,10 +237,93 @@ async def dump(fmt: str, cli_conf: DictConfig) -> None:
         log.warning(f"Unsupported dump format {fmt}")
 
 
+MQTT_SECRETS: tuple[str, ...] = ("password", "client_key_password")
+MQTT_FILES: tuple[str, ...] = ("ca_certs", "client_cert", "client_key")
+
+
+def load_mqtt_config(conf_file_path: Path) -> DictConfig:
+    mqtt_cfg: DictConfig = OmegaConf.structured(MqttConfig)
+    if conf_file_path.exists():
+        log.info(f"Using MQTT settings from {conf_file_path} and environment")
+        file_cfg = OmegaConf.load(conf_file_path)
+        if isinstance(file_cfg, DictConfig) and file_cfg.get("mqtt"):
+            mqtt_cfg = typing.cast("DictConfig", OmegaConf.merge(mqtt_cfg, file_cfg.mqtt))
+    else:
+        log.info(f"No config file at {conf_file_path}, using environment and defaults only")
+    return mqtt_cfg
+
+
+def check_mqtt(cli_conf: DictConfig) -> bool:
+    structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(cli_conf.get("log_level", "INFO")))
+    mqtt_cfg: DictConfig = load_mqtt_config(Path(cli_conf.get("config", CONF_FILE)))
+    raw: dict[str, typing.Any] = typing.cast("dict[str, typing.Any]", OmegaConf.to_container(mqtt_cfg, resolve=False))
+
+    valid = True
+    for key, raw_value in raw.items():
+        env_match = re.search(r"oc\.env:(\w+)", str(raw_value))
+        source: str = f" (env {env_match.group(1)})" if env_match else ""
+        try:
+            value = mqtt_cfg[key]
+        except (MissingMandatoryValue, ValidationError) as e:
+            log.error(f"{key}{source}: invalid or missing - {e}")
+            valid = False
+            continue
+        if value == MISSING:
+            log.error(f"{key}{source}: required but not set")
+            valid = False
+            continue
+        if key in MQTT_FILES and value and not Path(value).is_file():
+            log.error(f"{key}{source}: file not found at {value}")
+            valid = False
+            continue
+        if key in MQTT_SECRETS:
+            display = "<set>" if value else "<not set>"
+        elif isinstance(value, int) and key == "cert_reqs":
+            display = ssl.VerifyMode(value).name
+        else:
+            display = value if value not in (None, "") else "<not set>"
+        log.info(f"{key}{source}: {display}")
+
+    if not valid:
+        log.error("MQTT configuration is invalid, not attempting broker connection")
+        return False
+    cfg: MqttConfig = typing.cast("MqttConfig", mqtt_cfg)
+    if cfg.tls_mode == TlsMode.OFF and cfg.port == 8883:
+        log.warning("Port 8883 is normally used for TLS, but tls_mode is off")
+
+    # separate client id so a running updates2mqtt instance isn't disconnected by the broker
+    publisher = MqttPublisher(cfg, NodeConfig(name=f"{NodeConfig().name}-cli-check"), HomeAssistantConfig())
+    log.info(f"Connecting to {cfg.host}:{cfg.port} as {cfg.user}, timeout {cfg.connect_timeout}s")
+    try:
+        publisher.start(asyncio.new_event_loop())
+    except OSError as e:
+        log.error(f"Broker connection failed: {e}")
+        return False
+    try:
+        if publisher.connected.is_set():
+            log.info(f"Broker connection to {cfg.host}:{cfg.port} succeeded")
+            return True
+        if publisher.fatal_failure.is_set():
+            log.error("Broker rejected credentials")
+        else:
+            log.error(f"No successful broker connection within {cfg.connect_timeout}s")
+        return False
+    finally:
+        publisher.stop()
+
+
 def main() -> None:
     # will be a proper cli someday
     cli_conf: DictConfig = OmegaConf.from_cli()
 
+    try:
+        run_command(cli_conf)
+    except DockerException as e:
+        log.error(f"Unable to connect to Docker, check it is running and accessible: {e}")
+        sys.exit(1)
+
+
+def run_command(cli_conf: DictConfig) -> None:
     if "help" in cli_conf or "--help" in cli_conf:
         log.info(HELP)
     elif cli_conf.get("blob"):
@@ -230,20 +332,22 @@ def main() -> None:
         dump_url("manifest", cli_conf.get("manifest"), cli_conf)
     elif cli_conf.get("tags"):
         dump_url("tags", cli_conf.get("tags"), cli_conf)
+    elif cli_conf.get("mqtt"):
+        if not check_mqtt(cli_conf):
+            sys.exit(1)
     elif cli_conf.get("dump"):
-        import asyncio
-
         asyncio.run(dump(cli_conf.get("dump"), cli_conf))
-
-    else:
+    elif cli_conf.get("container"):
         structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(cli_conf.get("log_level", "INFO")))
 
         docker_scanner = docker_provider(cli_conf)
         discovery: Discovery | None = docker_scanner.rescan(
-            Discovery(docker_scanner, cli_conf.get("container", "frigate"), "cli", "manual")
+            Discovery(docker_scanner, cli_conf.get("container"), "cli", "manual")
         )
         if discovery:
             log.info(discovery.as_dict())
+    else:
+        log.info(HELP)
 
 
 if __name__ == "__main__":

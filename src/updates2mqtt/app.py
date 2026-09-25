@@ -41,7 +41,7 @@ class App:
         if app_config is None:
             log.error(f"Invalid configuration at {CONF_FILE}")
             log.error("Edit config to fix missing or invalid values and restart")
-            log.error("Alternately supply correct MQTT_HOST,MQTT_USER,MQTT_PASSWORD environment variables")
+            log.error("Alternately supply correct MQTT_HOST,MQTT_USER,MQTT_PASS environment variables")
             log.error("Exiting app")
             sys.exit(1)
         self.cfg: Config = app_config
@@ -194,7 +194,7 @@ class App:
         await asyncio.gather(*running_tasks, return_exceptions=True)
         log.debug("Cancellation task completed")
 
-    def shutdown(self, *args, exit_code: int = 143) -> None:
+    def shutdown(self, *args: Any, exit_code: int = 143) -> None:
         if self.self_bounce.is_set():
             exit_code = 1
             log.info("Self bouncing, overriding exit_code: %s", exit_code)

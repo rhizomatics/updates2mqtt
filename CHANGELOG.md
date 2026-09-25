@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## 1.11.2
+### MQTT TLS
+- More MQTT configuration available as environment variables
+  - `MQTT_TLS_MODE` ( `on`,`off` or `insecure`)
+  - `MQTT_TRANSPORT` ( `tcp`, `unix` or `websockets`)
+  - `MQTT_CERT_REQUIRED` ( `CERT_REQUIRED`, `CERT_OPTIONAL`, `CERT_NONE` ) 
+### CLI
+- Debug CLI script renamed from `cli` to `updates2mqtt-cli`, so it can be installed with `uv tool install updates2mqtt`
+- CLI with no arguments now shows help instead of trying to look up a `frigate` container, and a Docker connection failure gives a one line error rather than a stack trace
+- New `mqtt=check` CLI command to show MQTT settings (without secrets) and test the broker connection
+### Fixes
+- Rejected MQTT credentials at startup no longer wait for the full connection timeout
+
 ## 1.11.1
 ### Fixes
 - Fix for [#175](https://github.com/rhizomatics/updates2mqtt/issues/175) (OCI_V2 lookup never finds an update for single-platform images without an image index)

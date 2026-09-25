@@ -258,7 +258,7 @@ def build_mock_container(
     c.image.attrs = {}
     c.image.attrs["Os"] = opsys
     c.image.attrs["Architecture"] = arch
-    bare_tag = tag.split(":")[0]
+    bare_tag = tag.split(":", maxsplit=1)[0]
 
     if update_available:
         repo_digest = f"sha256:{uuid.uuid4().hex}"

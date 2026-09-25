@@ -291,13 +291,37 @@ def test_main_default_rescans_container(mock_oc: Mock, mock_dp: Mock) -> None:
 @patch("updates2mqtt.cli.docker_provider")
 @patch("updates2mqtt.cli.OmegaConf")
 def test_main_default_no_discovery_result(mock_oc: Mock, mock_dp: Mock) -> None:
-    conf = OmegaConf.create({})
+    conf = OmegaConf.create({"container": "frigate"})
     mock_oc.from_cli.return_value = conf
     mock_scanner = Mock()
     mock_scanner.rescan.return_value = None
     mock_dp.return_value = mock_scanner
 
     main()  # should not raise when rescan returns None
+
+
+@patch("updates2mqtt.cli.docker_provider")
+@patch("updates2mqtt.cli.OmegaConf")
+def test_main_no_args_shows_help_without_docker(mock_oc: Mock, mock_dp: Mock) -> None:
+    mock_oc.from_cli.return_value = OmegaConf.create({})
+
+    main()
+
+    mock_dp.assert_not_called()
+
+
+@patch("updates2mqtt.cli.docker_provider")
+@patch("updates2mqtt.cli.OmegaConf")
+def test_main_docker_unavailable_exits_cleanly(mock_oc: Mock, mock_dp: Mock) -> None:
+    from docker.errors import DockerException
+
+    mock_oc.from_cli.return_value = OmegaConf.create({"container": "frigate"})
+    mock_dp.side_effect = DockerException("Error while fetching server API version")
+
+    with pytest.raises(SystemExit) as exc:
+        main()
+
+    assert exc.value.code == 1
 
 
 @patch("updates2mqtt.cli.DockerProvider")
@@ -309,3 +333,110 @@ def test_docker_provider_api_case_insensitive(mock_provider: Mock) -> None:
 
     docker_provider(OmegaConf.create({"api": "docker_client"}))
     assert mock_provider.call_args.args[0].registry.api == RegistryAPI.DOCKER_CLIENT
+
+
+# === mqtt check ===
+
+
+def _mqtt_env(monkeypatch: pytest.MonkeyPatch, **env: str) -> None:
+    for k in ("MQTT_HOST", "MQTT_USER", "MQTT_PASS", "MQTT_PORT", "MQTT_TLS_MODE", "MQTT_CA_CERTS"):
+        monkeypatch.delenv(k, raising=False)
+    for k, v in env.items():
+        monkeypatch.setenv(k, v)
+
+
+@patch("updates2mqtt.cli.MqttPublisher")
+def test_check_mqtt_connects(mock_pub_cls: Mock, monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> None:
+    from updates2mqtt.cli import check_mqtt
+
+    _mqtt_env(monkeypatch, MQTT_USER="u2m", MQTT_PASS="s3cret", MQTT_HOST="broker.local")
+    mock_pub_cls.return_value.connected.is_set.return_value = True
+
+    assert check_mqtt(_conf(config=str(tmp_path / "none.yaml"), log_level="INFO")) is True
+
+    cfg = mock_pub_cls.call_args.args[0]
+    assert cfg.host == "broker.local"
+    assert mock_pub_cls.call_args.args[1].name.endswith("-cli-check")
+    mock_pub_cls.return_value.stop.assert_called_once()
+
+
+@patch("updates2mqtt.cli.log")
+@patch("updates2mqtt.cli.MqttPublisher")
+def test_check_mqtt_masks_secrets(mock_pub_cls: Mock, mock_log: Mock, monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> None:
+    from updates2mqtt.cli import check_mqtt
+
+    _mqtt_env(monkeypatch, MQTT_USER="u2m", MQTT_PASS="s3cret")
+    mock_pub_cls.return_value.connected.is_set.return_value = True
+
+    check_mqtt(_conf(config=str(tmp_path / "none.yaml")))
+
+    logged = " ".join(str(c) for c in mock_log.mock_calls)
+    assert "s3cret" not in logged
+    assert "password (env MQTT_PASS): <set>" in logged
+
+
+@patch("updates2mqtt.cli.MqttPublisher")
+def test_check_mqtt_missing_user_skips_connect(mock_pub_cls: Mock, monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> None:
+    from updates2mqtt.cli import check_mqtt
+
+    _mqtt_env(monkeypatch)
+
+    assert check_mqtt(_conf(config=str(tmp_path / "none.yaml"))) is False
+    mock_pub_cls.assert_not_called()
+
+
+@patch("updates2mqtt.cli.MqttPublisher")
+def test_check_mqtt_missing_cert_file_skips_connect(mock_pub_cls: Mock, monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> None:
+    from updates2mqtt.cli import check_mqtt
+
+    _mqtt_env(monkeypatch, MQTT_USER="u2m", MQTT_TLS_MODE="on", MQTT_CA_CERTS=str(tmp_path / "ca.pem"))
+
+    assert check_mqtt(_conf(config=str(tmp_path / "none.yaml"))) is False
+    mock_pub_cls.assert_not_called()
+
+
+@patch("updates2mqtt.cli.MqttPublisher")
+def test_check_mqtt_uses_config_file(mock_pub_cls: Mock, monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> None:
+    from updates2mqtt.cli import check_mqtt
+
+    _mqtt_env(monkeypatch, MQTT_USER="u2m")
+    conf_file = tmp_path / "config.yaml"
+    conf_file.write_text("mqtt:\n  host: from-file\n  port: 1884\n")
+    mock_pub_cls.return_value.connected.is_set.return_value = True
+
+    assert check_mqtt(_conf(config=str(conf_file))) is True
+    cfg = mock_pub_cls.call_args.args[0]
+    assert (cfg.host, cfg.port) == ("from-file", 1884)
+
+
+@patch("updates2mqtt.cli.MqttPublisher")
+def test_check_mqtt_rejected_credentials(mock_pub_cls: Mock, monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> None:
+    from updates2mqtt.cli import check_mqtt
+
+    _mqtt_env(monkeypatch, MQTT_USER="u2m")
+    mock_pub_cls.return_value.connected.is_set.return_value = False
+    mock_pub_cls.return_value.fatal_failure.is_set.return_value = True
+
+    assert check_mqtt(_conf(config=str(tmp_path / "none.yaml"))) is False
+    mock_pub_cls.return_value.stop.assert_called_once()
+
+
+@patch("updates2mqtt.cli.MqttPublisher")
+def test_check_mqtt_connection_error(mock_pub_cls: Mock, monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> None:
+    from updates2mqtt.cli import check_mqtt
+
+    _mqtt_env(monkeypatch, MQTT_USER="u2m")
+    mock_pub_cls.return_value.start.side_effect = OSError("Connection refused")
+
+    assert check_mqtt(_conf(config=str(tmp_path / "none.yaml"))) is False
+
+
+@patch("updates2mqtt.cli.check_mqtt", return_value=False)
+@patch("updates2mqtt.cli.OmegaConf")
+def test_main_mqtt_check_failure_exits(mock_oc: Mock, _mock_check: Mock) -> None:
+    mock_oc.from_cli.return_value = OmegaConf.create({"mqtt": "check"})
+
+    with pytest.raises(SystemExit) as exc:
+        main()
+
+    assert exc.value.code == 1

@@ -66,6 +66,26 @@ Updates2MQTT uses the [Eclipse Paho Python Client](https://github.com/eclipse-pa
 MQTT implementations as well as the newer v5 protocol. The [Issues](https://github.com/eclipse-paho/paho.mqtt.python/issues?q=is%3Aissue) list might give you some clues for your situation. 
 
 
+### Checking MQTT Settings
+
+The CLI can show the MQTT settings Updates2MQTT will use, and try a connection to the broker. It reads the environment variables and `conf/config.yaml` the same way the app does, logs every value along with the environment variable it comes from, and only shows whether passwords are set, not their values.
+
+Run it inside the running container, so it sees exactly the same environment and config file:
+
+```bash
+docker exec -it updates2mqtt updates2mqtt-cli mqtt=check
+```
+
+Or from anywhere with uv, with the MQTT environment variables set, and optionally a config file:
+
+```bash
+MQTT_HOST=192.168.1.10 MQTT_USER=u2m MQTT_PASS=xxx uvx --from updates2mqtt updates2mqtt-cli mqtt=check
+uvx --from updates2mqtt updates2mqtt-cli mqtt=check config=/path/to/config.yaml
+```
+
+The check reports missing required values (such as `MQTT_USER`) and certificate files that don't exist, and doesn't try to connect if any are found. It exits with status 0 if the broker connection succeeds, and 1 otherwise, so it can also be used in scripts. It uses its own MQTT client id, so is safe to run alongside a live Updates2MQTT without disconnecting it.
+
+
 ### MQTT Clients
 
 Use a desktop MQTT app - [MQTTX](https://mqttx.app) will let you subscribe to `#` and see everything on a broker, while [MQTT Explorer](https://mqtt-explorer.com) automatically shows a tree structure of topics, and can run either as a desktop app, or as [web app running on Docker](https://github.com/Smeagolworms4/MQTT-Explorer).
@@ -218,35 +238,42 @@ Use the *container* hash, or a container name if one has been given ( easy to fi
 There's no need to install Updates2MQTT to use the manifest and blob fetching ability. 
 
 ```bash
-uv run --with updates2mqtt cli manifest=ghcr.io/blakeblackshear/frigate:stable
+uvx --from updates2mqtt updates2mqtt-cli manifest=ghcr.io/blakeblackshear/frigate:stable
 ```
 
 The following examples will all work from any Python context, and don't need a local Docker or any Docker access.
 
 ```bash
-uv run --with updates2mqtt cli  manifest=ghcr.io/blakeblackshear/frigate:stable
-uv run --with updates2mqtt cli  blob=ghcr.io/blakeblackshear/frigate@sha256:ef8d56a7d50b545af176e950ce328aec7f0b7bc5baebdca189fe661d97924980
-uv run --with updates2mqtt cli  manifest=ghcr.io/blakeblackshear/frigate@sha256:c68fd78fd3237c9ba81b5aa927f17b54f46705990f43b4b5d5596cfbbb626af4
-uv run --with updates2mqtt cli  tags=ghcr.io/blakeblackshear/frigate
-uv run --with updates2mqtt cli  manifest=mcr.microsoft.com/dotnet/sdk:latest
+uvx --from updates2mqtt updates2mqtt-cli manifest=ghcr.io/blakeblackshear/frigate:stable
+uvx --from updates2mqtt updates2mqtt-cli blob=ghcr.io/blakeblackshear/frigate@sha256:ef8d56a7d50b545af176e950ce328aec7f0b7bc5baebdca189fe661d97924980
+uvx --from updates2mqtt updates2mqtt-cli manifest=ghcr.io/blakeblackshear/frigate@sha256:c68fd78fd3237c9ba81b5aa927f17b54f46705990f43b4b5d5596cfbbb626af4
+uvx --from updates2mqtt updates2mqtt-cli tags=ghcr.io/blakeblackshear/frigate
+uvx --from updates2mqtt updates2mqtt-cli manifest=mcr.microsoft.com/dotnet/sdk:latest
 ```
 
 These examples refer to locally running containers, displaying the local info as well as remote registry
 
 ```bash
-uv run --with updates2mqtt cli  container=frigate
-uv run --with updates2mqtt cli container=f4f02e182f5e api=docker_client
-uv run --with updates2mqtt cli container=frigate api=docker_client log_level=DEBUG
+uvx --from updates2mqtt updates2mqtt-cli container=frigate
+uvx --from updates2mqtt updates2mqtt-cli container=f4f02e182f5e api=docker_client
+uvx --from updates2mqtt updates2mqtt-cli container=frigate api=docker_client log_level=DEBUG
 ```
 
-If the package is installed locally then the `--with updates2mqtt` part can be omitted with uv, or it can be run directly:
+To keep it installed as a command, add it as a uv tool, which puts `updates2mqtt-cli` on the path:
 
 ```bash
-python updates2mqtt.cli container=frigate api=docker_client
+uv tool install updates2mqtt
+updates2mqtt-cli container=frigate api=docker_client
+```
+
+If the package is installed in a local Python environment, it can also be run directly:
+
+```bash
+python -m updates2mqtt.cli container=frigate api=docker_client
 ```
 
 Get a dump to CSV rather than MQTT of local Docker containers
 
 ```bash
-python updates2mqtt.cli dump=csv
+python -m updates2mqtt.cli dump=csv
 ```
