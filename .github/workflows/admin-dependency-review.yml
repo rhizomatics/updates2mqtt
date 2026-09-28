@@ -1,0 +1,13 @@
+# Managed by rhizomatics/.github (scripts/sync-admin.sh) - edit there, not here.
+name: Dependency review
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  dependency-review:
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: rhizomatics/.github/.github/workflows/reusable-dependency-review.yml@main

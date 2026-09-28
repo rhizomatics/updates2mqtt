@@ -1,0 +1,16 @@
+# Managed by rhizomatics/.github (scripts/sync-admin.sh) - edit there, not here.
+name: Auto assign
+
+on:
+  issues:
+    types: [opened, reopened]
+  # pull_request_target so fork PRs get a writable token; the called workflow never runs PR code.
+  pull_request_target:
+    types: [opened, reopened]
+
+jobs:
+  auto-assign:
+    permissions:
+      issues: write
+      pull-requests: write
+    uses: rhizomatics/.github/.github/workflows/reusable-auto-assign.yml@main

@@ -1,0 +1,17 @@
+# Managed by rhizomatics/.github (scripts/sync-admin.sh) - edit there, not here.
+name: Sync labels
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/workflows/admin-labels.yml]
+
+jobs:
+  labels:
+    permissions:
+      issues: write
+      contents: read
+    uses: rhizomatics/.github/.github/workflows/reusable-labels.yml@main
