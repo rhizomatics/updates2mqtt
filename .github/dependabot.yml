@@ -1,34 +1,54 @@
 # Dependency updates. Shape shared across rhizomatics repos: see templates/README.md in rhizomatics/.github.
+# Version updates run on the 1st and 15th; security updates are raised as soon as an alert opens.
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
+      interval: cron
+      cronjob: "0 6 1,15 * *"
     cooldown:
       default-days: 7
     groups:
-      github-actions:
+      # Trusted: auto-merged by admin-dependabot-automerge.yml once checks pass.
+      astral:
+        patterns: ["astral-sh/*"]
+      actions:
+        patterns: ["*"]
+        update-types: [minor, patch]
+      actions-security:
+        applies-to: security-updates
         patterns: ["*"]
 
   - package-ecosystem: uv
     directory: /
     schedule:
-      interval: weekly
+      interval: cron
+      cronjob: "0 6 1,15 * *"
     cooldown:
       default-days: 7
     groups:
-      uv-minor-patch:
+      # Trusted: auto-merged by admin-dependabot-automerge.yml once checks pass.
+      astral:
+        patterns: ["uv", "ruff", "ty"]
+      uv:
         patterns: ["*"]
         update-types: [minor, patch]
+      uv-security:
+        applies-to: security-updates
+        patterns: ["*"]
 
   - package-ecosystem: docker
     directory: /
     schedule:
-      interval: weekly
+      interval: cron
+      cronjob: "0 6 1,15 * *"
     cooldown:
       default-days: 7
     groups:
-      docker-minor-patch:
+      docker:
         patterns: ["*"]
         update-types: [minor, patch]
+      docker-security:
+        applies-to: security-updates
+        patterns: ["*"]

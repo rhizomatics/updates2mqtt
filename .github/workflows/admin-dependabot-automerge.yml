@@ -1,0 +1,13 @@
+# Managed by rhizomatics/.github (scripts/sync-admin.sh) - edit there, not here.
+name: Dependabot auto-merge
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  automerge:
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: rhizomatics/.github/.github/workflows/reusable-dependabot-automerge.yml@main
