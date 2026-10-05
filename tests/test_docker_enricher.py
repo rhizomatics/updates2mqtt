@@ -9,19 +9,20 @@ from pytest_httpx import HTTPXMock
 
 from updates2mqtt.config import (
     PKG_INFO_FILE,
+    SOURCE_PLATFORM_GITHUB,
     DockerConfig,
     DockerPackageUpdateInfo,
     MetadataSourceConfig,
     PackageUpdateInfo,
     RegistryConfig,
+    VersionPolicy,
     docker_image_names,
 )
-from updates2mqtt.integrations.docker import Throttler
+from updates2mqtt.helpers import Throttler
 from updates2mqtt.integrations.docker_enrich import (
     DIFF_URL_TEMPLATES,
     REGISTRY_GHCR,
     RELEASE_URL_TEMPLATES,
-    SOURCE_PLATFORM_GITHUB,
     CommonPackageEnricher,
     ContainerDistributionAPIVersionLookup,
     DefaultPackageEnricher,
@@ -32,7 +33,6 @@ from updates2mqtt.integrations.docker_enrich import (
     SourceReleaseEnricher,
     id_source_platform,
 )
-from updates2mqtt.model import VersionPolicy
 
 if TYPE_CHECKING:
     from updates2mqtt.model import ReleaseDetail

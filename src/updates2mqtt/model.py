@@ -9,7 +9,7 @@ from typing import Any
 import structlog
 from tzlocal import get_localzone
 
-from updates2mqtt.config import NodeConfig, PublishPolicy, UpdatePolicy, VersionPolicy
+from updates2mqtt.config import NodeConfig, PublishPolicy, StrKeyedDict, UpdatePolicy, VersionPolicy
 from updates2mqtt.helpers import sanitize_name, timestamp
 
 
@@ -18,7 +18,7 @@ class DiscoveryDetail:
         self.captured: dt.datetime = dt.datetime.now(tz=get_localzone())
 
     @abstractmethod
-    def as_dict(self) -> dict[str, str | list | dict | bool | int | None]:
+    def as_dict(self) -> StrKeyedDict:
         return {}
 
     def __str__(self) -> str:
@@ -67,7 +67,7 @@ class ReleaseDetail(DiscoveryDetail):
         self.summary: str | None = summary
         self.net_score: int | None = None
 
-    def as_dict(self) -> dict[str, str | list | dict | bool | int | None]:
+    def as_dict(self) -> StrKeyedDict:
         if not self.summary and self.diff_url:
             summary: str | None = f"<a href='{self.diff_url}'>{self.version or self.revision} Diff</a>"
         else:
@@ -197,8 +197,8 @@ class Discovery:
             return self.title_template.format(discovery=self)
         return self.name
 
-    def as_dict(self) -> dict[str, str | list | dict | bool | int | None]:
-        results: dict[str, str | list | dict | bool | int | None] = {
+    def as_dict(self) -> StrKeyedDict:
+        results: StrKeyedDict = {
             "name": self.name,
             "node": self.node,
             "provider": {"source_type": self.provider.source_type},

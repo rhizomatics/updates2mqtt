@@ -27,14 +27,11 @@ from updates2mqtt.config import (
 )
 from updates2mqtt.helpers import Throttler
 from updates2mqtt.integrations.docker import DockerProvider
-from updates2mqtt.integrations.docker_enrich import (
-    REGISTRIES,
-    ContainerDistributionAPIVersionLookup,
-    DockerImageInfo,
-    fetch_url,
-)
+from updates2mqtt.integrations.docker_enrich import REGISTRIES, ContainerDistributionAPIVersionLookup, DockerImageInfo
 from updates2mqtt.model import Discovery
 from updates2mqtt.mqtt import MqttPublisher
+
+from .helpers import fetch_url
 
 if TYPE_CHECKING:
     from httpx import Response

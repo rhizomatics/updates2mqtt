@@ -39,6 +39,7 @@ from updates2mqtt.config import (
     MetadataSourceConfig,
     PackageUpdateInfo,
     RegistryConfig,
+    StrKeyedDict,
     VersionPolicy,
     docker_image_names,
 )
@@ -255,8 +256,8 @@ class DockerImageInfo(DiscoveryArtefactDetail):
         cloned.origin = "REUSED"
         return cloned
 
-    def as_dict(self, minimal: bool = True) -> dict[str, str | list | dict | bool | int | None]:
-        result: dict[str, str | list | dict | bool | int | None] = {
+    def as_dict(self, minimal: bool = True) -> StrKeyedDict:
+        result: StrKeyedDict = {
             "captured": self.captured.isoformat(),
             "image_ref": self.ref,
             "name": self.name,
@@ -354,8 +355,8 @@ class DockerServiceDetails(DiscoveryInstallationDetail):
         self.git_repo_path: str | None = git_repo_path
         self.git_local_timestamp: str | None = None
 
-    def as_dict(self) -> dict[str, str | list | dict | bool | int | None]:
-        results: dict[str, str | list | dict | bool | int | None] = {
+    def as_dict(self) -> StrKeyedDict:
+        results: StrKeyedDict = {
             "container_name": self.container_name,
             "compose_path": self.compose_path,
             "compose_service": self.compose_service,
@@ -484,7 +485,7 @@ class LinuxServerIOPackageEnricher(PackageEnricher):
         )
         if response and response.is_success:
             api_data: Any = response.json()
-            repos: list = api_data.get("data", {}).get("repositories", {}).get("linuxserver", [])
+            repos: list[dict[str, Any]] = api_data.get("data", {}).get("repositories", {}).get("linuxserver", [])
         else:
             return
 
@@ -589,7 +590,7 @@ class VersionLookup:
         self.log: Any = structlog.get_logger().bind(integration="docker", tool="version_lookup")
 
     @abstractmethod
-    def lookup(self, local_image_info: DockerImageInfo, **kwargs) -> DockerImageInfo:
+    def lookup(self, local_image_info: DockerImageInfo, **kwargs: Any) -> DockerImageInfo:
         pass
 
 
@@ -660,7 +661,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
             if response and response.is_success:
                 token_data = response.json()
                 self.log.debug("Fetched registry token from %s", auth_url)
-                return token_data.get("token")
+                return cast("str|None", token_data.get("token"))
             self.log.warning(
                 "Alternative auth %s with status %s has no token", auth_url, (response and response.status_code) or None
             )
@@ -842,7 +843,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
         local_image_info: DockerImageInfo,
         token: str | None = None,
         minimal: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> DockerImageInfo:
         result: DockerImageInfo = DockerImageInfo(local_image_info.ref)
         if not local_image_info.name or not local_image_info.index_name:
@@ -961,7 +962,7 @@ class DockerClientVersionLookup(VersionLookup):
         self.api_backoff: int = api_backoff
         self.log: Any = structlog.get_logger().bind(integration="docker", tool="version_lookup")
 
-    def lookup(self, local_image_info: DockerImageInfo, retries: int = 3, **kwargs) -> DockerImageInfo:
+    def lookup(self, local_image_info: DockerImageInfo, retries: int = 3, **kwargs: Any) -> DockerImageInfo:
         retries_left = retries
         retry_secs: int = self.api_backoff
         reg_data: RegistryData | None = None

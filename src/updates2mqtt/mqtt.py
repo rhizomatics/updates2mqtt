@@ -244,7 +244,7 @@ class MqttPublisher:
         except Exception:
             logger.exception("Cleaning topics of stale entries failed")
 
-    def safe_json_decode(self, jsonish: str | bytes | None) -> dict:
+    def safe_json_decode(self, jsonish: str | bytes | None) -> Any:
         if jsonish is None:
             return {}
         try:

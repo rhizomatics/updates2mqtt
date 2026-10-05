@@ -4,11 +4,14 @@ import typing
 from dataclasses import dataclass, field
 from enum import EnumMeta, StrEnum, auto
 from pathlib import Path
+from typing import Any
 
 import structlog
 from omegaconf import MISSING, DictConfig, MissingMandatoryValue, OmegaConf, ValidationError
 
 log = structlog.get_logger()
+
+type StrKeyedDict = dict[str, str | list[Any] | dict[str, Any] | bool | int | None]
 
 PKG_INFO_FILE = Path("./common_packages.yaml")
 UNKNOWN_VERSION = "UNKNOWN"

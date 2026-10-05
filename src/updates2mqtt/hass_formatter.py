@@ -65,7 +65,7 @@ def hass_format_config(
 
 
 def hass_format_state(discovery: Discovery, in_progress: bool = False, release_summary_max_size: int = 6144) -> dict[str, Any]:
-    state: dict[str, str | dict | list | bool | None] = {
+    state: dict[str, str | dict[str, Any] | list[Any] | bool | None] = {
         "installed_version": discovery.current_version,
         "latest_version": discovery.latest_version,
         "title": discovery.title,

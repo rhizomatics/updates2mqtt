@@ -9,8 +9,7 @@ from unittest.mock import Mock, patch
 import pytest
 from omegaconf import OmegaConf
 
-from updates2mqtt.config import LogLevel, MqttConfig, RegistryAPI, RegistryConfig, load_app_config
-from updates2mqtt.model import VersionPolicy
+from updates2mqtt.config import LogLevel, MqttConfig, RegistryAPI, RegistryConfig, VersionPolicy, load_app_config
 
 EXAMPLES_ROOT = "examples"
 examples = [str(p.name) for p in Path(EXAMPLES_ROOT).iterdir() if p.name.startswith("config")]

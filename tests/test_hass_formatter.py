@@ -1,9 +1,8 @@
 from typing import Any
 
 import updates2mqtt
-from conftest import Discovery
 from updates2mqtt.hass_formatter import hass_format_config, hass_format_state
-from updates2mqtt.model import ReleaseDetail
+from updates2mqtt.model import Discovery, ReleaseDetail
 
 
 def test_formatter_includes_device(mock_discoveries: list[Discovery], monkeypatch) -> None:

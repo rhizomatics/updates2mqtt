@@ -9,8 +9,16 @@ from pytest_httpx import HTTPXMock
 from pytest_subprocess import FakeProcess
 
 import updates2mqtt.integrations.docker as mut
-from conftest import build_mock_container
-from updates2mqtt.config import DockerPackageUpdateInfo, RegistryAPI, RegistryConfig, UpdatePolicy
+from tests.lib_test import build_mock_container
+from updates2mqtt.config import (
+    DockerConfig,
+    DockerPackageUpdateInfo,
+    NodeConfig,
+    PackageUpdateInfo,
+    RegistryAPI,
+    RegistryConfig,
+    UpdatePolicy,
+)
 from updates2mqtt.integrations.docker import ContainerCustomization, DockerComposeCommand
 from updates2mqtt.integrations.docker_enrich import DockerImageInfo, DockerServiceDetails
 from updates2mqtt.model import Discovery
@@ -22,7 +30,7 @@ async def test_scanner(mock_docker_client: DockerClient, mock_registry: HTTPXMoc
     if api == RegistryAPI.DOCKER_CLIENT:
         mock_registry.reset()
     with patch("docker.from_env", return_value=mock_docker_client):
-        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}, registry=RegistryConfig(api=api)), mut.NodeConfig())
+        uut = mut.DockerProvider(DockerConfig(discover_metadata={}, registry=RegistryConfig(api=api)), NodeConfig())
         session = "unit_123"
         results: list[Discovery] = [d async for d in uut.scan(session)]
 
@@ -37,9 +45,9 @@ async def test_scanner(mock_docker_client: DockerClient, mock_registry: HTTPXMoc
 
 async def test_common_packages(mock_docker_client: DockerClient) -> None:
     with patch("docker.from_env", return_value=mock_docker_client):
-        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.NodeConfig())
+        uut = mut.DockerProvider(DockerConfig(discover_metadata={}), NodeConfig())
         uut.pkg_enrichers[0].pkgs = {
-            "common_pkg": mut.PackageUpdateInfo(
+            "common_pkg": PackageUpdateInfo(
                 docker=DockerPackageUpdateInfo(image_name="common/pkg"),
                 logo_url="https://commonhub/pkg/logo",
                 release_notes_url="https://commonhub/pkg/logo",
@@ -57,7 +65,7 @@ async def test_common_packages(mock_docker_client: DockerClient) -> None:
 
 def test_build(mock_docker_client: DockerClient, fake_process: FakeProcess, tmpdir: Path) -> None:
     with patch("docker.from_env", return_value=mock_docker_client):
-        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.NodeConfig())
+        uut = mut.DockerProvider(DockerConfig(discover_metadata={}), NodeConfig())
         d = Discovery(
             uut, "build-test-dummy", "test-123", "node003", installation_detail=DockerServiceDetails(compose_path=str(tmpdir))
         )
@@ -122,7 +130,7 @@ def test_fetch_pulls_image_when_can_pull(mock_docker_client: DockerClient) -> No
     from unittest.mock import MagicMock
 
     with patch("docker.from_env", return_value=mock_docker_client):
-        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.NodeConfig())
+        uut = mut.DockerProvider(DockerConfig(discover_metadata={}), NodeConfig())
         discovery = Discovery(
             uut,
             "fetch-test-container",
@@ -145,7 +153,7 @@ def test_fetch_pulls_image_when_can_pull(mock_docker_client: DockerClient) -> No
 
 def test_fetch_skips_pull_when_cannot_pull(mock_docker_client: DockerClient) -> None:
     with patch("docker.from_env", return_value=mock_docker_client):
-        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.NodeConfig())
+        uut = mut.DockerProvider(DockerConfig(discover_metadata={}), NodeConfig())
         discovery = Discovery(
             uut,
             "fetch-test-container",
@@ -162,7 +170,7 @@ def test_fetch_skips_pull_when_cannot_pull(mock_docker_client: DockerClient) -> 
 
 def test_fetch_builds_when_can_build_and_pull(mock_docker_client: DockerClient, tmpdir: Path) -> None:
     with patch("docker.from_env", return_value=mock_docker_client):
-        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.NodeConfig())
+        uut = mut.DockerProvider(DockerConfig(discover_metadata={}), NodeConfig())
         discovery = Discovery(
             uut,
             "build-container",
@@ -193,7 +201,7 @@ def test_fetch_builds_when_can_build_and_pull(mock_docker_client: DockerClient, 
 
 def test_fetch_skips_build_when_no_pull(mock_docker_client: DockerClient, tmpdir: Path) -> None:
     with patch("docker.from_env", return_value=mock_docker_client):
-        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.NodeConfig())
+        uut = mut.DockerProvider(DockerConfig(discover_metadata={}), NodeConfig())
         discovery = Discovery(
             uut,
             "build-container",
@@ -219,7 +227,7 @@ def test_fetch_skips_build_when_no_pull(mock_docker_client: DockerClient, tmpdir
 
 def test_fetch_skips_build_when_no_compose_path(mock_docker_client: DockerClient) -> None:
     with patch("docker.from_env", return_value=mock_docker_client):
-        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.NodeConfig())
+        uut = mut.DockerProvider(DockerConfig(discover_metadata={}), NodeConfig())
         discovery = Discovery(
             uut,
             "build-container",
@@ -240,14 +248,14 @@ def test_fetch_skips_build_when_no_compose_path(mock_docker_client: DockerClient
 
 
 def test_rescan_returns_updated_discovery(mock_docker_client: DockerClient) -> None:
-    from conftest import build_mock_container
+    from tests.lib_test import build_mock_container
 
     container = build_mock_container("rescan/test:v2")
     container.name = "rescan-test-container"  # type: ignore[misc]
     mock_docker_client.containers.get.return_value = container  # type: ignore[attr-defined]
 
     with patch("docker.from_env", return_value=mock_docker_client):
-        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.NodeConfig())
+        uut = mut.DockerProvider(DockerConfig(discover_metadata={}), NodeConfig())
         previous_discovery = Discovery(uut, "rescan-test-container", "test-session", "node001", current_version="v1")
         previous_discovery.update_last_attempt = 1234567890.0
 
@@ -257,7 +265,7 @@ def test_rescan_returns_updated_discovery(mock_docker_client: DockerClient) -> N
         assert result.name == "rescan-test-container"
         assert result.session == "test-session"
         # update_last_attempt should be preserved from original discovery
-        assert result.update_last_attempt == 1234567890.0
+        assert result.update_last_attempt == pytest.approx(1234567890.0)
         # Discovery should be stored in provider's discoveries dict
         assert "rescan-test-container" in uut.discoveries
 
@@ -268,7 +276,7 @@ def test_rescan_returns_none_when_container_not_found(mock_docker_client: Docker
     mock_docker_client.containers.get.side_effect = docker.errors.NotFound("Container not found")  # type: ignore[attr-defined]
 
     with patch("docker.from_env", return_value=mock_docker_client):
-        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.NodeConfig())
+        uut = mut.DockerProvider(DockerConfig(discover_metadata={}), NodeConfig())
         discovery = Discovery(uut, "nonexistent-container", "test-session", "node001")
 
         result = uut.rescan(discovery)
@@ -282,7 +290,7 @@ def test_rescan_returns_none_on_api_error(mock_docker_client: DockerClient) -> N
     mock_docker_client.containers.get.side_effect = docker.errors.APIError("API failure")  # type: ignore[attr-defined]
 
     with patch("docker.from_env", return_value=mock_docker_client):
-        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.NodeConfig())
+        uut = mut.DockerProvider(DockerConfig(discover_metadata={}), NodeConfig())
         discovery = Discovery(uut, "error-container", "test-session", "node001")
 
         result = uut.rescan(discovery)
@@ -294,14 +302,14 @@ def test_rescan_returns_none_on_api_error(mock_docker_client: DockerClient) -> N
 def test_command_install_success(mock_docker_client: DockerClient, mock_registry: HTTPXMock) -> None:
     from unittest.mock import MagicMock
 
-    from conftest import build_mock_container
+    from tests.lib_test import build_mock_container
 
     container: Container = build_mock_container("nginx:latest")
     container.name = "test-container"  # type: ignore[misc]
     mock_docker_client.containers.get.return_value = container  # type: ignore[attr-defined]
 
     with patch("docker.from_env", return_value=mock_docker_client):
-        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.NodeConfig())
+        uut = mut.DockerProvider(DockerConfig(discover_metadata={}), NodeConfig())
         discovery = Discovery(
             uut,
             "test-container",
@@ -328,7 +336,7 @@ def test_command_install_update_fails(mock_docker_client: DockerClient) -> None:
     from unittest.mock import MagicMock
 
     with patch("docker.from_env", return_value=mock_docker_client):
-        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.NodeConfig())
+        uut = mut.DockerProvider(DockerConfig(discover_metadata={}), NodeConfig())
         discovery = Discovery(
             uut, "test-container", "test-session", "node001", can_pull=True, current_detail=DockerImageInfo("nginx:latest")
         )
@@ -350,7 +358,7 @@ def test_command_unknown_entity(mock_docker_client: DockerClient) -> None:
     from unittest.mock import MagicMock
 
     with patch("docker.from_env", return_value=mock_docker_client):
-        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.NodeConfig())
+        uut = mut.DockerProvider(DockerConfig(discover_metadata={}), NodeConfig())
 
         on_start = MagicMock()
         on_end = MagicMock()
@@ -366,7 +374,7 @@ def test_command_unknown_command(mock_docker_client: DockerClient) -> None:
     from unittest.mock import MagicMock
 
     with patch("docker.from_env", return_value=mock_docker_client):
-        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.NodeConfig())
+        uut = mut.DockerProvider(DockerConfig(discover_metadata={}), NodeConfig())
         discovery = Discovery(uut, "test-container", "test-session", "node001", can_pull=True)
         uut.discoveries["test-container"] = discovery
 
@@ -384,7 +392,7 @@ def test_command_cannot_update(mock_docker_client: DockerClient) -> None:
     from unittest.mock import MagicMock
 
     with patch("docker.from_env", return_value=mock_docker_client):
-        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.NodeConfig())
+        uut = mut.DockerProvider(DockerConfig(discover_metadata={}), NodeConfig())
         discovery = Discovery(uut, "test-container", "test-session", "node001", can_pull=False)
         uut.discoveries["test-container"] = discovery
 
@@ -402,7 +410,7 @@ def test_command_handles_exception(mock_docker_client: DockerClient) -> None:
     from unittest.mock import MagicMock
 
     with patch("docker.from_env", return_value=mock_docker_client):
-        uut = mut.DockerProvider(mut.DockerConfig(discover_metadata={}), mut.NodeConfig())
+        uut = mut.DockerProvider(DockerConfig(discover_metadata={}), NodeConfig())
         discovery = Discovery(uut, "test-container", "test-session", "node001", can_pull=True)
         uut.discoveries["test-container"] = discovery
 
@@ -439,9 +447,9 @@ def test_analyze_throttles_on_429_error(mock_docker_client: DockerClient) -> Non
     mock_docker_client.images.get_registry_data.side_effect = error_429  # type: ignore[attr-defined]
 
     with patch("docker.from_env", return_value=mock_docker_client):
-        node_cfg = mut.NodeConfig()
+        node_cfg = NodeConfig()
         uut = mut.DockerProvider(
-            mut.DockerConfig(discover_metadata={}, registry=RegistryConfig(api=RegistryAPI.DOCKER_CLIENT)), node_cfg
+            DockerConfig(discover_metadata={}, registry=RegistryConfig(api=RegistryAPI.DOCKER_CLIENT)), node_cfg
         )
         uut.throttler.api_throttle_pause = 60  # Set to 60 seconds for test
 
@@ -457,7 +465,7 @@ def test_analyze_skips_during_throttle_period(mock_docker_client: DockerClient) 
 
     with patch("docker.from_env", return_value=mock_docker_client):
         uut = mut.DockerProvider(
-            mut.DockerConfig(discover_metadata={}, registry=RegistryConfig(api=RegistryAPI.DOCKER_CLIENT)), mut.NodeConfig()
+            DockerConfig(discover_metadata={}, registry=RegistryConfig(api=RegistryAPI.DOCKER_CLIENT)), NodeConfig()
         )
         # Set throttle to expire in the future
         uut.throttler.pause_api_until["docker.io"] = time.time() + 300
@@ -475,7 +483,7 @@ def test_analyze_resumes_after_throttle_expires(mock_docker_client: DockerClient
 
     with patch("docker.from_env", return_value=mock_docker_client):
         uut = mut.DockerProvider(
-            mut.DockerConfig(discover_metadata={}, registry=RegistryConfig(api=RegistryAPI.DOCKER_CLIENT)), mut.NodeConfig()
+            DockerConfig(discover_metadata={}, registry=RegistryConfig(api=RegistryAPI.DOCKER_CLIENT)), NodeConfig()
         )
         # Set throttle to have already expired
         uut.throttler.pause_api_until["docker.io"] = time.time()
@@ -502,8 +510,8 @@ def test_analyze_with_git_repo_uses_git_local_digest(mock_docker_client: DockerC
 
     with patch("docker.from_env", return_value=mock_docker_client):
         uut = mut.DockerProvider(
-            mut.DockerConfig(discover_metadata={}, allow_build=True),
-            mut.NodeConfig(),
+            DockerConfig(discover_metadata={}, allow_build=True),
+            NodeConfig(),
         )
 
         with (
@@ -531,8 +539,8 @@ def test_analyze_git_repo_with_updates_available(mock_docker_client: DockerClien
 
     with patch("docker.from_env", return_value=mock_docker_client):
         uut = mut.DockerProvider(
-            mut.DockerConfig(discover_metadata={}, allow_build=True),
-            mut.NodeConfig(),
+            DockerConfig(discover_metadata={}, allow_build=True),
+            NodeConfig(),
         )
 
         with (
@@ -560,8 +568,8 @@ def test_analyze_git_local_digest_returns_none(mock_docker_client: DockerClient,
 
     with patch("docker.from_env", return_value=mock_docker_client):
         uut = mut.DockerProvider(
-            mut.DockerConfig(discover_metadata={}, allow_build=True),
-            mut.NodeConfig(),
+            DockerConfig(discover_metadata={}, allow_build=True),
+            NodeConfig(),
         )
 
         with (
