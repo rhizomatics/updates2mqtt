@@ -17,7 +17,7 @@ async def test_scan(
     app_with_mocked_external_dependencies: App,
     mock_discoveries: list[Discovery],
     mock_discovery_generator: AsyncGenerator[Discovery],
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     uut: App = app_with_mocked_external_dependencies
     monkeypatch.setattr(uut.scanners[0], "scan", mock_discovery_generator)
@@ -31,7 +31,7 @@ async def test_scan(
 async def test_main_loop(
     app_with_mocked_external_dependencies: App,
     mock_discovery_generator: AsyncGenerator[Discovery],
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     uut: App = app_with_mocked_external_dependencies
     monkeypatch.setattr(uut.scanners[0], "scan", mock_discovery_generator)
@@ -71,7 +71,7 @@ class DummyApp:
         self.shutdown_called = True
 
 
-def test_run_sets_signal_and_calls_asyncio_run(monkeypatch) -> None:
+def test_run_sets_signal_and_calls_asyncio_run(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: dict[str, Any] = {}
 
     # Replace signal.signal so we capture its arguments
@@ -87,7 +87,7 @@ def test_run_sets_signal_and_calls_asyncio_run(monkeypatch) -> None:
     monkeypatch.setattr(app_module, "App", DummyApp)
 
     # Patch asyncio.run to record that it was called with a coroutine and debug flag
-    def fake_asyncio_run(coro: Coroutine, debug: bool = False) -> None:
+    def fake_asyncio_run(coro: Coroutine[Any, Any, Any], debug: bool = False) -> None:
         calls["coro"] = coro
         calls["debug"] = debug
 
@@ -108,7 +108,7 @@ def test_run_sets_signal_and_calls_asyncio_run(monkeypatch) -> None:
     assert isinstance(coro, types.CoroutineType)
 
 
-def test_run_handles_asyncio_cancellederror(monkeypatch) -> None:
+def test_run_handles_asyncio_cancellederror(monkeypatch: pytest.MonkeyPatch) -> None:
     # Ensure App is replaced so run() will create DummyApp without side effects
     import updates2mqtt.app as app_module
 
@@ -118,7 +118,7 @@ def test_run_handles_asyncio_cancellederror(monkeypatch) -> None:
     monkeypatch.setattr(signal, "signal", lambda *args, **kwargs: None)
 
     # Patch asyncio.run to raise CancelledError to exercise the except branch
-    def raising_asyncio_run(_coro: Coroutine, debug: bool = False) -> NoReturn:
+    def raising_asyncio_run(_coro: Coroutine[Any, Any, Any], debug: bool = False) -> NoReturn:
         raise asyncio.CancelledError()
 
     monkeypatch.setattr(asyncio, "run", raising_asyncio_run)

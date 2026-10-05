@@ -1,11 +1,13 @@
 from typing import Any
 
+import pytest
+
 import updates2mqtt
 from updates2mqtt.hass_formatter import hass_format_config, hass_format_state
 from updates2mqtt.model import Discovery, ReleaseDetail
 
 
-def test_formatter_includes_device(mock_discoveries: list[Discovery], monkeypatch) -> None:
+def test_formatter_includes_device(mock_discoveries: list[Discovery], monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(updates2mqtt, "version", "3.0.0")
     msg = hass_format_config(
         mock_discoveries[0],
@@ -42,7 +44,7 @@ def test_formatter_includes_device(mock_discoveries: list[Discovery], monkeypatc
     }
 
 
-def test_formatter_excludes_device(mock_discoveries: list[Discovery], monkeypatch) -> None:
+def test_formatter_excludes_device(mock_discoveries: list[Discovery], monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(updates2mqtt, "version", "3.0.0")
     msg: dict[str, Any] = hass_format_config(
         mock_discoveries[0], "obj001", "state_topic_1", "command_topic_1", "main_topic", True, device_creation=False
@@ -84,7 +86,7 @@ def test_formatter_no_update_suppresses_command_topic(mock_discoveries: list[Dis
 # === hass_format_config edge cases ===
 
 
-def test_hass_format_config_no_attrs_topic(mock_discoveries: list[Discovery], monkeypatch) -> None:
+def test_hass_format_config_no_attrs_topic(mock_discoveries: list[Discovery], monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(updates2mqtt, "version", "3.0.0")
     msg = hass_format_config(
         mock_discoveries[0], "obj001", "state_topic", "cmd_topic", attrs_topic=None, force_command_topic=False
@@ -92,7 +94,7 @@ def test_hass_format_config_no_attrs_topic(mock_discoveries: list[Discovery], mo
     assert "json_attributes_topic" not in msg
 
 
-def test_hass_format_config_with_entity_picture(mock_discoveries: list[Discovery], monkeypatch) -> None:
+def test_hass_format_config_with_entity_picture(mock_discoveries: list[Discovery], monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(updates2mqtt, "version", "3.0.0")
     discovery = mock_discoveries[0]
     discovery.entity_picture_url = "https://example.com/icon.png"
@@ -100,7 +102,7 @@ def test_hass_format_config_with_entity_picture(mock_discoveries: list[Discovery
     assert msg["entity_picture"] == "https://example.com/icon.png"
 
 
-def test_hass_format_config_with_device_icon(mock_discoveries: list[Discovery], monkeypatch) -> None:
+def test_hass_format_config_with_device_icon(mock_discoveries: list[Discovery], monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(updates2mqtt, "version", "3.0.0")
     discovery = mock_discoveries[0]
     discovery.device_icon = "mdi:docker"

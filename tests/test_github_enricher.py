@@ -1,3 +1,4 @@
+from typing import Any
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -15,7 +16,7 @@ def make_detail(version: str | None = "1.2.3", source_repo_url: str | None = "ht
     return detail
 
 
-def mock_response(status_code: int = 200, json_data: dict | None = None) -> MagicMock:
+def mock_response(status_code: int = 200, json_data: dict[str, Any] | None = None) -> MagicMock:
     r = MagicMock()
     r.status_code = status_code
     r.is_success = status_code < 400

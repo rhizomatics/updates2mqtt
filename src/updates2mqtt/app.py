@@ -3,7 +3,7 @@ import logging
 import sys
 import time
 import uuid
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from threading import Event
@@ -234,7 +234,7 @@ class App:
         )
 
 
-async def repeated_call(func: Callable, interval: int = 60, *args: Any, **kwargs: Any) -> None:
+async def repeated_call(func: Callable[..., Awaitable[Any]], interval: int = 60, *args: Any, **kwargs: Any) -> None:
     # run a task periodically indefinitely
     while True:
         try:

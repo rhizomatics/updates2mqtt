@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest.mock import Mock, patch
 
 import docker
@@ -187,8 +187,8 @@ class _DuplicateKeyLoader(yaml.SafeLoader):
     """SafeLoader variant that rejects duplicate mapping keys, which PyYAML otherwise silently overwrites."""
 
 
-def _construct_mapping_no_duplicates(loader: yaml.SafeLoader, node: yaml.Node) -> dict:
-    mapping: dict = {}
+def _construct_mapping_no_duplicates(loader: yaml.SafeLoader, node: yaml.Node) -> dict[Any, Any]:
+    mapping: dict[Any, Any] = {}
     for key_node, value_node in node.value:
         key = loader.construct_object(key_node)
         if key in mapping:
@@ -726,7 +726,7 @@ PLATFORM_MANIFEST_DIGEST = "sha256:111111111111111111111111111111111111111111111
 CONFIG_DIGEST = "sha256:2222222222222222222222222222222222222222222222222222222222222222"
 
 
-def _response(body: dict, digest: str | None = None) -> Mock:
+def _response(body: dict[str, Any], digest: str | None = None) -> Mock:
     response = Mock()
     response.is_success = True
     response.status_code = 200
@@ -738,7 +738,7 @@ def _response(body: dict, digest: str | None = None) -> Mock:
     return response
 
 
-def _platform_manifest(media_type: str, config_media_type: str) -> dict:
+def _platform_manifest(media_type: str, config_media_type: str) -> dict[str, Any]:
     return {
         "schemaVersion": 2,
         "mediaType": media_type,
@@ -755,8 +755,8 @@ IMAGE_CONFIG = {
 }
 
 
-def _registry(index_reply: dict, index_digest: str = IMAGE_DIGEST) -> Mock:
-    def fetch(url: str, **_kwargs) -> Mock:
+def _registry(index_reply: dict[str, Any], index_digest: str = IMAGE_DIGEST) -> Mock:
+    def fetch(url: str, **_kwargs: Any) -> Mock:
         if url.endswith("/manifests/latest"):
             return _response(index_reply, index_digest)
         if url.endswith(f"/manifests/{PLATFORM_MANIFEST_DIGEST}"):

@@ -43,7 +43,7 @@ class PublishPolicy(StrEnum):
 
 
 class CaseInsensitiveEnumMeta(EnumMeta):
-    def __getitem__(self, name):
+    def __getitem__(self, name: str) -> Any:
         return self._member_map_[name] if name in self._member_map_ else self._member_map_[name.upper()]
 
 

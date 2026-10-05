@@ -102,6 +102,9 @@ skips=["B404", #import subprocess
 include = ["src"]
 exclude = ["tests"]
 
+[tool.ty.rules]
+unused-type-ignore-comment="ignore"
+
 [tool.ruff]
 line-length = 128
 indent-width = 4

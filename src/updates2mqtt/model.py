@@ -270,7 +270,13 @@ class ReleaseProvider:
             yield 0  # type: ignore[unreachable]
 
     @abstractmethod
-    def command(self, discovery_name: str, command: str, on_update_start: Callable, on_update_end: Callable) -> bool:
+    def command(
+        self,
+        discovery_name: str,
+        command: str,
+        on_update_start: Callable[[Discovery], None],
+        on_update_end: Callable[[Discovery], None],
+    ) -> bool:
         """Execute a command on a discovered component"""
 
     @abstractmethod

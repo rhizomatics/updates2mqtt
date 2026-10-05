@@ -30,11 +30,11 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     parser.addoption("--runslow", action="store_true", default=False, help="run slow tests")
 
 
-def pytest_configure(config) -> None:
+def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("markers", "slow: mark test as slow to run")
 
 
-def pytest_collection_modifyitems(config, items) -> None:
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     if config.getoption("--runslow"):
         # --runslow given in cli: do not skip slow tests
         return
@@ -53,7 +53,7 @@ def mock_throttler() -> Throttler:
 
 @pytest.fixture
 def app_with_mocked_external_dependencies(
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
     mock_provider_class: type,
     mock_publisher_class: type,
 ) -> App:
@@ -211,4 +211,4 @@ def mock_docker_client() -> DockerClient:
 def node_cfg() -> NodeConfig:
     node_config = OmegaConf.structured(NodeConfig)
     node_config.name = "TESTBED"
-    return node_config
+    return cast("NodeConfig", node_config)

@@ -304,7 +304,12 @@ class MqttPublisher:
         return None
 
     async def execute_command(
-        self, provider: ReleaseProvider, comp_name: str, command: str, on_update_start: Callable, on_update_end: Callable
+        self,
+        provider: ReleaseProvider,
+        comp_name: str,
+        command: str,
+        on_update_start: Callable[[Discovery], None],
+        on_update_end: Callable[[Discovery], None],
     ) -> None:
         # TODO: defer handling of commands where repository is throttled
         logger = self.log.bind(source_type=provider.source_type, comp_name=comp_name, command=command)
@@ -501,7 +506,7 @@ class MqttPublisher:
             ),
         )
 
-    def subscribe_hass_command(self, provider: ReleaseProvider):
+    def subscribe_hass_command(self, provider: ReleaseProvider) -> str:
         topic = self.command_topic(provider)
         if topic in self.providers_by_topic or self.client is None:
             self.log.debug("Skipping subscription", topic=topic)
@@ -516,7 +521,7 @@ class MqttPublisher:
         if self.client:
             self.client.loop()
 
-    def publish(self, topic: str, payload: dict, qos: int = 1, retain: bool = True) -> None:
+    def publish(self, topic: str, payload: dict[str, Any], qos: int = 1, retain: bool = True) -> None:
         if self.client:
             info: MQTTMessageInfo = self.client.publish(topic, payload=json.dumps(payload), qos=qos, retain=retain)
             if info.rc == MQTTErrorCode.MQTT_ERR_SUCCESS:

@@ -530,7 +530,13 @@ class DockerProvider(ReleaseProvider):
                 logger.debug("No result from analysis", container=c.name)
         logger.info("Completed", container_count=containers, throttled_count=throttled, result_count=results)
 
-    def command(self, discovery_name: str, command: str, on_update_start: Callable, on_update_end: Callable) -> bool:
+    def command(
+        self,
+        discovery_name: str,
+        command: str,
+        on_update_start: Callable[[Discovery], None],
+        on_update_end: Callable[[Discovery], None],
+    ) -> bool:
         logger = self.log.bind(container=discovery_name, action="command", command=command)
         logger.info("Executing Command")
         discovery: Discovery | None = None

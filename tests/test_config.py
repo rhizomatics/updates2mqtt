@@ -15,7 +15,7 @@ EXAMPLES_ROOT = "examples"
 examples = [str(p.name) for p in Path(EXAMPLES_ROOT).iterdir() if p.name.startswith("config")]
 
 
-def test_envvar_config(monkeypatch) -> None:
+def test_envvar_config(monkeypatch: pytest.MonkeyPatch) -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         monkeypatch.setenv("MQTT_HOST", "193.11.55.12")
         monkeypatch.setenv("MQTT_USER", "tester")
@@ -31,7 +31,7 @@ def test_envvar_config(monkeypatch) -> None:
 
 
 @pytest.mark.parametrize("config_name", examples)
-def test_config(config_name: str, monkeypatch) -> None:
+def test_config(config_name: str, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("MQTT_USER", "tester")
     monkeypatch.setenv("MQTT_PASS", uuid.uuid4().hex)
     config_path: Path = Path(EXAMPLES_ROOT) / config_name
@@ -45,7 +45,7 @@ def test_config(config_name: str, monkeypatch) -> None:
             assert isinstance(pkg.docker.version_policy, VersionPolicy)
 
 
-def test_minimal_example_config(monkeypatch) -> None:
+def test_minimal_example_config(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("MQTT_USER", "tester")
     monkeypatch.setenv("MQTT_PASS", uuid.uuid4().hex)
     config_path: Path = Path(EXAMPLES_ROOT) / "config.yaml.minimal"
@@ -163,5 +163,5 @@ def test_registry_api_case_insensitive(value: str, expected: RegistryAPI) -> Non
 
 
 def test_registry_api_minimal_distinct_from_oci_v2() -> None:
-    assert RegistryAPI.OCI_V2_MINIMAL != RegistryAPI.OCI_V2
+    assert len({RegistryAPI.OCI_V2_MINIMAL, RegistryAPI.OCI_V2}) == 2
     assert len(RegistryAPI) == 4
