@@ -50,7 +50,7 @@ add-bounds = "major"
 
 [dependency-groups]
 dev = [
-    "ruff>=0.15.0",
+    "ruff>=0.16.0",
     "pre-commit>=4.4.0",
     "pytest>=9.0.0",
     "pytest-mock>=3.15.0",
@@ -141,12 +141,12 @@ exclude = [
 
 [tool.ruff.lint]
 ignore = [
-    "W191","E111","E114","E117","D206","D300","Q000","Q001","COM812","COM819","ISC001","ISC002", # std formatter conflicts
-    "D203","D213", # other formatter clashes
-    "TD002","TD003","TD005",
+    #"W191","E111","E114","E117","D206","D300","Q000","Q001","COM812","COM819","ISC001","ISC002", # std formatter conflicts
+    #"D203","D213", # other formatter clashes
+    #"TD002","TD003","TD005",
     "PLW0108", # unnecessary lambda
-    "D103","D100","D101","D102","D104","D107","D415","D400","D415","ANN401",
-    "S101","C901","FURB113",
+   #"D103","D100","D101","D102","D104","D107","D415","D400","D415","ANN401",
+    #"S101","C901","FURB113",
     "BLE001",# catch Exception
     "S602","S607","S404" ] # subprocess usage
 unfixable = ["B"]
