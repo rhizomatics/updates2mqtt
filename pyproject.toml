@@ -109,7 +109,7 @@ unused-type-ignore-comment="ignore"
 [tool.ruff]
 line-length = 128
 indent-width = 4
-target-version = "py313"
+target-version = "py314"
 exclude = [
     ".bzr",
     ".direnv",

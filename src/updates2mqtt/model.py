@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import datetime as dt
 import json
 import time
@@ -93,7 +95,7 @@ class Discovery:
 
     def __init__(
         self,
-        provider: "ReleaseProvider",
+        provider: ReleaseProvider,
         name: str,
         session: str,
         node: str,
@@ -113,7 +115,7 @@ class Discovery:
         device_icon: str | None = None,
         custom: dict[str, Any] | None = None,
         throttled: bool = False,
-        previous: "Discovery|None" = None,
+        previous: Discovery | None = None,
         release_detail: ReleaseDetail | None = None,
         installation_detail: DiscoveryInstallationDetail | None = None,
         current_detail: DiscoveryArtefactDetail | None = None,

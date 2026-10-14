@@ -83,7 +83,7 @@ def mock_discovery_generator(mock_discoveries: list[Discovery]) -> Callable[...,
 @pytest.fixture
 def mock_provider_class(mock_provider: ReleaseProvider) -> type:
     class MockReleaseProvider(ReleaseProvider):
-        def __new__(cls, *args: Any, **kwargs: Any) -> "MockReleaseProvider":  # noqa: PYI034
+        def __new__(cls, *args: Any, **kwargs: Any) -> MockReleaseProvider:  # noqa: PYI034
             return cast("MockReleaseProvider", mock_provider)
 
     return MockReleaseProvider
@@ -92,7 +92,7 @@ def mock_provider_class(mock_provider: ReleaseProvider) -> type:
 @pytest.fixture
 def mock_publisher_class(mock_publisher: MqttPublisher) -> type:
     class MockPublisher(MqttPublisher):
-        def __new__(cls, *args: Any, **kwargs: Any) -> "MockPublisher":  # noqa: PYI034
+        def __new__(cls, *args: Any, **kwargs: Any) -> MockPublisher:  # noqa: PYI034
             return cast("MockPublisher", mock_publisher)
 
     return MockPublisher
