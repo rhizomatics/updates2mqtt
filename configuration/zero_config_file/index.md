@@ -2,16 +2,20 @@
 
 The core configuration can be supplied by environment variables and container labels, everything else will default, either to fixed values built into Updates2MQTT, or in the case of the node name, taken from the operating system.
 
-| Env Var       | Default      |
-| ------------- | ------------ |
-| MQTT_HOST     | localhost    |
-| MQTT_PORT     | 1883         |
-| MQTT_USER     | *NO DEFAULT* |
-| MQTT_PASSWORD | *NO DEFAULT* |
-| MQTT_VERSION  | 3.11.        |
-| U2M_LOG_LEVEL | INFO         |
+| Env Var           | Default      |
+| ----------------- | ------------ |
+| MQTT_HOST         | localhost    |
+| MQTT_PORT         | 1883         |
+| MQTT_USER         | *NO DEFAULT* |
+| MQTT_PASSWORD     | *NO DEFAULT* |
+| MQTT_VERSION      | 3.11.        |
+| U2M_LOG_LEVEL     | INFO         |
+| PORTAINER_URL     | *NONE*       |
+| PORTAINER_API_KEY | *NONE*       |
 
 Startup will fail if `MQTT_USER` and `MQTT_PASSWORD` are not defined some how.
+
+`PORTAINER_URL` and `PORTAINER_API_KEY` are only needed to update containers in Portainer stacks, see [Portainer](https://updates2mqtt.rhizomatics.org.uk/installation/#on-portainer).
 
 The example [docker-compose.yaml](https://updates2mqtt.rhizomatics.org.uk/configuration/examples/docker_compose/index.md) and [.env](https://updates2mqtt.rhizomatics.org.uk/configuration/examples/env/index.md) demonstrate one way of doing this, or skip the `.env` file and use an `environment` section in the Compose file.
 

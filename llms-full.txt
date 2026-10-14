@@ -21,7 +21,7 @@ Read the release notes, and optionally click *Update* to trigger a Docker *pull*
 
 Updates2MQTT perioidically checks for new versions of components being available, and publishes new version info to MQTT. HomeAssistant auto discovery is supported, so all updates can be seen in the same place as Home Assistant’s own components and add-ins.
 
-Currently only Docker containers are supported, either via an image registry check (using either v1 Docker APIs or the OCI v2 API), or a git repo for source (see [Local Builds](https://updates2mqtt.rhizomatics.org.uk/local_builds/index.md)), with specific handling for Docker, Github Container Registry, Gitlab, Codeberg, Microsoft Container Registry, Quay and LinuxServer Registry, with adaptive behaviour to cope with most others. The design is modular, so other update sources can be added, at least for notification. The next anticipated is **apt** for Debian based systems.
+Currently only Docker containers are supported, either via an image registry check (using either v1 Docker APIs or the OCI v2 API), or a git repo for source (see [Local Builds](https://updates2mqtt.rhizomatics.org.uk/local_builds/index.md)), with specific handling for Docker, Github Container Registry, Gitlab, Codeberg, Microsoft Container Registry, Quay and LinuxServer Registry, with adaptive behaviour to cope with most others. The design is modular, so other update sources can be added, at least for notification. **Portainer** is the next supported platform after Docker Compose for container rebuild/restart. Support for **apt** on Debian based systems may follow.
 
 Components can also be updated, either automatically or triggered via MQTT, for example by hitting the *Install* button in the HomeAssistant update dialog. Icons and release notes can be specified for a better HA experience. See [Home Assistant Integration](https://updates2mqtt.rhizomatics.org.uk/home_assistant/index.md) for details.
 
@@ -134,7 +134,7 @@ This component relies on several open source packages:
 ### Python / Docker
 
 - [Anpr2MQTT](https://anpr2mqtt.rhizomatics.org.uk) - Integrate with ANPR/ALPR licence plate cameras via file system (NAS/FTP) to MQTT with optional image analysis and UK DVLA integration.
-- [Dev Shell](https://devshell.rhizomatics.org.uk) - Python REPL for Home Assistant development and data exploration.
+- [HomeAssistant REPL](https://homeassistant-repl.rhizomatics.org.uk) - Python REPL for Home Assistant development and data exploration.
 
 # Installation
 
@@ -198,22 +198,6 @@ pip install updates2mqtt
 python3 -m updates2mqtt
 ```
 
-### On Portainer
-
-Install an Updates2MQTT container on each Portainer host, this can be using a `docker-compose.yaml` file, or using the Portainer UI to define the image name and env vars ( no config file required ).
-
-**Update detection** works fully for Portainer stacks, since it only needs the Docker socket. Each stack container shows up as a Docker Compose service, even if it was defined entirely in the Portainer UI.
-
-**Updating from Home Assistant** is more limited. Updates2MQTT pulls the new image through the Docker API, but recreating the container needs `docker compose` to be run in the stack’s directory. Portainer keeps stack files in its own data volume, at `/data/compose/<stack id>`, rather than on the host file system, so this directory usually can’t be seen by Updates2MQTT, and for hosts managed via a Portainer Agent, the files are on a different machine entirely.
-
-In this case Updates2MQTT will:
-
-- Report `can_restart` as `false`, and `compose_path_found` as `false` in the MQTT attributes
-- Add a `portainer_stack_id` attribute, so you know which stack to redeploy
-- Log a warning at startup naming the stack
-
-The image will still be pulled when *Update* is pressed in Home Assistant, so a following *Re-deploy* in Portainer is quick, but the running container isn’t changed until then. Containers managed by plain `docker compose` on the same host are not affected and update as normal.
-
 ### Github Token
 
 A GitHub access token is optional, however when supplied additional API calls can be made for GHCR images, and the quotas for all APIs may be higher.
@@ -221,6 +205,10 @@ A GitHub access token is optional, however when supplied additional API calls ca
 When creating the access token, ensure it has the `packages:read` permission, or use the ‘Classic’ rather than fine-grained token.
 
 One case where access tokens help is if there either no version label in the image, or the label isn’t a version ( for example, Homarr has `main` as the version for all images.) In these case, the authenticated only [packages API calls](https://docs.github.com/en/rest/packages/packages) will be made to match a version from the image digest.
+
+### Portainer
+
+See the [Portainer Configuration](https://updates2mqtt.rhizomatics.org.uk/configuration/portainer/index.md) section.
 # Configuration
 
 # Configuring Updates2MQTT
@@ -345,6 +333,56 @@ restarter:
     labels:
         updates2mqtt.relnotes: https://component.my.com/release_notes
 ```
+
+# Portainer Configuration
+
+## Installation
+
+Install an Updates2MQTT container on each Portainer host, this can be using a `docker-compose.yaml` file, or using the Portainer UI to define the image name and env vars ( no config file required ).
+
+## Implementation
+
+**Update detection** works fully for Portainer stacks, since it only needs the Docker socket. Each stack container shows up as a Docker Compose service, even if it was defined entirely in the Portainer UI.
+
+**Updating from Home Assistant** needs Portainer API access. Updates2MQTT pulls the new image through the Docker API, but recreating the container normally means running `docker compose` in the stack’s directory. Portainer keeps stack files in its own data volume, at `/data/compose/<stack id>`, rather than on the host file system, so Updates2MQTT can’t see them, and for hosts managed by a Portainer Agent, the files are on a different machine entirely. Instead, Updates2MQTT can ask Portainer to redeploy the stack.
+
+1. In Portainer, go to *My account* → *Access tokens* and create a token
+
+1. Give each Updates2MQTT container the Portainer URL and token, either as env vars
+
+   ```yaml
+   environment:
+     - PORTAINER_URL=https://portainer.example.com:9443
+     - PORTAINER_API_KEY=ptr_xxxxxxxxxxxx
+   ```
+
+   or in the config file
+
+   ```yaml
+   docker:
+     portainer:
+       url: https://portainer.example.com:9443
+       api_key: ptr_xxxxxxxxxxxx
+       verify_ssl: true # set false for Portainer's default self-signed certificate
+       timeout: 300     # seconds to wait for the redeploy to complete
+   ```
+
+When *Update* is pressed, the new image is pulled locally, and then Portainer redeploys the stack with its existing stack file and environment variables. The redeploy doesn’t pull images itself, so only containers whose image was just pulled get recreated, not every service in the stack. Stacks on Agent-managed hosts work the same way, since Portainer routes the redeploy to the right host.
+
+## Limitations
+
+- Only compose stacks can be redeployed, not Swarm or Kubernetes stacks
+- Git-based stacks are redeployed from the stack’s configured branch, so any new commits come in too
+- Portainer itself and its agents can’t be updated this way, use the command line for those
+- The token’s user needs access to the environment the stack runs in
+
+Without Portainer API access, Updates2MQTT will:
+
+- Report `can_restart` as `false`, and `compose_path_found` as `false` in the MQTT attributes
+- Add a `portainer_stack_id` attribute, so you know which stack to redeploy
+- Log a warning at startup naming the stack
+
+The image will still be pulled when *Update* is pressed in Home Assistant, so a following *Re-deploy* in Portainer is quick, but the running container isn’t changed until then. Containers managed by plain `docker compose` on the same host are not affected, and update as normal.
 
 # Remote API Usage
 
@@ -528,16 +566,20 @@ log:
 
 The core configuration can be supplied by environment variables and container labels, everything else will default, either to fixed values built into Updates2MQTT, or in the case of the node name, taken from the operating system.
 
-| Env Var       | Default      |
-| ------------- | ------------ |
-| MQTT_HOST     | localhost    |
-| MQTT_PORT     | 1883         |
-| MQTT_USER     | *NO DEFAULT* |
-| MQTT_PASSWORD | *NO DEFAULT* |
-| MQTT_VERSION  | 3.11.        |
-| U2M_LOG_LEVEL | INFO         |
+| Env Var           | Default      |
+| ----------------- | ------------ |
+| MQTT_HOST         | localhost    |
+| MQTT_PORT         | 1883         |
+| MQTT_USER         | *NO DEFAULT* |
+| MQTT_PASSWORD     | *NO DEFAULT* |
+| MQTT_VERSION      | 3.11.        |
+| U2M_LOG_LEVEL     | INFO         |
+| PORTAINER_URL     | *NONE*       |
+| PORTAINER_API_KEY | *NONE*       |
 
 Startup will fail if `MQTT_USER` and `MQTT_PASSWORD` are not defined some how.
+
+`PORTAINER_URL` and `PORTAINER_API_KEY` are only needed to update containers in Portainer stacks, see [Portainer](https://updates2mqtt.rhizomatics.org.uk/installation/#on-portainer).
 
 The example [docker-compose.yaml](https://updates2mqtt.rhizomatics.org.uk/configuration/examples/docker_compose/index.md) and [.env](https://updates2mqtt.rhizomatics.org.uk/configuration/examples/env/index.md) demonstrate one way of doing this, or skip the `.env` file and use an `environment` section in the Compose file.
 
@@ -616,6 +658,11 @@ docker:
   registry:
     immutable_cache_ttl: 2592000
     api: OCI_V2
+  portainer:
+    url: https://portainer.example.com:9443
+    api_key: ptr_00001111222233334444555566667777
+    verify_ssl: true
+    timeout: 300
 scan_interval: 10800
 github:
   access_token: github_pat_00001111444445555666677778888
@@ -878,7 +925,7 @@ If there’s an update showing, but no *Update* button present, then there’s a
 - The compose working directory can’t be found
 - This is sourced from the `com.docker.compose.project.working_dir` label, which can be seen in `docker inspect`
 - Check `compose_path_found` in the MQTT attributes, if `false` the directory needs mapping as a volume, at exactly the same path
-- Portainer stacks have a working directory of `/data/compose/<stack id>`, inside Portainer’s own volume, see [Portainer](https://updates2mqtt.rhizomatics.org.uk/installation/#on-portainer)
+- Portainer stacks have a working directory of `/data/compose/<stack id>`, inside Portainer’s own volume, so need Portainer API access configured, see [Portainer](https://updates2mqtt.rhizomatics.org.uk/installation/#on-portainer)
 - This only stops restart, not pull, so if `allow_pull` is on, the Update button will still show
 - The git repo path can’t be found for a local build
 

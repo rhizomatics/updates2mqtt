@@ -14,6 +14,7 @@ Updates2MQTT monitors Docker image and local Git-based builds for updates, publi
 
 - [Configuring Updates2MQTT](https://updates2mqtt.rhizomatics.org.uk/configuration/index.md)
 - [Customizing Containers](https://updates2mqtt.rhizomatics.org.uk/configuration/customizing_containers/index.md)
+- [Portainer Configuration](https://updates2mqtt.rhizomatics.org.uk/configuration/portainer/index.md)
 - [Remote API Usage](https://updates2mqtt.rhizomatics.org.uk/configuration/remote_api_usage/index.md)
 - [Improving Security](https://updates2mqtt.rhizomatics.org.uk/configuration/security/index.md)
 - [Using A Configuration File](https://updates2mqtt.rhizomatics.org.uk/configuration/using_a_config_file/index.md)
