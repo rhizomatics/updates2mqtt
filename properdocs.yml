@@ -7,7 +7,7 @@ repo_url: https://github.com/rhizomatics/updates2mqtt
 edit_uri: edit/main/docs/
 
 theme:
-  name: material
+  name: materialx
   highlightjs: true
   logo: images/updates2mqtt-dark-256x256.png
   language: en

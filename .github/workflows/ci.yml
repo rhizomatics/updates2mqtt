@@ -1,4 +1,4 @@
-# Lint, test and build across supported Python versions; on main, also publish badges and docs.
+# Lint, test and build across supported Python versions; on PRs check the docs build, on main publish badges and docs.
 # Also called by docker-publish.yml and pypi-publish.yml to gate releases on a clean build.
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
 
@@ -34,6 +34,9 @@ jobs:
       run: uv sync --locked --all-extras --dev
     - name: Ruff
       uses:  astral-sh/ruff-action@v3
+    - name: ty
+      # keep in step with ty-pre-commit rev in .pre-commit-config.yaml
+      run: uvx --exclude-newer-package ty=false ty@0.0.87 check
     - name: Test with pytest
       run: uv run pytest tests
     - name: Build a binary wheel and a source tarball
@@ -50,8 +53,8 @@ jobs:
   docs:
     name: Badges and docs
     needs: test
-    # Only for direct pushes to main, not PRs or when called from a release workflow
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Not when called from a release workflow
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -63,7 +66,9 @@ jobs:
         python-version: 3.14
     - name: Install dependencies
       run: uv sync --locked --all-extras --dev
+    # badges and docs publish from main only, PR checkouts are detached so can't pull or push
     - name: Download test results
+      if: github.event_name == 'push'
       uses: actions/download-artifact@v8
       with:
         name: test-results

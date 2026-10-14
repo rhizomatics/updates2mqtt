@@ -7,6 +7,7 @@
   - This is in Beta at present, so use with caution, and feedback where you have issues
 ### Internal
 - Automated testing on every build extended to Py3.15, and backwards to Py3.14
+- Omegaconf restricted to `<2.4.0` as [new release](https://github.com/hydra-ecosystem/omegaconf/releases#release-v2.4.0) broke many tests. Reviewing use of `pydantic` instead for config before embarking on upgrade for omegaconf (project has been moribund since 2022)
 
 ## 1.13.0
 ### Compose
