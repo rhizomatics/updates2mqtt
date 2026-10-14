@@ -29,7 +29,9 @@ jobs:
       run: uv run pytest tests
     - name: Build a binary wheel and a source tarball
       run: uv build
+    # badges and docs publish from main only, PR checkouts are detached so can't pull or push
     - name: Generate badges
+      if: github.event_name == 'push'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
@@ -50,7 +52,14 @@ jobs:
           echo "No changes to badges"
         fi
 
+    - name: ProperDocs build check
+      if: github.event_name == 'pull_request'
+      run:  |
+        uv sync --dev --group docs
+        sudo apt-get install pngquant
+        uv run properdocs build
     - name: ProperDocs
+      if: github.event_name == 'push'
       run:  |
         git pull
         uv sync --dev --group docs
