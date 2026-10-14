@@ -35,7 +35,7 @@ Read the release notes, and optionally click *Update* to trigger a Docker *pull*
 Updates2MQTT perioidically checks for new versions of components being available, and publishes new version info to MQTT. HomeAssistant auto discovery is supported, so all updates can be seen in the same place as Home Assistant's own components and add-ins.
 
 Currently only Docker containers are supported, either via an image registry check (using either v1 Docker APIs or the OCI v2 API), or a git repo for source (see [Local Builds](local_builds.md)), with specific handling for Docker, Github Container Registry, Gitlab, Codeberg, Microsoft Container Registry, Quay and LinuxServer Registry, with adaptive behaviour to cope with most
-others.  The design is modular, so other update sources can be added, at least for notification. The next anticipated is **apt** for Debian based systems.
+others.  The design is modular, so other update sources can be added, at least for notification. **Portainer** is the next supported platform after Docker Compose for container rebuild/restart. Support for **apt** on Debian based systems may follow.
 
 Components can also be updated, either automatically or triggered via MQTT, for example by hitting the *Install* button in the HomeAssistant update dialog. Icons and release notes can be specified for a better HA experience. See [Home Assistant Integration](home_assistant.md) for details.
 

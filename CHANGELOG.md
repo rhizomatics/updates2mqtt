@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 1.14.0
+### Portainer
+- Initial API support for Portainer is provided, to bring it up to a similar level of functionality to the Docker Compose
+  - Instructions and limitations at [Portainer Configuration](./configuration/portainer.md)
+  - This is in Beta at present, so use with caution, and feedback where you have issues
+### Internal
+- Automated testing on every build extended to Py3.15, and backwards to Py3.14
+
 ## 1.13.0
 ### Compose
 - Compose project name now passed with `-p` when restarting or building, so projects whose name differs from their directory are recreated in place rather than duplicated
