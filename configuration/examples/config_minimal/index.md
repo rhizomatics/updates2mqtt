@@ -1,0 +1,14 @@
+# Minimal Configuration
+
+Smallest working configuration ( although the actual smallest is no file at all and using only environment variables for MQTT )
+
+```yaml
+mqtt:
+  host: ${oc.env:MQTT_HOST,"127.0.0.1"}
+  port: ${oc.env:MQTT_PORT,1883}
+  user: ${oc.env:MQTT_USER}
+  password: ${oc.env:MQTT_PASS}
+
+node:
+  name: dockernuc
+```

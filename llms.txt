@@ -1,0 +1,36 @@
+# Updates2MQTT
+
+> Notify and take action on server updates via MQTT, with HomeAssistant compatibility
+
+Updates2MQTT monitors Docker image and local Git-based builds for updates, publishes update details over MQTT, and integrates with Home Assistant's MQTT Update entities. Start with installation and configuration guidance; use the Home Assistant and troubleshooting pages for integration and operations.
+
+
+## Start here
+
+- [Updates2MQTT](https://updates2mqtt.rhizomatics.org.uk/index.md): Project overview, capabilities, and quick start
+- [Installation](https://updates2mqtt.rhizomatics.org.uk/installation/index.md): Installation and deployment options
+
+## Configuration
+
+- [Configuring Updates2MQTT](https://updates2mqtt.rhizomatics.org.uk/configuration/index.md)
+- [Customizing Containers](https://updates2mqtt.rhizomatics.org.uk/configuration/customizing_containers/index.md)
+- [Remote API Usage](https://updates2mqtt.rhizomatics.org.uk/configuration/remote_api_usage/index.md)
+- [Improving Security](https://updates2mqtt.rhizomatics.org.uk/configuration/security/index.md)
+- [Using A Configuration File](https://updates2mqtt.rhizomatics.org.uk/configuration/using_a_config_file/index.md)
+- [Without a Configuration File](https://updates2mqtt.rhizomatics.org.uk/configuration/zero_config_file/index.md)
+- [Example Configurations](https://updates2mqtt.rhizomatics.org.uk/configuration/examples/index.md)
+- [Maximal Configuration](https://updates2mqtt.rhizomatics.org.uk/configuration/examples/config_maximal/index.md)
+- [Minimal Configuration](https://updates2mqtt.rhizomatics.org.uk/configuration/examples/config_minimal/index.md)
+- [Docker Compose](https://updates2mqtt.rhizomatics.org.uk/configuration/examples/docker_compose/index.md)
+- [Environment File](https://updates2mqtt.rhizomatics.org.uk/configuration/examples/env/index.md)
+
+## Home Assistant and operations
+
+- [HomeAssistant Integration](https://updates2mqtt.rhizomatics.org.uk/home_assistant/index.md): MQTT discovery and Home Assistant update entities
+- [Troubleshooting](https://updates2mqtt.rhizomatics.org.uk/troubleshooting/index.md): Common issues and diagnostics
+
+## Development
+
+- [Local Builds](https://updates2mqtt.rhizomatics.org.uk/local_builds/index.md): Tracking updates for locally built images
+- [Understanding Container Metadata](https://updates2mqtt.rhizomatics.org.uk/developer/oci_container/index.md)
+

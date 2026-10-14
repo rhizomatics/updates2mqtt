@@ -1,0 +1,32 @@
+# Docker Compose
+
+Example Docker Compose configuration to run *Updates2MQTT* as a container. This also requires a [.env](https://updates2mqtt.rhizomatics.org.uk/configuration/examples/env/index.md), or alternatively adding the environment variables directly into the compose file.
+
+```yaml
+services:
+  updates2mqtt:
+    container_name: updates2mqtt
+    image: ghcr.io/rhizomatics/updates2mqtt:release
+    volumes:
+      - ./conf:/app/conf  # Config file lives at /app/conf/config.yaml inside the container
+      # - ./cache:/app/.cache. # Optionally move cache out of container so it survives container down/up
+      - /var/run/docker.sock:/var/run/docker.sock # Access to Docker daemon for container updates
+      - /my/container/home:/my/container/home # Optional, map all root paths for docker compose directories
+      - ./logs/healthcheck.log:/var/log/healthcheck.log
+    restart: always
+    env_file: ./.env  # Environment variables file
+    healthcheck:
+      test: ["CMD", "/app/healthcheck.sh","healthcheck/MYNODENAME/updates2mqtt"] # Change for your node name
+      interval: 5m
+      timeout: 30s
+      retries: 3
+      start_period: 60s
+
+  restarter:
+    image: docker:cli
+    volumes: ["/var/run/docker.sock:/var/run/docker.sock"]
+    command: ["/bin/sh", "-c", "while true; do sleep 86400; docker restart updates2mqtt; done"]
+    restart: unless-stopped
+    environment:
+      - UPD2MQTT_UPDATE=AUTO
+```

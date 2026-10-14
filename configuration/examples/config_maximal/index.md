@@ -1,0 +1,79 @@
+# Maximal Configuration
+
+More extensive example configuration, using all the features
+
+```yaml
+log:
+  level: INFO
+  json: false
+node:
+  name: mydockerpc
+  git_path: /usr/bin/git
+  healthcheck:
+    enabled: true
+    interval: 300
+    topic_template: healthcheck/{node_name}/updates2mqtt
+mqtt:
+  host: localhost
+  port: 1883
+  user: mymqttuser
+  password: mysecret
+  topic_root: updates2mqtt
+  protocol: 5
+  transport: tcp
+  keepalive: 30
+  connect_timeout: 20
+  tls_mode: insecure
+  ca_certs: ssl/ca_cert.crt
+  client_cert: ssl/client_cert.pem
+  client_key: ssl/client_key.pem
+  cert_reqs: CERT_OPTIONAL
+homeassistant:
+  discovery:
+    prefix: homeassistant
+    enabled: true
+  state_topic_suffix: state
+  area: Server Room
+  device_creation: true
+  force_command_topic: false
+  extra_attributes: true
+docker:
+  enabled: true
+  allow_pull: true
+  allow_restart: true
+  allow_build: true
+  compose_version: v2
+  default_entity_picture_url: https://www.docker.com/wp-content/uploads/2022/03/Moby-logo.png
+  device_icon: mdi:docker
+  default_api_backoff: 1800
+  version_policy: VERSION_DIGEST
+  discover_metadata:
+    linuxserver.io:
+      enabled: true
+      cache_ttl: 604800
+  image_ref_select:
+    include:
+    - .*special-dev
+    exclude:
+    - .*dev
+    - .*nightly
+  version_select:
+     exclude: 
+     - .*-beta.*
+     include:
+     -  1\..*
+  registry:
+    immutable_cache_ttl: 2592000
+    api: OCI_V2
+scan_interval: 10800
+github:
+  access_token: github_pat_00001111444445555666677778888
+packages:
+  my_custom_pkg:
+    docker:
+      image_name: ghcr.io/dummy/my_custom
+      version_policy: DIGEST
+    logo_url: https://avatars.githubusercontent.com/u/162821199?s=48&v=4
+    source_repo_url: https://github.com/dummy/my_custom
+    release_notes_url:  https://github.com/dummy/my_custom/releases
+```

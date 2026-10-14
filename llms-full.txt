@@ -1,0 +1,1135 @@
+# Updates2MQTT
+
+> Notify and take action on server updates via MQTT, with HomeAssistant compatibility
+
+Updates2MQTT monitors Docker image and local Git-based builds for updates, publishes update details over MQTT, and integrates with Home Assistant's MQTT Update entities. Start with installation and configuration guidance; use the Home Assistant and troubleshooting pages for integration and operations.
+
+
+# Start here
+
+This page available in [English](https://updates2mqtt.rhizomatics.org.uk/index.md), [Deutsch](https://updates2mqtt.rhizomatics.org.uk/de/index.md), [Español](https://updates2mqtt.rhizomatics.org.uk/es/index.md), [Français](https://updates2mqtt.rhizomatics.org.uk/fr/index.md), [हिन्दी](https://updates2mqtt.rhizomatics.org.uk/hi/index.md), [Italiano](https://updates2mqtt.rhizomatics.org.uk/it/index.md),[日本語](https://updates2mqtt.rhizomatics.org.uk/ja/index.md), [Nederlands](https://updates2mqtt.rhizomatics.org.uk/nl/index.md), [Polski](https://updates2mqtt.rhizomatics.org.uk/pl/index.md), [Português](https://updates2mqtt.rhizomatics.org.uk/pt/index.md), [中文（简体)](https://updates2mqtt.rhizomatics.org.uk/zh-Hans/index.md)
+
+# updates2mqtt
+
+## Summary
+
+Let Home Assistant tell you about new updates to Docker images for your containers.
+
+Read the release notes, and optionally click *Update* to trigger a Docker *pull* (or optionally *build*) and *update*.
+
+## Description
+
+Updates2MQTT perioidically checks for new versions of components being available, and publishes new version info to MQTT. HomeAssistant auto discovery is supported, so all updates can be seen in the same place as Home Assistant’s own components and add-ins.
+
+Currently only Docker containers are supported, either via an image registry check (using either v1 Docker APIs or the OCI v2 API), or a git repo for source (see [Local Builds](https://updates2mqtt.rhizomatics.org.uk/local_builds/index.md)), with specific handling for Docker, Github Container Registry, Gitlab, Codeberg, Microsoft Container Registry, Quay and LinuxServer Registry, with adaptive behaviour to cope with most others. The design is modular, so other update sources can be added, at least for notification. The next anticipated is **apt** for Debian based systems.
+
+Components can also be updated, either automatically or triggered via MQTT, for example by hitting the *Install* button in the HomeAssistant update dialog. Icons and release notes can be specified for a better HA experience. See [Home Assistant Integration](https://updates2mqtt.rhizomatics.org.uk/home_assistant/index.md) for details.
+
+To get started, read the [Installation](https://updates2mqtt.rhizomatics.org.uk/installation/index.md) and [Configuration](https://updates2mqtt.rhizomatics.org.uk/configuration/index.md) pages.
+
+AI agents can use the [documentation index](https://updates2mqtt.rhizomatics.org.uk/llms.txt) to find relevant pages, or fetch the [complete Markdown documentation](https://updates2mqtt.rhizomatics.org.uk/llms-full.txt).
+
+For a quick spin, try this:
+
+```bash
+docker run -v /var/run/docker.sock:/var/run/docker.sock -e MQTT_USER=user1 -e MQTT_PASS=user1 -e MQTT_HOST=192.168.1.5 ghcr.io/rhizomatics/updates2mqtt:latest
+```
+
+or without Docker, using [uv](https://docs.astral.sh/uv/)
+
+```bash
+export MQTT_HOST=192.168.1.1;export MQTT_USER=user1;export MQTT_PASS=user1;uv run --with updates2mqtt python -m updates2mqtt
+```
+
+It also comes with a basic command line tool that will perform the analysis for a single running container, or fetch manifests, JSON blobs and lists of tags from remote registries (known to work with GitHub, GitLab, Codeberg, Quay, LSCR and Microsoft MCR).
+
+## Release Support
+
+Presently only Docker containers are supported, although others are planned, probably with priority for `apt`.
+
+| Ecosystem | Support     | Comments                                                                                       |
+| --------- | ----------- | ---------------------------------------------------------------------------------------------- |
+| Docker    | Scan. Fetch | Fetch is `docker pull` only. Restart support only for `docker-compose` image based containers. |
+
+## Heartbeat
+
+A heartbeat JSON payload is optionally published periodically to a configurable MQTT topic, defaulting to `healthcheck/{node_name}/updates2mqtt`. It contains the current version of Updates2MQTT, the node name, a timestamp, and some basic stats.
+
+## Healthcheck
+
+A `healthcheck.sh` script is included in the Docker image, and can be used as a Docker healthcheck, if the container environment variables are set for `MQTT_HOST`, `MQTT_PORT`, `MQTT_USER` and `MQTT_PASS`. It uses the `mosquitto-clients` Linux package which provides `mosquitto_sub` command to subscribe to topics.
+
+Tip
+
+Check healthcheck is working using `docker inspect --format "{{json .State.Health }}" updates2mqtt | jq` (can omit `| jq` if you don’t have jsonquery installed, but much easier to read with it)
+
+Another approach is using a restarter service directly in Docker Compose to force a restart, in this case once a day:
+
+Example Compose Service
+
+```yaml
+restarter:
+    image: docker:cli
+    volumes: ["/var/run/docker.sock:/var/run/docker.sock"]
+    command: ["/bin/sh", "-c", "while true; do sleep 86400; docker restart updates2mqtt; done"]
+    restart: unless-stopped
+    environment:
+      - UPD2MQTT_UPDATE=AUTO
+```
+
+## Target Containers
+
+While `updates2mqtt` will discover and monitor all containers running under the Docker daemon, there are some options to make to those containers to tune how it works.
+
+These happen by adding environment variables or docker labels to the containers, typically inside an `.env` file, or as `environment` options inside `docker-compose.yaml`.
+
+### Automated updates
+
+If Docker containers should be immediately updated, without any confirmation or trigger, *e.g.* from the HomeAssistant update dialog, then set an environment variable `UPD2MQTT_UPDATE` in the target container to `Auto` ( it defaults to `Passive`). If you want it to update without publishing to MQTT and being visible to Home Assistant, then use `Silent`.
+
+Example Compose Snippet
+
+```yaml
+restarter:
+    image: docker:cli
+    command: ["/bin/sh", "-c", "while true; do sleep 86400; docker restart mailserver; done"]
+    environment:
+      - UPD2MQTT_UPDATE=AUTO
+```
+
+Automated updates can also apply to local builds, where a `git_repo_path` has been defined - if there are remote commits available to pull, then a `git pull`, `docker compose build` and `docker compose up` will be executed.
+
+## Related Projects
+
+Other apps useful for self-hosting with the help of MQTT:
+
+- [psmqtt](https://github.com/eschava/psmqtt) - Report system health and metrics via MQTT
+
+Find more at [awesome-mqtt](https://github.com/rhizomatics/awesome-mqtt)
+
+For a more powerful Docker focussed update manager, try [What’s Up Docker](https://getwud.github.io/wud/)
+
+## Development
+
+This component relies on several open source packages:
+
+- [docker-py](https://docker-py.readthedocs.io/en/stable/) SDK for Python for access to Docker APIs
+- [Eclipse Paho](https://eclipse.dev/paho/files/paho.mqtt.python/html/client.html) MQTT client
+- [OmegaConf](https://omegaconf.readthedocs.io) for configuration and validation
+- [structlog](https://www.structlog.org/en/stable/) for structured logging (optionally JSON) and [rich](https://rich.readthedocs.io/en/stable/) for better exception reporting
+- [hishel](https://hishel.com/) for caching metadata
+- [httpx](https://www.python-httpx.org) for retrieving metadata
+- The Astral [uv](https://docs.astral.sh/uv/) and [ruff](https://docs.astral.sh/ruff/) tools for development and build
+- [pytest](https://docs.pytest.org/en/stable/) and supporting add-ins for automated testing
+- [usingversion](https://pypi.org/project/usingversion/) to log current version info
+
+## Rhizomatics Open Source for Home Assistant
+
+### HACS
+
+- [AutoArm](https://autoarm.rhizomatics.org.uk) - Automatically arm and disarm Home Assistant alarm control panels using physical buttons, presence, calendars, sun and more
+- [Remote Logger](https://remote-logger.rhizomatics.org.uk) - OpenTelemetry (OTLP) and Syslog event capture for Home Assistant
+- [Supernotify](https://supernotify.rhizomatics.org.uk) - Unified notification for easy multi-channel messaging, including powerful chime and security camera integration.
+
+### Python / Docker
+
+- [Anpr2MQTT](https://anpr2mqtt.rhizomatics.org.uk) - Integrate with ANPR/ALPR licence plate cameras via file system (NAS/FTP) to MQTT with optional image analysis and UK DVLA integration.
+- [Dev Shell](https://devshell.rhizomatics.org.uk) - Python REPL for Home Assistant development and data exploration.
+
+# Installation
+
+## Install
+
+Updates2MQTT prefers to be run inside a Docker container, though can run standalone, for example scripted via cron or systemd.
+
+The only mandatory configuration is the MQTT broker host, user name and password, which can be set by environment variables, or the config file. The node name will be taken from the operating system if there’s no config file. See [Configuration](https://updates2mqtt.rhizomatics.org.uk/configuration/index.md) for details.
+
+To check that it’s working, have a look at [Verifying it Works on Home Assistant](https://updates2mqtt.rhizomatics.org.uk/home_assistant/#verifying-it-works).
+
+### Docker
+
+See `examples` directory for a working `docker-compose.yaml`.
+
+If you want to update and restart containers, then the file system paths to the location of the directory where the docker compose file lives must be available in the Updates2MQTT container.
+
+docker compose snippet
+
+```yaml
+volumes:
+      # Must have config directory mapped
+      - ./conf:/app/conf
+      # Must have the Docker daemon socket mapped
+      - /var/run/docker.sock:/var/run/docker.sock
+      # This list of paths is only needed when containers are to be updated
+      # The paths here are completely dependent on where your docker-compose files live
+      # and the internal/external paths must be exactly the same
+      - /my/container/home:/my/container/home
+      - /more/containers:/more/containers
+```
+
+The example `docker-compose.yaml` mounts `/my/container/home` for this purpose, so if your containers are in `/my/container/home/app1`, `/my/container/home/app2` etc, then Updates2MQTT will be able to find them in order to restart them. Map as many root paths as needed.
+
+#### Ensuring Always Running
+
+Use cron to make sure the container is always up, this example will run once an hour, adapt the schedule and the location of `docker-compose.yaml` for your needs.
+
+```bash
+sudo crontab -e
+```
+
+```bash
+0 * * * * /usr/bin/docker compose -f /containers/updates2mqtt/docker-compose.yaml up -d --no-recreate
+```
+
+### Without Docker
+
+Updates2MQTT is published as a [PyPI package](https://pypi.org/project/updates2mqtt/) on every release, so it can be used in any way you like - cron, systemd, your own Dockerfile, or whatever.
+
+#### Run without installing using uv
+
+```bash
+uv run --with updates2mqtt updates2mqtt
+```
+
+#### Install and run with pip
+
+```bash
+pip install updates2mqtt
+python3 -m updates2mqtt
+```
+
+### On Portainer
+
+Install an Updates2MQTT container on each Portainer host, this can be using a `docker-compose.yaml` file, or using the Portainer UI to define the image name and env vars ( no config file required ). Each of the containers will show up as a Docker Compose service as if Portainer even if it has been fully managed by Portainer without a manual `docker-compose.yaml` file.
+
+### Github Token
+
+A GitHub access token is optional, however when supplied additional API calls can be made for GHCR images, and the quotas for all APIs may be higher.
+
+When creating the access token, ensure it has the `packages:read` permission, or use the ‘Classic’ rather than fine-grained token.
+
+One case where access tokens help is if there either no version label in the image, or the label isn’t a version ( for example, Homarr has `main` as the version for all images.) In these case, the authenticated only [packages API calls](https://docs.github.com/en/rest/packages/packages) will be made to match a version from the image digest.
+# Configuration
+
+# Configuring Updates2MQTT
+
+Guidance on configuring the main agent for Updates2MQTT, and customizing how individual containers are presented in Home Assistant, or behave on update.
+
+{{ pagetree(siblings) }}
+
+# Customizing Containers
+
+Each container can be customized, so that when it appears in Home Assistant it has an appropriate logo for its icon, and useful release notes. Some of this is done by pre-loaded metadata, in `common_packages.yaml`, by API exploration or inference, and some needs to be done locally, especially for more unusual components.
+
+## Logos and Release Notes
+
+Individual docker containers can have customized entity pictures or release notes, using env variables, for example in the `docker-compose.yaml` or in a separate `.env` file:
+
+docker compose snippet
+
+```yaml
+    environment:
+      - UPD2MQTT_PICTURE=https://frigate.video/images/logo.svg
+      - UPD2MQTT_RELNOTES=https://github.com/blakeblackshear/frigate/releases
+```
+
+or using labels
+
+docker compose snippet
+
+```yaml
+    labels:
+      updates2mqtt.picture: https://frigate.video/images/logo.svg
+      updates2mqtt.relnotes: https://github.com/blakeblackshear/frigate/releases
+```
+
+l The images will show up in the *Update* section of *Settings* menu in HomeAssistant, as will the release notes link. SVG icons should be used.
+
+## Customizing Versions
+
+Updates2MQTT attempts to find the most human-friendly representation of image versions that can be reliably used. Ideally that’s a `v1.5.4` type version (whether formally SemVer or just traditional version).
+
+By default, configurable using `version_policy` in the Docker section of the config, it uses an `auto` version policy that will choose the most meaningful, and fall back to digests where versions aren’t available (usually via image labels/annotations). This will also take into account where updates are throttled, or a pinned digest declared in the container.
+
+This can be overridden at container level using using the `updates2mqtt.version_policy` container label or `UPD2MQTT_VERSION_POLICY` environment variable:
+
+- `AUTO` - to do the best it can with versions, git repo digests, timestamps, index digests or config digests
+- `VERSION` - always choose simple version unless version not available
+  - Some images use version oddly, where its more of a label applying to multiple releases than a version. Also there’s guarantee for container images that a human friendly version always points to the same thing.
+  - This is useful where you know the image has sensible versions and trust it enough
+- `TIMESTAMP` - always use the creation timestamp of the image, where its conistent with the digests
+- `DIGEST` - always use the 12-char abbreviated digest, even if version available
+- `VERSION_DIGEST` - use a `version:1234567890ab` style combo of version and digest id where both available
+
+If the chosen option isn’t available, they’ll all fail back to `auto`. A diagnostic code, `version-select` that ties back to precisely which [code])(https://github.com/rhizomatics/updates2mqtt/blob/main/src/updates2mqtt/integrations/docker.py#L533) used is included in the attributes.
+
+## Silencing Containers
+
+If there are containers which are changing very frequently with development builds, or for other reasons shouldn’t be published to Home Assistant, then use the `image_ref_select` in configuration.
+
+They will still be published to MQTT but not to the Home Assistant MQTT Discovery topic.
+
+config.yaml snippet
+
+```yaml
+docker:
+  enabled: true
+  image_ref_select:
+    exclude:
+      - .*:nightly
+      - .*:dev
+```
+
+Alternatively, set `UPD2MQTT_IGNORE` flag on the container itself to completely ignore it.
+
+## Icon Sources
+
+Updates look nicer in Home Assistant with a suitable icon. Updates2mqtt comes pre-packaged with some common ones, in `common_packages.yaml`, and can automatically fetch them (and release links) for the popular [linuxserver.io](https://www.linuxserver.io) packages.
+
+If you have something not covered, here are some good places to look for self-hosted app icons:
+
+- [Homarr Dashboard Icons](https://github.com/homarr-labs/dashboard-icons)
+- [Self Hosted Icons](https://selfh.st/icons/) ([repo](https://github.com/selfhst/icons))
+- [Simple Icons](https://github.com/simple-icons/simple-icons)
+- [Tabler Icons](https://tabler.io/icons)
+- [Papirus Icons](https://github.com/PapirusDevelopmentTeam/papirus-icon-theme)
+- [Homelab SVG Assets](https://github.com/loganmarchione/homelab-svg-assets)
+
+## Environment Variables
+
+The following environment variables can be used to configure containers for `updates2mqtt`:
+
+| Env Var                   | Description                                                                                                                           | Default         |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| `UPD2MQTT_UPDATE`         | Update mode, either `Passive` or `Auto`. If `Auto`, updates will be installed automatically.                                          | `Passive`       |
+| `UPD2MQTT_PICTURE`        | URL to an icon to use in Home Assistant.                                                                                              | Docker logo URL |
+| `UPD2MQTT_RELNOTES`       | URL to release notes for the package.                                                                                                 |                 |
+| `UPD2MQTT_GIT_REPO_PATH`  | Relative path to a local git repo if the image is built locally.                                                                      |                 |
+| `UPD2MQTT_IGNORE`         | If set to `True`, the container will be ignored by Updates2MQTT.                                                                      | False           |
+|                           |                                                                                                                                       |                 |
+| `UPD2MQTT_VERSION_POLICY` | Change how version derived from container label or image hash, `Version`,`Digest`,`Version_Digest`,`Timestamp` with default of `Auto` |                 |
+| `UPD2MQTT_REGISTRY_TOKEN` | Access token for authentication to container distribution API, as alternative to making a call to `token` service                     |                 |
+
+## Docker Labels
+
+Alternatively, use Docker labels
+
+| Label                         | Env Var                   |
+| ----------------------------- | ------------------------- |
+| `updates2mqtt.update`         | `UPD2MQTT_UPDATE`         |
+| `updates2mqtt.picture`        | `UPD2MQTT_PCITURE`        |
+| `updates2mqtt.relnotes`       | `UPD2MQTT_RELNOTES`       |
+| `updates2mqtt.git_repo_path`  | `UPD2MQTT_GIT_REPO_PATH`  |
+| `updates2mqtt.ignore`         | `UPD2MQTT_IGNORE`         |
+| `updates2mqtt.version_policy` | `UPD2MQTT_VERSION_POLICY` |
+| `updates2mqtt.registry_token` | `UPD2MQTT_REGISTRY_TOKEN` |
+
+Example Compose Snippet
+
+```yaml
+restarter:
+    image: docker:cli
+    command: ["/bin/sh", "-c", "while true; do sleep 86400; docker restart mailserver; done"]
+    labels:
+        updates2mqtt.relnotes: https://component.my.com/release_notes
+```
+
+# Remote API Usage
+
+Updates2MQTT uses several remote APIs to check for new versions, or pull in useful metadata, in addition to local API calls to the Docker daemon.
+
+- **Docker Registry V1 API**
+  - These calls are all made via the [docker-py](https://docker-py.readthedocs.io/en/stable/) Python SDK from the Docker vendor, and now only if the alternative `registry_access` is selected
+- **OCI Container Distribution V2 API**
+  - This API is supported all mainstream container registries, and provides indexes ( which can be accessed by digest, or by a tag like `latest` or `nightly`, and are the mechanism by which new versions are discovered), plus manifests and config documents which provide more detail including annotations and labels
+- **GitHub REST API**
+  - Used to pull in release summaries where container images provide source links and revisions
+- **LinuxServer API**
+  - Used to get release notes and icons for lots of popular containers
+
+## API Throttling
+
+### Container Registry APIs
+
+Docker API has [usage limits](https://docs.docker.com/docker-hub/usage/) which may be triggered if there are many containers ( and other registries will have similar).
+
+`updates2mqtt` will back off if a `429` Too Many Requests response is received, and pause for that specific registry for the requested number of seconds. There’s a default in `docker` config of `default_api_backoff` applied if the backoff can’t be automatically determined.
+
+The main technique to avoid throttling is caching of responses, and fortunately many of the calls are cache friendly, such as the manifest retrieval. By default, responses will be cached as suggested by the registry API service ([explanation](https://hishel.com/1.1/specification/#how-it-works)), however this can be overridden with these options:
+
+| Config Key            | Default           | Comments                                                                                                                   |
+| --------------------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `mutable_cache_ttl`   | None              | This is primarily the fetch of `latest` or similar tags to get new versions                                                |
+| `immutable_cache_ttl` | 7776000 (90 days) | This is for anything fetched by a digest, such as image manifests. The only limitation for these should be storage space   |
+| `token_cache_ttl`     | None              | Caching for authorization tokens, `docker.io` is good for 300 seconds, not all registries publish the life in the response |
+
+The cache, using [Hishel](https://hishel.com), is automatically cleaned up of old entries once the TTL (Time to Live) has expired.
+
+The other approach can be to reduce the scan interval, or ignore some of the containers.
+
+### GitHub API
+
+GitHub REST API has its own throttling, which may impact fetching release summaries. A higher limit can be achieved using a *personal access token*. Create one in *Developer Settings* in GitHub, make sure it has access to “Public Repositories”, and configure it in Updates2MQTT as below:
+
+updates2mqtt config snippet
+
+```yaml
+github:
+  access_token: my_access_token
+```
+
+# Improving Security
+
+## Moving Secrets Out of Config
+
+Example use of environment variables, e.g. for secrets:
+
+config.yaml snippet
+
+```yaml
+mqtt:
+    password: ${oc.env:MQTT_PASS}
+```
+
+## Running as non-root
+
+It is good practice not to run Docker containers as root, and `updates2mqtt` will work with any user so long as it has Docker permissions, usually as a result of being a member of the `docker` group.
+
+To create a suitable use, use the shell command below - it will create a user that can only be used for this purpose, and can’t otherwise login. It assumes there is already a group called `docker` with access to the Docker Daemon, if you dont have one, follow the [Docker Post Install Steps](https://docs.docker.com/engine/install/linux-postinstall/) which explain how and why to do it.
+
+```bash
+sudo adduser --system --ingroup docker --no-create-home -shell /sbin/nologin updates2mqtt
+```
+
+Note the `uid` that is reported here. If you don’t know the `gid` for the `docker` group, use `grep docker /etc/group`. In this example, our `uid` is `130` and the `gid` of `docker` group is `119`.
+
+In the `docker-compose.yaml`, set the user and group using [user](https://docs.docker.com/reference/compose-file/services/#user) attribute:
+
+docker compose snippet
+
+```yaml
+services:
+  updates2mqtt:
+    container_name: updates2mqtt
+    image: ghcr.io/rhizomatics/updates2mqtt:latest
+    user: 130:119
+```
+
+If you’re using Updates2MQTT to update local git repos, then the user created above will also need `rw` access to those, which you can do by making it a member of the same group as owns the repos and making sure they have group `rw` access configured.
+
+For more information, see the [Understanding the Docker USER Instruction](https://www.docker.com/blog/understanding-the-docker-user-instruction/) article from Docker.
+
+## MQTT Access Control
+
+Its best to have a dedicated MQTT user for Updates2MQTT, for security and debug. For most secure installations, only use secure ports with validated certificates, although this will require more complicated setup and ongoing support, including using host names rather than IP addresses, and with [LetsEncrypt](https://letsencrypt.org) to update certificates.
+
+The two brokers most commonly used with Home Assistant, **Mosquitto** and **EMQX**, both have access control mechanisms, so you can restrict the user account for Updates2MQTT to only be able to read and write its own topics.
+
+## MQTT TLS
+
+`tls_mode` defaults to `off`, and can be switched to `on` or to `insecure` for testing with mismatched hostnames.
+
+Encrypt MQTT broker communication with TLS to wrap socket communication and optionally verify client and.or server identity.
+
+This can be used in basic non-auth mode, (using default public certificate authorities, or local ones located at `ca_certs` in the `mqtt` config section), or using client certificates too with `client_cert` and `client_key`. `cert_reqs` can be used with any of the python SSL values, e.g. `CERT_REQUIRED`.
+
+```yaml
+mqtt:
+  host: localhost
+  port: 1883
+  tls_mode: ON
+  ca_certs: ssl/ca_cert.crt
+  client_cert: ssl/client_cert.pem
+  client_key: ssl/client_key.pem
+  cert_reqs: CERT_OPTIONAL
+```
+
+See the [Paho MQTT `tls_set`](https://eclipse.dev/paho/files/paho.mqtt.python/html/client.html#paho.mqtt.client.Client.tls_set) API documentation for more on the underlying config, which is based on Python’s [ssl](https://docs.python.org/3/library/ssl.html) module.
+
+# Using A Configuration File
+
+The configuration file is optional, and only needed if you have to override the defaults. See [Without a Config File](https://updates2mqtt.rhizomatics.org.uk/configuration/zero_config_file/index.md) for the alternatives.
+
+Create file `config.yaml` in `conf` directory. If the file is not present, a default file will be generated, and the parent director if necessary. If you don’t want that to happen, then set `U2M_AUTOGEN_CONFIG=0`.
+
+## Example configuration file
+
+This is a maximal config file, the minimum is no config file at all, which will generate a default config file. The only mandatory values are the MQTT user name and password, everything else can be omitted ( although its best to have at least a `node` `name` value so HomeAssistant doesn’t show some ugly generated Docker host name).
+
+config.yaml snippet
+
+```yaml
+node:
+  name: docker-host-1 # Unique name for this instance, used to name MQTT entities. Defaults to O/S hostname
+  git_repo_path: /usr/bin/git # Path to git inside container, needed only if non-default and using local docker builds
+  healthcheck:
+    enabled: true
+    interval: 300 # publish a heartbeat every 5 minutes
+    topic_template: healthcheck/{node_name}/updates2mqtt
+mqtt:
+  host: ${oc.env:MQTT_HOST}
+  user: ${oc.env:MQTT_USER}
+  password: ${oc.env:MQTT_PASS}$ # Use an environment variable for secrets
+  port: ${oc.env:MQTT_PORT}
+  topic_root: updates2mqtt
+  protocol: 3.11 # Can be changed to 5 if your broker supports it
+homeassistant:
+  discovery:
+    prefix: homeassistant # Matches the default MQTT discovery prefix in Home Assistant
+    enabled: true
+  state_topic_suffix: state
+  device_creation: true # create a Home Assistant device and associate it with each update entity
+  area: "Server Room" # suggest an area for Home Assistant to give to the Device
+  extra_attributes: true # use `json_attributes_topic` feature in Home Assistant to source state attributes from discover
+  force_command_creation: # create a command topic even if there's no support for automated update
+docker:
+  enabled: true
+  allow_pull: true # if true, will do a `docker pull` if an update is available
+  allow_restart: true # if true, will do a `docker-compose up` if an update is installed
+  allow_build: true # if true, will do a `docker-compose build` if a git repo is configured
+  compose_version: v2 # Controls whether to use `docker-compose` (v1) or `docker compose` (v2) command
+  default_entity_picture_url: https://www.docker.com/wp-content/uploads/2022/03/Moby-logo.png # Picture for update dialog
+  device_icon: mdi:docker # Material Design Icon to use when browsing entities in Home Assistant
+  default_api_backoff: 600 # Default time to back off container registry APIs
+  # device_icon: mdi:train-car-container # Alternative icon if you don't like Docker branding
+  discover_metadata:
+    linuxserver.io:
+      enabled: true
+      cache_ttl: 604800 # cache metadata for 1 week
+  image_ref_select: # limit the containers which will be published to Home Assistant
+    include:
+    - .*special-dev
+    exclude:
+    - .*dev
+    - .*nightly
+  version_select:  # limit the containers which will be published to Home Assistant
+     exclude:
+     -  .*-beta.*
+     include: 
+     - 1\..*
+scan_interval: 10800 # sleep interval between scan runs, in seconds
+log:
+  level: INFO
+```
+
+# Without a Configuration File
+
+The core configuration can be supplied by environment variables and container labels, everything else will default, either to fixed values built into Updates2MQTT, or in the case of the node name, taken from the operating system.
+
+| Env Var       | Default      |
+| ------------- | ------------ |
+| MQTT_HOST     | localhost    |
+| MQTT_PORT     | 1883         |
+| MQTT_USER     | *NO DEFAULT* |
+| MQTT_PASSWORD | *NO DEFAULT* |
+| MQTT_VERSION  | 3.11.        |
+| U2M_LOG_LEVEL | INFO         |
+
+Startup will fail if `MQTT_USER` and `MQTT_PASSWORD` are not defined some how.
+
+The example [docker-compose.yaml](https://updates2mqtt.rhizomatics.org.uk/configuration/examples/docker_compose/index.md) and [.env](https://updates2mqtt.rhizomatics.org.uk/configuration/examples/env/index.md) demonstrate one way of doing this, or skip the `.env` file and use an `environment` section in the Compose file.
+
+Set `U2M_AUTOGEN_CONFIG=0` in the environment to prevent a default config file being created in the local compose directory if you want to keep it zero-configuration-file.
+
+# Example Configurations
+
+Configuration files and Docker Compose files.
+
+{{ pagetree(siblings) }}
+
+# Maximal Configuration
+
+More extensive example configuration, using all the features
+
+```yaml
+log:
+  level: INFO
+  json: false
+node:
+  name: mydockerpc
+  git_path: /usr/bin/git
+  healthcheck:
+    enabled: true
+    interval: 300
+    topic_template: healthcheck/{node_name}/updates2mqtt
+mqtt:
+  host: localhost
+  port: 1883
+  user: mymqttuser
+  password: mysecret
+  topic_root: updates2mqtt
+  protocol: 5
+  transport: tcp
+  keepalive: 30
+  connect_timeout: 20
+  tls_mode: insecure
+  ca_certs: ssl/ca_cert.crt
+  client_cert: ssl/client_cert.pem
+  client_key: ssl/client_key.pem
+  cert_reqs: CERT_OPTIONAL
+homeassistant:
+  discovery:
+    prefix: homeassistant
+    enabled: true
+  state_topic_suffix: state
+  area: Server Room
+  device_creation: true
+  force_command_topic: false
+  extra_attributes: true
+docker:
+  enabled: true
+  allow_pull: true
+  allow_restart: true
+  allow_build: true
+  compose_version: v2
+  default_entity_picture_url: https://www.docker.com/wp-content/uploads/2022/03/Moby-logo.png
+  device_icon: mdi:docker
+  default_api_backoff: 1800
+  version_policy: VERSION_DIGEST
+  discover_metadata:
+    linuxserver.io:
+      enabled: true
+      cache_ttl: 604800
+  image_ref_select:
+    include:
+    - .*special-dev
+    exclude:
+    - .*dev
+    - .*nightly
+  version_select:
+     exclude: 
+     - .*-beta.*
+     include:
+     -  1\..*
+  registry:
+    immutable_cache_ttl: 2592000
+    api: OCI_V2
+scan_interval: 10800
+github:
+  access_token: github_pat_00001111444445555666677778888
+packages:
+  my_custom_pkg:
+    docker:
+      image_name: ghcr.io/dummy/my_custom
+      version_policy: DIGEST
+    logo_url: https://avatars.githubusercontent.com/u/162821199?s=48&v=4
+    source_repo_url: https://github.com/dummy/my_custom
+    release_notes_url:  https://github.com/dummy/my_custom/releases
+```
+
+# Minimal Configuration
+
+Smallest working configuration ( although the actual smallest is no file at all and using only environment variables for MQTT )
+
+```yaml
+mqtt:
+  host: ${oc.env:MQTT_HOST,"127.0.0.1"}
+  port: ${oc.env:MQTT_PORT,1883}
+  user: ${oc.env:MQTT_USER}
+  password: ${oc.env:MQTT_PASS}
+
+node:
+  name: dockernuc
+```
+
+# Docker Compose
+
+Example Docker Compose configuration to run *Updates2MQTT* as a container. This also requires a [.env](https://updates2mqtt.rhizomatics.org.uk/configuration/examples/env/index.md), or alternatively adding the environment variables directly into the compose file.
+
+```yaml
+services:
+  updates2mqtt:
+    container_name: updates2mqtt
+    image: ghcr.io/rhizomatics/updates2mqtt:release
+    volumes:
+      - ./conf:/app/conf  # Config file lives at /app/conf/config.yaml inside the container
+      # - ./cache:/app/.cache. # Optionally move cache out of container so it survives container down/up
+      - /var/run/docker.sock:/var/run/docker.sock # Access to Docker daemon for container updates
+      - /my/container/home:/my/container/home # Optional, map all root paths for docker compose directories
+      - ./logs/healthcheck.log:/var/log/healthcheck.log
+    restart: always
+    env_file: ./.env  # Environment variables file
+    healthcheck:
+      test: ["CMD", "/app/healthcheck.sh","healthcheck/MYNODENAME/updates2mqtt"] # Change for your node name
+      interval: 5m
+      timeout: 30s
+      retries: 3
+      start_period: 60s
+
+  restarter:
+    image: docker:cli
+    volumes: ["/var/run/docker.sock:/var/run/docker.sock"]
+    command: ["/bin/sh", "-c", "while true; do sleep 86400; docker restart updates2mqtt; done"]
+    restart: unless-stopped
+    environment:
+      - UPD2MQTT_UPDATE=AUTO
+```
+
+# Environment File
+
+Example `.env` file for Docker Compose configuration to separately store the environment variables.
+
+```bash
+# Example env file for docker-compose.yaml
+# Used by both the app itself and the healthcheck script
+
+# To use these, add to config.yaml like ${oc.env:MQTT_HOST}
+
+MQTT_HOST=192.168.0.1
+MQTT_PORT=1883
+MQTT_USER=my_mqtt_user
+MQTT_PASS=my_mqtt_secret
+```
+# Home Assistant and operations
+
+# HomeAssistant Integration
+
+`updates2mqtt` represents each component being managed as a [MQTT Update](https://www.home-assistant.io/integrations/update.mqtt/) entity, and uses [MQTT discovery](https://www.home-assistant.io/integrations/mqtt/#mqtt-discovery) so that HomeAssistant automatically picks up components discovered by Updates2MQTT with zero configuration on HomeAssistant itself.
+
+## Configuration
+
+If Home Assistant is already running with MQTT, and the defaults haven’t been changed, then `updates2mqtt` will likely work as is, so long as its publishing to the same broker.
+
+Any updates that have support for automated install will automatically show in the Home Assistant settings page if the [MQTT Integration](https://www.home-assistant.io/integrations/mqtt/) is installed and automatic discovery is not disabled.
+
+The `homeassistant` default topic prefix matches the default Updates2MQTT config, if its changed in HomeAssistant, then the Updates2MQTT config must be changed to match.
+
+## Device Creation
+
+A Home Assistant device will be created for each Updates2MQTT agent on each server, and Home Assistant will then group all the relevant entities together on this device page. Use `device_creation: false` in the `homeassistant` config block if you want to switch off this behaviour, and `area` if you want to provide a `suggested_area` for the device.
+
+## MQTT Topics
+
+There are 44 separate types of MQTT topic used for HomeAssisstant integration:
+
+- **Config** to support auto discovery.
+  - A topic is created per component, with a name like `homeassistant/update/dockernuc_docker_jellyfin/update/config`.
+  - This can be disabled in the config file, and the `homeassistant` topic prefix can also be configured.
+  - All the configs for a given server will share the same *Device*, which can also be given a suggested *Area*
+- **State** to report the current version and the latest version available
+  - One topic per component, like `updates2mqtt/dockernuc/docker/jellyfin/state`
+  - This has a very limited schema
+- **Command** to support triggering an update.
+  - These will be created on the fly by HomeAssistant when an update is requested
+  - Updates2MQTT subscribes to pick up the changes, so you won’t typically see these if browsing MQTT topics.
+  - Only one is needed per Updates2MQTT agent, with a name like `updates2mqtt/dockernuc/docker`
+- **JSON Attributes** sources extra attributes from the main `updates2mqtt` discovery topic
+  - Switch this behaviour off using `extra_attributes: false` flag in Updates2MQTT HomeAssistant config
+
+If the package supports automated update, then *Skip* and *Install* buttons will appear on the Home Assistant interface, and the package can be remotely fetched and the component restarted.
+
+If it doesn’t support automated update, the `command_topic` won’t be published with the configuration message, unless `force_command_topic` is set to `true` in the `homeassistant` configuration section, this will force the Home Assistant app to show the update, but with a do-nothing Update button.
+
+## Verifying it Works
+
+Rather than wait for a container to need an update, you can check right away that Home Assistant has recognized the containers as MQTT Update targets.
+
+From the [Entities View](https://www.home-assistant.io/docs/configuration/entities_domains/), or the [Developer Tools](https://www.home-assistant.io/docs/tools/dev-tools/), filter the entities by `update.` If there are lots of other updates (HassOS apps, Zigbee device firmware etc), then pick one of the container names you know.
+
+## Custom config
+
+None of this is necessary, all optional for tuning how it works with Home Assistant.
+
+updates2mqtt config snippet
+
+```yaml
+homeassistant:
+  discovery:
+    prefix: homeassistant
+    enabled: true # if false then only plain MQTT publication made
+  state_topic_suffix: state
+  area: Server Room # suggested area for dynamically created device
+  device_creation: true # create a device per server and associate all the `update` entities with that device
+  force_command_topic: false # Publish a command topic even if the component can't be updated (can help with Home Assistant presentation)
+  extra_attributes: true # switch off all the extra attributes beyond the strict state schema
+```
+
+## More Home Assistant information
+
+- [MQTT Integration](https://www.home-assistant.io/integrations/mqtt/)
+  - Includes setting up a MQTT broker, MQTT Discovery, and trouble-shooting
+- [MQTT Update](https://www.home-assistant.io/integrations/update.mqtt/)
+- [Update Integration](https://www.home-assistant.io/integrations/update/)
+
+# Troubleshooting
+
+## General
+
+Things that need to work:
+
+- Docker API access to list and inspect containers
+- MQTT Publication of results
+- Home Assistant discovering the Update entities on MQTT
+- Home Assistant generating update notices in UI when there’s a new version
+- Command Topic message sent by Home Assistant when Update button clicked
+- Docker Compose available from shell to make updates and restart
+- Git command available in shell to check for local repo updates and pull
+
+## Updates2MQTT Logs
+
+If running under docker, and following the container naming guidance, then see the logs using:
+
+`docker logs updates2mqtt`
+
+or change to the directory where the `docker-compose.yaml` is installed and do `docker compose logs`
+
+### Changing Log Level
+
+Update the `config.yaml` and change the log level to DEBUG, which will show much more diagnostic information.
+
+conf/config.yaml
+
+```yaml
+log:
+  level: DEBUG
+```
+
+When you have everything working, its best to change the log level back, so your container isn’t generating big logs.
+
+### Going Inside Container
+
+From the `docker-compose.yaml` directory, execute
+
+`docker compose exec -it updates2mqtt bash`
+
+(if you have an old Docker install, you may need to use `docker-compose` instead of `docker compose`)
+
+This will give you shell access inside the container, which is a good way of checking for path issues, permissio issues etc. For example, if you have compose directories in the `/containers` directory, you could `cd /containers` and validate that Updates2MQTT can see the other compose directories, `ls` the contents, and run `docker compose` or `git` actions there.
+
+## MQTT
+
+If the host, port, user and password for MQTT are incorrect then usually this will show in the logs, or use a MQTT client to verify that Updates2MQTT is successfully posting to topics ( and that HomeAssistant itself is publishing to the same broker OK).
+
+Updates2MQTT uses the [Eclipse Paho Python Client](https://github.com/eclipse-paho/paho.mqtt.python) for all MQTT interaction, using v2 of the callback API, and supports the older MQTT implementations as well as the newer v5 protocol. The [Issues](https://github.com/eclipse-paho/paho.mqtt.python/issues?q=is%3Aissue) list might give you some clues for your situation.
+
+### Checking MQTT Settings
+
+The CLI can show the MQTT settings Updates2MQTT will use, and try a connection to the broker. It reads the environment variables and `conf/config.yaml` the same way the app does, logs every value along with the environment variable it comes from, and only shows whether passwords are set, not their values.
+
+Run it inside the running container, so it sees exactly the same environment and config file:
+
+```bash
+docker exec -it updates2mqtt u2m-cli mqtt=check
+```
+
+Or from anywhere with uv, with the MQTT environment variables set, and optionally a config file:
+
+```bash
+MQTT_HOST=192.168.1.10 MQTT_USER=u2m MQTT_PASS=xxx uvx --from updates2mqtt u2m-cli mqtt=check
+uvx --from updates2mqtt u2m-cli mqtt=check config=/path/to/config.yaml
+```
+
+The check reports missing required values (such as `MQTT_USER`) and certificate files that don’t exist, and doesn’t try to connect if any are found. It exits with status 0 if the broker connection succeeds, and 1 otherwise, so it can also be used in scripts. It uses its own MQTT client id, so is safe to run alongside a live Updates2MQTT without disconnecting it.
+
+### MQTT Clients
+
+Use a desktop MQTT app - [MQTTX](https://mqttx.app) will let you subscribe to `#` and see everything on a broker, while [MQTT Explorer](https://mqtt-explorer.com) automatically shows a tree structure of topics, and can run either as a desktop app, or as [web app running on Docker](https://github.com/Smeagolworms4/MQTT-Explorer).
+
+These tools will let you inspect messages, and also publish your own, so can create your own update message and see if it gets picked up by the Home Assistant app.
+
+Alternatively, use the debug option and logging of Mosquitto broker, or the built-in admin/debug UI of EMQX broker. Or the handy command line `mosquitto_sub` and `mosquitto_pub`, which are also used by the Updates2MQTT health check.
+
+## Home Assistant
+
+### Checklist
+
+(All of these can be checked and changed via the Home Assistant UI.)
+
+- HA is configured with an MQTT integration
+- MQTT broker host and port is the same on HA as Updates2MQTT
+  - Updates2MQTT has been tested with Mosquitto and EMQX
+- Automatic *Discovery* is on
+- The discovery prefix matches Updates2MQTT ( they both default to `homeassistant`)
+
+See the examples at [Home Assistant Configuration](https://updates2mqtt.rhizomatics.org.uk/home_assistant/#configuration)
+
+In addition to the base MQTT configuration, Updates2MQTT relies on [MQTT Discovery](https://www.home-assistant.io/integrations/update.mqtt/) and [MQTT Update](https://www.home-assistant.io/integrations/update.mqtt/) integrations. All of these have a single set of [MQTT Issues](https://github.com/home-assistant/core/issues?q=is%3Aissue+label%3A%22integration%3A+mqtt%22).
+
+When configured, each monitored container will have an `update` entity visible in the [Home Assistant Developer Tools](https://www.home-assistant.io/docs/tools/dev-tools/) and [Entities View](https://www.home-assistant.io/docs/configuration/entities_domains/).
+
+#### Home Assistant Mosquitto HassOS App
+
+If using the default *Mosquitto* broker, and *Customization* switched on, check the ACL configuration has `readwrite` access give to the Updates2MQTT user for its topics. The [HomeAssistant add-in config](https://github.com/home-assistant/addons/blob/master/mosquitto/DOCS.md) puts this in the `/share/mosquitto` directory.
+
+Oddly, the Paho MQTT client used by Updates2MQTT is known to [report success even when broker rejects message because of ACL restrictions](https://github.com/eclipse-paho/paho.mqtt.python/issues/895).
+
+#### Alternative MQTT Discovery
+
+There’s also an alternative to MQTT Discovery in HA, using plain yaml, the [MQTT Update Integration](https://www.home-assistant.io/integrations/update.mqtt/#configuration). The [BBQKees Boiler Gateway](https://bbqkees-electronics.nl/wiki/home-automations/home-assistant-configuration.html) has some detailed steps and examples for MQTT Discovery too.
+
+#### No Update Button
+
+If there’s an update showing, but no *Update* button present, then there’s a few reasons, which can be checked directly from the config and log:
+
+- Config has the `allow_pull`,`allow_restart` and `allow_build` all overridden to `False`
+- A new version reference can’t be found
+- The compose working directory can’t be found
+- This is sourced from the `com.docker.compose.project.working_dir` label, which can be seen in `docker inspect`
+- This only stops restart, not pull, so if `allow_pull` is on, the Update button will still show
+- The git repo path can’t be found for a local build
+
+The current state of this can be seen in MQTT, the config message will have two extra values as below:
+
+```json
+  "command_topic": "updates2mqtt/dockernuc/docker",
+  "payload_install": "docker|homarr|install"
+```
+
+#### Home Assistant Logs
+
+Use the [System Log](https://www.home-assistant.io/integrations/system_log/) to check for MQTT errors, or for positive confirmation that Update entities have been discovered. The *raw* log will show more, and allow you to scroll back for hours.
+
+The [Logger Integration](https://www.home-assistant.io/integrations/logger/#viewing-logs) lets you tweak the levels of specific integrations. This is less useful for Updates2MQTT, since all the work is happening outside of Home Assistant, however it can be useful for general MQTT issues, and the examples in the Home Assistant documentation shows how to tune the MQTT integration.
+
+## Docker
+
+More detailed information on the Docker API and compatibility with Docker engine versions can be found at Docker’s own [Docker Engine API](https://docs.docker.com/reference/api/engine/) reference.
+
+`updates2mqtt` is designed to run on the same host as the containers, so only needs local Docker daemon access. All it needs for that is the volume mapping as below:
+
+Example Docker Compose Snippet
+
+```yaml
+volumes:
+  - /var/run/docker.sock:/var/run/docker.sock
+```
+
+Where `docker-compose` projects are being automatically updated and restarted, one problem can be that earlier versions used a `docker-compose` command and newer ones use `docker compose`. There is a `v1` and `v2` option in the [configuration](https://updates2mqtt.rhizomatics.org.uk/configuration/index.md) to support this, defaulting to `v2`.
+
+If the `updates2mqtt` container is not running as root, then ensure that the user is a member of the local `docker` group. (If it is running as root, then consider moving to a defined user, see [Running as Non-Root](https://updates2mqtt.rhizomatics.org.uk/configuration/security/#running-as-non-root)).
+
+### Docker Help
+
+Best place to start is the `docker-py` [Issues](https://github.com/docker/docker-py/issues?q=is%3Aissue) on GitHub, since this is the primary component inside Updates2MQTT.
+
+A simple way of testing if there’s a `docker-py` issue is to load the client directly from python. This example uses `uv` to avoid changing local Python environment, use `pip` or other preferred tool to install if you want instead.
+
+```bash
+uv run --with docker python3
+>>> import docker
+>>> docker.__version__
+>>> client = docker.from_env()
+>>> client.info()['Containers']
+```
+
+This should output the version of the `docker` package, and the total count of local containers if the connection is good. Updates2MQTT uses at least v7.1.0 of `docker` for Python API.
+
+## Registry API
+
+Updates2MQTT uses the Docker developed `docker-py` library for local management, and originally for discovering updates. Now by default it uses the more modern [OCI v2 Distribution API](https://github.com/opencontainers/distribution-spec/blob/main/spec.md) that `docker.io` and other registries have supported for years.
+
+The `api` option in Docker`registry` config can override this, set to `docker_client`,`oci_v2` or `disabled`.
+
+The OCI APIs require more network calls, typically one to retrieve a token, one for the image index, which points to the platform specific manifest, and finally the config document. On the other hand, well-developer images also provide annotations on these documents, which allow for direct links to release notes and source code, descriptions, semantic versions and more.
+
+Registries usually have an unauthenticated token system for authorization, this can be overridden per container using the `updates2mqtt.registry_token` container label or `UPD2MQTT_REGISTRY_TOKEN` environment variable.
+
+If the benefits of the extra calls ( release summaries, direct release note URLs, human friendly version numbers ), then the additional fetches can be skipped by using `OCI_V2_MINIMAL` as the `api` value in the registry configuration section.
+
+Tip
+
+Images built on GitHub often use the `docker-metadata` action to create the annotations, which is documented at [metadata-action](https://github.com/docker/metadata-action)
+
+## Too Many Requests
+
+The Docker Registry API has a limit on how many authenticated requests, and a lower limit for unauthenticated requests, can be made per hour.
+
+Access to the API will back off when this is hit, and discovery will wait until a configurable period passed, which can be configured using `default_api_backoff` in the `docker` configuration section, with a value in seconds.
+
+The throttling is determined per registry, so if Docker is throttling it won’t affect `gchr.io`, private registries or others. They will also throttle if needed, but again the throttle will only affect that specific registry, and other scans will continue.
+
+The order of containers scanned is shuffled every time, so if there is a lot of throttling it won’t be the same ones every time.
+
+## Docker CLI
+
+There is a very bare bones command line debug tool, that will look up an image in either v1 or v2 APIs and dump everything to console at `DEBUG` log level, while also retrieving tokens to authorize API access and adapting to Docker Hub, GitHub, GitLab or Codeberg registries.
+
+Use the *container* hash, or a container name if one has been given ( easy to find out either of these with `docker ps`)
+
+There’s no need to install Updates2MQTT to use the manifest and blob fetching ability.
+
+```bash
+uvx --from updates2mqtt u2m-cli manifest=ghcr.io/blakeblackshear/frigate:stable
+```
+
+The following examples will all work from any Python context, and don’t need a local Docker or any Docker access.
+
+```bash
+uvx --from updates2mqtt u2m-cli manifest=ghcr.io/blakeblackshear/frigate:stable
+uvx --from updates2mqtt u2m-cli blob=ghcr.io/blakeblackshear/frigate@sha256:ef8d56a7d50b545af176e950ce328aec7f0b7bc5baebdca189fe661d97924980
+uvx --from updates2mqtt u2m-cli manifest=ghcr.io/blakeblackshear/frigate@sha256:c68fd78fd3237c9ba81b5aa927f17b54f46705990f43b4b5d5596cfbbb626af4
+uvx --from updates2mqtt u2m-cli tags=ghcr.io/blakeblackshear/frigate
+uvx --from updates2mqtt u2m-cli manifest=mcr.microsoft.com/dotnet/sdk:latest
+```
+
+These examples refer to locally running containers, displaying the local info as well as remote registry
+
+```bash
+uvx --from updates2mqtt u2m-cli container=frigate
+uvx --from updates2mqtt u2m-cli container=f4f02e182f5e api=docker_client
+uvx --from updates2mqtt u2m-cli container=frigate api=docker_client log_level=DEBUG
+```
+
+To keep it installed as a command, add it as a uv tool, which puts `u2m-cli` on the path:
+
+```bash
+uv tool install updates2mqtt
+u2m-cli container=frigate api=docker_client
+```
+
+If the package is installed in a local Python environment, it can also be run directly:
+
+```bash
+python -m updates2mqtt.cli container=frigate api=docker_client
+```
+
+Get a dump to CSV rather than MQTT of local Docker containers
+
+```bash
+python -m updates2mqtt.cli dump=csv
+```
+# Development
+
+# Local Builds
+
+## Custom docker builds
+
+If the image is locally built from a checked out git repo, package update can be driven by the availability of git repo changes to pull rather than a new image on a Docker registry. This will both show where a change is available in Home Assistant ( or other MQTT client ), and allow an update to be triggered remotely.
+
+(People sometimes do this as a quick way of forking and changing a repo that doesn’t quite work for them, or if the app is a development work in progress).
+
+Example docker-compose.yaml snippet
+
+```yaml
+services:
+  mymailserver:
+    build: ./build/mymailserver
+    environment:
+      - UPD2MQTT_GIT_REPO_PATH=build/mymailserver
+    volumes:
+      - /home/containers/mymailserver/build:/home/containers/mymailserver/build
+```
+
+Declare the git path using the env var in `UPD2MQTT_GIT_REPO_PATH` in the docker container ( directly or via an `.env` file), or an equivalent label (see [Docker Labels](https://updates2mqtt.rhizomatics.org.uk/configuration/customizing_containers/#docker-labels)). The git repo at this path will be used as the source of timestamps, and an update command will carry out a `git pull` and `docker-compose build` rather than pulling an image.
+
+Note that the Updates2MQTT docker container needs access to this path declared in its volumes, and that has to be read/write if automated install required.
+
+Since there’s no image digest, the current git revision will be used as the version, like `git:c2b12584a27f`, and when there are remote repo commits to pull, the new version will show how many commits ahead it is, for example `git:c2b12584a27f+5`
+
+# Understanding Container Metadata
+
+## Key Entities
+
+Documented at the [OCI Image Format Specification](https://github.com/opencontainers/image-spec/blob/main/spec.md)
+
+```
+---
+config:
+    class:
+      hideEmptyMembersBox: true
+---
+classDiagram
+    class ImageIndex {
+        +ManifestDescriptor[] manifestDescriptors
+        +Annotations annotations
+    }
+    link ImageIndex "https://github.com/opencontainers/image-spec/blob/main/image-index.md" "OCI Specification"
+    note for ImageIndex "Catalogs manifests\n for each architecture\n and operating systems"
+    class ImageManifest {
+        +Descriptor config
+        +Descriptor[] layers
+        +Annotations annotations
+    }
+    link ImageManifest "https://github.com/opencontainers/image-spec/blob/main/manifest.md" "OCI Specification"
+    note for ImageManifest "Lists layers and\n their digests,\n and points to the config doc"
+    class ImageConfig {
+        +string created
+        +string author
+        +string architecture
+        +string os
+        +Config config
+        +RootFS rootfs
+        +History[] history
+    }
+    link ImageConfig "https://github.com/opencontainers/image-spec/blob/main/config.md" "OCI Specification"
+    note for ImageConfig "Everything specified\n by the Dockerfile,\n and history to\n record building of each step"
+
+    ImageIndex "1" --> "*" ImageManifest : refers
+    ImageManifest "1" --> "1" ImageConfig : refers
+    ImageManifest "1" --> "*" Layers : refers
+```
+
+```text
+
+```
+
+```text
+
+```
+
+```text
+
+```
+
+```text
+
+```
+
+```text
+
+```
+
+```text
+
+```
+
+```text
+
+```
+
+```text
+
+```
+
+```text
+
+```
+
+```text
+
+```
+
+```text
+
+```
+
+```text
+
+```
+
+```text
+
+```
+
+```text
+
+```
+
+```text
+
+```
+
+```text
+
+```
+
+```text
+
+```
+
+```text
+
+```
+
+```
+```
