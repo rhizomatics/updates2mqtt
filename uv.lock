@@ -11,10 +11,7 @@ exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for 
 exclude-newer-span = "P5D"
 
 [options.exclude-newer-package]
-homeassistant-repl = false
 ruff = { timestamp = "0001-01-01T00:00:00Z", span = "P2D" }
-signalk-cli = false
-updates2mqtt = false
 
 [[package]]
 name = "actionlint-py"
