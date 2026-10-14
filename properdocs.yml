@@ -40,6 +40,27 @@ extra:
 
 plugins:
   - search
+  - llmstxt:
+      markdown_description: >
+        Updates2MQTT monitors Docker image and local Git-based builds for updates,
+        publishes update details over MQTT, and integrates with Home Assistant's
+        MQTT Update entities. Start with installation and configuration guidance;
+        use the Home Assistant and troubleshooting pages for integration and
+        operations.
+      full_output: llms-full.txt
+      sections:
+        Start here:
+          - index.md: Project overview, capabilities, and quick start
+          - installation.md: Installation and deployment options
+        Configuration:
+          - configuration/*.md
+          - configuration/examples/*.md
+        Home Assistant and operations:
+          - home_assistant.md: MQTT discovery and Home Assistant update entities
+          - troubleshooting.md: Common issues and diagnostics
+        Development:
+          - local_builds.md: Tracking updates for locally built images
+          - developer/*.md
   - htmlproofer:
       skip_downloads: True
   - autorefs

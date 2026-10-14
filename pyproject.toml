@@ -82,6 +82,7 @@ docs=[
     "pngquant",
     "mkdocs-mermaid2-plugin",
     "mkdocs-htmlproofer-plugin",
+    "mkdocs-llmstxt>=0.5.1",
 ]
 
 [build-system]
@@ -108,7 +109,7 @@ unused-type-ignore-comment="ignore"
 [tool.ruff]
 line-length = 128
 indent-width = 4
-target-version = "py313"
+target-version = "py314"
 exclude = [
     ".bzr",
     ".direnv",

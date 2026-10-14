@@ -41,6 +41,8 @@ Components can also be updated, either automatically or triggered via MQTT, for 
 
 To get started, read the [Installation](installation.md) and [Configuration](configuration/index.md) pages.
 
+AI agents can use the [documentation index](https://updates2mqtt.rhizomatics.org.uk/llms.txt) to find relevant pages, or fetch the [complete Markdown documentation](https://updates2mqtt.rhizomatics.org.uk/llms-full.txt).
+
 For a quick spin, try this:
 
 ```bash

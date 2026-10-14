@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import re
 import typing
 from abc import abstractmethod
@@ -252,7 +254,7 @@ class DockerImageInfo(DiscoveryArtefactDetail):
             log.warning("Unable to condense digest %s: %s", digest, e)
             return None
 
-    def reuse(self) -> "DockerImageInfo":
+    def reuse(self) -> DockerImageInfo:
         cloned = DockerImageInfo(
             self.ref, self.image_digest, self.tags, self.attributes, self.annotations, self.version, self.created
         )
