@@ -25,6 +25,9 @@ jobs:
        
     - name: Ruff
       uses:  astral-sh/ruff-action@v3
+    - name: ty
+      # keep in step with ty-pre-commit rev in .pre-commit-config.yaml
+      run: uvx --exclude-newer-package ty=false ty@0.0.87 check
     - name: Test with pytest
       run: uv run pytest tests
     - name: Build a binary wheel and a source tarball
