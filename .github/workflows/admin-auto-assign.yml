@@ -13,4 +13,4 @@ jobs:
     permissions:
       issues: write
       pull-requests: write
-    uses: rhizomatics/.github/.github/workflows/reusable-auto-assign.yml@main
+    uses: rhizomatics/.github/.github/workflows/reusable-auto-assign.yml@4e24df59a184885f400e8dbfd077b2c1bdbc7526 # 1.0.0
