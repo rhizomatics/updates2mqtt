@@ -193,7 +193,7 @@ def test_fetch_builds_when_can_build_and_pull(mock_docker_client: DockerClient, 
 
             mock_pull.assert_called_once_with(Path(tmpdir), Path("/usr/bin/git"))
             mock_compose.assert_called_once_with(
-                command=DockerComposeCommand.BUILD, args="", service=None, cwd=tmpdir, logger=ANY
+                command=DockerComposeCommand.BUILD, args="", service=None, cwd=tmpdir, logger=ANY, project=None
             )
 
             mock_docker_client.images.pull.assert_not_called()  # type: ignore[attr-defined]
@@ -584,3 +584,67 @@ def test_analyze_git_local_digest_returns_none(mock_docker_client: DockerClient,
         # no new version so version forced to current version to not trigger updates
         assert result.current_version is not None
         assert result.current_version == result.latest_version
+
+
+def test_execute_compose_passes_project_name(mock_docker_client: DockerClient, fake_process: FakeProcess, tmpdir: Path) -> None:
+    with patch("docker.from_env", return_value=mock_docker_client):
+        uut = mut.DockerProvider(DockerConfig(discover_metadata={}), NodeConfig())
+        d = Discovery(
+            uut,
+            "keycloak",
+            "test-123",
+            "node003",
+            installation_detail=DockerServiceDetails(
+                compose_path=str(tmpdir), compose_service="keycloak", compose_project="identity"
+            ),
+        )
+        fake_process.register("docker compose -p identity up --detach --yes keycloak", returncode=0)
+        assert uut.restart(d)
+
+
+def test_analyze_can_restart_when_compose_path_visible(mock_docker_client: DockerClient, tmpdir: Path) -> None:
+    container = build_mock_container("custom/app:latest")
+    container.labels["com.docker.compose.project.working_dir"] = str(tmpdir)
+    container.labels["com.docker.compose.project"] = "myproj"
+
+    with patch("docker.from_env", return_value=mock_docker_client):
+        uut = mut.DockerProvider(DockerConfig(discover_metadata={}), NodeConfig())
+        result = uut.analyze(container, "test-session")
+
+    assert result is not None
+    assert result.can_restart is True
+    details = result.installation_detail.as_dict()  # type: ignore[union-attr]
+    assert details["compose_path_found"] is True
+    assert details["compose_project"] == "myproj"
+    assert "portainer_stack_id" not in details
+
+
+def test_analyze_cannot_restart_portainer_stack(mock_docker_client: DockerClient) -> None:
+    container = build_mock_container("quay.io/keycloak/keycloak:latest")
+    container.labels["com.docker.compose.project.working_dir"] = "/data/compose/52"
+    container.labels["com.docker.compose.project"] = "keycloak"
+
+    with patch("docker.from_env", return_value=mock_docker_client):
+        uut = mut.DockerProvider(DockerConfig(discover_metadata={}), NodeConfig())
+        result = uut.analyze(container, "test-session")
+
+    assert result is not None
+    assert result.can_restart is False
+    details = result.installation_detail.as_dict()  # type: ignore[union-attr]
+    assert details["compose_path_found"] is False
+    assert details["portainer_stack_id"] == "52"
+
+
+@pytest.mark.parametrize(
+    ("path", "stack_id"),
+    [
+        ("/data/compose/52", "52"),
+        ("/data/compose/1/edge/emqx", "1"),
+        ("/data/compose", None),
+        ("/home/me/data/compose/3", None),
+        ("/data/compose/abc", None),
+        (None, None),
+    ],
+)
+def test_portainer_stack_id(path: str | None, stack_id: str | None) -> None:
+    assert DockerServiceDetails(compose_path=path).portainer_stack_id == stack_id

@@ -1,5 +1,6 @@
 import random
 import re
+import shlex
 import subprocess
 import time
 import typing
@@ -229,17 +230,27 @@ class DockerProvider(ReleaseProvider):
             service=service_info.compose_service,
             cwd=service_info.compose_path,
             logger=logger,
+            project=service_info.compose_project,
         )
 
     def execute_compose(
-        self, command: DockerComposeCommand, args: str, service: str | None, cwd: str | None, logger: structlog.BoundLogger
+        self,
+        command: DockerComposeCommand,
+        args: str,
+        service: str | None,
+        cwd: str | None,
+        logger: structlog.BoundLogger,
+        project: str | None = None,
     ) -> bool:
         if not cwd or not Path(cwd).is_dir():
-            logger.warning("Invalid compose path, skipped %s", command)
+            logger.warning("Compose path %s not visible in this container, skipped %s", cwd, command)
             return False
 
         cmd: str = "docker-compose" if self.cfg.compose_version == "v1" else "docker compose"
         logger.info(f"Executing {cmd} {command} {args} {service}")
+        if project:
+            # project name may differ from directory name, e.g. `-p` or Portainer stacks
+            cmd = cmd + " -p " + shlex.quote(project)
         cmd = cmd + " " + command.value
         if args:
             cmd = cmd + " " + args
@@ -289,6 +300,7 @@ class DockerProvider(ReleaseProvider):
                     "service": service_info.compose_service,
                     "cwd": service_info.compose_path,
                     "logger": logger,
+                    "project": service_info.compose_project,
                 },
             ).start()
             return True
@@ -299,6 +311,7 @@ class DockerProvider(ReleaseProvider):
             service=service_info.compose_service,
             cwd=service_info.compose_path,
             logger=logger,
+            project=service_info.compose_project,
         )
 
     def rescan(self, discovery: Discovery) -> Discovery | None:
@@ -439,7 +452,19 @@ class DockerProvider(ReleaseProvider):
                                 logger.debug(f"Git update not available, local repo:{full_repo_path}")
                                 latest_info.git_digest = git_versionish
 
-            can_restart: bool = self.cfg.allow_restart and service_info.compose_path is not None
+            can_restart: bool = self.cfg.allow_restart and service_info.compose_path_found
+            if self.cfg.allow_restart and service_info.compose_path and not can_restart and previous_discovery is None:
+                if service_info.portainer_stack_id:
+                    logger.warning(
+                        "Compose path %s is inside Portainer's data volume (stack %s), restart not possible",
+                        service_info.compose_path,
+                        service_info.portainer_stack_id,
+                    )
+                else:
+                    logger.warning(
+                        "Compose path %s not visible in this container, map it as a volume to allow restart",
+                        service_info.compose_path,
+                    )
 
             if can_pull:
                 update_type = "Docker Image"

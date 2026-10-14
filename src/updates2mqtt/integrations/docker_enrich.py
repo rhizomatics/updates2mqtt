@@ -1,6 +1,7 @@
 import re
 import typing
 from abc import abstractmethod
+from pathlib import Path
 from typing import Any, cast
 
 import structlog
@@ -59,6 +60,8 @@ UNKNOWN_RELEASE_URL_TEMPLATES = {
 MISSING_VAL = "**MISSING**"
 UNKNOWN_REGISTRY = "**UNKNOWN_REGISTRY**"
 UNKNOWN_NAME = "**UNKNOWN_NAME**"
+# Portainer stacks run compose from /data/compose/<stack id> inside the Portainer container
+PORTAINER_COMPOSE_PATH = re.compile(r"^/data/compose/(\d+)(?:/|$)")
 
 HEADER_DOCKER_DIGEST = "docker-content-digest"
 HEADER_DOCKER_API = "docker-distribution-api-version"
@@ -347,21 +350,41 @@ class DockerServiceDetails(DiscoveryInstallationDetail):
         compose_version: str | None = None,
         compose_service: str | None = None,
         git_repo_path: str | None = None,
+        compose_project: str | None = None,
     ) -> None:
         self.container_name: str | None = container_name
         self.compose_path: str | None = compose_path
         self.compose_version: str | None = compose_version
         self.compose_service: str | None = compose_service
+        self.compose_project: str | None = compose_project
         self.git_repo_path: str | None = git_repo_path
         self.git_local_timestamp: str | None = None
+
+    @property
+    def compose_path_found(self) -> bool:
+        """Compose working dir label is visible inside this container, so compose can be run there"""
+        return self.compose_path is not None and Path(self.compose_path).is_dir()
+
+    @property
+    def portainer_stack_id(self) -> str | None:
+        """Portainer stacks have a working dir inside Portainer's own data volume"""
+        if self.compose_path:
+            match = PORTAINER_COMPOSE_PATH.match(self.compose_path)
+            if match:
+                return match.group(1)
+        return None
 
     def as_dict(self) -> StrKeyedDict:
         results: StrKeyedDict = {
             "container_name": self.container_name,
             "compose_path": self.compose_path,
+            "compose_path_found": self.compose_path_found,
+            "compose_project": self.compose_project,
             "compose_service": self.compose_service,
             "compose_version": self.compose_version,
         }
+        if self.portainer_stack_id:
+            results["portainer_stack_id"] = self.portainer_stack_id
         if self.git_local_timestamp:
             results["git_local_timestamp"] = self.git_local_timestamp
         if self.git_repo_path:
@@ -393,6 +416,7 @@ class LocalContainerInfo:
             compose_path=container.labels.get("com.docker.compose.project.working_dir"),
             compose_service=container.labels.get("com.docker.compose.service"),
             compose_version=container.labels.get("com.docker.compose.version"),
+            compose_project=container.labels.get("com.docker.compose.project"),
         )
 
         labels: dict[str, str | float | int | bool | None] = cherrypick_annotations(image_info, None)

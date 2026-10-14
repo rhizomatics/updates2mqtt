@@ -1,6 +1,15 @@
 # CHANGELOG
 
-## 1.11.2
+## 1.13.0
+### Compose
+- Compose project name now passed with `-p` when restarting or building, so projects whose name differs from their directory are recreated in place rather than duplicated
+- `can_restart` now only reported when the compose working directory is actually visible inside the Updates2MQTT container
+- New `compose_path_found` and `compose_project` attributes in MQTT `installation_detail`, and a warning logged when the compose directory can't be seen
+### Portainer
+- Portainer stacks detected from their `/data/compose/<id>` working directory, with a `portainer_stack_id` attribute added
+- Documentation clarified that Portainer stacks get update detection and image pull, but not container recreation ( [#18](https://github.com/rhizomatics/updates2mqtt/issues/18) )
+
+## 1.12.0
 ### MQTT TLS
 - More MQTT configuration available as environment variables
   - `MQTT_TLS_MODE` ( `on`,`off` or `insecure`)
