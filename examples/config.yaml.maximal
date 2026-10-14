@@ -60,6 +60,11 @@ docker:
   registry:
     immutable_cache_ttl: 2592000
     api: OCI_V2
+  portainer:
+    url: https://portainer.example.com:9443
+    api_key: ptr_00001111222233334444555566667777
+    verify_ssl: true
+    timeout: 300
 scan_interval: 10800
 github:
   access_token: github_pat_00001111444445555666677778888

@@ -149,6 +149,16 @@ class PackageUpdateInfo:
 
 
 @dataclass
+class PortainerConfig:
+    """Portainer API access, used to redeploy stacks whose compose files live in Portainer's data volume"""
+
+    url: str | None = field(default_factory=lambda: os.getenv("PORTAINER_URL") or None)
+    api_key: str | None = field(default_factory=lambda: os.getenv("PORTAINER_API_KEY") or None)
+    verify_ssl: bool = True
+    timeout: int = 300  # redeploy only returns once the stack is up
+
+
+@dataclass
 class DockerConfig:
     enabled: bool = True
     allow_pull: bool = True
@@ -167,6 +177,7 @@ class DockerConfig:
     version_select: Selector = field(default_factory=lambda: Selector())
     version_policy: VersionPolicy = VersionPolicy.AUTO
     registry_select: Selector = field(default_factory=lambda: Selector())
+    portainer: PortainerConfig = field(default_factory=lambda: PortainerConfig())
 
 
 @dataclass

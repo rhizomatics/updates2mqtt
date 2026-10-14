@@ -10,8 +10,12 @@ The core configuration can be supplied by environment variables and container la
 | MQTT_PASSWORD | *NO DEFAULT* |
 | MQTT_VERSION  | 3.11.        |
 | U2M_LOG_LEVEL | INFO         |
+| PORTAINER_URL | *NONE*       |
+| PORTAINER_API_KEY | *NONE*   |
 
 Startup will fail if `MQTT_USER` and `MQTT_PASSWORD` are not defined some how.
+
+`PORTAINER_URL` and `PORTAINER_API_KEY` are only needed to update containers in Portainer stacks, see [Portainer](../installation.md#on-portainer).
 
 The example [docker-compose.yaml](examples/docker_compose.md) and [.env](examples/env.md) demonstrate one way of doing this, or skip the `.env` file and use an `environment` section in the Compose file.
 

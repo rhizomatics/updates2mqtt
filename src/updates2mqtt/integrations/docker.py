@@ -6,6 +6,7 @@ import time
 import typing
 from collections.abc import AsyncGenerator, Callable
 from enum import Enum
+from functools import partial
 from pathlib import Path
 from threading import Event, Timer
 from typing import Any, cast
@@ -43,6 +44,7 @@ from updates2mqtt.integrations.docker_enrich import (
     SourceReleaseEnricher,
 )
 from updates2mqtt.integrations.github_enrich import GithubReleaseEnricher
+from updates2mqtt.integrations.portainer import PortainerClient, is_portainer_image
 from updates2mqtt.model import Discovery, ReleaseDetail, ReleaseProvider
 
 from .git_utils import git_check_update_available, git_iso_timestamp, git_local_digest, git_pull, git_trust
@@ -147,6 +149,10 @@ class DockerProvider(ReleaseProvider):
         # TODO: refresh discovered packages periodically
         self.throttler = Throttler(self.cfg.default_api_backoff, self.log, self.stopped)
         self.self_bounce: Event | None = self_bounce
+        self.portainer: PortainerClient | None = PortainerClient(self.cfg.portainer) if self.cfg.portainer.url else None
+        if self.portainer and not self.portainer.enabled:
+            self.log.warning("Portainer url configured without api_key, Portainer redeploy disabled")
+            self.portainer = None
 
         self.pkg_enrichers: list[PackageEnricher] = [
             CommonPackageEnricher(self.cfg, packages),
@@ -278,6 +284,21 @@ class DockerProvider(ReleaseProvider):
         if service_info is None:
             return False
 
+        recreate: Callable[[], bool]
+        if self.use_portainer(service_info, installed_info) and self.portainer and service_info.portainer_stack_id:
+            logger.info("Recreating via Portainer stack %s", service_info.portainer_stack_id)
+            recreate = partial(self.portainer.redeploy, service_info.portainer_stack_id)
+        else:
+            recreate = partial(
+                self.execute_compose,
+                command=DockerComposeCommand.UP,
+                args="--detach --yes",
+                service=service_info.compose_service,
+                cwd=service_info.compose_path,
+                logger=logger,
+                project=service_info.compose_project,
+            )
+
         is_self_bounce: bool = bool(
             self.self_bounce is not None
             and installed_info
@@ -291,27 +312,18 @@ class DockerProvider(ReleaseProvider):
             self.self_bounce.set()
             # Defer the recreate so that the in-flight command handling can finish and publish
             # the final (non in-progress) state before this container is stopped/replaced.
-            Timer(
-                SELF_BOUNCE_DELAY,
-                self.execute_compose,
-                kwargs={
-                    "command": DockerComposeCommand.UP,
-                    "args": "--detach --yes",
-                    "service": service_info.compose_service,
-                    "cwd": service_info.compose_path,
-                    "logger": logger,
-                    "project": service_info.compose_project,
-                },
-            ).start()
+            Timer(SELF_BOUNCE_DELAY, recreate).start()
             return True
 
-        return self.execute_compose(
-            command=DockerComposeCommand.UP,
-            args="--detach --yes",
-            service=service_info.compose_service,
-            cwd=service_info.compose_path,
-            logger=logger,
-            project=service_info.compose_project,
+        return recreate()
+
+    def use_portainer(self, service_info: DockerServiceDetails, installed_info: DockerImageInfo | None) -> bool:
+        """Portainer redeploy only when compose can't be run directly"""
+        return (
+            self.portainer is not None
+            and not service_info.compose_path_found
+            and service_info.portainer_stack_id is not None
+            and not is_portainer_image(installed_info.ref if installed_info else None)
         )
 
     def rescan(self, discovery: Discovery) -> Discovery | None:
@@ -452,11 +464,14 @@ class DockerProvider(ReleaseProvider):
                                 logger.debug(f"Git update not available, local repo:{full_repo_path}")
                                 latest_info.git_digest = git_versionish
 
-            can_restart: bool = self.cfg.allow_restart and service_info.compose_path_found
+            can_restart: bool = self.cfg.allow_restart and (
+                service_info.compose_path_found or self.use_portainer(service_info, local_info)
+            )
             if self.cfg.allow_restart and service_info.compose_path and not can_restart and previous_discovery is None:
                 if service_info.portainer_stack_id:
                     logger.warning(
-                        "Compose path %s is inside Portainer's data volume (stack %s), restart not possible",
+                        "Compose path %s is inside Portainer's data volume (stack %s), "
+                        "configure Portainer API access to allow restart",
                         service_info.compose_path,
                         service_info.portainer_stack_id,
                     )

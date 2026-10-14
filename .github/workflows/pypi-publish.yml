@@ -1,16 +1,35 @@
 name: Publish Python 🐍 distribution 📦 to PyPI and TestPyPI
 
-on: 
-  push:
+on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Skip CI and publish anyway (emergency use only, e.g. security fix blocked by a minor build break)"
+        type: boolean
+        default: false
+      repository:
+        description: "Where to publish"
+        type: choice
+        options: [ pypi, testpypi ]
+        default: pypi
 
 permissions:
   contents: read
 
 jobs:
+  ci:
+    if: ${{ !inputs.force }}
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: write  # ci.yml's docs job asks for it, though it only runs on pushes to main
+
   build:
     name: Build distribution 📦
+    needs: ci
+    # Publish only on a clean CI run, unless forced
+    if: ${{ !cancelled() && (needs.ci.result == 'success' || (inputs.force && needs.ci.result == 'skipped')) }}
     runs-on: ubuntu-latest
 
     steps:
@@ -34,8 +53,11 @@ jobs:
   publish-to-pypi:
     name: >-
       Publish Python 🐍 distribution 📦 to PyPI
-    # Only publish to PyPI on full releases (not pre-releases)
-    if: github.event_name == 'release' && github.event.action == 'published' && github.event.release.prerelease == false
+    # Publish to PyPI on full releases (not pre-releases), or when chosen on a manual run
+    if: >-
+      ${{ !cancelled() && needs.build.result == 'success' && (
+        (github.event_name == 'release' && github.event.release.prerelease == false) ||
+        (github.event_name == 'workflow_dispatch' && inputs.repository == 'pypi')) }}
     needs:
     - build
     runs-on: ubuntu-latest
@@ -56,8 +78,11 @@ jobs:
 
   publish-to-testpypi:
     name: Publish Python 🐍 distribution 📦 to TestPyPI
-    # Publish to TestPyPI on pre-releases
-    if: github.event_name == 'release' && github.event.action == 'published' && github.event.release.prerelease == true
+    # Publish to TestPyPI on pre-releases, or when chosen on a manual run
+    if: >-
+      ${{ !cancelled() && needs.build.result == 'success' && (
+        (github.event_name == 'release' && github.event.release.prerelease == true) ||
+        (github.event_name == 'workflow_dispatch' && inputs.repository == 'testpypi')) }}
     needs:
     - build
     runs-on: ubuntu-latest

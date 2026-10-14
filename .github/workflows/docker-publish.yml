@@ -5,6 +5,13 @@ name: Create and publish a Docker image
 on:
   release:
     types: [published]
+  # Manual run, e.g. to rebuild a release tag; select the tag as the ref so semver tags are applied
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Skip CI and publish anyway (emergency use only, e.g. security fix blocked by a minor build break)"
+        type: boolean
+        default: false
 
 
 # Defines two custom environment variables for the workflow. These are used for the Container registry domain, and a name for the Docker image that this workflow builds.
@@ -14,7 +21,16 @@ env:
 
 # There is a single job in this workflow. It's configured to run on the latest available version of Ubuntu.
 jobs:
+  ci:
+    if: ${{ !inputs.force }}
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: write  # ci.yml's docs job asks for it, though it only runs on pushes to main
+
   build-and-push-image:
+    needs: ci
+    # Publish only on a clean CI run, unless forced
+    if: ${{ !cancelled() && (needs.ci.result == 'success' || (inputs.force && needs.ci.result == 'skipped')) }}
     runs-on: ubuntu-latest
     # Sets the permissions granted to the `GITHUB_TOKEN` for the actions in this job.
     permissions:

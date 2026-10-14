@@ -62,30 +62,6 @@ pip install updates2mqtt
 python3 -m updates2mqtt
 ```
 
-### On Portainer
-
-Install an Updates2MQTT container on each Portainer host, this can be using a `docker-compose.yaml` file,
-or using the Portainer UI to define the image name and env vars ( no config file required ).
-
-**Update detection** works fully for Portainer stacks, since it only needs the Docker socket. Each stack
-container shows up as a Docker Compose service, even if it was defined entirely in the Portainer UI.
-
-**Updating from Home Assistant** is more limited. Updates2MQTT pulls the new image through the Docker API, but
-recreating the container needs `docker compose` to be run in the stack's directory. Portainer keeps stack
-files in its own data volume, at `/data/compose/<stack id>`, rather than on the host file system, so
-this directory usually can't be seen by Updates2MQTT, and for hosts managed via a Portainer Agent, the files
-are on a different machine entirely.
-
-In this case Updates2MQTT will:
-
-- Report `can_restart` as `false`, and `compose_path_found` as `false` in the MQTT attributes
-- Add a `portainer_stack_id` attribute, so you know which stack to redeploy
-- Log a warning at startup naming the stack
-
-The image will still be pulled when *Update* is pressed in Home Assistant, so a following
-*Re-deploy* in Portainer is quick, but the running container isn't changed until then. Containers
-managed by plain `docker compose` on the same host are not affected and update as normal.
-
 ### Github Token
 
 A GitHub access token is optional, however when supplied additional API calls can be made for GHCR images, and the quotas for all APIs may be higher.
@@ -93,3 +69,7 @@ A GitHub access token is optional, however when supplied additional API calls ca
 When creating the access token, ensure it has the `packages:read` permission, or use the 'Classic' rather than fine-grained token.
 
 One case where access tokens help is if there either no version label in the image, or the label isn't a version ( for example, Homarr has `main` as the version for all images.) In these case, the authenticated only [packages API calls](https://docs.github.com/en/rest/packages/packages) will be made to match a version from the image digest.
+
+### Portainer
+
+See the [Portainer Configuration](configuration/portainer.md) section.

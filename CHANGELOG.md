@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 1.14.0
+### Portainer
+- Initial API support for Portainer is provided, to bring it up to a similar level of functionality to the Docker Compose
+  - Instructions and limitations at [Portainer Configuration](./configuration/portainer.md)
+  - This is in Beta at present, so use with caution, and feedback where you have issues
+### Internal
+- Automated testing on every build extended to Py3.15, and backwards to Py3.14
+- Omegaconf restricted to `<2.4.0` as [new release](https://github.com/hydra-ecosystem/omegaconf/releases#release-v2.4.0) broke many tests. Reviewing use of `pydantic` instead for config before embarking on upgrade for omegaconf (project has been moribund since 2022)
+
 ## 1.13.0
 ### Compose
 - Compose project name now passed with `-p` when restarting or building, so projects whose name differs from their directory are recreated in place rather than duplicated
@@ -7,7 +16,10 @@
 - New `compose_path_found` and `compose_project` attributes in MQTT `installation_detail`, and a warning logged when the compose directory can't be seen
 ### Portainer
 - Portainer stacks detected from their `/data/compose/<id>` working directory, with a `portainer_stack_id` attribute added
-- Documentation clarified that Portainer stacks get update detection and image pull, but not container recreation ( [#18](https://github.com/rhizomatics/updates2mqtt/issues/18) )
+- Containers in Portainer stacks can now be updated from Home Assistant, by redeploying the stack through the Portainer API ( [#18](https://github.com/rhizomatics/updates2mqtt/issues/18) )
+  - Configure with `PORTAINER_URL` and `PORTAINER_API_KEY` env vars, or a `docker.portainer` section in the config file
+  - Images are pulled locally first, and the redeploy doesn't pull, so only the updated containers are recreated
+  - Web editor and Git stacks supported, Portainer itself and its agents are excluded
 
 ## 1.12.0
 ### MQTT TLS
