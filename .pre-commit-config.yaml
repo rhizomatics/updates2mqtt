@@ -1,3 +1,7 @@
+ci:
+  # ty resolves the project environment, which needs network access pre-commit.ci doesn't allow
+  # it runs in the GitHub Actions build instead
+  skip: [ty]
 repos:
   - repo: https://github.com/asottile/pyupgrade
     rev: v3.22.0
