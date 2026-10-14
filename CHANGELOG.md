@@ -7,7 +7,10 @@
 - New `compose_path_found` and `compose_project` attributes in MQTT `installation_detail`, and a warning logged when the compose directory can't be seen
 ### Portainer
 - Portainer stacks detected from their `/data/compose/<id>` working directory, with a `portainer_stack_id` attribute added
-- Documentation clarified that Portainer stacks get update detection and image pull, but not container recreation ( [#18](https://github.com/rhizomatics/updates2mqtt/issues/18) )
+- Containers in Portainer stacks can now be updated from Home Assistant, by redeploying the stack through the Portainer API ( [#18](https://github.com/rhizomatics/updates2mqtt/issues/18) )
+  - Configure with `PORTAINER_URL` and `PORTAINER_API_KEY` env vars, or a `docker.portainer` section in the config file
+  - Images are pulled locally first, and the redeploy doesn't pull, so only the updated containers are recreated
+  - Web editor and Git stacks supported, Portainer itself and its agents are excluded
 
 ## 1.12.0
 ### MQTT TLS
