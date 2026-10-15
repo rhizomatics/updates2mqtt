@@ -12,5 +12,5 @@ jobs:
       - name: indexnow-action
         uses: bojieyang/indexnow-action@v3
         with:
-          sitemap-location: 'https://bojieyang.github.io/sitemap.xml'
+          sitemap-location: 'https://updates2mqtt.rhizomatics.org.uk/sitemap.xml'
           key: ${{ secrets.INDEXNOW_KEY }}
