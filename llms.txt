@@ -34,4 +34,5 @@ Updates2MQTT monitors Docker image and local Git-based builds for updates, publi
 
 - [Local Builds](https://updates2mqtt.rhizomatics.org.uk/local_builds/index.md): Tracking updates for locally built images
 - [Understanding Container Metadata](https://updates2mqtt.rhizomatics.org.uk/developer/oci_container/index.md)
+- [Roadmap](https://updates2mqtt.rhizomatics.org.uk/developer/design/roadmap/index.md)
 

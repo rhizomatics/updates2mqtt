@@ -12,7 +12,7 @@ Read the release notes, and optionally click *Update* to trigger a Docker *pull*
 
 Updates2MQTT perioidically checks for new versions of components being available, and publishes new version info to MQTT. HomeAssistant auto discovery is supported, so all updates can be seen in the same place as Home Assistant’s own components and add-ins.
 
-Currently only Docker containers are supported, either via an image registry check (using either v1 Docker APIs or the OCI v2 API), or a git repo for source (see [Local Builds](https://updates2mqtt.rhizomatics.org.uk/local_builds/index.md)), with specific handling for Docker, Github Container Registry, Gitlab, Codeberg, Microsoft Container Registry, Quay and LinuxServer Registry, with adaptive behaviour to cope with most others. The design is modular, so other update sources can be added, at least for notification. **Portainer** is the next supported platform after Docker Compose for container rebuild/restart. Support for **apt** on Debian based systems may follow.
+Currently only Docker containers are supported, either via an image registry check (using either v1 Docker APIs or the OCI v2 API), or a git repo for source (see [Local Builds](https://updates2mqtt.rhizomatics.org.uk/local_builds/index.md)), with specific handling for Docker, Github Container Registry, Gitlab, Codeberg, Microsoft Container Registry, Quay and LinuxServer Registry, with adaptive behaviour to cope with most others. The design is modular, so other update sources can be added, at least for notification. **Portainer** stacks are supported for container rebuild/restart as well as Docker Compose, see [Portainer](https://updates2mqtt.rhizomatics.org.uk/configuration/portainer/index.md). Support for **apt** on Debian based systems may follow.
 
 Components can also be updated, either automatically or triggered via MQTT, for example by hitting the *Install* button in the HomeAssistant update dialog. Icons and release notes can be specified for a better HA experience. See [Home Assistant Integration](https://updates2mqtt.rhizomatics.org.uk/home_assistant/index.md) for details.
 
@@ -38,9 +38,11 @@ It also comes with a basic command line tool that will perform the analysis for 
 
 Presently only Docker containers are supported, although others are planned, probably with priority for `apt`.
 
-| Ecosystem | Support     | Comments                                                                                       |
-| --------- | ----------- | ---------------------------------------------------------------------------------------------- |
-| Docker    | Scan. Fetch | Fetch is `docker pull` only. Restart support only for `docker-compose` image based containers. |
+| Ecosystem | Support     | Comments                                                                                                                                                                                                                            |
+| --------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Docker    | Scan. Fetch | Fetch is `docker pull`, or `git pull` and `docker compose build` for local builds. Restart support for `docker compose` and [Portainer](https://updates2mqtt.rhizomatics.org.uk/configuration/portainer/index.md) stack containers. |
+
+Once a container has been recreated with its new image, the old image can optionally be removed, to save disk space, by setting `remove_old_image: true` in the `docker` section of the config file, or the `U2M_REMOVE_OLD_IMAGE=true` env var. Images still used by another container, running or stopped, are left alone.
 
 ## Heartbeat
 

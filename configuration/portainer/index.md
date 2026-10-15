@@ -28,8 +28,11 @@ Install an Updates2MQTT container on each Portainer host, this can be using a `d
        url: https://portainer.example.com:9443
        api_key: ptr_xxxxxxxxxxxx
        verify_ssl: true # set false for Portainer's default self-signed certificate
+       ca_certs: /certs/root_ca.pem # optional, CA file to verify Portainer's certificate
        timeout: 300     # seconds to wait for the redeploy to complete
    ```
+
+If Portainer uses a certificate signed by your own CA, mount the root CA file into the container and set `PORTAINER_CA_CERTS` (or `ca_certs`) to its path. Only that CA file is used for verification, not the public CA bundle. `PORTAINER_VERIFY_SSL=false` (or `verify_ssl: false`) skips verification altogether, e.g. for Portainer’s default self-signed certificate.
 
 When *Update* is pressed, the new image is pulled locally, and then Portainer redeploys the stack with its existing stack file and environment variables. The redeploy doesn’t pull images itself, so only containers whose image was just pulled get recreated, not every service in the stack. Stacks on Agent-managed hosts work the same way, since Portainer routes the redeploy to the right host.
 

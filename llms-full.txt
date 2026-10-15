@@ -21,7 +21,7 @@ Read the release notes, and optionally click *Update* to trigger a Docker *pull*
 
 Updates2MQTT perioidically checks for new versions of components being available, and publishes new version info to MQTT. HomeAssistant auto discovery is supported, so all updates can be seen in the same place as Home Assistant’s own components and add-ins.
 
-Currently only Docker containers are supported, either via an image registry check (using either v1 Docker APIs or the OCI v2 API), or a git repo for source (see [Local Builds](https://updates2mqtt.rhizomatics.org.uk/local_builds/index.md)), with specific handling for Docker, Github Container Registry, Gitlab, Codeberg, Microsoft Container Registry, Quay and LinuxServer Registry, with adaptive behaviour to cope with most others. The design is modular, so other update sources can be added, at least for notification. **Portainer** is the next supported platform after Docker Compose for container rebuild/restart. Support for **apt** on Debian based systems may follow.
+Currently only Docker containers are supported, either via an image registry check (using either v1 Docker APIs or the OCI v2 API), or a git repo for source (see [Local Builds](https://updates2mqtt.rhizomatics.org.uk/local_builds/index.md)), with specific handling for Docker, Github Container Registry, Gitlab, Codeberg, Microsoft Container Registry, Quay and LinuxServer Registry, with adaptive behaviour to cope with most others. The design is modular, so other update sources can be added, at least for notification. **Portainer** stacks are supported for container rebuild/restart as well as Docker Compose, see [Portainer](https://updates2mqtt.rhizomatics.org.uk/configuration/portainer/index.md). Support for **apt** on Debian based systems may follow.
 
 Components can also be updated, either automatically or triggered via MQTT, for example by hitting the *Install* button in the HomeAssistant update dialog. Icons and release notes can be specified for a better HA experience. See [Home Assistant Integration](https://updates2mqtt.rhizomatics.org.uk/home_assistant/index.md) for details.
 
@@ -47,9 +47,11 @@ It also comes with a basic command line tool that will perform the analysis for 
 
 Presently only Docker containers are supported, although others are planned, probably with priority for `apt`.
 
-| Ecosystem | Support     | Comments                                                                                       |
-| --------- | ----------- | ---------------------------------------------------------------------------------------------- |
-| Docker    | Scan. Fetch | Fetch is `docker pull` only. Restart support only for `docker-compose` image based containers. |
+| Ecosystem | Support     | Comments                                                                                                                                                                                                                            |
+| --------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Docker    | Scan. Fetch | Fetch is `docker pull`, or `git pull` and `docker compose build` for local builds. Restart support for `docker compose` and [Portainer](https://updates2mqtt.rhizomatics.org.uk/configuration/portainer/index.md) stack containers. |
+
+Once a container has been recreated with its new image, the old image can optionally be removed, to save disk space, by setting `remove_old_image: true` in the `docker` section of the config file, or the `U2M_REMOVE_OLD_IMAGE=true` env var. Images still used by another container, running or stopped, are left alone.
 
 ## Heartbeat
 
@@ -364,8 +366,11 @@ Install an Updates2MQTT container on each Portainer host, this can be using a `d
        url: https://portainer.example.com:9443
        api_key: ptr_xxxxxxxxxxxx
        verify_ssl: true # set false for Portainer's default self-signed certificate
+       ca_certs: /certs/root_ca.pem # optional, CA file to verify Portainer's certificate
        timeout: 300     # seconds to wait for the redeploy to complete
    ```
+
+If Portainer uses a certificate signed by your own CA, mount the root CA file into the container and set `PORTAINER_CA_CERTS` (or `ca_certs`) to its path. Only that CA file is used for verification, not the public CA bundle. `PORTAINER_VERIFY_SSL=false` (or `verify_ssl: false`) skips verification altogether, e.g. for Portainer’s default self-signed certificate.
 
 When *Update* is pressed, the new image is pulled locally, and then Portainer redeploys the stack with its existing stack file and environment variables. The redeploy doesn’t pull images itself, so only containers whose image was just pulled get recreated, not every service in the stack. Stacks on Agent-managed hosts work the same way, since Portainer routes the redeploy to the right host.
 
@@ -537,6 +542,7 @@ docker:
   allow_pull: true # if true, will do a `docker pull` if an update is available
   allow_restart: true # if true, will do a `docker-compose up` if an update is installed
   allow_build: true # if true, will do a `docker-compose build` if a git repo is configured
+  remove_old_image: false # if true, removes the replaced image after a successful update, unless still in use
   compose_version: v2 # Controls whether to use `docker-compose` (v1) or `docker compose` (v2) command
   default_entity_picture_url: https://www.docker.com/wp-content/uploads/2022/03/Moby-logo.png # Picture for update dialog
   device_icon: mdi:docker # Material Design Icon to use when browsing entities in Home Assistant
@@ -566,20 +572,23 @@ log:
 
 The core configuration can be supplied by environment variables and container labels, everything else will default, either to fixed values built into Updates2MQTT, or in the case of the node name, taken from the operating system.
 
-| Env Var           | Default      |
-| ----------------- | ------------ |
-| MQTT_HOST         | localhost    |
-| MQTT_PORT         | 1883         |
-| MQTT_USER         | *NO DEFAULT* |
-| MQTT_PASSWORD     | *NO DEFAULT* |
-| MQTT_VERSION      | 3.11.        |
-| U2M_LOG_LEVEL     | INFO         |
-| PORTAINER_URL     | *NONE*       |
-| PORTAINER_API_KEY | *NONE*       |
+| Env Var              | Default      |
+| -------------------- | ------------ |
+| MQTT_HOST            | localhost    |
+| MQTT_PORT            | 1883         |
+| MQTT_USER            | *NO DEFAULT* |
+| MQTT_PASS            | *NO DEFAULT* |
+| MQTT_VERSION         | 3.11         |
+| U2M_LOG_LEVEL        | INFO         |
+| U2M_REMOVE_OLD_IMAGE | false        |
+| PORTAINER_URL        | *NONE*       |
+| PORTAINER_API_KEY    | *NONE*       |
+| PORTAINER_CA_CERTS   | *NONE*       |
+| PORTAINER_VERIFY_SSL | true         |
 
-Startup will fail if `MQTT_USER` and `MQTT_PASSWORD` are not defined some how.
+Startup will fail if `MQTT_USER` and `MQTT_PASS` are not defined some how. Run `u2m-cli mqtt=check` inside the container to see which settings are picked up from the environment, see [Troubleshooting](https://updates2mqtt.rhizomatics.org.uk/troubleshooting/#checking-mqtt-and-update-settings).
 
-`PORTAINER_URL` and `PORTAINER_API_KEY` are only needed to update containers in Portainer stacks, see [Portainer](https://updates2mqtt.rhizomatics.org.uk/installation/#on-portainer).
+The `PORTAINER_` env vars are only needed to update containers in Portainer stacks, see [Portainer](https://updates2mqtt.rhizomatics.org.uk/installation/#on-portainer).
 
 The example [docker-compose.yaml](https://updates2mqtt.rhizomatics.org.uk/configuration/examples/docker_compose/index.md) and [.env](https://updates2mqtt.rhizomatics.org.uk/configuration/examples/env/index.md) demonstrate one way of doing this, or skip the `.env` file and use an `environment` section in the Compose file.
 
@@ -861,9 +870,9 @@ If the host, port, user and password for MQTT are incorrect then usually this wi
 
 Updates2MQTT uses the [Eclipse Paho Python Client](https://github.com/eclipse-paho/paho.mqtt.python) for all MQTT interaction, using v2 of the callback API, and supports the older MQTT implementations as well as the newer v5 protocol. The [Issues](https://github.com/eclipse-paho/paho.mqtt.python/issues?q=is%3Aissue) list might give you some clues for your situation.
 
-### Checking MQTT Settings
+### Checking MQTT and Update Settings
 
-The CLI can show the MQTT settings Updates2MQTT will use, and try a connection to the broker. It reads the environment variables and `conf/config.yaml` the same way the app does, logs every value along with the environment variable it comes from, and only shows whether passwords are set, not their values.
+The CLI can show the MQTT and update settings Updates2MQTT will use, and try a connection to the broker. It reads the environment variables and `conf/config.yaml` the same way the app does, logs every value along with the environment variable it comes from, and only shows whether passwords are set, not their values.
 
 Run it inside the running container, so it sees exactly the same environment and config file:
 
@@ -878,7 +887,9 @@ MQTT_HOST=192.168.1.10 MQTT_USER=u2m MQTT_PASS=xxx uvx --from updates2mqtt u2m-c
 uvx --from updates2mqtt u2m-cli mqtt=check config=/path/to/config.yaml
 ```
 
-The check reports missing required values (such as `MQTT_USER`) and certificate files that don’t exist, and doesn’t try to connect if any are found. It exits with status 0 if the broker connection succeeds, and 1 otherwise, so it can also be used in scripts. It uses its own MQTT client id, so is safe to run alongside a live Updates2MQTT without disconnecting it.
+It also shows the update settings - `allow_pull`, `allow_restart`, `allow_build`, `remove_old_image` and the Portainer API settings - so you can confirm env vars like `PORTAINER_CA_CERTS` or `U2M_REMOVE_OLD_IMAGE` are being picked up. The Portainer API key is shown only as set or not set.
+
+The check reports missing required values (such as `MQTT_USER`) and certificate files that don’t exist, including the Portainer `ca_certs`. It doesn’t try to connect if the MQTT settings are invalid. It exits with status 0 if the broker connection succeeds and the update settings are valid, and 1 otherwise, so it can also be used in scripts. It uses its own MQTT client id, so is safe to run alongside a live Updates2MQTT without disconnecting it.
 
 ### MQTT Clients
 
@@ -1194,3 +1205,18 @@ classDiagram
 
 ```
 ```
+
+# Roadmap
+
+## Major Features
+
+- Some form of `apt` support, at least publishing security updates required
+
+## Migrate off Omegaconf
+
+- Pydantic used for `anpr2mqtt` already
+- Fully expose config as env vars
+  - env vars will change to a SECTION\_\_VAR form
+  - require a backward compatible form
+- Good CLI support
+  - Though other projects use `click`

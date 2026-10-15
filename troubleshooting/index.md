@@ -49,9 +49,9 @@ If the host, port, user and password for MQTT are incorrect then usually this wi
 
 Updates2MQTT uses the [Eclipse Paho Python Client](https://github.com/eclipse-paho/paho.mqtt.python) for all MQTT interaction, using v2 of the callback API, and supports the older MQTT implementations as well as the newer v5 protocol. The [Issues](https://github.com/eclipse-paho/paho.mqtt.python/issues?q=is%3Aissue) list might give you some clues for your situation.
 
-### Checking MQTT Settings
+### Checking MQTT and Update Settings
 
-The CLI can show the MQTT settings Updates2MQTT will use, and try a connection to the broker. It reads the environment variables and `conf/config.yaml` the same way the app does, logs every value along with the environment variable it comes from, and only shows whether passwords are set, not their values.
+The CLI can show the MQTT and update settings Updates2MQTT will use, and try a connection to the broker. It reads the environment variables and `conf/config.yaml` the same way the app does, logs every value along with the environment variable it comes from, and only shows whether passwords are set, not their values.
 
 Run it inside the running container, so it sees exactly the same environment and config file:
 
@@ -66,7 +66,9 @@ MQTT_HOST=192.168.1.10 MQTT_USER=u2m MQTT_PASS=xxx uvx --from updates2mqtt u2m-c
 uvx --from updates2mqtt u2m-cli mqtt=check config=/path/to/config.yaml
 ```
 
-The check reports missing required values (such as `MQTT_USER`) and certificate files that don’t exist, and doesn’t try to connect if any are found. It exits with status 0 if the broker connection succeeds, and 1 otherwise, so it can also be used in scripts. It uses its own MQTT client id, so is safe to run alongside a live Updates2MQTT without disconnecting it.
+It also shows the update settings - `allow_pull`, `allow_restart`, `allow_build`, `remove_old_image` and the Portainer API settings - so you can confirm env vars like `PORTAINER_CA_CERTS` or `U2M_REMOVE_OLD_IMAGE` are being picked up. The Portainer API key is shown only as set or not set.
+
+The check reports missing required values (such as `MQTT_USER`) and certificate files that don’t exist, including the Portainer `ca_certs`. It doesn’t try to connect if the MQTT settings are invalid. It exits with status 0 if the broker connection succeeds and the update settings are valid, and 1 otherwise, so it can also be used in scripts. It uses its own MQTT client id, so is safe to run alongside a live Updates2MQTT without disconnecting it.
 
 ### MQTT Clients
 
