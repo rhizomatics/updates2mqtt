@@ -16,7 +16,7 @@ The core configuration can be supplied by environment variables and container la
 | PORTAINER_CA_CERTS   | *NONE*       |
 | PORTAINER_VERIFY_SSL | true         |
 
-Startup will fail if `MQTT_USER` and `MQTT_PASS` are not defined some how. Run `u2m-cli mqtt=check` inside the container to see which settings are picked up from the environment, see [Troubleshooting](../troubleshooting.md#checking-mqtt-and-update-settings).
+Startup will fail if `MQTT_USER` and `MQTT_PASS` are not defined some how. Run `u2m-cli mqtt=check` inside the container to see which settings are picked up from the environment, see [Troubleshooting](../help/troubleshooting.md#checking-mqtt-and-update-settings).
 
 The `PORTAINER_` env vars are only needed to update containers in Portainer stacks, see [Portainer](../installation.md#on-portainer).
 

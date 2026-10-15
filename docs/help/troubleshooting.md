@@ -1,5 +1,10 @@
 ---
+title: Troubleshooting
+description: Tips, tricks and tools for debugging Updates2MQTT, MQTT, Home Assistant and Docker issues
 tags:
+  - troubleshooting
+  - debug
+  - support
   - docker
   - docker-compose
   - homeassistant
@@ -9,6 +14,8 @@ tags:
 # Troubleshooting
 
 ## General
+
+[AI Agents](ai_help.md) can give very good help these days, even the free one built into [Google Search](ai_help.md#google-example), and the [FAQs](faqs.md) cover common questions.
 
 Things that need to work:
 
@@ -109,7 +116,7 @@ Alternatively, use the debug option and logging of Mosquitto broker, or the buil
 - Automatic *Discovery* is on
 - The discovery prefix matches Updates2MQTT ( they both default to `homeassistant`)
 
-See the examples at [Home Assistant Configuration](home_assistant.md#configuration)
+See the examples at [Home Assistant Configuration](../home_assistant.md#configuration)
 
 In addition to the base MQTT configuration, Updates2MQTT relies on [MQTT Discovery](https://www.home-assistant.io/integrations/update.mqtt/) and [MQTT Update](https://www.home-assistant.io/integrations/update.mqtt/) integrations. All of these have a single set of [MQTT Issues](https://github.com/home-assistant/core/issues?q=is%3Aissue+label%3A%22integration%3A+mqtt%22). 
 
@@ -136,7 +143,7 @@ can be checked directly from the config and log:
 - The compose working directory can't be found
   - This is sourced from the `com.docker.compose.project.working_dir` label, which can be seen in `docker inspect`
   - Check `compose_path_found` in the MQTT attributes, if `false` the directory needs mapping as a volume, at exactly the same path
-  - Portainer stacks have a working directory of `/data/compose/<stack id>`, inside Portainer's own volume, so need Portainer API access configured, see [Portainer](installation.md#on-portainer)
+  - Portainer stacks have a working directory of `/data/compose/<stack id>`, inside Portainer's own volume, so need Portainer API access configured, see [Portainer](../configuration/portainer.md)
   - This only stops restart, not pull, so if `allow_pull` is on, the Update button will still show
 - The git repo path can't be found for a local build
 
@@ -171,10 +178,10 @@ volumes:
   - /var/run/docker.sock:/var/run/docker.sock
 ```
 
-Where `docker-compose` projects are being automatically updated and restarted, one problem can be that earlier versions used a `docker-compose` command and newer ones use `docker compose`. There is a `v1` and `v2` option in the [configuration](configuration/index.md) to support this, defaulting to `v2`.
+Where `docker-compose` projects are being automatically updated and restarted, one problem can be that earlier versions used a `docker-compose` command and newer ones use `docker compose`. There is a `v1` and `v2` option in the [configuration](../configuration/index.md) to support this, defaulting to `v2`.
   
 If the `updates2mqtt` container is not running as root, then ensure that the user is a member of the local `docker` group. (If it is running as root, then consider moving
-to a defined user, see [Running as Non-Root](configuration/security.md#running-as-non-root)).
+to a defined user, see [Running as Non-Root](../configuration/security.md#running-as-non-root)).
 
 ### Docker Help
 

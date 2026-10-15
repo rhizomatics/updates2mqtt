@@ -57,13 +57,20 @@ plugins:
           - configuration/examples/*.md
         Home Assistant and operations:
           - home_assistant.md: MQTT discovery and Home Assistant update entities
-          - troubleshooting.md: Common issues and diagnostics
+        Help and support:
+          - help/index.md: Where to get help, raise issues or join discussions
+          - help/faqs.md: Frequently asked questions, such as changing the scan interval
+          - help/ai_help.md: Using Google and AI agents for help with Updates2MQTT
+          - help/troubleshooting.md: Common issues and diagnostics
         Development:
           - local_builds.md: Tracking updates for locally built images
           - developer/*.md
   - htmlproofer:
       skip_downloads: True
   - autorefs
+  - redirects:
+      redirect_maps:
+        troubleshooting.md: help/troubleshooting.md
   - pagetree
   - optimize
   - mermaid2
