@@ -26,11 +26,6 @@
         <changefreq>daily</changefreq>
     </url>
     <url>
-        <loc>https://updates2mqtt.rhizomatics.org.uk/troubleshooting/</loc>
-        <lastmod>2026-10-15</lastmod>
-        <changefreq>daily</changefreq>
-    </url>
-    <url>
         <loc>https://updates2mqtt.rhizomatics.org.uk/configuration/</loc>
         <lastmod>2026-10-15</lastmod>
         <changefreq>daily</changefreq>
@@ -112,6 +107,26 @@
     </url>
     <url>
         <loc>https://updates2mqtt.rhizomatics.org.uk/fr/</loc>
+        <lastmod>2026-10-15</lastmod>
+        <changefreq>daily</changefreq>
+    </url>
+    <url>
+        <loc>https://updates2mqtt.rhizomatics.org.uk/help/</loc>
+        <lastmod>2026-10-15</lastmod>
+        <changefreq>daily</changefreq>
+    </url>
+    <url>
+        <loc>https://updates2mqtt.rhizomatics.org.uk/help/ai_help/</loc>
+        <lastmod>2026-10-15</lastmod>
+        <changefreq>daily</changefreq>
+    </url>
+    <url>
+        <loc>https://updates2mqtt.rhizomatics.org.uk/help/faqs/</loc>
+        <lastmod>2026-10-15</lastmod>
+        <changefreq>daily</changefreq>
+    </url>
+    <url>
+        <loc>https://updates2mqtt.rhizomatics.org.uk/help/troubleshooting/</loc>
         <lastmod>2026-10-15</lastmod>
         <changefreq>daily</changefreq>
     </url>

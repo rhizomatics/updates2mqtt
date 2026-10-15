@@ -2,6 +2,8 @@
 
 ## General
 
+[AI Agents](https://updates2mqtt.rhizomatics.org.uk/help/ai_help/index.md) can give very good help these days, even the free one built into [Google Search](https://updates2mqtt.rhizomatics.org.uk/help/ai_help/#google-example), and the [FAQs](https://updates2mqtt.rhizomatics.org.uk/help/faqs/index.md) cover common questions.
+
 Things that need to work:
 
 - Docker API access to list and inspect containers
@@ -115,7 +117,7 @@ If there’s an update showing, but no *Update* button present, then there’s a
 - The compose working directory can’t be found
 - This is sourced from the `com.docker.compose.project.working_dir` label, which can be seen in `docker inspect`
 - Check `compose_path_found` in the MQTT attributes, if `false` the directory needs mapping as a volume, at exactly the same path
-- Portainer stacks have a working directory of `/data/compose/<stack id>`, inside Portainer’s own volume, so need Portainer API access configured, see [Portainer](https://updates2mqtt.rhizomatics.org.uk/installation/#on-portainer)
+- Portainer stacks have a working directory of `/data/compose/<stack id>`, inside Portainer’s own volume, so need Portainer API access configured, see [Portainer](https://updates2mqtt.rhizomatics.org.uk/configuration/portainer/index.md)
 - This only stops restart, not pull, so if `allow_pull` is on, the Update button will still show
 - The git repo path can’t be found for a local build
 

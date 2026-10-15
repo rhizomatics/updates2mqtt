@@ -586,7 +586,7 @@ The core configuration can be supplied by environment variables and container la
 | PORTAINER_CA_CERTS   | *NONE*       |
 | PORTAINER_VERIFY_SSL | true         |
 
-Startup will fail if `MQTT_USER` and `MQTT_PASS` are not defined some how. Run `u2m-cli mqtt=check` inside the container to see which settings are picked up from the environment, see [Troubleshooting](https://updates2mqtt.rhizomatics.org.uk/troubleshooting/#checking-mqtt-and-update-settings).
+Startup will fail if `MQTT_USER` and `MQTT_PASS` are not defined some how. Run `u2m-cli mqtt=check` inside the container to see which settings are picked up from the environment, see [Troubleshooting](https://updates2mqtt.rhizomatics.org.uk/help/troubleshooting/#checking-mqtt-and-update-settings).
 
 The `PORTAINER_` env vars are only needed to update containers in Portainer stacks, see [Portainer](https://updates2mqtt.rhizomatics.org.uk/installation/#on-portainer).
 
@@ -818,10 +818,76 @@ homeassistant:
   - Includes setting up a MQTT broker, MQTT Discovery, and trouble-shooting
 - [MQTT Update](https://www.home-assistant.io/integrations/update.mqtt/)
 - [Update Integration](https://www.home-assistant.io/integrations/update/)
+# Help and support
+
+# Help and Support
+
+If you can’t find an answer here, try the [GitHub Discussions](https://github.com/rhizomatics/updates2mqtt/discussions) where you can find advice other people requested, or raise your own request.
+
+If you think its a bug, raise a bug request, or see if anyone else has the same problem at the [GitHub Issues](https://github.com/rhizomatics/updates2mqtt/issues) page.
+
+Have a look at the [What’s New](https://updates2mqtt.rhizomatics.org.uk/changelog/index.md) too, including any breaking changes.
+
+{{ pagetree(siblings) }}
+
+# Frequently Asked Questions
+
+## Scanning
+
+**Q**: How do I get Updates2MQTT to update Home Assistant every hour?
+
+**A**: Set `scan_interval` in the Updates2MQTT config file to `3600`. This is the number of seconds Updates2MQTT sleeps between scans, and defaults to `10800` (3 hours).
+
+conf/config.yaml
+
+```yaml
+scan_interval: 3600 # check for new versions every hour
+```
+
+Restart the container afterwards, for example `docker compose restart updates2mqtt`, to pick up the change. If you are running without a config file, see [Using a Config File](https://updates2mqtt.rhizomatics.org.uk/configuration/using_a_config_file/index.md) for how to create one.
+
+There’s nothing to change in Home Assistant. It doesn’t poll Updates2MQTT; the MQTT Update entities change as soon as Updates2MQTT publishes the results of each scan. The interval is measured from the end of one scan to the start of the next, so scans won’t land exactly on the hour. A restart also triggers a fresh scan straight away.
+
+Before going much lower than an hour, take a look at [Remote API Usage](https://updates2mqtt.rhizomatics.org.uk/configuration/remote_api_usage/#api-throttling), since registries like Docker Hub limit how many requests can be made per hour, especially when you have lots of containers.
+
+# Google and AI Assisted Help
+
+AI agents, like Claude or ChatGPT, are becoming increasingly better at giving good advice on Updates2MQTT, helped by the documentation being setup to be accessible to them, including an [llms.txt](https://updates2mqtt.rhizomatics.org.uk/llms.txt) summary.
+
+They can diagnose issues from logs, suggest how to configure Home Assistant or a container the way you want, and write or rewrite the `config.yaml`, `docker-compose.yaml` or container labels.
+
+In all the examples below there is no special setup, no skills or other context - they are given a simple prompt as might be the case for a new user.
+
+## Google Example
+
+Searching in Google for “how to get updates2mqtt to update home assistant every hour” should turn up advice on changing the `scan_interval`, as explained in the [FAQs](https://updates2mqtt.rhizomatics.org.uk/help/faqs/#scanning).
+
+Not all searches in Google result in AI advice, and you might have this switched off, however you should still get pointed directly at the right page in the on-line Updates2MQTT help.
+
+## Claude Example
+
+Claude can work through a `docker logs updates2mqtt` output to diagnose MQTT connection or Docker access problems, and suggest config fixes.
+
+## ChatGPT Example
+
+ChatGPT can suggest workable `docker-compose.yaml` snippets for running Updates2MQTT, including the volume mappings needed for compose directories.
+
+## Kimi Example
+
+A free [Kimi](https://kimi.ai) agent can explain how to customize how a container appears in Home Assistant using container labels.
+
+## Advanced Agent Usage
+
+If you have a desktop or coding agent, such as Claude Code, then running it on the Docker host where Updates2MQTT runs lets it read logs, inspect containers and run the [Docker CLI](https://updates2mqtt.rhizomatics.org.uk/help/troubleshooting/#docker-cli) tools directly.
+
+- `u2m-cli mqtt=check` will show the settings in use and test the broker connection, see [Checking MQTT and Update Settings](https://updates2mqtt.rhizomatics.org.uk/help/troubleshooting/#checking-mqtt-and-update-settings)
+- Caution is due where passwords, API keys and other secrets in `config.yaml`, `.env` or compose files could be exposed to the agent.
 
 # Troubleshooting
 
 ## General
+
+[AI Agents](https://updates2mqtt.rhizomatics.org.uk/help/ai_help/index.md) can give very good help these days, even the free one built into [Google Search](https://updates2mqtt.rhizomatics.org.uk/help/ai_help/#google-example), and the [FAQs](https://updates2mqtt.rhizomatics.org.uk/help/faqs/index.md) cover common questions.
 
 Things that need to work:
 
@@ -936,7 +1002,7 @@ If there’s an update showing, but no *Update* button present, then there’s a
 - The compose working directory can’t be found
 - This is sourced from the `com.docker.compose.project.working_dir` label, which can be seen in `docker inspect`
 - Check `compose_path_found` in the MQTT attributes, if `false` the directory needs mapping as a volume, at exactly the same path
-- Portainer stacks have a working directory of `/data/compose/<stack id>`, inside Portainer’s own volume, so need Portainer API access configured, see [Portainer](https://updates2mqtt.rhizomatics.org.uk/installation/#on-portainer)
+- Portainer stacks have a working directory of `/data/compose/<stack id>`, inside Portainer’s own volume, so need Portainer API access configured, see [Portainer](https://updates2mqtt.rhizomatics.org.uk/configuration/portainer/index.md)
 - This only stops restart, not pull, so if `allow_pull` is on, the Update button will still show
 - The git repo path can’t be found for a local build
 

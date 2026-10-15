@@ -28,7 +28,13 @@ Updates2MQTT monitors Docker image and local Git-based builds for updates, publi
 ## Home Assistant and operations
 
 - [HomeAssistant Integration](https://updates2mqtt.rhizomatics.org.uk/home_assistant/index.md): MQTT discovery and Home Assistant update entities
-- [Troubleshooting](https://updates2mqtt.rhizomatics.org.uk/troubleshooting/index.md): Common issues and diagnostics
+
+## Help and support
+
+- [Help and Support](https://updates2mqtt.rhizomatics.org.uk/help/index.md): Where to get help, raise issues or join discussions
+- [Frequently Asked Questions](https://updates2mqtt.rhizomatics.org.uk/help/faqs/index.md): Frequently asked questions, such as changing the scan interval
+- [Google and AI Assisted Help](https://updates2mqtt.rhizomatics.org.uk/help/ai_help/index.md): Using Google and AI agents for help with Updates2MQTT
+- [Troubleshooting](https://updates2mqtt.rhizomatics.org.uk/help/troubleshooting/index.md): Common issues and diagnostics
 
 ## Development
 
