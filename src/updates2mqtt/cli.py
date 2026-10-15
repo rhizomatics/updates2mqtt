@@ -53,7 +53,7 @@ Command can be `container`,`dump`,`tags`,`manifest`,`blob` or `mqtt`
 * `blob=mcr.microsoft.com/dotnet/sdk:latest`
 * `tags=quay.io/linuxserver.io/babybuddy`
 * `blob=ghcr.io/blakeblackshear/frigate@sha256:759c36ee869e3e60258350a2e221eae1a4ba1018613e0334f1bc84eb09c4bbbc`
-* `mqtt=check` to show MQTT settings and test the broker connection, optionally with `config=path/to/config.yaml`
+* `mqtt=check` to show MQTT, Portainer and image removal settings, and test the broker connection, optionally with `config=path/to/config.yaml`
 
 In addition, a `log_level=DEBUG` or other level can be added, `github_token` to try a personal access
 token for GitHub release info retrieval, or `api=docker_client` to use the older API (defaults to `api=OCI_V2`)
@@ -159,7 +159,10 @@ def dump_url(doc_type: str, img_ref: str, cli_conf: DictConfig) -> None:
 
 def docker_provider(cli_conf: DictConfig) -> DockerProvider:
     docker_scanner = DockerProvider(
-        DockerConfig(registry=RegistryConfig(api=RegistryAPI[str(cli_conf.get("api", "OCI_V2"))])),
+        typing.cast(
+            "DockerConfig",
+            OmegaConf.structured(DockerConfig(registry=RegistryConfig(api=RegistryAPI[str(cli_conf.get("api", "OCI_V2"))]))),
+        ),
         NodeConfig(),
         packages={},
         github_cfg=GitHubConfig(access_token=cli_conf.get("github_token")),
@@ -238,48 +241,98 @@ MQTT_SECRETS: tuple[str, ...] = ("password", "client_key_password")
 MQTT_FILES: tuple[str, ...] = ("ca_certs", "client_cert", "client_key")
 
 
+DOCKER_SETTINGS: tuple[str, ...] = ("allow_pull", "allow_restart", "allow_build", "remove_old_image")
+PORTAINER_SECRETS: tuple[str, ...] = ("api_key",)
+PORTAINER_FILES: tuple[str, ...] = ("ca_certs",)
+
+
+def load_config_section(conf_file_path: Path, *keys: str) -> DictConfig | None:
+    if not conf_file_path.exists():
+        return None
+    section: typing.Any = OmegaConf.load(conf_file_path)
+    for key in keys:
+        section = section.get(key) if isinstance(section, DictConfig) else None
+    return section if isinstance(section, DictConfig) else None
+
+
 def load_mqtt_config(conf_file_path: Path) -> DictConfig:
     mqtt_cfg: DictConfig = OmegaConf.structured(MqttConfig)
     if conf_file_path.exists():
         log.info(f"Using MQTT settings from {conf_file_path} and environment")
-        file_cfg = OmegaConf.load(conf_file_path)
-        if isinstance(file_cfg, DictConfig) and file_cfg.get("mqtt"):
-            mqtt_cfg = typing.cast("DictConfig", OmegaConf.merge(mqtt_cfg, file_cfg.mqtt))
+        file_mqtt: DictConfig | None = load_config_section(conf_file_path, "mqtt")
+        if file_mqtt:
+            mqtt_cfg = typing.cast("DictConfig", OmegaConf.merge(mqtt_cfg, file_mqtt))
     else:
         log.info(f"No config file at {conf_file_path}, using environment and defaults only")
     return mqtt_cfg
 
 
-def check_mqtt(cli_conf: DictConfig) -> bool:
-    structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(cli_conf.get("log_level", "INFO")))
-    mqtt_cfg: DictConfig = load_mqtt_config(Path(cli_conf.get("config", CONF_FILE)))
-    raw: dict[str, typing.Any] = typing.cast("dict[str, typing.Any]", OmegaConf.to_container(mqtt_cfg, resolve=False))
+def load_docker_config(conf_file_path: Path) -> DictConfig:
+    docker_cfg: DictConfig = OmegaConf.structured(DockerConfig)
+    file_docker: DictConfig | None = load_config_section(conf_file_path, "docker")
+    if file_docker:
+        docker_cfg = typing.cast("DictConfig", OmegaConf.merge(docker_cfg, file_docker))
+    return docker_cfg
 
+
+def report_settings(
+    cfg: DictConfig,
+    prefix: str = "",
+    keys: tuple[str, ...] | None = None,
+    secrets: tuple[str, ...] = (),
+    files: tuple[str, ...] = (),
+) -> bool:
+    """Log each setting with its env var, if any, returning False if any are invalid"""
+    raw: dict[str, typing.Any] = typing.cast("dict[str, typing.Any]", OmegaConf.to_container(cfg, resolve=False))
     valid = True
     for key, raw_value in raw.items():
+        if keys is not None and key not in keys:
+            continue
         env_match = re.search(r"oc\.env:(\w+)", str(raw_value))
-        source: str = f" (env {env_match.group(1)})" if env_match else ""
+        source: str = f"{prefix}{key}" + (f" (env {env_match.group(1)})" if env_match else "")
         try:
-            value = mqtt_cfg[key]
+            value = cfg[key]
         except (MissingMandatoryValue, ValidationError) as e:
-            log.error(f"{key}{source}: invalid or missing - {e}")
+            log.error(f"{source}: invalid or missing - {e}")
             valid = False
             continue
         if value == MISSING:
-            log.error(f"{key}{source}: required but not set")
+            log.error(f"{source}: required but not set")
             valid = False
             continue
-        if key in MQTT_FILES and value and not Path(value).is_file():
-            log.error(f"{key}{source}: file not found at {value}")
+        if key in files and value and not Path(value).is_file():
+            log.error(f"{source}: file not found at {value}")
             valid = False
             continue
-        if key in MQTT_SECRETS:
+        if key in secrets:
             display = "<set>" if value else "<not set>"
         elif isinstance(value, int) and key == "cert_reqs":
             display = ssl.VerifyMode(value).name
         else:
             display = value if value not in (None, "") else "<not set>"
-        log.info(f"{key}{source}: {display}")
+        log.info(f"{source}: {display}")
+    return valid
+
+
+def check_docker_settings(conf_file_path: Path) -> bool:
+    """Update settings aren't needed for the broker connection, but checked here so env and file values can be verified"""
+    docker_cfg: DictConfig = load_docker_config(conf_file_path)
+    valid: bool = report_settings(docker_cfg, prefix="docker.", keys=DOCKER_SETTINGS)
+    portainer_cfg: DictConfig = docker_cfg.portainer
+    valid = (
+        report_settings(portainer_cfg, prefix="docker.portainer.", secrets=PORTAINER_SECRETS, files=PORTAINER_FILES) and valid
+    )
+    if portainer_cfg.url and not portainer_cfg.api_key:
+        log.warning("docker.portainer.url set without api_key, Portainer redeploy disabled")
+    return valid
+
+
+def check_mqtt(cli_conf: DictConfig) -> bool:
+    structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(cli_conf.get("log_level", "INFO")))
+    conf_file_path = Path(cli_conf.get("config", CONF_FILE))
+    mqtt_cfg: DictConfig = load_mqtt_config(conf_file_path)
+    valid: bool = report_settings(mqtt_cfg, secrets=MQTT_SECRETS, files=MQTT_FILES)
+    docker_valid: bool = check_docker_settings(conf_file_path)
 
     if not valid:
         log.error("MQTT configuration is invalid, not attempting broker connection")
@@ -299,7 +352,9 @@ def check_mqtt(cli_conf: DictConfig) -> bool:
     try:
         if publisher.connected.is_set():
             log.info(f"Broker connection to {cfg.host}:{cfg.port} succeeded")
-            return True
+            if not docker_valid:
+                log.error("Docker configuration is invalid")
+            return docker_valid
         if publisher.fatal_failure.is_set():
             log.error("Broker rejected credentials")
         else:

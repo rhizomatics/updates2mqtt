@@ -339,7 +339,19 @@ def test_docker_provider_api_case_insensitive(mock_provider: Mock) -> None:
 
 
 def _mqtt_env(monkeypatch: pytest.MonkeyPatch, **env: str) -> None:
-    for k in ("MQTT_HOST", "MQTT_USER", "MQTT_PASS", "MQTT_PORT", "MQTT_TLS_MODE", "MQTT_CA_CERTS"):
+    for k in (
+        "MQTT_HOST",
+        "MQTT_USER",
+        "MQTT_PASS",
+        "MQTT_PORT",
+        "MQTT_TLS_MODE",
+        "MQTT_CA_CERTS",
+        "PORTAINER_URL",
+        "PORTAINER_API_KEY",
+        "PORTAINER_VERIFY_SSL",
+        "PORTAINER_CA_CERTS",
+        "U2M_REMOVE_OLD_IMAGE",
+    ):
         monkeypatch.delenv(k, raising=False)
     for k, v in env.items():
         monkeypatch.setenv(k, v)
@@ -440,3 +452,66 @@ def test_main_mqtt_check_failure_exits(mock_oc: Mock, _mock_check: Mock) -> None
         main()
 
     assert exc.value.code == 1
+
+
+@patch("updates2mqtt.cli.log")
+@patch("updates2mqtt.cli.MqttPublisher")
+def test_check_mqtt_reports_docker_env(
+    mock_pub_cls: Mock, mock_log: Mock, monkeypatch: pytest.MonkeyPatch, tmp_path: Any
+) -> None:
+    from updates2mqtt.cli import check_mqtt
+
+    ca_file = tmp_path / "root_ca.pem"
+    ca_file.write_text("cert")
+    _mqtt_env(
+        monkeypatch,
+        MQTT_USER="u2m",
+        PORTAINER_URL="https://nas.lan:9443",
+        PORTAINER_API_KEY="ptr_secret",
+        PORTAINER_VERIFY_SSL="false",
+        PORTAINER_CA_CERTS=str(ca_file),
+        U2M_REMOVE_OLD_IMAGE="true",
+    )
+    mock_pub_cls.return_value.connected.is_set.return_value = True
+
+    assert check_mqtt(_conf(config=str(tmp_path / "none.yaml"))) is True
+
+    logged = " ".join(str(c) for c in mock_log.mock_calls)
+    assert "ptr_secret" not in logged
+    assert "docker.remove_old_image (env U2M_REMOVE_OLD_IMAGE): True" in logged
+    assert "docker.portainer.url (env PORTAINER_URL): https://nas.lan:9443" in logged
+    assert "docker.portainer.api_key (env PORTAINER_API_KEY): <set>" in logged
+    assert "docker.portainer.verify_ssl (env PORTAINER_VERIFY_SSL): False" in logged
+    assert f"docker.portainer.ca_certs (env PORTAINER_CA_CERTS): {ca_file}" in logged
+
+
+@patch("updates2mqtt.cli.log")
+@patch("updates2mqtt.cli.MqttPublisher")
+def test_check_mqtt_reports_docker_config_file(
+    mock_pub_cls: Mock, mock_log: Mock, monkeypatch: pytest.MonkeyPatch, tmp_path: Any
+) -> None:
+    from updates2mqtt.cli import check_mqtt
+
+    _mqtt_env(monkeypatch, MQTT_USER="u2m", U2M_REMOVE_OLD_IMAGE="false")
+    conf_file = tmp_path / "config.yaml"
+    conf_file.write_text("docker:\n  remove_old_image: true\n  portainer:\n    url: https://from-file:9443\n")
+    mock_pub_cls.return_value.connected.is_set.return_value = True
+
+    assert check_mqtt(_conf(config=str(conf_file))) is True
+
+    logged = " ".join(str(c) for c in mock_log.mock_calls)
+    assert "docker.remove_old_image: True" in logged
+    assert "docker.portainer.url: https://from-file:9443" in logged
+    assert "without api_key" in logged
+
+
+@patch("updates2mqtt.cli.MqttPublisher")
+def test_check_mqtt_missing_portainer_ca_certs(mock_pub_cls: Mock, monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> None:
+    from updates2mqtt.cli import check_mqtt
+
+    _mqtt_env(monkeypatch, MQTT_USER="u2m", PORTAINER_CA_CERTS=str(tmp_path / "missing.pem"))
+    mock_pub_cls.return_value.connected.is_set.return_value = True
+
+    # broker still checked, but overall result fails
+    assert check_mqtt(_conf(config=str(tmp_path / "none.yaml"))) is False
+    mock_pub_cls.assert_called_once()

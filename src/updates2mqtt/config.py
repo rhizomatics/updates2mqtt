@@ -152,9 +152,10 @@ class PackageUpdateInfo:
 class PortainerConfig:
     """Portainer API access, used to redeploy stacks whose compose files live in Portainer's data volume"""
 
-    url: str | None = field(default_factory=lambda: os.getenv("PORTAINER_URL") or None)
-    api_key: str | None = field(default_factory=lambda: os.getenv("PORTAINER_API_KEY") or None)
-    verify_ssl: bool = True
+    url: str | None = "${oc.env:PORTAINER_URL,null}"
+    api_key: str | None = "${oc.env:PORTAINER_API_KEY,null}"
+    verify_ssl: bool = "${oc.env:PORTAINER_VERIFY_SSL,true}"  # type: ignore[assignment] # ty: ignore[invalid-assignment]
+    ca_certs: str | None = "${oc.env:PORTAINER_CA_CERTS,null}"  # e.g. private root CA
     timeout: int = 300  # redeploy only returns once the stack is up
 
 
@@ -164,6 +165,8 @@ class DockerConfig:
     allow_pull: bool = True
     allow_restart: bool = True
     allow_build: bool = True
+    # remove the previous image once a container has been recreated with the new one
+    remove_old_image: bool = "${oc.env:U2M_REMOVE_OLD_IMAGE,false}"  # type: ignore[assignment] # ty: ignore[invalid-assignment]
     compose_version: str = "v2"
     default_entity_picture_url: str = "https://www.docker.com/wp-content/uploads/2022/03/Moby-logo.png"
     # Icon to show when browsing entities in Home Assistant

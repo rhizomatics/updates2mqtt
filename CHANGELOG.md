@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## 1.14.1
+### Portainer
+- `PORTAINER_CA_CERTS` env var, or `ca_certs` in config, to verify Portainer with a private root CA
+- `PORTAINER_VERIFY_SSL` env var, as alternative to `verify_ssl` in config
+### Docker
+- Optionally remove the replaced image after a successful update, using `remove_old_image` in config or `U2M_REMOVE_OLD_IMAGE` env var
+### CLI
+- `mqtt=check` also reports the update and Portainer settings, with the env var each comes from, and checks the Portainer `ca_certs` file exists
+### Fixes
+- When `PORTAINER_API_KEY` or `PORTAINER_URL` were set, an auto-generated config file copied their values into `config.yaml`, rather than referencing the env vars as for MQTT settings
+- [Without a Configuration File](./configuration/zero_config_file.md) docs listed `MQTT_PASSWORD` rather than the correct `MQTT_PASS` env var
+### Docs
+- README and translations updated for Portainer support and old image removal
+
 ## 1.14.0
 ### Portainer
 - Initial API support for Portainer is provided, to bring it up to a similar level of functionality to the Docker Compose

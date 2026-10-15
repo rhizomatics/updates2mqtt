@@ -1,8 +1,12 @@
+import typing
 import uuid
 from unittest.mock import Mock
 
 from docker.models.containers import Container
 from docker.models.images import Image
+from omegaconf import OmegaConf
+
+from updates2mqtt.config import DockerConfig, PortainerConfig
 
 DIGESTS: dict[str, tuple[str, str]] = {}
 
@@ -79,3 +83,12 @@ def build_mock_container(
     if relnotes:
         c.attrs["Config"]["Env"].append(f"UPD2MQTT_RELNOTES={relnotes}")
     return c
+
+
+def docker_config(**kwargs: typing.Any) -> DockerConfig:
+    """Structured, so env interpolations resolve as they do for a loaded config"""
+    return typing.cast("DockerConfig", OmegaConf.structured(DockerConfig(**kwargs)))
+
+
+def portainer_config(**kwargs: typing.Any) -> PortainerConfig:
+    return typing.cast("PortainerConfig", OmegaConf.structured(PortainerConfig(**kwargs)))

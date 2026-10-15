@@ -34,7 +34,7 @@ Przeczytaj informacje o wydaniu i opcjonalnie kliknij *Aktualizuj*, aby uruchomi
 
 Updates2MQTT okresowo sprawdza dostępność nowych wersji komponentów i publikuje informacje o nowych wersjach do MQTT. Obsługiwane jest automatyczne wykrywanie przez HomeAssistant, dzięki czemu wszystkie aktualizacje można zobaczyć w tym samym miejscu co własne komponenty i dodatki Home Assistant.
 
-Obecnie obsługiwane są tylko kontenery Docker, poprzez sprawdzenie rejestru obrazów (przy użyciu API Docker v1 lub API OCI v2) lub repozytorium git dla źródeł (patrz [Lokalne Kompilacje](local_builds.md)), ze specyficzną obsługą dla Docker, Github Container Registry, Gitlab, Codeberg, Microsoft Container Registry, Quay i LinuxServer Registry, z adaptacyjnym zachowaniem dla większości pozostałych. Projekt jest modularny, więc można dodawać inne źródła aktualizacji, przynajmniej do powiadamiania. Następnym planowanym jest **apt** dla systemów opartych na Debianie.
+Obecnie obsługiwane są tylko kontenery Docker, poprzez sprawdzenie rejestru obrazów (przy użyciu API Docker v1 lub API OCI v2) lub repozytorium git dla źródeł (patrz [Lokalne Kompilacje](local_builds.md)), ze specyficzną obsługą dla Docker, Github Container Registry, Gitlab, Codeberg, Microsoft Container Registry, Quay i LinuxServer Registry, z adaptacyjnym zachowaniem dla większości pozostałych. Projekt jest modularny, więc można dodawać inne źródła aktualizacji, przynajmniej do powiadamiania. Oprócz Docker Compose obsługiwane są również stosy **Portainer** do przebudowy/restartu kontenerów, patrz [Portainer](configuration/portainer.md). Może pojawić się obsługa **apt** dla systemów opartych na Debianie.
 
 Komponenty mogą być również aktualizowane, automatycznie lub wyzwalane przez MQTT, na przykład przez naciśnięcie przycisku *Instaluj* w oknie dialogowym aktualizacji HomeAssistant. Ikony i informacje o wydaniu można określić dla lepszego doświadczenia HA. Szczegóły w [Integracja z Home Assistant](home_assistant.md).
 
@@ -60,7 +60,9 @@ Obecnie obsługiwane są tylko kontenery Docker, choć planowane są inne, prawd
 
 | Ekosystem | Wsparcie      | Komentarze                                                                                                        |
 |-----------|---------------|-------------------------------------------------------------------------------------------------------------------|
-| Docker    | Scan, Fetch   | Fetch to tylko ``docker pull``. Wsparcie restartu tylko dla kontenerów ``docker-compose`` opartych na obrazie.   |
+| Docker    | Scan, Fetch   | Fetch to ``docker pull`` lub ``git pull`` i ``docker compose build`` dla lokalnych kompilacji. Wsparcie restartu dla kontenerów ``docker compose`` i stosów [Portainer](configuration/portainer.md).   |
+
+Po ponownym utworzeniu kontenera z nowym obrazem stary obraz można opcjonalnie usunąć, aby zaoszczędzić miejsce na dysku, ustawiając `remove_old_image: true` w sekcji `docker` pliku konfiguracyjnego lub zmienną środowiskową `U2M_REMOVE_OLD_IMAGE=true`. Obrazy nadal używane przez inny kontener, uruchomiony lub zatrzymany, są pozostawiane.
 
 ## Heartbeat
 

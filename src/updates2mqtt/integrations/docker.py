@@ -153,6 +153,8 @@ class DockerProvider(ReleaseProvider):
         if self.portainer and not self.portainer.enabled:
             self.log.warning("Portainer url configured without api_key, Portainer redeploy disabled")
             self.portainer = None
+        if self.portainer and self.cfg.portainer.ca_certs and not Path(self.cfg.portainer.ca_certs).is_file():
+            self.log.warning("Portainer ca_certs file not found at %s", self.cfg.portainer.ca_certs)
 
         self.pkg_enrichers: list[PackageEnricher] = [
             CommonPackageEnricher(self.cfg, packages),
@@ -182,10 +184,34 @@ class DockerProvider(ReleaseProvider):
         else:
             logger.info("Updating - first this session")
         discovery.update_last_attempt = time.time()
+        old_image_id: str | None = self.container_image_id(discovery.name) if self.cfg.remove_old_image else None
         self.fetch(discovery)
         restarted = self.restart(discovery)
+        if restarted and old_image_id:
+            self.remove_old_image(discovery.name, old_image_id)
         logger.info("Updated - recorded at %s", discovery.update_last_attempt)
         return restarted
+
+    def container_image_id(self, container_name: str) -> str | None:
+        try:
+            return self.client.containers.get(container_name).attrs.get("Image")
+        except docker.errors.APIError as e:
+            self.log.warning("Unable to find image for container: %s", e, container=container_name)
+            return None
+
+    def remove_old_image(self, container_name: str, old_image_id: str) -> None:
+        """Remove the replaced image, left alone if still in use by any container"""
+        logger: Any = self.log.bind(container=container_name, action="remove_old_image", image_id=old_image_id)
+        current_image_id: str | None = self.container_image_id(container_name)
+        if current_image_id is None or current_image_id == old_image_id:
+            # includes self-bounce, where recreation is deferred
+            logger.debug("Container not yet using a new image, old image kept")
+            return
+        try:
+            self.client.images.remove(old_image_id)
+            logger.info("Removed old image")
+        except docker.errors.APIError as e:
+            logger.info("Old image not removed: %s", e.explanation or e)
 
     def fetch(self, discovery: Discovery) -> None:
         logger = self.log.bind(container=discovery.name, action="fetch")

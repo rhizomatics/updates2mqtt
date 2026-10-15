@@ -1,3 +1,4 @@
+import ssl
 from typing import Any
 
 import httpx
@@ -29,11 +30,18 @@ class PortainerClient:
     def enabled(self) -> bool:
         return bool(self.cfg.url and self.cfg.api_key)
 
+    def ssl_verify(self) -> ssl.SSLContext | bool:
+        if not self.cfg.verify_ssl:
+            return False
+        if self.cfg.ca_certs:
+            return ssl.create_default_context(cafile=self.cfg.ca_certs)
+        return True
+
     def client(self) -> httpx.Client:
         return httpx.Client(
             base_url=str(self.cfg.url).rstrip("/"),
             headers={"X-API-Key": str(self.cfg.api_key)},
-            verify=self.cfg.verify_ssl,
+            verify=self.ssl_verify(),
             timeout=self.cfg.timeout,
         )
 
@@ -89,4 +97,6 @@ class PortainerClient:
             logger.warning("Unable to reach Portainer at %s: %s", self.cfg.url, e)
         except ValueError as e:
             logger.warning("Unexpected Portainer response: %s", e)
+        except OSError as e:
+            logger.warning("Unable to load Portainer CA certs from %s: %s", self.cfg.ca_certs, e)
         return False

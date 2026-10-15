@@ -35,7 +35,7 @@ Read the release notes, and optionally click *Update* to trigger a Docker *pull*
 Updates2MQTT perioidically checks for new versions of components being available, and publishes new version info to MQTT. HomeAssistant auto discovery is supported, so all updates can be seen in the same place as Home Assistant's own components and add-ins.
 
 Currently only Docker containers are supported, either via an image registry check (using either v1 Docker APIs or the OCI v2 API), or a git repo for source (see [Local Builds](local_builds.md)), with specific handling for Docker, Github Container Registry, Gitlab, Codeberg, Microsoft Container Registry, Quay and LinuxServer Registry, with adaptive behaviour to cope with most
-others.  The design is modular, so other update sources can be added, at least for notification. **Portainer** is the next supported platform after Docker Compose for container rebuild/restart. Support for **apt** on Debian based systems may follow.
+others.  The design is modular, so other update sources can be added, at least for notification. **Portainer** stacks are supported for container rebuild/restart as well as Docker Compose, see [Portainer](configuration/portainer.md). Support for **apt** on Debian based systems may follow.
 
 Components can also be updated, either automatically or triggered via MQTT, for example by hitting the *Install* button in the HomeAssistant update dialog. Icons and release notes can be specified for a better HA experience. See [Home Assistant Integration](home_assistant.md) for details.
 
@@ -64,8 +64,10 @@ Presently only Docker containers are supported, although others are planned, pro
 
 | Ecosystem | Support     | Comments                                                                                           |
 |-----------|-------------|----------------------------------------------------------------------------------------------------|
-| Docker    | Scan. Fetch | Fetch is ``docker pull`` only. Restart support only for ``docker-compose`` image based containers. |
+| Docker    | Scan. Fetch | Fetch is ``docker pull``, or ``git pull`` and ``docker compose build`` for local builds. Restart support for ``docker compose`` and [Portainer](configuration/portainer.md) stack containers. |
   
+Once a container has been recreated with its new image, the old image can optionally be removed, to save disk space, by setting `remove_old_image: true` in the `docker` section of the config file, or the `U2M_REMOVE_OLD_IMAGE=true` env var. Images still used by another container, running or stopped, are left alone.
+
 ## Heartbeat
 
 A heartbeat JSON payload is optionally published periodically to a configurable MQTT topic, defaulting to `healthcheck/{node_name}/updates2mqtt`. It contains the current version of Updates2MQTT, the node name, a timestamp, and some basic stats.

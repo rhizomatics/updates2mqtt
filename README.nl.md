@@ -34,7 +34,7 @@ Lees de release-opmerkingen en klik optioneel op *Bijwerken* om een Docker *pull
 
 Updates2MQTT controleert periodiek of er nieuwe versies van componenten beschikbaar zijn en publiceert nieuwe versie-informatie naar MQTT. HomeAssistant automatische detectie wordt ondersteund, zodat alle updates op dezelfde plek te zien zijn als Home Assistants eigen componenten en add-ins.
 
-Momenteel worden alleen Docker-containers ondersteund, via een image registry controle (met v1 Docker API's of de OCI v2 API), of een git-repo als bron (zie [Lokale Builds](local_builds.md)), met specifieke verwerking voor Docker, Github Container Registry, Gitlab, Codeberg, Microsoft Container Registry, Quay en LinuxServer Registry, met adaptief gedrag voor de meeste anderen. Het ontwerp is modulair, zodat andere updatebronnen kunnen worden toegevoegd, in ieder geval voor meldingen. De volgende geplande is **apt** voor op Debian gebaseerde systemen.
+Momenteel worden alleen Docker-containers ondersteund, via een image registry controle (met v1 Docker API's of de OCI v2 API), of een git-repo als bron (zie [Lokale Builds](local_builds.md)), met specifieke verwerking voor Docker, Github Container Registry, Gitlab, Codeberg, Microsoft Container Registry, Quay en LinuxServer Registry, met adaptief gedrag voor de meeste anderen. Het ontwerp is modulair, zodat andere updatebronnen kunnen worden toegevoegd, in ieder geval voor meldingen. Naast Docker Compose worden ook **Portainer**-stacks ondersteund voor het opnieuw bouwen/herstarten van containers, zie [Portainer](configuration/portainer.md). Ondersteuning voor **apt** op Debian-gebaseerde systemen kan volgen.
 
 Componenten kunnen ook worden bijgewerkt, automatisch of getriggerd via MQTT, bijvoorbeeld door op de knop *Installeren* in het HomeAssistant-updatevenster te klikken. Pictogrammen en release-opmerkingen kunnen worden opgegeven voor een betere HA-ervaring. Zie [Home Assistant Integratie](home_assistant.md) voor details.
 
@@ -60,7 +60,9 @@ Momenteel worden alleen Docker-containers ondersteund, hoewel andere gepland zij
 
 | Ecosysteem | Ondersteuning | Opmerkingen                                                                                                        |
 |------------|---------------|--------------------------------------------------------------------------------------------------------------------|
-| Docker     | Scan, Fetch   | Fetch is alleen ``docker pull``. Herstart-ondersteuning alleen voor ``docker-compose`` image-gebaseerde containers. |
+| Docker     | Scan, Fetch   | Fetch is ``docker pull``, of ``git pull`` en ``docker compose build`` voor lokale builds. Herstart-ondersteuning voor ``docker compose``- en [Portainer](configuration/portainer.md)-stack-containers. |
+
+Nadat een container opnieuw is aangemaakt met zijn nieuwe image, kan het oude image optioneel worden verwijderd om schijfruimte te besparen, door `remove_old_image: true` in te stellen in de `docker`-sectie van het configuratiebestand, of de omgevingsvariabele `U2M_REMOVE_OLD_IMAGE=true`. Images die nog door een andere container worden gebruikt, actief of gestopt, blijven behouden.
 
 ## Heartbeat
 

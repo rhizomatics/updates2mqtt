@@ -34,7 +34,7 @@ Leia as notas de versão e, opcionalmente, clique em *Atualizar* para acionar um
 
 O Updates2MQTT verifica periodicamente a disponibilidade de novas versões dos componentes e publica as informações sobre novas versões via MQTT. O descobrimento automático do HomeAssistant é suportado, de modo que todas as atualizações podem ser vistas no mesmo lugar que os próprios componentes e add-ins do Home Assistant.
 
-Atualmente, apenas containers Docker são suportados, seja por meio de uma verificação de registro de imagens (usando as APIs Docker v1 ou a API OCI v2) ou um repositório git para o código-fonte (consulte [Builds Locais](local_builds.md)), com tratamento específico para Docker, Github Container Registry, Gitlab, Codeberg, Microsoft Container Registry, Quay e LinuxServer Registry, com comportamento adaptativo para a maioria dos outros. O design é modular, portanto outras fontes de atualização podem ser adicionadas, pelo menos para notificação. A próxima prevista é o **apt** para sistemas baseados em Debian.
+Atualmente, apenas containers Docker são suportados, seja por meio de uma verificação de registro de imagens (usando as APIs Docker v1 ou a API OCI v2) ou um repositório git para o código-fonte (consulte [Builds Locais](local_builds.md)), com tratamento específico para Docker, Github Container Registry, Gitlab, Codeberg, Microsoft Container Registry, Quay e LinuxServer Registry, com comportamento adaptativo para a maioria dos outros. O design é modular, portanto outras fontes de atualização podem ser adicionadas, pelo menos para notificação. Além do Docker Compose, os stacks do **Portainer** também são suportados para reconstrução/reinicialização de containers, consulte [Portainer](configuration/portainer.md). O suporte ao **apt** em sistemas baseados em Debian pode vir a seguir.
 
 Os componentes também podem ser atualizados, automaticamente ou acionados via MQTT, por exemplo, clicando no botão *Instalar* no diálogo de atualização do HomeAssistant. Ícones e notas de versão podem ser especificados para uma melhor experiência no HA. Consulte [Integração com o Home Assistant](home_assistant.md) para detalhes.
 
@@ -60,7 +60,9 @@ Atualmente, apenas containers Docker são suportados, embora outros estejam plan
 
 | Ecossistema | Suporte       | Comentários                                                                                                          |
 |-------------|---------------|----------------------------------------------------------------------------------------------------------------------|
-| Docker      | Scan, Fetch   | Fetch é apenas ``docker pull``. Suporte a reinicialização apenas para containers baseados em imagem ``docker-compose``. |
+| Docker      | Scan, Fetch   | Fetch é ``docker pull``, ou ``git pull`` e ``docker compose build`` para builds locais. Suporte a reinicialização para containers do ``docker compose`` e de stacks do [Portainer](configuration/portainer.md). |
+
+Depois que um container é recriado com a nova imagem, a imagem antiga pode ser removida opcionalmente para economizar espaço em disco, definindo `remove_old_image: true` na seção `docker` do arquivo de configuração, ou a variável de ambiente `U2M_REMOVE_OLD_IMAGE=true`. Imagens ainda usadas por outro container, em execução ou parado, são mantidas.
 
 ## Heartbeat
 

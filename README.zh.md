@@ -34,7 +34,7 @@
 
 Updates2MQTT 定期检查是否有新版本的组件可用，并将新版本信息发布到 MQTT。支持 HomeAssistant 自动发现，因此所有更新都可以在与 Home Assistant 自身组件和插件相同的位置查看。
 
-目前仅支持 Docker 容器，可通过镜像仓库检查（使用 v1 Docker API 或 OCI v2 API）或源码 git 仓库（参见[本地构建](local_builds.md)）进行检查，并对 Docker、Github Container Registry、Gitlab、Codeberg、Microsoft Container Registry、Quay 和 LinuxServer Registry 进行了专门处理，对大多数其他仓库具有自适应行为。设计是模块化的，因此可以添加其他更新来源，至少用于通知。下一个预计支持的是基于 Debian 系统的 **apt**。
+目前仅支持 Docker 容器，可通过镜像仓库检查（使用 v1 Docker API 或 OCI v2 API）或源码 git 仓库（参见[本地构建](local_builds.md)）进行检查，并对 Docker、Github Container Registry、Gitlab、Codeberg、Microsoft Container Registry、Quay 和 LinuxServer Registry 进行了专门处理，对大多数其他仓库具有自适应行为。设计是模块化的，因此可以添加其他更新来源，至少用于通知。除 Docker Compose 外，还支持 **Portainer** 堆栈的容器重建/重启，参见 [Portainer](configuration/portainer.md)。之后可能会支持基于 Debian 系统的 **apt**。
 
 组件也可以更新，可以自动更新，也可以通过 MQTT 触发，例如点击 HomeAssistant 更新对话框中的*安装*按钮。可以指定图标和发行说明以获得更好的 HA 体验。详情请参见 [Home Assistant 集成](home_assistant.md)。
 
@@ -60,7 +60,9 @@ export MQTT_HOST=192.168.1.1;export MQTT_USER=user1;export MQTT_PASS=user1;uv ru
 
 | 生态系统  | 支持          | 备注                                                                                           |
 |----------|---------------|-----------------------------------------------------------------------------------------------|
-| Docker   | Scan、Fetch   | Fetch 仅为 ``docker pull``。仅支持 ``docker-compose`` 基于镜像的容器重启。                   |
+| Docker   | Scan、Fetch   | Fetch 为 ``docker pull``，本地构建则为 ``git pull`` 和 ``docker compose build``。支持 ``docker compose`` 和 [Portainer](configuration/portainer.md) 堆栈容器的重启。                   |
+
+容器使用新镜像重建后，可以选择删除旧镜像以节省磁盘空间，方法是在配置文件的 `docker` 部分设置 `remove_old_image: true`，或设置环境变量 `U2M_REMOVE_OLD_IMAGE=true`。仍被其他容器（无论运行中还是已停止）使用的镜像会被保留。
 
 ## 心跳
 

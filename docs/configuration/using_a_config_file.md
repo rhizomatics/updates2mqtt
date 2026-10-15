@@ -39,6 +39,7 @@ docker:
   allow_pull: true # if true, will do a `docker pull` if an update is available
   allow_restart: true # if true, will do a `docker-compose up` if an update is installed
   allow_build: true # if true, will do a `docker-compose build` if a git repo is configured
+  remove_old_image: false # if true, removes the replaced image after a successful update, unless still in use
   compose_version: v2 # Controls whether to use `docker-compose` (v1) or `docker compose` (v2) command
   default_entity_picture_url: https://www.docker.com/wp-content/uploads/2022/03/Moby-logo.png # Picture for update dialog
   device_icon: mdi:docker # Material Design Icon to use when browsing entities in Home Assistant

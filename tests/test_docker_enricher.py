@@ -7,6 +7,7 @@ import pytest
 import yaml
 from pytest_httpx import HTTPXMock
 
+from tests.lib_test import docker_config
 from updates2mqtt.config import (
     PKG_INFO_FILE,
     SOURCE_PLATFORM_GITHUB,
@@ -159,7 +160,7 @@ def test_docker_image_single_repo_id() -> None:
 
 
 def test_common_enricher() -> None:
-    uut = CommonPackageEnricher(DockerConfig())
+    uut = CommonPackageEnricher(docker_config())
     uut.initialize()
 
     assert len(uut.pkgs) > 0
@@ -208,7 +209,7 @@ def test_common_packages_yaml_no_duplicate_keys() -> None:
 
 
 def test_common_packages_yaml_unique_image_names() -> None:
-    uut = CommonPackageEnricher(DockerConfig())
+    uut = CommonPackageEnricher(docker_config())
     uut.initialize()
 
     owners: dict[str, list[str]] = defaultdict(list)
@@ -236,7 +237,7 @@ def test_package_enricher_matches_any_image_name_in_list() -> None:
             logo_url="https://example/logo",
         )
     }
-    uut = PackageEnricher(DockerConfig(), pkgs)
+    uut = PackageEnricher(docker_config(), pkgs)
 
     assert uut.enrich(DockerImageInfo("foo/bar")) is pkgs["multi"]
     assert uut.enrich(DockerImageInfo("baz/qux")) is pkgs["multi"]
@@ -260,7 +261,7 @@ def test_discover_metadata(httpx_mock: HTTPXMock) -> None:
             }
         }
     )
-    cfg: DockerConfig = DockerConfig(discover_metadata={"linuxserver.io": MetadataSourceConfig(cache_ttl=0)})
+    cfg: DockerConfig = docker_config(discover_metadata={"linuxserver.io": MetadataSourceConfig(cache_ttl=0)})
     uut = LinuxServerIOPackageEnricher(cfg)
     uut.initialize()
 
@@ -338,7 +339,7 @@ def test_id_source_platform_github_variations() -> None:
 
 def test_default_enricher_returns_package_info() -> None:
     """DefaultPackageEnricher should always return a PackageUpdateInfo"""
-    cfg = DockerConfig()
+    cfg = docker_config()
     enricher = DefaultPackageEnricher(cfg)
 
     result = enricher.enrich(DockerImageInfo(ref="nginx:latest"))
@@ -352,7 +353,7 @@ def test_default_enricher_returns_package_info() -> None:
 
 def test_default_enricher_with_none_image_name() -> None:
     """DefaultPackageEnricher should handle None image_name"""
-    cfg = DockerConfig()
+    cfg = docker_config()
     enricher = DefaultPackageEnricher(cfg)
 
     result: PackageUpdateInfo | None = enricher.enrich(DockerImageInfo("image:tag"))
@@ -367,7 +368,7 @@ def test_default_enricher_with_none_image_name() -> None:
 
 def test_package_enricher_match_by_image_name() -> None:
     """PackageEnricher.enrich should match by image_name"""
-    cfg = DockerConfig()
+    cfg = docker_config()
     enricher = PackageEnricher(cfg)
     enricher.pkgs["test-pkg"] = PackageUpdateInfo(
         docker=DockerPackageUpdateInfo(image_name="test/image"),
@@ -383,7 +384,7 @@ def test_package_enricher_match_by_image_name() -> None:
 
 def test_package_enricher_match_by_image_ref() -> None:
     """PackageEnricher.enrich should match by image_ref"""
-    cfg = DockerConfig()
+    cfg = docker_config()
     enricher = PackageEnricher(cfg)
     enricher.pkgs["test-pkg"] = PackageUpdateInfo(
         docker=DockerPackageUpdateInfo(image_name="ghcr.io/org/app:latest"),
@@ -398,7 +399,7 @@ def test_package_enricher_match_by_image_ref() -> None:
 
 def test_package_enricher_no_match() -> None:
     """PackageEnricher.enrich should return None when no match"""
-    cfg = DockerConfig()
+    cfg = docker_config()
     enricher = PackageEnricher(cfg)
     enricher.pkgs["other-pkg"] = PackageUpdateInfo(
         docker=DockerPackageUpdateInfo(image_name="other/image"),
@@ -549,7 +550,7 @@ def test_release_url_template_github() -> None:
 
 def test_linuxserverio_enricher_disabled() -> None:
     """LinuxServerIOPackageEnricher should not fetch if disabled"""
-    cfg = DockerConfig()
+    cfg = docker_config()
     cfg.discover_metadata["linuxserver.io"].enabled = False
     enricher = LinuxServerIOPackageEnricher(cfg)
     enricher.initialize()
@@ -562,7 +563,7 @@ def test_linuxserverio_enricher_handles_api_error(httpx_mock: HTTPXMock) -> None
     """LinuxServerIOPackageEnricher should handle API errors gracefully"""
     httpx_mock.add_response(status_code=500)
 
-    cfg: DockerConfig = DockerConfig(discover_metadata={"linuxserver.io": MetadataSourceConfig(cache_ttl=0)})
+    cfg: DockerConfig = docker_config(discover_metadata={"linuxserver.io": MetadataSourceConfig(cache_ttl=0)})
     enricher = LinuxServerIOPackageEnricher(cfg)
     enricher.initialize()
 
@@ -573,7 +574,7 @@ def test_linuxserverio_enricher_handles_api_error(httpx_mock: HTTPXMock) -> None
 def test_linuxserverio_enricher_handles_empty_response(httpx_mock: HTTPXMock) -> None:
     """LinuxServerIOPackageEnricher should handle empty response"""
     httpx_mock.add_response(json={"data": {"repositories": {"linuxserver": []}}})
-    cfg: DockerConfig = DockerConfig(discover_metadata={"linuxserver.io": MetadataSourceConfig(cache_ttl=0)})
+    cfg: DockerConfig = docker_config(discover_metadata={"linuxserver.io": MetadataSourceConfig(cache_ttl=0)})
     enricher = LinuxServerIOPackageEnricher(cfg)
     enricher.initialize()
 
@@ -581,7 +582,7 @@ def test_linuxserverio_enricher_handles_empty_response(httpx_mock: HTTPXMock) ->
 
 
 def test_linuxserverio_enricher_enriches() -> None:
-    cfg = DockerConfig()
+    cfg = docker_config()
     enricher = LinuxServerIOPackageEnricher(cfg)
     enricher.initialize()
     info: PackageUpdateInfo | None = enricher.enrich(DockerImageInfo("lscr.io/linuxserver/homeassistant"))

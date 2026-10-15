@@ -8,8 +8,8 @@ from docker import DockerClient
 from pytest_httpx import HTTPXMock
 
 import updates2mqtt.integrations.docker as mut
-from tests.lib_test import build_mock_container
-from updates2mqtt.config import DockerConfig, NodeConfig, PortainerConfig
+from tests.lib_test import build_mock_container, docker_config, portainer_config
+from updates2mqtt.config import NodeConfig, PortainerConfig
 from updates2mqtt.integrations.docker_enrich import DockerImageInfo, DockerServiceDetails
 from updates2mqtt.integrations.portainer import PortainerClient, is_portainer_image
 from updates2mqtt.model import Discovery
@@ -19,7 +19,7 @@ ENV = [{"name": "TZ", "value": "Europe/London"}]
 
 
 def portainer_cfg() -> PortainerConfig:
-    return PortainerConfig(url=PORTAINER_URL, api_key="ptr_secret")
+    return portainer_config(url=PORTAINER_URL, api_key="ptr_secret")
 
 
 def stack(git: bool = False, stack_type: int = 2) -> dict:
@@ -84,16 +84,40 @@ def test_redeploy_unreachable(httpx_mock: HTTPXMock) -> None:
 
 def test_enabled_needs_url_and_key() -> None:
     assert PortainerClient(portainer_cfg()).enabled
-    assert not PortainerClient(PortainerConfig(url=PORTAINER_URL, api_key=None)).enabled
-    assert not PortainerClient(PortainerConfig(url=None, api_key=None)).enabled
+    assert not PortainerClient(portainer_config(url=PORTAINER_URL, api_key=None)).enabled
+    assert not PortainerClient(portainer_config(url=None, api_key=None)).enabled
 
 
 def test_config_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("PORTAINER_URL", PORTAINER_URL)
     monkeypatch.setenv("PORTAINER_API_KEY", "ptr_env")
-    cfg = PortainerConfig()
+    cfg = portainer_config()
     assert cfg.url == PORTAINER_URL
     assert cfg.api_key == "ptr_env"
+    assert cfg.verify_ssl
+    assert cfg.ca_certs is None
+
+
+def test_ssl_config_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PORTAINER_VERIFY_SSL", "False")
+    monkeypatch.setenv("PORTAINER_CA_CERTS", "/certs/root_ca.pem")
+    cfg = portainer_config()
+    assert not cfg.verify_ssl
+    assert cfg.ca_certs == "/certs/root_ca.pem"
+
+
+def test_ssl_verify() -> None:
+    assert PortainerClient(portainer_cfg()).ssl_verify() is True
+    assert PortainerClient(portainer_config(url=PORTAINER_URL, api_key="k", verify_ssl=False)).ssl_verify() is False
+    with patch("updates2mqtt.integrations.portainer.ssl.create_default_context") as ctx:
+        verify = PortainerClient(portainer_config(url=PORTAINER_URL, api_key="k", ca_certs="/certs/ca.pem")).ssl_verify()
+    ctx.assert_called_once_with(cafile="/certs/ca.pem")
+    assert verify is ctx.return_value
+
+
+def test_redeploy_missing_ca_certs() -> None:
+    cfg = portainer_config(url=PORTAINER_URL, api_key="k", ca_certs="/nonexistent/ca.pem")
+    assert not PortainerClient(cfg).redeploy("52")
 
 
 @pytest.mark.parametrize(
@@ -114,7 +138,7 @@ def test_analyze_can_restart_portainer_stack_when_configured(mock_docker_client:
     container.labels["com.docker.compose.project.working_dir"] = "/data/compose/52"
 
     with patch("docker.from_env", return_value=mock_docker_client):
-        uut = mut.DockerProvider(DockerConfig(discover_metadata={}, portainer=portainer_cfg()), NodeConfig())
+        uut = mut.DockerProvider(docker_config(discover_metadata={}, portainer=portainer_cfg()), NodeConfig())
         result = uut.analyze(container, "test-session")
 
     assert result is not None
@@ -126,7 +150,7 @@ def test_analyze_cannot_restart_portainer_itself(mock_docker_client: DockerClien
     container.labels["com.docker.compose.project.working_dir"] = "/data/compose/7"
 
     with patch("docker.from_env", return_value=mock_docker_client):
-        uut = mut.DockerProvider(DockerConfig(discover_metadata={}, portainer=portainer_cfg()), NodeConfig())
+        uut = mut.DockerProvider(docker_config(discover_metadata={}, portainer=portainer_cfg()), NodeConfig())
         result = uut.analyze(container, "test-session")
 
     assert result is not None
@@ -136,14 +160,14 @@ def test_analyze_cannot_restart_portainer_itself(mock_docker_client: DockerClien
 def test_url_without_key_disables_portainer(mock_docker_client: DockerClient) -> None:
     with patch("docker.from_env", return_value=mock_docker_client):
         uut = mut.DockerProvider(
-            DockerConfig(discover_metadata={}, portainer=PortainerConfig(url=PORTAINER_URL, api_key=None)), NodeConfig()
+            docker_config(discover_metadata={}, portainer=portainer_config(url=PORTAINER_URL, api_key=None)), NodeConfig()
         )
     assert uut.portainer is None
 
 
 def test_restart_uses_portainer_for_stack(mock_docker_client: DockerClient) -> None:
     with patch("docker.from_env", return_value=mock_docker_client):
-        uut = mut.DockerProvider(DockerConfig(discover_metadata={}, portainer=portainer_cfg()), NodeConfig())
+        uut = mut.DockerProvider(docker_config(discover_metadata={}, portainer=portainer_cfg()), NodeConfig())
     d = Discovery(
         uut,
         "keycloak",
@@ -163,7 +187,7 @@ def test_restart_uses_portainer_for_stack(mock_docker_client: DockerClient) -> N
 
 def test_restart_prefers_compose_when_path_visible(mock_docker_client: DockerClient, tmp_path: Path) -> None:
     with patch("docker.from_env", return_value=mock_docker_client):
-        uut = mut.DockerProvider(DockerConfig(discover_metadata={}, portainer=portainer_cfg()), NodeConfig())
+        uut = mut.DockerProvider(docker_config(discover_metadata={}, portainer=portainer_cfg()), NodeConfig())
     d = Discovery(
         uut,
         "keycloak",

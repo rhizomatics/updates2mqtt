@@ -34,7 +34,7 @@ Home Assistantがコンテナ用Dockerイメージの新しいアップデート
 
 Updates2MQTTは定期的にコンポーネントの新バージョンをチェックし、新しいバージョン情報をMQTTに公開します。HomeAssistantの自動検出がサポートされているため、すべてのアップデートをHome Assistant自身のコンポーネントやアドインと同じ場所で確認できます。
 
-現在はDockerコンテナのみがサポートされており、イメージレジストリチェック（v1 Docker APIまたはOCI v2 APIを使用）またはソース用gitリポジトリ（[ローカルビルド](local_builds.md)参照）を通じて確認できます。Docker、Github Container Registry、Gitlab、Codeberg、Microsoft Container Registry、Quay、LinuxServer Registryに対する特定の処理と、その他のほとんどに対する適応的な動作をサポートしています。設計はモジュラーであるため、少なくとも通知については他の更新ソースを追加できます。次に予定されているのはDebianベースシステム向けの**apt**です。
+現在はDockerコンテナのみがサポートされており、イメージレジストリチェック（v1 Docker APIまたはOCI v2 APIを使用）またはソース用gitリポジトリ（[ローカルビルド](local_builds.md)参照）を通じて確認できます。Docker、Github Container Registry、Gitlab、Codeberg、Microsoft Container Registry、Quay、LinuxServer Registryに対する特定の処理と、その他のほとんどに対する適応的な動作をサポートしています。設計はモジュラーであるため、少なくとも通知については他の更新ソースを追加できます。Docker Composeに加えて、**Portainer**スタックのコンテナ再ビルド/再起動もサポートしています（[Portainer](configuration/portainer.md)参照）。Debianベースシステム向けの**apt**サポートが今後追加される可能性があります。
 
 コンポーネントは自動的に、またはMQTT経由でトリガーされてアップデートすることもできます。例えば、HomeAssistantのアップデートダイアログで*インストール*ボタンを押すことで実行できます。より良いHAエクスペリエンスのためにアイコンとリリースノートを指定できます。詳細は[Home Assistantインテグレーション](home_assistant.md)を参照してください。
 
@@ -60,7 +60,9 @@ export MQTT_HOST=192.168.1.1;export MQTT_USER=user1;export MQTT_PASS=user1;uv ru
 
 | エコシステム | サポート      | コメント                                                                                                   |
 |-------------|---------------|------------------------------------------------------------------------------------------------------------|
-| Docker      | Scan, Fetch   | Fetchは``docker pull``のみ。再起動サポートは``docker-compose``イメージベースのコンテナのみ。              |
+| Docker      | Scan, Fetch   | Fetchは``docker pull``、またはローカルビルドの場合は``git pull``と``docker compose build``。再起動サポートは``docker compose``および[Portainer](configuration/portainer.md)スタックのコンテナ。              |
+
+コンテナが新しいイメージで再作成された後、ディスク容量を節約するために古いイメージをオプションで削除できます。設定ファイルの`docker`セクションで`remove_old_image: true`を設定するか、環境変数`U2M_REMOVE_OLD_IMAGE=true`を設定してください。実行中・停止中を問わず、他のコンテナがまだ使用しているイメージは削除されません。
 
 ## ハートビート
 
