@@ -1,0 +1,15 @@
+name: 'IndexNow'
+on:
+  schedule:
+    # Set the schedule time
+    - cron: '0 2 * * *'
+
+jobs:
+  check-and-submit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: indexnow-action
+        uses: bojieyang/indexnow-action@v3
+        with:
+          sitemap-location: 'https://bojieyang.github.io/sitemap.xml'
+          key: ${{ secrets.INDEXNOW_KEY }}
