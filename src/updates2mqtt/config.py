@@ -241,9 +241,17 @@ class IncompleteConfigException(BaseException):
     pass
 
 
+def is_env_complete_config() -> bool:
+    # MQTT credentials are the only settings without a default
+    return all(os.environ.get(var) for var in ("MQTT_USER", "MQTT_PASS"))
+
+
 def is_autogen_config() -> bool:
     env_var: str | None = os.environ.get("U2M_AUTOGEN_CONFIG")
-    return not (env_var and env_var.lower() in ("no", "0", "false"))
+    if env_var:
+        return env_var.lower() not in ("no", "0", "false")
+    # Explicit setting absent, so only generate a config file if env vars don't fully describe the config
+    return not is_env_complete_config()
 
 
 def load_app_config(conf_file_path: Path, return_invalid: bool = False) -> Config | None:

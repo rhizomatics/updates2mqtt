@@ -148,6 +148,24 @@ def test_nodename_from_env() -> None:
 
 
 @pytest.mark.parametrize(
+    ("env", "generated"),
+    [
+        ({}, True),
+        ({"MQTT_USER": "u2macct"}, True),
+        ({"MQTT_USER": "u2macct", "MQTT_PASS": "toosecret123!"}, False),
+        ({"MQTT_USER": "u2macct", "MQTT_PASS": "toosecret123!", "U2M_AUTOGEN_CONFIG": "1"}, True),
+        ({"MQTT_USER": "u2macct", "MQTT_PASS": "toosecret123!", "U2M_AUTOGEN_CONFIG": "true"}, True),
+        ({"U2M_AUTOGEN_CONFIG": "0"}, False),
+    ],
+)
+def test_autogen_config(env: dict[str, str], generated: bool) -> None:
+    with tempfile.TemporaryDirectory() as tmpdir, patch.dict(os.environ, env, clear=True):
+        conf_path: Path = Path(tmpdir) / "conf" / "config.yaml"
+        load_app_config(conf_path, return_invalid=True)
+        assert conf_path.exists() == generated
+
+
+@pytest.mark.parametrize(
     ("value", "expected"),
     [
         ("DOCKER_CLIENT", RegistryAPI.DOCKER_CLIENT),

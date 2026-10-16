@@ -2,7 +2,7 @@
 
 The configuration file is optional, and only needed if you have to override the defaults. See [Without a Config File](zero_config_file.md) for the alternatives.
 
-Create file `config.yaml` in `conf` directory. If the file is not present, a default file will be generated, and the parent director if necessary. If you don't want that to happen, then set `U2M_AUTOGEN_CONFIG=0`.
+Create file `config.yaml` in `conf` directory. If the file is not present, a default file will be generated, and the parent directory if necessary, unless `MQTT_USER` and `MQTT_PASS` are both set as env vars, since the configuration is then already complete. Set `U2M_AUTOGEN_CONFIG=1` to always generate the file, or `U2M_AUTOGEN_CONFIG=0` to never generate it.
 
 ## Example configuration file
 

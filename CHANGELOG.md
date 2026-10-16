@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 1.14.2
+### Configuration
+- A default `config.yaml` is no longer auto-generated when `MQTT_USER` and `MQTT_PASS` are set as env vars, since the env vars already fully describe the config. Set `U2M_AUTOGEN_CONFIG=1` to generate it anyway
+
 ## 1.14.1
 ### Portainer
 - `PORTAINER_CA_CERTS` env var, or `ca_certs` in config, to verify Portainer with a private root CA
