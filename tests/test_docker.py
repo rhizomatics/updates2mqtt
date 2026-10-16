@@ -1,5 +1,6 @@
 import time
 from pathlib import Path
+from threading import Event
 from unittest.mock import ANY, Mock, patch
 
 import docker.errors
@@ -659,7 +660,7 @@ def remove_image_provider(mock_docker_client: DockerClient, image_ids: list[str]
 def test_update_removes_old_image(mock_docker_client: DockerClient) -> None:
     uut = remove_image_provider(mock_docker_client, ["sha256:old", "sha256:new"])
     d = Discovery(uut, "fred", "test-123", "node003")
-    with patch.object(uut, "fetch"), patch.object(uut, "restart", return_value=True):
+    with patch.object(uut, "fetch", return_value=None), patch.object(uut, "restart", return_value=True):
         assert uut.update(d)
     mock_docker_client.images.remove.assert_called_once_with("sha256:old")  # type: ignore[attr-defined]
 
@@ -667,7 +668,7 @@ def test_update_removes_old_image(mock_docker_client: DockerClient) -> None:
 def test_update_keeps_image_when_unchanged(mock_docker_client: DockerClient) -> None:
     uut = remove_image_provider(mock_docker_client, ["sha256:old", "sha256:old"])
     d = Discovery(uut, "fred", "test-123", "node003")
-    with patch.object(uut, "fetch"), patch.object(uut, "restart", return_value=True):
+    with patch.object(uut, "fetch", return_value=None), patch.object(uut, "restart", return_value=True):
         assert uut.update(d)
     mock_docker_client.images.remove.assert_not_called()  # type: ignore[attr-defined]
 
@@ -675,7 +676,7 @@ def test_update_keeps_image_when_unchanged(mock_docker_client: DockerClient) -> 
 def test_update_keeps_image_when_restart_fails(mock_docker_client: DockerClient) -> None:
     uut = remove_image_provider(mock_docker_client, ["sha256:old", "sha256:new"])
     d = Discovery(uut, "fred", "test-123", "node003")
-    with patch.object(uut, "fetch"), patch.object(uut, "restart", return_value=False):
+    with patch.object(uut, "fetch", return_value=None), patch.object(uut, "restart", return_value=False):
         assert not uut.update(d)
     mock_docker_client.images.remove.assert_not_called()  # type: ignore[attr-defined]
 
@@ -684,7 +685,7 @@ def test_update_old_image_in_use(mock_docker_client: DockerClient) -> None:
     uut = remove_image_provider(mock_docker_client, ["sha256:old", "sha256:new"])
     mock_docker_client.images.remove.side_effect = docker.errors.APIError("conflict", explanation="image is in use")  # type: ignore[attr-defined]
     d = Discovery(uut, "fred", "test-123", "node003")
-    with patch.object(uut, "fetch"), patch.object(uut, "restart", return_value=True):
+    with patch.object(uut, "fetch", return_value=None), patch.object(uut, "restart", return_value=True):
         assert uut.update(d)
 
 
@@ -692,7 +693,7 @@ def test_update_default_does_not_remove(mock_docker_client: DockerClient) -> Non
     with patch("docker.from_env", return_value=mock_docker_client):
         uut = mut.DockerProvider(docker_config(discover_metadata={}), NodeConfig())
     d = Discovery(uut, "fred", "test-123", "node003")
-    with patch.object(uut, "fetch"), patch.object(uut, "restart", return_value=True):
+    with patch.object(uut, "fetch", return_value=None), patch.object(uut, "restart", return_value=True):
         assert uut.update(d)
     mock_docker_client.images.remove.assert_not_called()  # type: ignore[attr-defined]
 
@@ -701,3 +702,50 @@ def test_remove_old_image_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     assert not docker_config().remove_old_image
     monkeypatch.setenv("U2M_REMOVE_OLD_IMAGE", "true")
     assert docker_config().remove_old_image
+
+
+def recreate_provider(mock_docker_client: DockerClient, image_ids: list[str]) -> mut.DockerProvider:
+    mock_docker_client.containers.get.side_effect = [Mock(attrs={"Image": image_id}) for image_id in image_ids]  # type: ignore[attr-defined]
+    with patch("docker.from_env", return_value=mock_docker_client):
+        return mut.DockerProvider(docker_config(discover_metadata={}), NodeConfig())
+
+
+def test_update_waits_for_recreate(mock_docker_client: DockerClient) -> None:
+    # initial lookup, then still old image while recreation in progress, then new
+    uut = recreate_provider(mock_docker_client, ["sha256:old", "sha256:old", "sha256:new"])
+    d = Discovery(uut, "fred", "test-123", "node003")
+    with (
+        patch.object(uut, "fetch", return_value="sha256:new"),
+        patch.object(uut, "restart", return_value=True),
+        patch("updates2mqtt.integrations.docker.time.sleep") as mock_sleep,
+    ):
+        assert uut.update(d)
+    mock_sleep.assert_called_once_with(mut.RECREATE_WAIT_INTERVAL)
+    assert mock_docker_client.containers.get.call_count == 3  # type: ignore[attr-defined]
+
+
+def test_update_wait_for_recreate_times_out(mock_docker_client: DockerClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(mut, "RECREATE_WAIT_TIMEOUT", 0)
+    uut = recreate_provider(mock_docker_client, ["sha256:old", "sha256:old"])
+    d = Discovery(uut, "fred", "test-123", "node003")
+    with patch.object(uut, "fetch", return_value="sha256:new"), patch.object(uut, "restart", return_value=True):
+        assert uut.update(d)
+    assert mock_docker_client.containers.get.call_count == 2  # type: ignore[attr-defined]
+
+
+def test_update_no_wait_when_image_unchanged(mock_docker_client: DockerClient) -> None:
+    uut = recreate_provider(mock_docker_client, ["sha256:old"])
+    d = Discovery(uut, "fred", "test-123", "node003")
+    with patch.object(uut, "fetch", return_value="sha256:old"), patch.object(uut, "restart", return_value=True):
+        assert uut.update(d)
+    assert mock_docker_client.containers.get.call_count == 1  # type: ignore[attr-defined]
+
+
+def test_update_no_wait_when_self_bouncing(mock_docker_client: DockerClient) -> None:
+    uut = recreate_provider(mock_docker_client, ["sha256:old"])
+    uut.self_bounce = Event()
+    uut.self_bounce.set()
+    d = Discovery(uut, "fred", "test-123", "node003")
+    with patch.object(uut, "fetch", return_value="sha256:new"), patch.object(uut, "restart", return_value=True):
+        assert uut.update(d)
+    assert mock_docker_client.containers.get.call_count == 1  # type: ignore[attr-defined]

@@ -65,6 +65,10 @@ class DockerComposeCommand(Enum):
 # Seconds to wait before recreating ourselves on self-bounce, giving the in-flight
 # update command time to finish and publish its final (non in-progress) state.
 SELF_BOUNCE_DELAY = 5
+# Recreation may complete after the restart call returns, e.g. Portainer redeploy,
+# so wait for the container to move off the old image before rescanning
+RECREATE_WAIT_TIMEOUT = 60
+RECREATE_WAIT_INTERVAL = 2
 
 
 def safe_json_dt(t: float | None) -> str | None:
@@ -184,10 +188,13 @@ class DockerProvider(ReleaseProvider):
         else:
             logger.info("Updating - first this session")
         discovery.update_last_attempt = time.time()
-        old_image_id: str | None = self.container_image_id(discovery.name) if self.cfg.remove_old_image else None
-        self.fetch(discovery)
+        old_image_id: str | None = self.container_image_id(discovery.name)
+        new_image_id: str | None = self.fetch(discovery)
         restarted = self.restart(discovery)
-        if restarted and old_image_id:
+        self_bouncing: bool = self.self_bounce is not None and self.self_bounce.is_set()
+        if restarted and old_image_id and new_image_id and new_image_id != old_image_id and not self_bouncing:
+            self.wait_for_recreate(discovery.name, old_image_id)
+        if restarted and old_image_id and self.cfg.remove_old_image:
             self.remove_old_image(discovery.name, old_image_id)
         logger.info("Updated - recorded at %s", discovery.update_last_attempt)
         return restarted
@@ -198,6 +205,20 @@ class DockerProvider(ReleaseProvider):
         except docker.errors.APIError as e:
             self.log.warning("Unable to find image for container: %s", e, container=container_name)
             return None
+
+    def wait_for_recreate(self, container_name: str, old_image_id: str) -> bool:
+        """Wait for the container to be recreated from a new image, so a rescan doesn't see the old one"""
+        logger: Any = self.log.bind(container=container_name, action="wait_for_recreate")
+        deadline: float = time.monotonic() + RECREATE_WAIT_TIMEOUT
+        while True:
+            current_image_id: str | None = self.container_image_id(container_name)
+            if current_image_id is not None and current_image_id != old_image_id:
+                logger.debug("Container recreated with new image %s", current_image_id)
+                return True
+            if time.monotonic() >= deadline or self.stopped.is_set():
+                logger.warning("Container not recreated with new image after %ss", RECREATE_WAIT_TIMEOUT)
+                return False
+            time.sleep(RECREATE_WAIT_INTERVAL)
 
     def remove_old_image(self, container_name: str, old_image_id: str) -> None:
         """Remove the replaced image, left alone if still in use by any container"""
@@ -213,7 +234,8 @@ class DockerProvider(ReleaseProvider):
         except docker.errors.APIError as e:
             logger.info("Old image not removed: %s", e.explanation or e)
 
-    def fetch(self, discovery: Discovery) -> None:
+    def fetch(self, discovery: Discovery) -> str | None:
+        """Pull or build the update, returning the id of a newly pulled image"""
         logger = self.log.bind(container=discovery.name, action="fetch")
         installed_info: DockerImageInfo | None = cast("DockerImageInfo|None", discovery.current_detail)
         service_info: DockerServiceDetails | None = cast("DockerServiceDetails|None", discovery.installation_detail)
@@ -225,21 +247,22 @@ class DockerProvider(ReleaseProvider):
             image: Image = self.client.images.pull(image_ref, platform=platform, all_tags=False)
             if image:
                 logger.info("Pulled", image_id=image.id, image_ref=image_ref, platform=platform)
-            else:
-                logger.warning("Unable to pull", image_ref=image_ref, platform=platform)
+                return image.id
+            logger.warning("Unable to pull", image_ref=image_ref, platform=platform)
         elif discovery.can_build and service_info:
             compose_path: str | None = service_info.compose_path
             git_repo_path: str | None = service_info.git_repo_path
             logger.debug("can_build check", git_repo=git_repo_path)
             if not compose_path or not git_repo_path:
                 logger.warning("No compose path or git repo path configured, skipped build")
-                return
+                return None
 
             full_repo_path: Path = self.full_repo_path(compose_path, git_repo_path)
             if git_pull(full_repo_path, Path(self.node_cfg.git_path)):
                 self.build(discovery)
             else:
                 logger.debug("Skipping git_pull, no update")
+        return None
 
     def full_repo_path(self, compose_path: str | None, git_repo_path: str | None) -> Path:
         if compose_path is None or git_repo_path is None:

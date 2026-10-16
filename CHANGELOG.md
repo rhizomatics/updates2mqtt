@@ -3,6 +3,8 @@
 ## 1.14.2
 ### Configuration
 - A default `config.yaml` is no longer auto-generated when `MQTT_USER` and `MQTT_PASS` are set as env vars, since the env vars already fully describe the config. Set `U2M_AUTOGEN_CONFIG=1` to generate it anyway
+### Fixes
+- After an update, Home Assistant could keep showing the old installed version until the next scan or a restart of Updates2MQTT, most likely when updating via Portainer, where the redeploy can return before the container is recreated. The post-update rescan now waits (up to 60s) for the container to be running the newly pulled image before republishing its state
 
 ## 1.14.1
 ### Portainer
