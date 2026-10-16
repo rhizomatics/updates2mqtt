@@ -22,4 +22,4 @@ The `PORTAINER_` env vars are only needed to update containers in Portainer stac
 
 The example [docker-compose.yaml](https://updates2mqtt.rhizomatics.org.uk/configuration/examples/docker_compose/index.md) and [.env](https://updates2mqtt.rhizomatics.org.uk/configuration/examples/env/index.md) demonstrate one way of doing this, or skip the `.env` file and use an `environment` section in the Compose file.
 
-Set `U2M_AUTOGEN_CONFIG=0` in the environment to prevent a default config file being created in the local compose directory if you want to keep it zero-configuration-file.
+If `MQTT_USER` and `MQTT_PASS` are both set in the environment, no default config file is created in the local compose directory (from v1.14.2). Set `U2M_AUTOGEN_CONFIG=1` to have one created anyway, as a starting point for customization.
