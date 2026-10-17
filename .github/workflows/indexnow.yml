@@ -5,12 +5,15 @@ on:
     - cron: '0 2 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   check-and-submit:
     runs-on: ubuntu-latest
     steps:
       - name: indexnow-action
-        uses: bojieyang/indexnow-action@v3
+        uses: bojieyang/indexnow-action@38ddfbd93579a8a44c0dee662121bf9d51098f71
         with:
           sitemap-location: 'https://updates2mqtt.rhizomatics.org.uk/sitemap.xml'
           key: ${{ secrets.INDEXNOW_KEY }}
