@@ -156,7 +156,7 @@ class PortainerConfig:
     api_key: str | None = "${oc.env:PORTAINER_API_KEY,null}"
     verify_ssl: bool = "${oc.env:PORTAINER_VERIFY_SSL,true}"  # type: ignore[assignment] # ty: ignore[invalid-assignment]
     ca_certs: str | None = "${oc.env:PORTAINER_CA_CERTS,null}"  # e.g. private root CA
-    timeout: int = 300  # redeploy only returns once the stack is up
+    timeout: int = 300  # API calls, and waiting for the stack deployment to finish
 
 
 @dataclass

@@ -22,7 +22,7 @@ def portainer_cfg() -> PortainerConfig:
     return portainer_config(url=PORTAINER_URL, api_key="ptr_secret")
 
 
-def stack(git: bool = False, stack_type: int = 2) -> dict:
+def stack(git: bool = False, stack_type: int = 2, status: int = 1, deployment_status: list | None = None) -> dict:
     return {
         "Id": 52,
         "Name": "keycloak",
@@ -30,13 +30,30 @@ def stack(git: bool = False, stack_type: int = 2) -> dict:
         "EndpointId": 3,
         "Env": ENV,
         "GitConfig": {"ReferenceName": "refs/heads/main", "Authentication": None} if git else None,
+        "Status": status,
+        "DeploymentStatus": deployment_status,
     }
 
 
-def test_redeploy_web_editor_stack(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=f"{PORTAINER_URL}/api/stacks/52", method="GET", json=stack())
+def add_stack_responses(httpx_mock: HTTPXMock, *stacks: dict) -> None:
+    for s in stacks:
+        httpx_mock.add_response(url=f"{PORTAINER_URL}/api/stacks/52", method="GET", json=s)
+
+
+def add_web_editor_redeploy(httpx_mock: HTTPXMock) -> None:
     httpx_mock.add_response(url=f"{PORTAINER_URL}/api/stacks/52/file", method="GET", json={"StackFileContent": "services: {}"})
     httpx_mock.add_response(url=f"{PORTAINER_URL}/api/stacks/52?endpointId=3", method="PUT", json=stack())
+
+
+@pytest.fixture(autouse=True)
+def no_poll_delay() -> object:
+    with patch("updates2mqtt.integrations.portainer.DEPLOY_POLL_INTERVAL", 0):
+        yield
+
+
+def test_redeploy_web_editor_stack(httpx_mock: HTTPXMock) -> None:
+    add_stack_responses(httpx_mock, stack(), stack())
+    add_web_editor_redeploy(httpx_mock)
 
     assert PortainerClient(portainer_cfg()).redeploy("52")
 
@@ -51,7 +68,7 @@ def test_redeploy_web_editor_stack(httpx_mock: HTTPXMock) -> None:
 
 
 def test_redeploy_git_stack(httpx_mock: HTTPXMock) -> None:
-    httpx_mock.add_response(url=f"{PORTAINER_URL}/api/stacks/52", method="GET", json=stack(git=True))
+    add_stack_responses(httpx_mock, stack(git=True), stack(git=True))
     httpx_mock.add_response(url=f"{PORTAINER_URL}/api/stacks/52/git/redeploy?endpointId=3", method="PUT", json={})
 
     assert PortainerClient(portainer_cfg()).redeploy("52")
@@ -64,6 +81,50 @@ def test_redeploy_git_stack(httpx_mock: HTTPXMock) -> None:
         "repositoryReferenceName": "refs/heads/main",
         "repositoryAuthentication": False,
     }
+
+
+def test_redeploy_waits_for_async_deploy(httpx_mock: HTTPXMock) -> None:
+    add_stack_responses(httpx_mock, stack(), stack(status=3), stack(status=3), stack(status=1))
+    add_web_editor_redeploy(httpx_mock)
+
+    assert PortainerClient(portainer_cfg()).redeploy("52")
+    assert len(httpx_mock.get_requests(url=f"{PORTAINER_URL}/api/stacks/52", method="GET")) == 4
+
+
+def test_redeploy_reports_async_deploy_error(httpx_mock: HTTPXMock) -> None:
+    failed = stack(
+        status=4,
+        deployment_status=[
+            {"Status": 3, "Time": 1760000000},
+            {"Status": 4, "Time": 1760000005, "Message": "pull access denied for keycloak"},
+        ],
+    )
+    add_stack_responses(httpx_mock, stack(), stack(status=3), failed)
+    add_web_editor_redeploy(httpx_mock)
+
+    client = PortainerClient(portainer_cfg())
+    with patch.object(client, "log") as mock_log:
+        assert not client.redeploy("52")
+    mock_log.bind.return_value.warning.assert_called_with(
+        "Portainer stack deployment failed: %s", "pull access denied for keycloak"
+    )
+
+
+def test_redeploy_deploy_timeout(httpx_mock: HTTPXMock) -> None:
+    add_stack_responses(httpx_mock, stack())
+    httpx_mock.add_response(url=f"{PORTAINER_URL}/api/stacks/52", method="GET", json=stack(status=3), is_reusable=True)
+    add_web_editor_redeploy(httpx_mock)
+
+    with patch("updates2mqtt.integrations.portainer.time.monotonic", side_effect=[0, 0, 1000]):
+        assert not PortainerClient(portainer_cfg()).redeploy("52")
+
+
+def test_redeploy_waits_for_deploy_already_in_progress(httpx_mock: HTTPXMock) -> None:
+    add_stack_responses(httpx_mock, stack(status=3), stack(status=3), stack(status=1), stack(status=1))
+    add_web_editor_redeploy(httpx_mock)
+
+    assert PortainerClient(portainer_cfg()).redeploy("52")
+    assert len(httpx_mock.get_requests(method="PUT")) == 1
 
 
 def test_redeploy_refuses_non_compose_stack(httpx_mock: HTTPXMock) -> None:

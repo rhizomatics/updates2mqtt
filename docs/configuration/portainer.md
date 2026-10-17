@@ -29,7 +29,7 @@ Docker API, but recreating the container normally means running `docker compose`
         api_key: ptr_xxxxxxxxxxxx
         verify_ssl: true # set false for Portainer's default self-signed certificate
         ca_certs: /certs/root_ca.pem # optional, CA file to verify Portainer's certificate
-        timeout: 300     # seconds to wait for the redeploy to complete
+        timeout: 300     # seconds to wait for the stack deployment to complete
     ```
 
 If Portainer uses a certificate signed by your own CA, mount the root CA file into the container and set
@@ -41,6 +41,10 @@ When *Update* is pressed, the new image is pulled locally, and then Portainer re
 its existing stack file and environment variables. The redeploy doesn't pull images itself, so only
 containers whose image was just pulled get recreated, not every service in the stack. Stacks on
 Agent-managed hosts work the same way, since Portainer routes the redeploy to the right host.
+
+From Portainer 2.41, the redeploy runs in the background, so Updates2MQTT follows the stack's
+deployment status until it is complete. If the deployment fails, the update is reported as failed,
+and Portainer's error message is logged.
 
 ## Limitations
 

@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 1.14.3
+### Portainer
+- Wait for the stack deployment to complete, using the stack's deployment status, rather than treating Portainer accepting the redeploy request as success. 
+  - Portainer 2.41+ now deploys in the background, so a failed deployment was previously reported as a successful update. Failures now log Portainer's error message, and a redeploy requested while another deployment of the stack is in progress waits for that to finish first
+
 ## 1.14.2
 ### Configuration
 - A default `config.yaml` is no longer auto-generated when `MQTT_USER` and `MQTT_PASS` are set as env vars, since the env vars already fully describe the config. Set `U2M_AUTOGEN_CONFIG=1` to generate it anyway

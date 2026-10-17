@@ -28,20 +28,24 @@ from updates2mqtt.mqtt import MqttPublisher
 
 def pytest_addoption(parser: pytest.Parser) -> None:
     parser.addoption("--runslow", action="store_true", default=False, help="run slow tests")
+    parser.addoption(
+        "--integration", action="store_true", default=False, help="run integration tests, needs a local Docker engine"
+    )
 
 
 def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("markers", "slow: mark test as slow to run")
+    config.addinivalue_line("markers", "integration: mark test as needing a local Docker engine, for docker-in-docker")
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    if config.getoption("--runslow"):
-        # --runslow given in cli: do not skip slow tests
-        return
     skip_slow = pytest.mark.skip(reason="need --runslow option to run")
+    skip_integration = pytest.mark.skip(reason="need --integration option to run")
     for item in items:
-        if "slow" in item.keywords:
+        if "slow" in item.keywords and not config.getoption("--runslow"):
             item.add_marker(skip_slow)
+        if "integration" in item.keywords and not config.getoption("--integration"):
+            item.add_marker(skip_integration)
 
 
 @pytest.fixture
