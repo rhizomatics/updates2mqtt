@@ -4,6 +4,7 @@
 ### Portainer
 - Wait for the stack deployment to complete, using the stack's deployment status, rather than treating Portainer accepting the redeploy request as success. 
   - Portainer 2.41+ now deploys in the background, so a failed deployment was previously reported as a successful update. Failures now log Portainer's error message, and a redeploy requested while another deployment of the stack is in progress waits for that to finish first
+- Added dind test framework to automate integration testing for compose and portainer
 
 ## 1.14.2
 ### Configuration
