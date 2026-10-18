@@ -1,0 +1,5 @@
+[tools]
+pre-commit = "latest"
+ruff = "latest"
+ty = "latest"
+uv = "latest"
