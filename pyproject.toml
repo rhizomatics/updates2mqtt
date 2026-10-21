@@ -46,8 +46,10 @@ u2m-cli = "updates2mqtt.cli:main"
 compile-bytecode = true
 managed = true
 exclude-newer = "5 days"
-exclude-newer-package = { certifi=false, ruff="2 days" }
+exclude-newer-package = { certifi=false, pillow=false, ruff="2 days" }
 add-bounds = "major"
+# Floor for transitive deps with security fixes (Pillow 13.0.0: GHSA-8g5g-8vmr-9782 and others)
+constraint-dependencies = ["pillow>=13.0.0"]
 
 [dependency-groups]
 dev = [
