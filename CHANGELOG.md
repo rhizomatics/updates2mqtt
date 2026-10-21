@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 1.14.4
+- Security Fixes
+  - Build chain certificate update for eMudhra intermediate ca certs issue
+  - Container rebuilt with latest `uv` version and os `ca-certificates` for eMudhra issue
+- CI workflow now has a docker container integration test
+
 ## 1.14.3
 ### Portainer
 - Wait for the stack deployment to complete, using the stack's deployment status, rather than treating Portainer accepting the redeploy request as success. 

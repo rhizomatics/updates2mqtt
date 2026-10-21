@@ -84,7 +84,7 @@ repos:
       - id: actionlint
 
   - repo: https://github.com/astral-sh/ty-pre-commit
-    rev: v0.0.89
+    rev: v0.0.90
     hooks:
       - id: ty
 
