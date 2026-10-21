@@ -46,7 +46,7 @@ u2m-cli = "updates2mqtt.cli:main"
 compile-bytecode = true
 managed = true
 exclude-newer = "5 days"
-exclude-newer-package = { ruff="2 days" }
+exclude-newer-package = { certifi=false, ruff="2 days" }
 add-bounds = "major"
 
 [dependency-groups]
