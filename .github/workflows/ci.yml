@@ -121,7 +121,7 @@ jobs:
     - name: ProperDocs
       if: github.event_name == 'push'
       run:  |
-        git pull
+        git pull --no-tags
         uv sync --dev --group docs
         sudo apt-get update
         sudo apt-get install pngquant
