@@ -68,6 +68,10 @@ Dopo che un container è stato ricreato con la nuova immagine, la vecchia immagi
 
 Un payload JSON di heartbeat viene facoltativamente pubblicato periodicamente su un topic MQTT configurabile, con valore predefinito `healthcheck/{node_name}/updates2mqtt`. Contiene la versione corrente di Updates2MQTT, il nome del nodo, un timestamp e alcune statistiche di base.
 
+## Disponibilità
+
+Updates2MQTT pubblica `online` o `offline` su un topic mantenuto (retained) `updates2mqtt/{node_name}/availability`, con `offline` impostato anche come last will MQTT, e ogni entità di aggiornamento di Home Assistant punta a questo topic. Mentre Updates2MQTT non è in esecuzione, anche durante l'aggiornamento del proprio container, le sue entità risultano *non disponibili* in Home Assistant invece di mostrare versioni non aggiornate. Vedi [Integrazione con Home Assistant](https://updates2mqtt.rhizomatics.org.uk/home_assistant/#availability).
+
 ## Healthcheck
 
 Nell'immagine Docker è incluso uno script `healthcheck.sh`, utilizzabile come healthcheck Docker se le variabili d'ambiente del container `MQTT_HOST`, `MQTT_PORT`, `MQTT_USER` e `MQTT_PASS` sono impostate. Usa il pacchetto Linux `mosquitto-clients` che fornisce il comando `mosquitto_sub` per iscriversi ai topic.

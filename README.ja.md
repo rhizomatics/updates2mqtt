@@ -68,6 +68,10 @@ export MQTT_HOST=192.168.1.1;export MQTT_USER=user1;export MQTT_PASS=user1;uv ru
 
 ハートビートJSONペイロードは、設定可能なMQTTトピック（デフォルト：`healthcheck/{node_name}/updates2mqtt`）に定期的にオプションで公開されます。Updates2MQTTの現在のバージョン、ノード名、タイムスタンプ、基本的な統計が含まれます。
 
+## 可用性
+
+Updates2MQTTは、保持（retained）された`updates2mqtt/{node_name}/availability`トピックに`online`または`offline`をパブリッシュし、`offline`をMQTTのラストウィルにも設定します。Home Assistantの各アップデートエンティティはこのトピックを参照します。Updates2MQTTが停止している間（自身のコンテナを更新している間も含む）、エンティティは古いバージョンを表示し続けるのではなく、Home Assistantで*利用不可*と表示されます。詳細は[Home Assistantインテグレーション](https://updates2mqtt.rhizomatics.org.uk/home_assistant/#availability)を参照してください。
+
 ## ヘルスチェック
 
 `healthcheck.sh`スクリプトがDockerイメージに含まれており、コンテナの環境変数`MQTT_HOST`、`MQTT_PORT`、`MQTT_USER`、`MQTT_PASS`が設定されている場合、Dockerヘルスチェックとして使用できます。トピックをサブスクライブするための`mosquitto_sub`コマンドを提供する`mosquitto-clients` Linuxパッケージを使用します。
