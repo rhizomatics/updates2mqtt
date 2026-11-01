@@ -230,3 +230,5 @@ async def test_shutdown_with_self_bounce_uses_exit_code_1(
         uut.shutdown()
 
     assert exc_info.value.code == 1
+    # publisher stop marks the node offline, so Home Assistant entities go unavailable during the self-update
+    uut.publisher.stop.assert_called_once()  # type: ignore[attr-defined]

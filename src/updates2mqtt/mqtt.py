@@ -23,6 +23,9 @@ from .hass_formatter import hass_format_config, hass_format_state
 log = structlog.get_logger()
 
 MQTT_NAME = r"[A-Za-z0-9_\-\.]+"
+AVAILABILITY_ONLINE = "online"  # Home Assistant default payload_available
+AVAILABILITY_OFFLINE = "offline"  # Home Assistant default payload_not_available
+OFFLINE_PUBLISH_TIMEOUT = 2.0
 
 
 @dataclass
@@ -69,6 +72,8 @@ class MqttPublisher:
                 transport=cast(Literal["tcp", "websockets", "unix"], self.cfg.transport),
             )
             self.client.username_pw_set(self.cfg.user, password=self.cfg.password)
+            # broker publishes this if the connection drops without a clean disconnect, e.g. a crash or kill
+            self.client.will_set(self.availability_topic(), payload=AVAILABILITY_OFFLINE, qos=1, retain=True)
 
             if self.cfg.tls_mode != TlsMode.OFF:
                 logger.debug("Configuring TLS, ca_certs=%s,cert_reqs=%s", self.cfg.ca_certs, self.cfg.cert_reqs)
@@ -115,10 +120,28 @@ class MqttPublisher:
 
     def stop(self) -> None:
         if self.client:
-            self.client.loop_stop()
+            if self.connected.is_set():
+                # a clean disconnect doesn't trigger the will, so mark offline explicitly
+                info: MQTTMessageInfo = self.publish_availability(online=False)
+                try:
+                    info.wait_for_publish(timeout=OFFLINE_PUBLISH_TIMEOUT)
+                except Exception as e:
+                    self.log.warning("Unable to confirm offline availability published: %s", e)
             self.client.disconnect()
+            self.client.loop_stop()
             self.client = None
         self.connected.clear()
+
+    def availability_topic(self) -> str:
+        return f"{self.cfg.topic_root}/{self.node_cfg.name}/availability"
+
+    def publish_availability(self, online: bool) -> MQTTMessageInfo:
+        """Retained plain string payload, as expected by Home Assistant availability_topic"""
+        if self.client is None:
+            raise ValueError("No MQTT client")
+        payload: str = AVAILABILITY_ONLINE if online else AVAILABILITY_OFFLINE
+        self.log.debug("Publishing availability %s to %s", payload, self.availability_topic())
+        return self.client.publish(self.availability_topic(), payload=payload, qos=1, retain=True)
 
     def is_available(self) -> bool:
         return self.client is not None and not self.fatal_failure.is_set()
@@ -138,6 +161,7 @@ class MqttPublisher:
         else:
             self.log.debug("Connected successfully to MQTT broker")
             self.connected.set()
+            self.publish_availability(online=True)
             for topic, provider in self.providers_by_topic.items():
                 self.log.debug("(Re)subscribing", topic=topic, provider=provider.source_type)
                 self.client.subscribe(topic)
@@ -503,6 +527,7 @@ class MqttPublisher:
                 command_topic=self.command_topic(discovery.provider),
                 force_command_topic=self.hass_cfg.force_command_topic,
                 device_creation=self.hass_cfg.device_creation,
+                availability_topic=self.availability_topic(),
             ),
         )
 

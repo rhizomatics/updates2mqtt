@@ -68,6 +68,10 @@ Po ponownym utworzeniu kontenera z nowym obrazem stary obraz można opcjonalnie 
 
 Ładunek JSON heartbeat jest opcjonalnie publikowany okresowo do konfigurowalnego tematu MQTT, domyślnie `healthcheck/{node_name}/updates2mqtt`. Zawiera bieżącą wersję Updates2MQTT, nazwę węzła, znacznik czasu i podstawowe statystyki.
 
+## Dostępność
+
+Updates2MQTT publikuje `online` lub `offline` w zachowywanym (retained) temacie `updates2mqtt/{node_name}/availability`, przy czym `offline` jest też ustawione jako MQTT last will, a każda encja aktualizacji Home Assistant wskazuje na ten temat. Gdy Updates2MQTT nie działa, także podczas aktualizacji własnego kontenera, jego encje są w Home Assistant oznaczone jako *niedostępne* zamiast pokazywać nieaktualne wersje. Zobacz [Integracja z Home Assistant](https://updates2mqtt.rhizomatics.org.uk/home_assistant/#availability).
+
 ## Sprawdzenie Zdrowia (Healthcheck)
 
 Skrypt `healthcheck.sh` jest dołączony do obrazu Docker i może być użyty jako Docker healthcheck, jeśli zmienne środowiskowe kontenera `MQTT_HOST`, `MQTT_PORT`, `MQTT_USER` i `MQTT_PASS` są ustawione. Używa pakietu Linux `mosquitto-clients`, który zapewnia polecenie `mosquitto_sub` do subskrybowania tematów.

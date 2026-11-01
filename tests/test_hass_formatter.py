@@ -140,3 +140,23 @@ def test_hass_format_state_with_notes_url(mock_discoveries: list[Discovery]) -> 
     discovery.release_detail = ReleaseDetail(name="test", notes_url="https://github.com/org/repo/releases/v1.0")
     state = hass_format_state(discovery)
     assert state["release_url"] == "https://github.com/org/repo/releases/v1.0"
+
+
+def test_hass_format_config_with_availability(mock_discoveries: list[Discovery]) -> None:
+    msg = hass_format_config(
+        mock_discoveries[0],
+        "obj001",
+        "state_topic",
+        "cmd_topic",
+        "attrs_topic",
+        False,
+        availability_topic="updates2mqtt/testbed01/availability",
+    )
+    assert msg["availability_topic"] == "updates2mqtt/testbed01/availability"
+    assert "payload_available" not in msg
+    assert "payload_not_available" not in msg
+
+
+def test_hass_format_config_without_availability(mock_discoveries: list[Discovery]) -> None:
+    msg = hass_format_config(mock_discoveries[0], "obj001", "state_topic", "cmd_topic", "attrs_topic", False)
+    assert "availability_topic" not in msg

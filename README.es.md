@@ -68,6 +68,10 @@ Una vez que un contenedor se ha recreado con su nueva imagen, la imagen antigua 
 
 Un payload JSON de latido se publica opcionalmente de forma periódica en un topic MQTT configurable, cuyo valor predeterminado es `healthcheck/{node_name}/updates2mqtt`. Contiene la versión actual de Updates2MQTT, el nombre del nodo, una marca de tiempo y algunas estadísticas básicas.
 
+## Disponibilidad
+
+Updates2MQTT publica `online` u `offline` en un topic retenido `updates2mqtt/{node_name}/availability`, con `offline` también configurado como su última voluntad (last will) MQTT, y cada entidad de actualización de Home Assistant apunta a él. Mientras Updates2MQTT no está en ejecución, incluso mientras actualiza su propio contenedor, sus entidades aparecen como *no disponibles* en Home Assistant en lugar de mantener versiones obsoletas. Consulte [Integración con Home Assistant](https://updates2mqtt.rhizomatics.org.uk/home_assistant/#availability).
+
 ## Verificación de Salud (Healthcheck)
 
 Se incluye un script `healthcheck.sh` en la imagen Docker y puede usarse como healthcheck de Docker si las variables de entorno del contenedor `MQTT_HOST`, `MQTT_PORT`, `MQTT_USER` y `MQTT_PASS` están configuradas. Usa el paquete Linux `mosquitto-clients`, que proporciona el comando `mosquitto_sub` para suscribirse a topics.

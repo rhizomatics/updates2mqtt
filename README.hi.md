@@ -68,6 +68,10 @@ export MQTT_HOST=192.168.1.1;export MQTT_USER=user1;export MQTT_PASS=user1;uv ru
 
 एक हार्टबीट JSON पेलोड वैकल्पिक रूप से एक कॉन्फ़िगर करने योग्य MQTT टॉपिक पर समय-समय पर प्रकाशित किया जाता है, जो डिफ़ॉल्ट रूप से `healthcheck/{node_name}/updates2mqtt` है। इसमें Updates2MQTT का वर्तमान संस्करण, नोड नाम, एक टाइमस्टैम्प और कुछ बुनियादी आंकड़े हैं।
 
+## उपलब्धता
+
+Updates2MQTT एक retained `updates2mqtt/{node_name}/availability` टॉपिक पर `online` या `offline` प्रकाशित करता है, जिसमें `offline` उसकी MQTT last will के रूप में भी सेट होता है, और हर Home Assistant अपडेट एंटिटी इसी टॉपिक की ओर इंगित करती है। जब Updates2MQTT बंद होता है, अपने ही कंटेनर को अपडेट करते समय भी, उसकी एंटिटी पुराने संस्करण दिखाने के बजाय Home Assistant में *अनुपलब्ध* (unavailable) दिखती हैं। देखें [Home Assistant इंटीग्रेशन](https://updates2mqtt.rhizomatics.org.uk/home_assistant/#availability)।
+
 ## हेल्थचेक
 
 एक `healthcheck.sh` स्क्रिप्ट Docker इमेज में शामिल है, और इसे Docker हेल्थचेक के रूप में उपयोग किया जा सकता है, यदि कंटेनर पर्यावरण चर `MQTT_HOST`, `MQTT_PORT`, `MQTT_USER` और `MQTT_PASS` सेट हैं। यह `mosquitto-clients` Linux पैकेज का उपयोग करता है जो टॉपिक की सदस्यता लेने के लिए `mosquitto_sub` कमांड प्रदान करता है।

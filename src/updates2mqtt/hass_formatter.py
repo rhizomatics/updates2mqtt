@@ -27,6 +27,7 @@ def hass_format_config(
     force_command_topic: bool | None,
     device_creation: bool = True,
     area: str | None = None,
+    availability_topic: str | None = None,
 ) -> dict[str, Any]:
     config: dict[str, Any] = {
         "name": discovery.title,
@@ -41,6 +42,9 @@ def hass_format_config(
             "support_url": "https://github.com/rhizomatics/updates2mqtt/issues",
         },
     }
+    if availability_topic:
+        # payloads are the Home Assistant defaults, `online` and `offline`, so not repeated here
+        config["availability_topic"] = availability_topic
     if attrs_topic:
         config["json_attributes_topic"] = attrs_topic
     if discovery.entity_picture_url:

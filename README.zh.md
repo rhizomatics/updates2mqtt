@@ -68,6 +68,10 @@ export MQTT_HOST=192.168.1.1;export MQTT_USER=user1;export MQTT_PASS=user1;uv ru
 
 可选地将心跳 JSON 负载定期发布到可配置的 MQTT 主题，默认为 `healthcheck/{node_name}/updates2mqtt`。包含 Updates2MQTT 的当前版本、节点名称、时间戳和一些基本统计信息。
 
+## 可用性
+
+Updates2MQTT 会向保留（retained）主题 `updates2mqtt/{node_name}/availability` 发布 `online` 或 `offline`，并将 `offline` 设置为其 MQTT 遗嘱消息（last will），每个 Home Assistant 更新实体都指向该主题。当 Updates2MQTT 停止运行时（包括更新其自身容器期间），其实体在 Home Assistant 中显示为*不可用*，而不是继续显示过时的版本。详见 [Home Assistant 集成](https://updates2mqtt.rhizomatics.org.uk/home_assistant/#availability)。
+
 ## 健康检查
 
 Docker 镜像中包含一个 `healthcheck.sh` 脚本，如果容器环境变量 `MQTT_HOST`、`MQTT_PORT`、`MQTT_USER` 和 `MQTT_PASS` 已设置，则可将其用作 Docker 健康检查。它使用提供 `mosquitto_sub` 命令订阅主题的 `mosquitto-clients` Linux 包。

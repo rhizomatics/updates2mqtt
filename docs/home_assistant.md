@@ -33,7 +33,7 @@ a `suggested_area` for the device.
 
 ## MQTT Topics
 
-There are 44 separate types of MQTT topic used for HomeAssisstant integration:
+There are 5 separate types of MQTT topic used for HomeAssisstant integration:
 
 - **Config** to support auto discovery. 
     - A topic is created per component, with a name like `homeassistant/update/dockernuc_docker_jellyfin/update/config`. 
@@ -48,12 +48,36 @@ There are 44 separate types of MQTT topic used for HomeAssisstant integration:
     - Only one is needed per Updates2MQTT agent, with a name like `updates2mqtt/dockernuc/docker`
 - **JSON Attributes** sources extra attributes from the main `updates2mqtt` discovery topic
     - Switch this behaviour off using `extra_attributes: false` flag in Updates2MQTT HomeAssistant config
+- **Availability** to show whether Updates2MQTT itself is running
+    - One topic per Updates2MQTT agent, like `updates2mqtt/dockernuc/availability`, holding `online` or `offline`
+    - See [Availability](#availability) below
 
 If the package supports automated update, then *Skip* and *Install* buttons will appear on the Home Assistant interface, and the package can be remotely fetched and the component restarted.
 
 If it doesn't support automated update, the `command_topic` won't be published with the configuration
 message, unless `force_command_topic` is set to `true` in the `homeassistant` configuration section,
 this will force the Home Assistant app to show the update, but with a do-nothing Update button.
+
+## Availability
+
+Each Updates2MQTT agent publishes whether it is running to a retained availability topic,
+`<topic_root>/<node>/availability`, for example `updates2mqtt/dockernuc/availability`, and every
+update entity's discovery config points to it as its `availability_topic`.
+
+- `online` is published whenever Updates2MQTT connects or reconnects to the broker
+- `offline` is published when it shuts down cleanly
+- `offline` is also registered with the broker as the MQTT *last will*, so the broker publishes it
+  if Updates2MQTT crashes, is killed or loses its connection
+
+While Updates2MQTT is down, its update entities show as *unavailable* in Home Assistant, rather than
+showing the last known versions as if they were current. This includes the short gap while
+Updates2MQTT updates its own container: the old container goes offline as it is stopped, and the new
+one marks the entities available again once it connects.
+
+!!! note
+
+    Before 1.15.0, entities kept their last state while Updates2MQTT was down. Automations or
+    dashboards that treat `unavailable` as an error may now see it during restarts and upgrades.
 
 ## Verifying it Works
 

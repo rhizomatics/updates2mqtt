@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 1.15.0
+### Home Assistant
+- Entities now report availability. Updates2MQTT publishes `online` to `updates2mqtt/<node>/availability` when it connects, `offline` when it shuts down, and sets `offline` as its MQTT last will, so the broker publishes it if the service crashes or is killed. Every discovery config includes this as its `availability_topic`
+  - **Behaviour change**: while Updates2MQTT is down, including while it is updating its own container, its update entities in Home Assistant show as *unavailable* rather than keeping their last state. They come back when it reconnects
+  - See [Home Assistant Integration](./home_assistant.md#availability)
+
 ## 1.14.4
 - Security Fixes
   - Build chain certificate update for eMudhra intermediate ca certs issue

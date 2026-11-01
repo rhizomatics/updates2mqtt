@@ -906,6 +906,154 @@ def test_publish_logs_debug_on_success(mock_mqtt_client: Mock) -> None:
     ):
         uut = MqttPublisher(config, node_config, hass_config)
         uut.start()
+    mock_mqtt_client.publish.reset_mock()  # ignore the availability publish on connect
 
     uut.publish("test/topic", {"key": "value"})
     mock_mqtt_client.publish.assert_called_once()
+
+
+# === availability ===
+
+
+def test_start_sets_retained_offline_will_before_connect(mock_mqtt_client: Mock) -> None:
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+    node_config.name = "willnode"
+
+    with (
+        patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client),
+        patch("asyncio.get_event_loop"),
+    ):
+        uut = MqttPublisher(config, node_config, hass_config)
+        uut.start()
+
+    mock_mqtt_client.will_set.assert_called_once_with(
+        "updates2mqtt/willnode/availability", payload="offline", qos=1, retain=True
+    )
+    call_names = [c[0] for c in mock_mqtt_client.method_calls]
+    assert call_names.index("will_set") < call_names.index("connect")
+
+
+def test_on_connect_publishes_online(mock_mqtt_client: Mock) -> None:
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+    node_config.name = "onnode"
+
+    with (
+        patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client),
+        patch("asyncio.get_event_loop"),
+    ):
+        uut = MqttPublisher(config, node_config, hass_config)
+        uut.start()  # mock loop_start fires on_connect
+        mock_mqtt_client.publish.assert_called_once_with(
+            "updates2mqtt/onnode/availability", payload="online", qos=1, retain=True
+        )
+
+        # and again on reconnect
+        mock_mqtt_client.publish.reset_mock()
+        uut.on_connect(mock_mqtt_client, None, Mock(), ReasonCode(PacketTypes.CONNACK, "Success"), None)
+        mock_mqtt_client.publish.assert_called_once_with(
+            "updates2mqtt/onnode/availability", payload="online", qos=1, retain=True
+        )
+
+
+def test_on_connect_failure_does_not_publish_online(mock_mqtt_client: Mock) -> None:
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+
+    with (
+        patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client),
+        patch("asyncio.get_event_loop"),
+    ):
+        uut = MqttPublisher(config, node_config, hass_config)
+        uut.start()
+        mock_mqtt_client.publish.reset_mock()
+        rc = Mock()
+        rc.getName.return_value = "Not authorized"
+        uut.on_connect(mock_mqtt_client, None, Mock(), rc, None)
+
+    mock_mqtt_client.publish.assert_not_called()
+
+
+def test_stop_publishes_offline_before_disconnect(mock_mqtt_client: Mock) -> None:
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+    node_config.name = "offnode"
+
+    with (
+        patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client),
+        patch("asyncio.get_event_loop"),
+    ):
+        uut = MqttPublisher(config, node_config, hass_config)
+        uut.start()
+        mock_mqtt_client.reset_mock()
+        uut.stop()
+
+    mock_mqtt_client.publish.assert_called_once_with("updates2mqtt/offnode/availability", payload="offline", qos=1, retain=True)
+    mock_mqtt_client.publish.return_value.wait_for_publish.assert_called_once()
+    call_names = [c[0] for c in mock_mqtt_client.method_calls]
+    assert call_names.index("publish") < call_names.index("disconnect") < call_names.index("loop_stop")
+    assert uut.client is None
+
+
+def test_stop_when_not_connected_relies_on_will(mock_mqtt_client: Mock) -> None:
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+
+    with (
+        patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client),
+        patch("asyncio.get_event_loop"),
+    ):
+        uut = MqttPublisher(config, node_config, hass_config)
+        uut.start()
+        uut.connected.clear()
+        mock_mqtt_client.reset_mock()
+        uut.stop()
+
+    mock_mqtt_client.publish.assert_not_called()
+    mock_mqtt_client.disconnect.assert_called_once()
+
+
+def test_stop_survives_offline_publish_timeout(mock_mqtt_client: Mock) -> None:
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+
+    with (
+        patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client),
+        patch("asyncio.get_event_loop"),
+    ):
+        uut = MqttPublisher(config, node_config, hass_config)
+        uut.start()
+        mock_mqtt_client.publish.return_value.wait_for_publish.side_effect = RuntimeError("queue full")
+        uut.stop()
+
+    mock_mqtt_client.disconnect.assert_called_once()
+    assert uut.client is None
+
+
+def test_publish_hass_config_includes_availability(mock_mqtt_client: Mock, mock_provider: ReleaseProvider) -> None:
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+    node_config.name = "availnode"
+
+    with (
+        patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client),
+        patch("asyncio.get_event_loop"),
+    ):
+        uut = MqttPublisher(config, node_config, hass_config)
+        uut.start()
+        discovery = Discovery(mock_provider, "mypkg", "sess003", "availnode", current_version="1.0", latest_version="2.0")
+        uut.publish_hass_config(discovery)
+
+    payload = json.loads(mock_mqtt_client.publish.call_args[1]["payload"])
+    assert payload["availability_topic"] == "updates2mqtt/availnode/availability"
+    # Home Assistant defaults of online/offline are used, so no payload overrides
+    assert "payload_available" not in payload
+    assert "payload_not_available" not in payload
