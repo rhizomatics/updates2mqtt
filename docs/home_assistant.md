@@ -55,6 +55,13 @@ If it doesn't support automated update, the `command_topic` won't be published w
 message, unless `force_command_topic` is set to `true` in the `homeassistant` configuration section,
 this will force the Home Assistant app to show the update, but with a do-nothing Update button.
 
+!!! warning "Installing updates needs an admin user"
+
+    Since Home Assistant 2026.9, installing an update requires a Home Assistant user with
+    administrator rights. If a non-admin user presses *Install* or *Update*, for example from a
+    dashboard button, Home Assistant rejects it with an *Unauthorized* error and nothing is sent to
+    Updates2MQTT. Install updates from an account with administrator rights.
+
 ## Verifying it Works
 
 Rather than wait for a container to need an update, you can check right away that
