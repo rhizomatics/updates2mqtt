@@ -52,7 +52,8 @@ jobs:
 
   image:
     name: Docker image smoke test
-    runs-on: ubuntu-slim
+    # needs a Docker engine, ubuntu-slim has only the client. Fails on ubuntu-26.04, broker name doesn't resolve
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v7
       with:
@@ -114,6 +115,7 @@ jobs:
       if: github.event_name == 'pull_request'
       run:  |
         uv sync --dev --group docs
+        sudo apt-get update
         sudo apt-get install pngquant
         uv run properdocs build
     - name: ProperDocs
@@ -121,5 +123,6 @@ jobs:
       run:  |
         git pull
         uv sync --dev --group docs
+        sudo apt-get update
         sudo apt-get install pngquant
         uv run properdocs gh-deploy

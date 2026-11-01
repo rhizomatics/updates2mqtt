@@ -31,7 +31,7 @@ jobs:
     needs: ci
     # Publish only on a clean CI run, unless forced
     if: ${{ !cancelled() && (needs.ci.result == 'success' || (inputs.force && needs.ci.result == 'skipped')) }}
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     # Sets the permissions granted to the `GITHUB_TOKEN` for the actions in this job.
     permissions:
       contents: read

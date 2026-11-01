@@ -108,6 +108,9 @@ def dind(isolated_docker_config: None) -> Generator[Dind]:
         host: docker.DockerClient = docker.from_env()
         host.ping()
     except docker.errors.DockerException as e:
+        # a skip exits 0, so a CI runner with no engine would look like a pass
+        if os.environ.get("CI"):
+            pytest.fail(f"No local Docker engine running: {e}")
         pytest.skip(f"No local Docker engine running: {e}")
 
     container: Container = host.containers.run(
