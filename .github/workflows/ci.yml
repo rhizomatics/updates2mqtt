@@ -33,7 +33,7 @@ jobs:
     - name: Install dependencies
       run: uv sync --locked --all-extras --dev
     - name: Ruff
-      uses:  astral-sh/ruff-action@v3
+      uses:  astral-sh/ruff-action@278981a28ce3188b1e39527901f38254bf3aac89
     - name: ty
       # keep in step with ty-pre-commit rev in .pre-commit-config.yaml
       run: uvx --exclude-newer-package ty=false ty@0.0.87 check
