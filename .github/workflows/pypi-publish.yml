@@ -85,7 +85,7 @@ jobs:
         (github.event_name == 'workflow_dispatch' && inputs.repository == 'testpypi')) }}
     needs:
     - build
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
 
     environment:
       name: testpypi
