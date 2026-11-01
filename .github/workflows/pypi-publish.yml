@@ -30,7 +30,7 @@ jobs:
     needs: ci
     # Publish only on a clean CI run, unless forced
     if: ${{ !cancelled() && (needs.ci.result == 'success' || (inputs.force && needs.ci.result == 'skipped')) }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
 
     steps:
     - uses: actions/checkout@v7
@@ -60,7 +60,7 @@ jobs:
         (github.event_name == 'workflow_dispatch' && inputs.repository == 'pypi')) }}
     needs:
     - build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     environment:
       name: pypi
       url: https://pypi.org/p/updates2mqtt
@@ -85,7 +85,7 @@ jobs:
         (github.event_name == 'workflow_dispatch' && inputs.repository == 'testpypi')) }}
     needs:
     - build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
 
     environment:
       name: testpypi

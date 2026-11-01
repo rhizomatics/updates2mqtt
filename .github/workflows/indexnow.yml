@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   check-and-submit:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     steps:
       - name: indexnow-action
         uses: bojieyang/indexnow-action@38ddfbd93579a8a44c0dee662121bf9d51098f71
