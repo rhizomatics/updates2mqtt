@@ -1,0 +1,88 @@
+# Scans the published image for vulnerabilities that have a fix available. The base image and apt
+# packages only change when the image is rebuilt, so the weekly run rebuilds the latest release
+# under its existing version tags when a rebuild would pick up a fix. No new release is needed.
+#
+# Findings go to code scanning. The scan after each publish closes those the rebuild fixed, so what
+# stays open needs a person: a locked Python dependency, or a fix not yet shipped upstream.
+name: Scan published image
+
+on:
+  schedule:
+    - cron: "23 1 * * 1"
+  workflow_dispatch:
+    inputs:
+      rebuild:
+        description: "Rebuild the latest release if a rebuild would pick up a critical or high fix"
+        type: boolean
+        default: false
+  workflow_run:
+    workflows: ["Create and publish a Docker image"]
+    types: [completed]
+
+permissions: {}
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}:release
+
+jobs:
+  scan:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+      security-events: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Scan for code scanning
+        id: sarif
+        uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
+        with:
+          image: ${{ env.IMAGE }}
+          only-fixed: true
+          fail-build: false
+          output-format: sarif
+
+      # Uploaded before any rebuild, so a rebuild that fails still leaves the findings visible
+      - name: Upload findings
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          sarif_file: ${{ steps.sarif.outputs.sarif }}
+          category: published-image
+
+      - name: Scan for rebuild decision
+        id: json
+        uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
+        with:
+          image: ${{ env.IMAGE }}
+          only-fixed: true
+          fail-build: false
+          output-format: json
+
+      # Only apt packages and the base image's own binaries change on a rebuild. Python packages are
+      # held by uv.lock, and Go modules inside third-party binaries wait for their vendor's release.
+      - name: Count what a rebuild would fix
+        id: fixable
+        env:
+          REPORT: ${{ steps.json.outputs.json }}
+        run: |
+          count=$(jq '[.matches[]
+            | select(.artifact.type == "deb" or .artifact.type == "binary")
+            | select(.vulnerability.severity | ascii_downcase | . == "critical" or . == "high")
+          ] | length' "$REPORT")
+          echo "$count critical/high findings a rebuild would fix"
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+
+      # Never on workflow_run: that is the scan after a publish, and rebuilding from it could loop
+      - name: Rebuild the latest release
+        if: steps.fixable.outputs.count != '0' && (github.event_name == 'schedule' || inputs.rebuild)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)
+          echo "Rebuilding $tag"
+          gh workflow run docker-publish.yml --ref "$tag"
