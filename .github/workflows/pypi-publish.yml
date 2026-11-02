@@ -60,7 +60,7 @@ jobs:
         (github.event_name == 'workflow_dispatch' && inputs.repository == 'pypi')) }}
     needs:
     - build
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     environment:
       name: pypi
       url: https://pypi.org/p/updates2mqtt
