@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 1.15.1
+- Docker build shrink
+  - Remove build tooling and full docker engine from final Docker image
+  - Image now smaller, and has fewer things to flag as false positives in an image scan
+  
 ## 1.15.0
 ### Home Assistant
 - Entities now report availability on MQTT broker
