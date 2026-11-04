@@ -91,6 +91,11 @@
         <changefreq>daily</changefreq>
     </url>
     <url>
+        <loc>https://updates2mqtt.rhizomatics.org.uk/developer/oci_client/</loc>
+        <lastmod>2026-11-04</lastmod>
+        <changefreq>daily</changefreq>
+    </url>
+    <url>
         <loc>https://updates2mqtt.rhizomatics.org.uk/developer/oci_container/</loc>
         <lastmod>2026-11-04</lastmod>
         <changefreq>daily</changefreq>
