@@ -6,7 +6,7 @@
 - Remote config changes (see [#18](https://github.com/rhizomatics/updates2mqtt/issues/18))
 
 ## OCI Client
-- ~~Upgrade OCI handling~~ done in 1.16.0, as the self-contained `updates2mqtt.oci` package, see [OCI Client](../oci_client.md)
+- ~~Upgrade OCI handling~~ done in 1.17.0, as the self-contained `updates2mqtt.oci` package, see [OCI Client](../oci_client.md)
 - Publish separately to PyPI once the API has settled
 
 ## Minor

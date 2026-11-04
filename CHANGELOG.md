@@ -1,6 +1,20 @@
 # CHANGELOG
 
 ## 1.17.0
+### Home Assistant
+- Update entity titles now lead with the container name, e.g. `frigate Docker Image on nuc` rather than `Docker Image for frigate on nuc`, so they read and sort better in Home Assistant
+### Container registries
+- New registry client, in the self-contained `updates2mqtt.oci` package, ready to publish as a separate library
+- Private registries supported, using `docker login` credentials from the Docker config file, including credential helpers and identity tokens
+  - Logging in to Docker Hub also gets its higher rate limit
+  - See [Private Registries](configuration/remote_api_usage.md#private-registries)
+- Registry authentication now follows each registry's own challenge, rather than a built in list of token services, so registries not specially known also work
+- Content fetched by digest is checked against it
+- Multi-platform images now match the platform variant, e.g. `arm/v7` rather than `arm/v6`
+- Image digest now worked out from the content where a registry doesn't send it
+- Local registries on `localhost` are reached over plain http, as Docker does
+- One long-lived, cached connection to registries, rather than a new one for each request
+- `u2m-cli` adds `referrers=<image>` to list signatures, SBOMs and other artifacts attached to an image
 
 ## 1.16.0
 ### Parallel updates
@@ -15,18 +29,6 @@
   - Other updates in progress finish first, and new update requests are ignored until the restart
   - The new container logs the helper's result and removes it
   - Falls back to the previous in-container recreate if the helper can't be started
-### Container registries
-- New registry client, in the self-contained `updates2mqtt.oci` package, ready to publish as a separate library
-- Private registries supported, using `docker login` credentials from the Docker config file, including credential helpers and identity tokens
-  - Logging in to Docker Hub also gets its higher rate limit
-  - See [Private Registries](configuration/remote_api_usage.md#private-registries)
-- Registry authentication now follows each registry's own challenge, rather than a built in list of token services, so registries not specially known also work
-- Content fetched by digest is checked against it
-- Multi-platform images now match the platform variant, e.g. `arm/v7` rather than `arm/v6`
-- Image digest now worked out from the content where a registry doesn't send it
-- Local registries on `localhost` are reached over plain http, as Docker does
-- One long-lived, cached connection to registries, rather than a new one for each request
-- `u2m-cli` adds `referrers=<image>` to list signatures, SBOMs and other artifacts attached to an image
 ### Shutdown
 - SIGTERM and SIGINT now stop the service promptly, including between scans, cancelling in-flight updates and marking the node offline before exiting
 ### Docker Image Shrink
