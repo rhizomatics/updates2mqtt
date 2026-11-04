@@ -20,7 +20,7 @@ def test_formatter_includes_device(mock_discoveries: list[Discovery], monkeypatc
         area="Basement",
     )
     assert msg == {
-        "name": "TestRun for thing-1 on testbed01",
+        "name": "thing-1 TestRun on testbed01",
         "unique_id": "obj001",
         "command_topic": "command_topic_1",
         "state_topic": "state_topic_1",
@@ -50,7 +50,7 @@ def test_formatter_excludes_device(mock_discoveries: list[Discovery], monkeypatc
         mock_discoveries[0], "obj001", "state_topic_1", "command_topic_1", "main_topic", True, device_creation=False
     )
     assert msg == {
-        "name": "TestRun for thing-1 on testbed01",
+        "name": "thing-1 TestRun on testbed01",
         "unique_id": "obj001",
         "command_topic": "command_topic_1",
         "state_topic": "state_topic_1",

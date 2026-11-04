@@ -97,7 +97,7 @@ def test_discovery_title_from_template(mock_provider: ReleaseProvider) -> None:
         "server01",
         update_type="Docker Image",
     )
-    assert uut.title == "Docker Image for my-app on server01"
+    assert uut.title == "my-app Docker Image on server01"
 
 
 def test_discovery_title_custom_template(mock_provider: ReleaseProvider) -> None:

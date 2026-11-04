@@ -161,7 +161,7 @@ async def test_execute_command_remote(mock_mqtt_client: Mock, mock_provider: Rel
                 {
                     "installed_version": "v2",
                     "latest_version": "v2",
-                    "title": "Update for fooey on node002",
+                    "title": "fooey Update on node002",
                     "in_progress": False,
                 }
             ),
@@ -219,7 +219,7 @@ async def test_execute_command_local(mock_mqtt_client: Mock, mock_provider: Rele
                 {
                     "installed_version": "v2",
                     "latest_version": "v2",
-                    "title": "Update for fooey on node002",
+                    "title": "fooey Update on node002",
                     "in_progress": False,
                 }
             ),
