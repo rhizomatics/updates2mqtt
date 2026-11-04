@@ -911,9 +911,11 @@ class DockerProvider(ReleaseProvider):
 
 def is_compose_recreate_name(container: Container) -> bool:
     """Compose renames the old container to `<12 char id>_<name>` while recreating it"""
-    name: str | None = container.name
-    container_id: str | None = container.id
-    return bool(name and container_id and name.startswith(f"{container_id[:12]}_"))
+    name: Any = container.name
+    container_id: Any = container.id
+    if not isinstance(name, str) or not isinstance(container_id, str) or len(container_id) < 12:
+        return False
+    return name.startswith(f"{container_id[:12]}_")
 
 
 def select_versions(version_policy: VersionPolicy, installed: DockerImageInfo, latest: DockerImageInfo) -> tuple[str, str, str]:
