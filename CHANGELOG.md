@@ -1,9 +1,23 @@
 # CHANGELOG
 
 ## 1.16.0
-- Docker build shrink
-  - Remove build tooling and full docker engine from final Docker image
-  - Image now smaller, and has fewer things to flag as false positives in an image scan
+### Parallel updates
+- Updates now run in parallel, rather than one at a time, up to `max_concurrent_updates` (default 3, or `U2M_MAX_CONCURRENT_UPDATES` env var)
+  - Further updates show as in progress in Home Assistant while waiting for a free slot
+  - Compose restarts and builds, and Portainer redeploys, are still one at a time within the same project or stack
+- `docker pull`, `git pull`, `docker compose build`/`up` and Portainer redeploys no longer block the service while they run, so heartbeats, scans and other commands carry on
+- Container scans, and topic cleaning after a scan, also no longer block the service
+- `docker compose` and `git` are now run directly rather than through a shell
+### Self update
+- When Updates2MQTT updates its own container, a short-lived helper container now runs the `docker compose up`, so the recreation completes even though the old container is stopped part way through
+  - Other updates in progress finish first, and new update requests are ignored until the restart
+  - The new container logs the helper's result and removes it
+  - Falls back to the previous in-container recreate if the helper can't be started
+### Shutdown
+- SIGTERM and SIGINT now stop the service promptly, including between scans, cancelling in-flight updates and marking the node offline before exiting
+### Docker Image Shrink
+- Remove build tooling and full docker engine from final Docker image
+- Image now smaller, and has fewer things to flag as false positives in an image scan
   
 ## 1.15.0
 ### Home Assistant
