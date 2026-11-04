@@ -45,6 +45,8 @@ class MqttPublisher:
         self.client: mqtt.Client | None = None
         self.fatal_failure = Event()
         self.connected = Event()
+        # lets worker threads, e.g. topic cleaning, finish early on shutdown
+        self.stopping = Event()
         self.commands_in_progress: set[tuple[str, str]] = set()
         # strong references to running commands, as the event loop only keeps weak ones
         self.command_tasks: set[asyncio.Task[None]] = set()
@@ -121,6 +123,7 @@ class MqttPublisher:
             raise OSError(f"Connection Failure to {self.cfg.host}:{self.cfg.port} as {self.cfg.user} -- {e}") from e
 
     def stop(self) -> None:
+        self.stopping.set()
         if self.client:
             if self.connected.is_set():
                 # a clean disconnect doesn't trigger the will, so mark offline explicitly
@@ -183,6 +186,12 @@ class MqttPublisher:
             self.log.warning("Disconnect failure from broker", result_code=rc)
 
     async def clean_topics(
+        self, provider: ReleaseProvider, wait_time: int = 5, max_time: int = 120, initial: bool = False
+    ) -> None:
+        """Runs its own blocking MQTT client loop, so in a worker thread to keep the event loop free"""
+        await asyncio.to_thread(self.clean_topics_blocking, provider, wait_time, max_time, initial)
+
+    def clean_topics_blocking(
         self, provider: ReleaseProvider, wait_time: int = 5, max_time: int = 120, initial: bool = False
     ) -> None:
         logger = self.log.bind(action="clean")
@@ -261,8 +270,13 @@ class MqttPublisher:
             cleaner.subscribe(f"{self.hass_cfg.discovery.prefix}/update/#", options=options)
             cleaner.subscribe(f"{self.cfg.topic_root}/{self.node_cfg.name}/{provider.source_type}/#", options=options)
 
-            while time.time() - results["last_timestamp"] <= wait_time and time.time() <= cutoff_time:
+            while (
+                time.time() - results["last_timestamp"] <= wait_time
+                and time.time() <= cutoff_time
+                and not self.stopping.is_set()
+            ):
                 cleaner.loop(0.5)
+            cleaner.disconnect()
 
             logger.info(
                 f"Cleaned - discovered:{results['discovered']}, matched:{results['matched']}, cleaned:{results['cleaned']}"

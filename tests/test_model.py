@@ -140,16 +140,16 @@ def test_discovery_str_is_valid_json(mock_provider: ReleaseProvider) -> None:
 def test_release_provider_stop(node_cfg: NodeConfig) -> None:
     # Create a real ReleaseProvider to test stop()
     class TestProvider(ReleaseProvider):
-        def update(self, discovery: Discovery) -> bool:
+        async def update(self, discovery: Discovery) -> bool:
             return False
 
-        def rescan(self, discovery: Discovery) -> Discovery | None:
+        async def rescan(self, discovery: Discovery) -> Discovery | None:
             return None
 
         async def scan(self, session: str) -> AsyncGenerator[Discovery]:
             yield Discovery(self, "test", session, "node")
 
-        def command(
+        async def command(
             self,
             discovery_name: str,
             command: str,
@@ -169,16 +169,16 @@ def test_release_provider_stop(node_cfg: NodeConfig) -> None:
 
 def test_release_provider_str(node_cfg: NodeConfig) -> None:
     class TestProvider(ReleaseProvider):
-        def update(self, discovery: Discovery) -> bool:
+        async def update(self, discovery: Discovery) -> bool:
             return False
 
-        def rescan(self, discovery: Discovery) -> Discovery | None:
+        async def rescan(self, discovery: Discovery) -> Discovery | None:
             return None
 
         async def scan(self, session: str) -> AsyncGenerator[Discovery]:
             yield Discovery(self, "test", session, "node")
 
-        def command(
+        async def command(
             self,
             discovery_name: str,
             command: str,

@@ -112,6 +112,7 @@ def mock_provider() -> ReleaseProvider:
     )
     provider.resolve.return_value = discovery  # type: ignore[attr-defined]
     provider.discoveries = {"fooey": discovery}
+    provider.background_tasks = set()
     return provider
 
 
@@ -119,6 +120,7 @@ def mock_provider() -> ReleaseProvider:
 def mock_publisher(mock_mqtt_client: paho.mqtt.client.Client) -> MqttPublisher:
     publisher: MqttPublisher = AsyncMock(MqttPublisher)
     publisher.client = mock_mqtt_client
+    publisher.command_tasks = set()
     return publisher
 
 

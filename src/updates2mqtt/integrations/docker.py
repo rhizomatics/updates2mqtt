@@ -168,8 +168,7 @@ class DockerProvider(ReleaseProvider):
         # compose and Portainer act on a whole project/stack, so serialize those per project
         self.project_locks: dict[str, asyncio.Lock] = {}
         self.active_updates: set[str] = set()
-        # strong references, as the event loop only keeps weak ones to tasks
-        self.background_tasks: set[asyncio.Task[Any]] = set()
+        self.analysis_lock: asyncio.Lock = asyncio.Lock()
 
         # TODO: refresh discovered packages periodically
         self.throttler = Throttler(self.cfg.default_api_backoff, self.log, self.stopped)
@@ -214,13 +213,6 @@ class DockerProvider(ReleaseProvider):
 
     def is_self_bouncing(self) -> bool:
         return self.self_bounce is not None and self.self_bounce.is_set()
-
-    def spawn(self, coro: typing.Coroutine[Any, Any, Any], name: str) -> "asyncio.Task[Any]":
-        """Run in the background, holding a reference so the task isn't garbage collected"""
-        task: asyncio.Task[Any] = asyncio.create_task(coro, name=name)
-        self.background_tasks.add(task)
-        task.add_done_callback(self.background_tasks.discard)
-        return task
 
     def project_lock(self, service_info: DockerServiceDetails) -> asyncio.Lock:
         """Compose and Portainer act on the whole project, so concurrent runs on one project could collide"""
@@ -598,12 +590,12 @@ class DockerProvider(ReleaseProvider):
             and not is_portainer_image(installed_info.ref if installed_info else None)
         )
 
-    def rescan(self, discovery: Discovery) -> Discovery | None:
+    async def rescan(self, discovery: Discovery) -> Discovery | None:
         logger: Any = self.log.bind(container=discovery.name, action="rescan")
         try:
-            c: Container = self.client.containers.get(discovery.name)
+            c: Container = await asyncio.to_thread(self.client.containers.get, discovery.name)
             if c:
-                rediscovery: Discovery | None = self.analyze(c, discovery.session, previous_discovery=discovery)
+                rediscovery: Discovery | None = await self.analyze_off_loop(c, discovery.session, previous_discovery=discovery)
                 if rediscovery and not rediscovery.throttled:
                     self.discoveries[rediscovery.name] = rediscovery
                     return rediscovery
@@ -613,6 +605,16 @@ class DockerProvider(ReleaseProvider):
         except docker.errors.APIError:
             logger.exception("Docker API error retrieving container")
         return None
+
+    async def analyze_off_loop(
+        self, c: Container, session: str, previous_discovery: Discovery | None = None
+    ) -> Discovery | None:
+        """Analysis makes blocking registry, GitHub, Docker and git calls, so runs in a worker thread
+
+        One at a time, as the enrichers, throttler and API stats aren't safe to share across threads
+        """
+        async with self.analysis_lock:
+            return await asyncio.to_thread(self.analyze, c, session, previous_discovery)
 
     def analyze(self, c: Container, session: str, previous_discovery: Discovery | None = None) -> Discovery | None:
         logger = self.log.bind(container=c.name, action="analyze")
@@ -821,7 +823,7 @@ class DockerProvider(ReleaseProvider):
         results: int = 0
         throttled: int = 0
 
-        targets: list[Container] = self.client.containers.list()
+        targets: list[Container] = await asyncio.to_thread(self.client.containers.list)
         if shuffle:
             random.shuffle(targets)
         logger.debug("Starting scanning %s containers", len(targets))
@@ -831,7 +833,7 @@ class DockerProvider(ReleaseProvider):
                 logger.info(f"Shutdown detected, aborting scan at {c}")
                 break
             containers = containers + 1
-            result: Discovery | None = self.analyze(c, session)
+            result: Discovery | None = await self.analyze_off_loop(c, session)
             if result:
                 logger.debug("Analyzed container", result_name=result.name, throttled=result.throttled)
                 self.discoveries[result.name] = result
@@ -874,8 +876,7 @@ class DockerProvider(ReleaseProvider):
                         logger.info("Starting update ...")
                         if await self.update(discovery):
                             logger.debug("Rescanning ...")
-                            # on the event loop, as analysis isn't safe to run alongside a scan in another thread
-                            rediscovery = self.rescan(discovery)
+                            rediscovery = await self.rescan(discovery)
                             updated = rediscovery is not None and not rediscovery.throttled
                             logger.info("Rescanned, updated:%s", updated)
                         else:

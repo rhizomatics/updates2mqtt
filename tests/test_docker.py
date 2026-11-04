@@ -248,7 +248,7 @@ async def test_fetch_skips_build_when_no_compose_path(mock_docker_client: Docker
             mock_build.assert_not_called()
 
 
-def test_rescan_returns_updated_discovery(mock_docker_client: DockerClient) -> None:
+async def test_rescan_returns_updated_discovery(mock_docker_client: DockerClient) -> None:
     from tests.lib_test import build_mock_container
 
     container = build_mock_container("rescan/test:v2")
@@ -260,7 +260,7 @@ def test_rescan_returns_updated_discovery(mock_docker_client: DockerClient) -> N
         previous_discovery = Discovery(uut, "rescan-test-container", "test-session", "node001", current_version="v1")
         previous_discovery.update_last_attempt = 1234567890.0
 
-        result = uut.rescan(previous_discovery)
+        result = await uut.rescan(previous_discovery)
 
         assert result is not None
         assert result.name == "rescan-test-container"
@@ -271,7 +271,7 @@ def test_rescan_returns_updated_discovery(mock_docker_client: DockerClient) -> N
         assert "rescan-test-container" in uut.discoveries
 
 
-def test_rescan_returns_none_when_container_not_found(mock_docker_client: DockerClient) -> None:
+async def test_rescan_returns_none_when_container_not_found(mock_docker_client: DockerClient) -> None:
     import docker.errors
 
     mock_docker_client.containers.get.side_effect = docker.errors.NotFound("Container not found")  # type: ignore[attr-defined]
@@ -280,12 +280,12 @@ def test_rescan_returns_none_when_container_not_found(mock_docker_client: Docker
         uut = mut.DockerProvider(docker_config(discover_metadata={}), NodeConfig())
         discovery = Discovery(uut, "nonexistent-container", "test-session", "node001")
 
-        result = uut.rescan(discovery)
+        result = await uut.rescan(discovery)
 
         assert result is None
 
 
-def test_rescan_returns_none_on_api_error(mock_docker_client: DockerClient) -> None:
+async def test_rescan_returns_none_on_api_error(mock_docker_client: DockerClient) -> None:
     import docker.errors
 
     mock_docker_client.containers.get.side_effect = docker.errors.APIError("API failure")  # type: ignore[attr-defined]
@@ -294,7 +294,7 @@ def test_rescan_returns_none_on_api_error(mock_docker_client: DockerClient) -> N
         uut = mut.DockerProvider(docker_config(discover_metadata={}), NodeConfig())
         discovery = Discovery(uut, "error-container", "test-session", "node001")
 
-        result = uut.rescan(discovery)
+        result = await uut.rescan(discovery)
 
         assert result is None
 
@@ -587,7 +587,9 @@ def test_analyze_git_local_digest_returns_none(mock_docker_client: DockerClient,
         assert result.current_version == result.latest_version
 
 
-def test_execute_compose_passes_project_name(mock_docker_client: DockerClient, fake_process: FakeProcess, tmpdir: Path) -> None:
+async def test_execute_compose_passes_project_name(
+    mock_docker_client: DockerClient, fake_process: FakeProcess, tmpdir: Path
+) -> None:
     with patch("docker.from_env", return_value=mock_docker_client):
         uut = mut.DockerProvider(docker_config(discover_metadata={}), NodeConfig())
         d = Discovery(
@@ -599,8 +601,8 @@ def test_execute_compose_passes_project_name(mock_docker_client: DockerClient, f
                 compose_path=str(tmpdir), compose_service="keycloak", compose_project="identity"
             ),
         )
-        fake_process.register("docker compose -p identity up --detach --yes keycloak", returncode=0)
-        assert uut.restart(d)
+        fake_process.register(["docker", "compose", "-p", "identity", "up", "--detach", "--yes", "keycloak"], returncode=0)
+        assert await uut.restart(d)
 
 
 def test_analyze_can_restart_when_compose_path_visible(mock_docker_client: DockerClient, tmpdir: Path) -> None:

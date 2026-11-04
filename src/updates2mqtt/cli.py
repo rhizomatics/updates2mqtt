@@ -179,7 +179,7 @@ async def dump(fmt: str, cli_conf: DictConfig) -> None:
     if cli_conf.get("container"):
 
         async def single_discovery() -> AsyncGenerator[Discovery]:
-            result = docker_scanner.rescan(Discovery(docker_scanner, cli_conf["container"], "cli", "manual"))
+            result = await docker_scanner.rescan(Discovery(docker_scanner, cli_conf["container"], "cli", "manual"))
             if result:
                 yield result
 
@@ -399,8 +399,8 @@ def run_command(cli_conf: DictConfig) -> None:
         structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(cli_conf.get("log_level", "INFO")))
 
         docker_scanner = docker_provider(cli_conf)
-        discovery: Discovery | None = docker_scanner.rescan(
-            Discovery(docker_scanner, cli_conf.get("container"), "cli", "manual")
+        discovery: Discovery | None = asyncio.run(
+            docker_scanner.rescan(Discovery(docker_scanner, cli_conf.get("container"), "cli", "manual"))
         )
         if discovery:
             log.info(discovery.as_dict())

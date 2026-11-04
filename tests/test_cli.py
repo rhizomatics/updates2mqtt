@@ -1,7 +1,7 @@
 import json
 from collections.abc import AsyncGenerator
 from typing import Any
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 from omegaconf import DictConfig, OmegaConf
@@ -183,7 +183,7 @@ async def test_dump_csv_format(mock_dp: Mock, mock_console_cls: Mock) -> None:
 async def test_dump_json_single_container(mock_dp: Mock, mock_print_json: Mock) -> None:
     _, disc = _make_discovery()
     mock_scanner = Mock()
-    mock_scanner.rescan.return_value = disc
+    mock_scanner.rescan = AsyncMock(return_value=disc)
     mock_dp.return_value = mock_scanner
 
     await dump("json", _conf(container="mycontainer"))
@@ -198,7 +198,7 @@ async def test_dump_json_single_container(mock_dp: Mock, mock_print_json: Mock) 
 @patch("updates2mqtt.cli.docker_provider")
 async def test_dump_json_single_container_none_result(mock_dp: Mock) -> None:
     mock_scanner = Mock()
-    mock_scanner.rescan.return_value = None
+    mock_scanner.rescan = AsyncMock(return_value=None)
     mock_dp.return_value = mock_scanner
 
     # Should not raise when rescan returns None
@@ -280,7 +280,7 @@ def test_main_default_rescans_container(mock_oc: Mock, mock_dp: Mock) -> None:
     mock_oc.from_cli.return_value = conf
     _, disc = _make_discovery()
     mock_scanner = Mock()
-    mock_scanner.rescan.return_value = disc
+    mock_scanner.rescan = AsyncMock(return_value=disc)
     mock_dp.return_value = mock_scanner
 
     main()
@@ -294,7 +294,7 @@ def test_main_default_no_discovery_result(mock_oc: Mock, mock_dp: Mock) -> None:
     conf = OmegaConf.create({"container": "frigate"})
     mock_oc.from_cli.return_value = conf
     mock_scanner = Mock()
-    mock_scanner.rescan.return_value = None
+    mock_scanner.rescan = AsyncMock(return_value=None)
     mock_dp.return_value = mock_scanner
 
     main()  # should not raise when rescan returns None

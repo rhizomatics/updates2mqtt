@@ -1,5 +1,6 @@
 """End to end container updates, against a docker-in-docker engine, see conftest for fixtures"""
 
+import asyncio
 import io
 import subprocess
 from pathlib import Path
@@ -34,7 +35,7 @@ def test_update_via_compose(dind_env: Dind, registry: str, tmp_path: Path) -> No
     discovery: Discovery = analyze(provider, "u2mcompose-app-1")
     assert discovery.can_restart
 
-    assert provider.update(discovery)
+    assert asyncio.run(provider.update(discovery))
     assert dind_env.container_image_id("u2mcompose-app-1") == new_id
 
 
@@ -52,7 +53,7 @@ def test_update_via_portainer(dind_env: Dind, registry: str, portainer: Portaine
     assert discovery.installation_detail is not None
     assert discovery.installation_detail.portainer_stack_id == str(stack_id)  # type: ignore[attr-defined]
 
-    assert provider.update(discovery)
+    assert asyncio.run(provider.update(discovery))
     assert dind_env.container_image_id("u2mportainer-app-1") == new_id
 
 

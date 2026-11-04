@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import asyncio
 import datetime as dt
 import json
 import time
 from abc import abstractmethod
-from collections.abc import AsyncGenerator, Callable
+from collections.abc import AsyncGenerator, Callable, Coroutine
 from threading import Event
 from typing import Any
 
@@ -243,6 +244,8 @@ class ReleaseProvider:
         self.node_cfg: NodeConfig = node_cfg
         self.log: Any = structlog.get_logger().bind(integration=self.source_type)
         self.stopped = Event()
+        # strong references, as the event loop only keeps weak ones to tasks
+        self.background_tasks: set[asyncio.Task[Any]] = set()
 
     def initialize(self) -> None:
         """Initialize any loops or background tasks, make any startup API calls"""
@@ -251,6 +254,13 @@ class ReleaseProvider:
         """Stop any loops or background tasks"""
         self.log.info("Asking release provider to stop", source_type=self.source_type)
         self.stopped.set()
+
+    def spawn(self, coro: Coroutine[Any, Any, Any], name: str) -> asyncio.Task[Any]:
+        """Run in the background, holding a reference so the task isn't garbage collected"""
+        task: asyncio.Task[Any] = asyncio.create_task(coro, name=name)
+        self.background_tasks.add(task)
+        task.add_done_callback(self.background_tasks.discard)
+        return task
 
     def __str__(self) -> str:
         """Stringify"""
@@ -265,7 +275,7 @@ class ReleaseProvider:
         """
 
     @abstractmethod
-    def rescan(self, discovery: Discovery) -> Discovery | None:
+    async def rescan(self, discovery: Discovery) -> Discovery | None:
         """Rescan a previously discovered component"""
 
     @abstractmethod

@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import signal
 import sys
 import time
 import uuid
@@ -23,6 +24,10 @@ log = structlog.get_logger()
 
 CONF_FILE = Path("conf/config.yaml")
 UPDATE_INTERVAL = 60 * 60 * 4
+# Docker allows 10s after SIGTERM before killing, so leave time for the offline publish
+SHUTDOWN_TASK_TIMEOUT = 5
+EXIT_SIGTERM = 143
+EXIT_SIGINT = 130
 
 # #TODO:
 #  - Set install in progress
@@ -94,6 +99,9 @@ class App:
                 )
             )
         self.stopped = Event()
+        self.exit_code: int = 0
+        self.main_task: asyncio.Task[Any] | None = None
+        self.heartbeat_loop_task: asyncio.Task[None] | None = None
         self.heartbeat_topic = self.cfg.node.healthcheck.topic_template.format(node_name=self.cfg.node.name)
 
         log.info(
@@ -120,9 +128,30 @@ class App:
             slog.info(f"Scan #{self.scan_count} complete")
         self.last_scan_timestamp = datetime.now(UTC).isoformat()
 
-    async def main_loop(self) -> None:
+    async def main_loop(self) -> int:
+        """Run until stopped by a signal or a fatal MQTT error, returning the process exit code"""
         log.debug("Starting run loop")
-        self.publisher.start()
+        loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
+        self.main_task = asyncio.current_task()
+        self.add_signal_handlers(loop)
+        try:
+            await self.run_loop(loop)
+        except asyncio.CancelledError:
+            if not self.stopped.is_set():
+                raise
+            # cancelled by our own stop request, so finish normally with the exit code
+            if self.main_task is not None:
+                self.main_task.uncancel()
+            log.info("Run loop interrupted for shutdown")
+        finally:
+            await self.shutdown_tasks()
+            self.remove_signal_handlers(loop)
+        log.debug("Exiting run loop", exit_code=self.exit_code)
+        return self.exit_code
+
+    async def run_loop(self, loop: asyncio.AbstractEventLoop) -> None:
+        # connection waits for the broker, so keep it off the event loop
+        await asyncio.to_thread(self.publisher.start, loop)
 
         if self.cfg.node.healthcheck.enabled:
             await self.heartbeat()  # initial eager heartbeat
@@ -132,7 +161,7 @@ class App:
             )
 
         for scanner in self.scanners:
-            scanner.initialize()
+            await asyncio.to_thread(scanner.initialize)
             self.publisher.subscribe_hass_command(scanner)
             await self.publisher.clean_topics(scanner, initial=True)
 
@@ -143,11 +172,24 @@ class App:
             else:
                 log.info("Stop requested, exiting run loop and skipping sleep")
 
-        if not self.publisher.is_available():
+        if not self.publisher.is_available() and not self.stopped.is_set():
             log.error("MQTT fatal connection error - check host,port,user,password in config")
-            self.shutdown(exit_code=1)
+            self.exit_code = 1
 
-        log.debug("Exiting run loop")
+    def add_signal_handlers(self, loop: asyncio.AbstractEventLoop) -> None:
+        for sig, exit_code in ((signal.SIGTERM, EXIT_SIGTERM), (signal.SIGINT, EXIT_SIGINT)):
+            try:
+                loop.add_signal_handler(sig, self.request_stop, exit_code)
+            except (NotImplementedError, RuntimeError, ValueError):
+                # not supported on this platform, or not the main thread
+                log.debug("Unable to add signal handler for %s", sig)
+
+    def remove_signal_handlers(self, loop: asyncio.AbstractEventLoop) -> None:
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            try:
+                loop.remove_signal_handler(sig)
+            except (NotImplementedError, RuntimeError, ValueError):
+                pass
 
     async def on_discovery(self, discovery: Discovery) -> None:
         dlog = log.bind(name=discovery.name)
@@ -180,40 +222,47 @@ class App:
                     dlog.info("Skipping auto update")
         except asyncio.CancelledError:
             dlog.info("Discovery handling cancelled")
+            raise
         except Exception:
             dlog.exception("Discovery handling failed")
             raise
 
-    async def interrupt_tasks(self) -> None:
-        running_tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
-        log.info(f"Cancelling {len(running_tasks)} tasks")
-        for t in running_tasks:
-            log.debug("Cancelling task", task=t.get_name())
-            if t.get_name() == "heartbeat":
-                t.cancel()
-        await asyncio.gather(*running_tasks, return_exceptions=True)
-        log.debug("Cancellation task completed")
-
-    def shutdown(self, *args: Any, exit_code: int = 143) -> None:
+    def request_stop(self, exit_code: int = EXIT_SIGTERM) -> None:
+        """Signal handler, run on the event loop, so the run loop and tasks can wind down in order"""
         if self.self_bounce.is_set():
             exit_code = 1
             log.info("Self bouncing, overriding exit_code: %s", exit_code)
         else:
             log.info("Shutting down, exit_code: %s", exit_code)
+        self.exit_code = exit_code
+        if self.stopped.is_set():
+            return
         self.stopped.set()
         for scanner in self.scanners:
             scanner.stop()
-        interrupt_task = asyncio.get_event_loop().create_task(
-            self.interrupt_tasks(),
-            eager_start=True,  # pyright: ignore[reportCallIssue]
-            name="interrupt",
-        )
-        for t in asyncio.all_tasks():
-            log.debug("Tasks waiting = %s", t)
-        self.publisher.stop()
-        log.debug("Interrupt: %s", interrupt_task.done())
+        if self.main_task is not None and not self.main_task.done():
+            # wakes the run loop from a scan or the sleep between scans
+            self.main_task.cancel()
+
+    async def shutdown_tasks(self) -> None:
+        """Cancel background tasks, e.g. heartbeat and in-flight updates, then mark the node offline"""
+        tasks: list[asyncio.Task[Any]] = [*self.publisher.command_tasks]
+        for scanner in self.scanners:
+            tasks.extend(scanner.background_tasks)
+        if self.heartbeat_loop_task is not None:
+            tasks.append(self.heartbeat_loop_task)
+        tasks = [t for t in tasks if not t.done()]
+        log.info(f"Cancelling {len(tasks)} tasks")
+        for t in tasks:
+            log.debug("Cancelling task", task=t.get_name())
+            t.cancel()
+        if tasks:
+            _done, pending = await asyncio.wait(tasks, timeout=SHUTDOWN_TASK_TIMEOUT)
+            if pending:
+                log.warning("Tasks still running at shutdown: %s", [t.get_name() for t in pending])
+        # waits for the offline availability publish to be acknowledged
+        await asyncio.to_thread(self.publisher.stop)
         log.info("Shutdown handling complete")
-        sys.exit(exit_code)  # SIGTERM Graceful Exit = 143
 
     async def heartbeat(self) -> None:
         if not self.publisher.is_available():
@@ -235,31 +284,21 @@ class App:
 
 
 async def repeated_call(func: Callable[..., Awaitable[Any]], interval: int = 60, *args: Any, **kwargs: Any) -> None:
-    # run a task periodically indefinitely
+    """Run a task periodically until cancelled"""
     while True:
         try:
             await func(*args, **kwargs)
-            await asyncio.sleep(interval)
-        except asyncio.CancelledError:
-            log.debug("Periodic task cancelled", func=func)
         except Exception:
             log.exception("Periodic task failed")
+        await asyncio.sleep(interval)
 
 
 def run() -> None:
-    import asyncio
-    import signal
-
-    # pyright: ignore[reportAttributeAccessIssue]
     log.debug(f"Starting updates2mqtt v{updates2mqtt.version}")  # pyright: ignore[reportAttributeAccessIssue]
     app = App()
-
-    signal.signal(signal.SIGTERM, app.shutdown)
-    try:
-        asyncio.run(app.main_loop(), debug=False)
-        log.debug("App exited gracefully")
-    except asyncio.CancelledError:
-        log.debug("App exited on cancelled task")
+    exit_code: int = asyncio.run(app.main_loop(), debug=False)
+    log.debug("App exited", exit_code=exit_code)
+    sys.exit(exit_code)
 
 
 if __name__ == "__main__":

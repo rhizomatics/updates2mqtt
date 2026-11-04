@@ -1,15 +1,14 @@
 # python
 import asyncio
+import os
 import signal
 import time
-import types
-from collections.abc import AsyncGenerator, Coroutine
-from typing import Any, NoReturn
-from unittest.mock import Mock, PropertyMock, call
+from collections.abc import AsyncGenerator
+from unittest.mock import ANY, Mock, PropertyMock, call
 
 import pytest
 
-from updates2mqtt.app import App, run  # relative import as required
+from updates2mqtt.app import EXIT_SIGTERM, App, repeated_call, run
 from updates2mqtt.model import Discovery
 
 
@@ -38,11 +37,11 @@ async def test_main_loop(
     start_time = time.time()
     monkeypatch.setattr(uut.publisher, "is_available", lambda: time.time() > start_time + 3)
 
-    with pytest.raises(SystemExit):
-        await uut.main_loop()
+    # MQTT unavailable ends the loop as a fatal error
+    assert await uut.main_loop() == 1
     uut.publisher.assert_has_calls(  # type: ignore[attr-defined]
         [
-            call.start(),
+            call.start(ANY),
             call.subscribe_hass_command(uut.scanners[0]),
             call.clean_topics(uut.scanners[0], initial=True),
             call.stop(),
@@ -50,84 +49,86 @@ async def test_main_loop(
     )  # pyright: ignore[reportAttributeAccessIssue]
 
 
-class DummyApp:
-    """Dummy App to replace updates2mqtt.app.App during tests.
+async def test_main_loop_stop_wakes_sleep_between_scans(
+    app_with_mocked_external_dependencies: App,
+    mock_discovery_generator: AsyncGenerator[Discovery],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    uut: App = app_with_mocked_external_dependencies
+    uut.cfg.scan_interval = 3600
+    monkeypatch.setattr(uut.scanners[0], "scan", mock_discovery_generator)
+    uut.publisher.is_available.return_value = True  # type: ignore[attr-defined]
 
-    Records the created instance on DummyApp.instance for assertions.
-    """
-
-    instance = None
-
-    def __init__(self) -> None:
-        DummyApp.instance = self
-        self.run_called = False
-        self.shutdown_called = False
-
-    async def main_loop(self) -> None:
-        # an async method to mirror the real App.run signature
-        self.run_called = True
-
-    def shutdown(self, *args: Any, **kwargs: Any) -> None:
-        self.shutdown_called = True
+    running = asyncio.create_task(uut.main_loop())
+    await asyncio.sleep(0.2)
+    uut.request_stop()
+    assert await asyncio.wait_for(running, timeout=5) == EXIT_SIGTERM
+    assert uut.stopped.is_set()
+    uut.scanners[0].stop.assert_called_once()  # type: ignore[attr-defined]
+    uut.publisher.stop.assert_called_once()  # type: ignore[attr-defined]
 
 
-def test_run_sets_signal_and_calls_asyncio_run(monkeypatch: pytest.MonkeyPatch) -> None:
-    calls: dict[str, Any] = {}
+async def test_main_loop_stops_on_sigterm(
+    app_with_mocked_external_dependencies: App,
+    mock_discovery_generator: AsyncGenerator[Discovery],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    uut: App = app_with_mocked_external_dependencies
+    uut.cfg.scan_interval = 3600
+    monkeypatch.setattr(uut.scanners[0], "scan", mock_discovery_generator)
+    uut.publisher.is_available.return_value = True  # type: ignore[attr-defined]
 
-    # Replace signal.signal so we capture its arguments
-    def fake_signal(sig: int, handler: types.MethodType) -> None:
-        calls["sig"] = sig
-        calls["handler"] = handler
+    running = asyncio.create_task(uut.main_loop())
+    await asyncio.sleep(0.2)
+    os.kill(os.getpid(), signal.SIGTERM)
+    assert await asyncio.wait_for(running, timeout=5) == EXIT_SIGTERM
+    # handlers removed again, so later signals get default handling
+    assert not asyncio.get_running_loop().remove_signal_handler(signal.SIGTERM)
 
-    monkeypatch.setattr(signal, "signal", fake_signal)
 
-    # Patch the App class in the updates2mqtt.app module to DummyApp
+async def test_shutdown_tasks_cancels_background_work(app_with_mocked_external_dependencies: App) -> None:
+    uut: App = app_with_mocked_external_dependencies
+    command = asyncio.create_task(asyncio.sleep(3600))
+    uut.publisher.command_tasks.add(command)
+    background = asyncio.create_task(asyncio.sleep(3600))
+    uut.scanners[0].background_tasks.add(background)
+    unrelated = asyncio.create_task(asyncio.sleep(3600))
+    await uut.shutdown_tasks()
+    assert command.cancelled()
+    assert background.cancelled()
+    # only tasks the app owns are cancelled
+    assert not unrelated.done()
+    unrelated.cancel()
+    uut.publisher.stop.assert_called_once()  # type: ignore[attr-defined]
+
+
+def test_run_exits_with_main_loop_code(monkeypatch: pytest.MonkeyPatch) -> None:
     import updates2mqtt.app as app_module
 
-    monkeypatch.setattr(app_module, "App", DummyApp)
-
-    # Patch asyncio.run to record that it was called with a coroutine and debug flag
-    def fake_asyncio_run(coro: Coroutine[Any, Any, Any], debug: bool = False) -> None:
-        calls["coro"] = coro
-        calls["debug"] = debug
-
-    monkeypatch.setattr(asyncio, "run", fake_asyncio_run)
-
-    # Execute the run function under test
-    run()
-
-    # Assertions:
-    # - signal.signal was called with SIGTERM and the DummyApp.instance.shutdown bound method
-    assert calls.get("sig") == signal.SIGTERM
-    assert DummyApp.instance is not None
-    assert calls.get("handler") == DummyApp.instance.shutdown
-    # debug flag forwarded as False in run()
-    assert calls.get("debug") is False
-    # - asyncio.run was called with a coroutine object (the result of DummyApp.instance.run())
-    coro = calls.get("coro")
-    assert isinstance(coro, types.CoroutineType)
-
-
-def test_run_handles_asyncio_cancellederror(monkeypatch: pytest.MonkeyPatch) -> None:
-    # Ensure App is replaced so run() will create DummyApp without side effects
-    import updates2mqtt.app as app_module
+    class DummyApp:
+        async def main_loop(self) -> int:
+            return 143
 
     monkeypatch.setattr(app_module, "App", DummyApp)
+    with pytest.raises(SystemExit) as exc_info:
+        run()
+    assert exc_info.value.code == 143
 
-    # Patch signal.signal to a noop to avoid altering test process handlers
-    monkeypatch.setattr(signal, "signal", lambda *args, **kwargs: None)
 
-    # Patch asyncio.run to raise CancelledError to exercise the except branch
-    def raising_asyncio_run(_coro: Coroutine[Any, Any, Any], debug: bool = False) -> NoReturn:
-        raise asyncio.CancelledError()
+async def test_repeated_call_survives_errors_and_cancels() -> None:
+    calls: int = 0
 
-    monkeypatch.setattr(asyncio, "run", raising_asyncio_run)
+    async def flaky() -> None:
+        nonlocal calls
+        calls += 1
+        raise RuntimeError("boom")
 
-    # Call run(); should not raise CancelledError (handled inside run)
-    run()
-
-    # If we reached here, the CancelledError was handled; also ensure DummyApp was instantiated
-    assert DummyApp.instance is not None
+    task = asyncio.create_task(repeated_call(flaky, interval=0))
+    await asyncio.sleep(0.05)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert calls > 1
 
 
 # === on_discovery policy branches ===
@@ -220,15 +221,19 @@ async def test_heartbeat_skips_when_publisher_unavailable(
 # === shutdown ===
 
 
-async def test_shutdown_with_self_bounce_uses_exit_code_1(
+async def test_request_stop_with_self_bounce_uses_exit_code_1(
     app_with_mocked_external_dependencies: App,
 ) -> None:
     uut = app_with_mocked_external_dependencies
     uut.self_bounce.set()
 
-    with pytest.raises(SystemExit) as exc_info:
-        uut.shutdown()
+    uut.request_stop()
 
-    assert exc_info.value.code == 1
-    # publisher stop marks the node offline, so Home Assistant entities go unavailable during the self-update
-    uut.publisher.stop.assert_called_once()  # type: ignore[attr-defined]
+    assert uut.exit_code == 1
+    assert uut.stopped.is_set()
+
+
+async def test_request_stop_default_exit_code(app_with_mocked_external_dependencies: App) -> None:
+    uut = app_with_mocked_external_dependencies
+    uut.request_stop()
+    assert uut.exit_code == EXIT_SIGTERM
