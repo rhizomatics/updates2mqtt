@@ -1,6 +1,10 @@
+import asyncio
 import datetime as dt
 import re
 import time
+from collections.abc import Sequence
+from dataclasses import dataclass
+from pathlib import Path
 from threading import Event
 from typing import Any
 from urllib.parse import urlparse
@@ -293,3 +297,56 @@ def sanitize_name(name: str, replacement: str = "_", max_len: int = 64) -> str:
         log.info("Component name %s changed to %s for MQTT/HA compatibility", orig_name, name)
 
     return name
+
+
+@dataclass
+class ProcessResult:
+    returncode: int | None  # None if the process couldn't be started or timed out
+    stdout: str = ""
+    stderr: str = ""
+
+    @property
+    def ok(self) -> bool:
+        return self.returncode == 0
+
+
+async def run_process(args: Sequence[str], cwd: str | Path | None = None, timeout: float | None = None) -> ProcessResult:
+    """Run a command as an asyncio subprocess, without a shell, so the event loop stays responsive
+
+    The process is killed on timeout, or if the awaiting task is cancelled, e.g. at shutdown
+    """
+    try:
+        proc: asyncio.subprocess.Process = await asyncio.create_subprocess_exec(
+            *args,
+            cwd=cwd,
+            stdin=asyncio.subprocess.DEVNULL,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+    except OSError as e:
+        log.warning("Unable to start %s: %s", args[0] if args else "process", e, action="run_process")
+        return ProcessResult(None, stderr=str(e))
+    try:
+        async with asyncio.timeout(timeout):
+            stdout, stderr = await proc.communicate()
+    except TimeoutError:
+        log.warning("Killing %s after %ss timeout", args[0], timeout, action="run_process")
+        kill_process(proc)
+        await proc.wait()
+        return ProcessResult(None, stderr=f"Timed out after {timeout}s")
+    except asyncio.CancelledError:
+        kill_process(proc)
+        raise
+    return ProcessResult(
+        proc.returncode,
+        stdout=stdout.decode("utf-8", errors="replace") if stdout else "",
+        stderr=stderr.decode("utf-8", errors="replace") if stderr else "",
+    )
+
+
+def kill_process(proc: asyncio.subprocess.Process) -> None:
+    if proc.returncode is None:
+        try:
+            proc.kill()
+        except ProcessLookupError:
+            pass

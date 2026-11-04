@@ -168,6 +168,8 @@ class DockerConfig:
     # remove the previous image once a container has been recreated with the new one
     remove_old_image: bool = "${oc.env:U2M_REMOVE_OLD_IMAGE,false}"  # type: ignore[assignment] # ty: ignore[invalid-assignment]
     compose_version: str = "v2"
+    # updates run in parallel up to this limit, further ones queue for a free slot
+    max_concurrent_updates: int = "${oc.env:U2M_MAX_CONCURRENT_UPDATES,3}"  # type: ignore[assignment] # ty: ignore[invalid-assignment]
     default_entity_picture_url: str = "https://www.docker.com/wp-content/uploads/2022/03/Moby-logo.png"
     # Icon to show when browsing entities in Home Assistant
     device_icon: str = "mdi:docker"

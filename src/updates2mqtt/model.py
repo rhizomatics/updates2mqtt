@@ -257,8 +257,12 @@ class ReleaseProvider:
         return f"{self.source_type} Discovery"
 
     @abstractmethod
-    def update(self, discovery: Discovery) -> bool:
-        """Attempt to update the component version"""
+    async def update(self, discovery: Discovery) -> bool:
+        """Attempt to update the component version
+
+        Runs on the event loop alongside other updates, so blocking work must be offloaded
+        to a subprocess or thread
+        """
 
     @abstractmethod
     def rescan(self, discovery: Discovery) -> Discovery | None:
@@ -272,7 +276,7 @@ class ReleaseProvider:
             yield 0  # type: ignore[unreachable]
 
     @abstractmethod
-    def command(
+    async def command(
         self,
         discovery_name: str,
         command: str,

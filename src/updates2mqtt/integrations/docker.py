@@ -1,14 +1,15 @@
+import asyncio
+import os
 import random
 import re
-import shlex
-import subprocess
+import socket
 import time
 import typing
-from collections.abc import AsyncGenerator, Callable
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from enum import Enum
 from functools import partial
 from pathlib import Path
-from threading import Event, Timer
+from threading import Event
 from typing import Any, cast
 
 import docker
@@ -30,7 +31,7 @@ from updates2mqtt.config import (
     UpdatePolicy,
     VersionPolicy,
 )
-from updates2mqtt.helpers import Selection, Throttler
+from updates2mqtt.helpers import ProcessResult, Selection, Throttler, run_process
 from updates2mqtt.integrations.docker_enrich import (
     CommonPackageEnricher,
     ContainerDistributionAPIVersionLookup,
@@ -65,6 +66,19 @@ class DockerComposeCommand(Enum):
 # Seconds to wait before recreating ourselves on self-bounce, giving the in-flight
 # update command time to finish and publish its final (non in-progress) state.
 SELF_BOUNCE_DELAY = 5
+# Longest to wait on self-bounce for other in-flight updates to finish, since stopping
+# this container would kill their compose or git subprocesses part way through
+SELF_BOUNCE_DRAIN_TIMEOUT = 600
+SELF_BOUNCE_DRAIN_INTERVAL = 1
+# Label marking the short-lived container that recreates this one, so scans ignore it
+SELF_BOUNCE_HELPER_LABEL = "updates2mqtt.self_update_helper"
+# Environment passed to the self-bounce helper, so its docker CLI reaches the same engine
+DOCKER_CLIENT_ENV_VARS = ("DOCKER_HOST", "DOCKER_TLS_VERIFY", "DOCKER_CERT_PATH", "DOCKER_CONTEXT", "DOCKER_CONFIG")
+DEFAULT_MAX_CONCURRENT_UPDATES = 3
+# Generous, since a compose build can compile a whole image
+COMPOSE_TIMEOUT = 60 * 60
+# Docker writes per-container files under .../containers/<id>/, bind mounted into the container
+CONTAINER_ID_RE = re.compile(r"/containers/([0-9a-f]{64})/")
 # Recreation may complete after the restart call returns, e.g. Portainer redeploy,
 # so wait for the container to move off the old image before rescanning
 RECREATE_WAIT_TIMEOUT = 60
@@ -149,6 +163,13 @@ class DockerProvider(ReleaseProvider):
         super().__init__(node_cfg, "docker")
         self.client: docker.DockerClient = docker.from_env()
         self.cfg: DockerConfig = cfg
+        # asyncio primitives bind to the running loop on first use, so safe to create here
+        self.update_slots: asyncio.Semaphore = asyncio.Semaphore(self.max_concurrent_updates())
+        # compose and Portainer act on a whole project/stack, so serialize those per project
+        self.project_locks: dict[str, asyncio.Lock] = {}
+        self.active_updates: set[str] = set()
+        # strong references, as the event loop only keeps weak ones to tasks
+        self.background_tasks: set[asyncio.Task[Any]] = set()
 
         # TODO: refresh discovered packages periodically
         self.throttler = Throttler(self.cfg.default_api_backoff, self.log, self.stopped)
@@ -179,9 +200,34 @@ class DockerProvider(ReleaseProvider):
     def initialize(self) -> None:
         for enricher in self.pkg_enrichers:
             enricher.initialize()
+        self.clean_self_bounce_helpers()
         self.log.debug("Docker provider initialized")
 
-    def update(self, discovery: Discovery) -> bool:
+    def max_concurrent_updates(self) -> int:
+        try:
+            return max(1, int(self.cfg.max_concurrent_updates))
+        except (TypeError, ValueError):
+            self.log.warning(
+                "Invalid max_concurrent_updates %s, using %s", self.cfg.max_concurrent_updates, DEFAULT_MAX_CONCURRENT_UPDATES
+            )
+            return DEFAULT_MAX_CONCURRENT_UPDATES
+
+    def is_self_bouncing(self) -> bool:
+        return self.self_bounce is not None and self.self_bounce.is_set()
+
+    def spawn(self, coro: typing.Coroutine[Any, Any, Any], name: str) -> "asyncio.Task[Any]":
+        """Run in the background, holding a reference so the task isn't garbage collected"""
+        task: asyncio.Task[Any] = asyncio.create_task(coro, name=name)
+        self.background_tasks.add(task)
+        task.add_done_callback(self.background_tasks.discard)
+        return task
+
+    def project_lock(self, service_info: DockerServiceDetails) -> asyncio.Lock:
+        """Compose and Portainer act on the whole project, so concurrent runs on one project could collide"""
+        key: str = service_info.compose_project or service_info.compose_path or service_info.container_name or ""
+        return self.project_locks.setdefault(key, asyncio.Lock())
+
+    async def update(self, discovery: Discovery) -> bool:
         logger: Any = self.log.bind(container=discovery.name, action="update")
         if discovery.update_last_attempt:
             logger.info("Updating - last at %s", discovery.update_last_attempt)
@@ -189,13 +235,12 @@ class DockerProvider(ReleaseProvider):
             logger.info("Updating - first this session")
         discovery.update_last_attempt = time.time()
         old_image_id: str | None = self.container_image_id(discovery.name)
-        new_image_id: str | None = self.fetch(discovery)
-        restarted = self.restart(discovery)
-        self_bouncing: bool = self.self_bounce is not None and self.self_bounce.is_set()
-        if restarted and old_image_id and new_image_id and new_image_id != old_image_id and not self_bouncing:
-            self.wait_for_recreate(discovery.name, old_image_id)
+        new_image_id: str | None = await self.fetch(discovery)
+        restarted: bool = await self.restart(discovery)
+        if restarted and old_image_id and new_image_id and new_image_id != old_image_id and not self.is_self_bouncing():
+            await self.wait_for_recreate(discovery.name, old_image_id)
         if restarted and old_image_id and self.cfg.remove_old_image:
-            self.remove_old_image(discovery.name, old_image_id)
+            await asyncio.to_thread(self.remove_old_image, discovery.name, old_image_id)
         logger.info("Updated - recorded at %s", discovery.update_last_attempt)
         return restarted
 
@@ -206,7 +251,7 @@ class DockerProvider(ReleaseProvider):
             self.log.warning("Unable to find image for container: %s", e, container=container_name)
             return None
 
-    def wait_for_recreate(self, container_name: str, old_image_id: str) -> bool:
+    async def wait_for_recreate(self, container_name: str, old_image_id: str) -> bool:
         """Wait for the container to be recreated from a new image, so a rescan doesn't see the old one"""
         logger: Any = self.log.bind(container=container_name, action="wait_for_recreate")
         deadline: float = time.monotonic() + RECREATE_WAIT_TIMEOUT
@@ -218,7 +263,7 @@ class DockerProvider(ReleaseProvider):
             if time.monotonic() >= deadline or self.stopped.is_set():
                 logger.warning("Container not recreated with new image after %ss", RECREATE_WAIT_TIMEOUT)
                 return False
-            time.sleep(RECREATE_WAIT_INTERVAL)
+            await asyncio.sleep(RECREATE_WAIT_INTERVAL)
 
     def remove_old_image(self, container_name: str, old_image_id: str) -> None:
         """Remove the replaced image, left alone if still in use by any container"""
@@ -234,7 +279,7 @@ class DockerProvider(ReleaseProvider):
         except docker.errors.APIError as e:
             logger.info("Old image not removed: %s", e.explanation or e)
 
-    def fetch(self, discovery: Discovery) -> str | None:
+    async def fetch(self, discovery: Discovery) -> str | None:
         """Pull or build the update, returning the id of a newly pulled image"""
         logger = self.log.bind(container=discovery.name, action="fetch")
         installed_info: DockerImageInfo | None = cast("DockerImageInfo|None", discovery.current_detail)
@@ -244,7 +289,8 @@ class DockerProvider(ReleaseProvider):
         platform: str | None = installed_info.platform if installed_info else None
         if discovery.can_pull and image_ref:
             logger.info("Pulling", image_ref=image_ref, platform=platform)
-            image: Image = self.client.images.pull(image_ref, platform=platform, all_tags=False)
+            # Docker SDK is blocking, so pull in a worker thread to leave the event loop free
+            image: Image = await asyncio.to_thread(self.pull_image, image_ref, platform)
             if image:
                 logger.info("Pulled", image_id=image.id, image_ref=image_ref, platform=platform)
                 return image.id
@@ -258,11 +304,16 @@ class DockerProvider(ReleaseProvider):
                 return None
 
             full_repo_path: Path = self.full_repo_path(compose_path, git_repo_path)
-            if git_pull(full_repo_path, Path(self.node_cfg.git_path)):
-                self.build(discovery)
-            else:
-                logger.debug("Skipping git_pull, no update")
+            # services in one project often share a repo, so don't pull and build concurrently
+            async with self.project_lock(service_info):
+                if await git_pull(full_repo_path, Path(self.node_cfg.git_path)):
+                    await self.build(discovery)
+                else:
+                    logger.debug("Skipping git_pull, no update")
         return None
+
+    def pull_image(self, image_ref: str, platform: str | None) -> "Image":
+        return self.client.images.pull(image_ref, platform=platform, all_tags=False)
 
     def full_repo_path(self, compose_path: str | None, git_repo_path: str | None) -> Path:
         if compose_path is None or git_repo_path is None:
@@ -271,7 +322,7 @@ class DockerProvider(ReleaseProvider):
             return Path(compose_path) / git_repo_path
         return Path(git_repo_path)
 
-    def build(self, discovery: Discovery) -> bool:
+    async def build(self, discovery: Discovery) -> bool:
         logger = self.log.bind(container=discovery.name, action="build")
         service_info: DockerServiceDetails | None = cast("DockerServiceDetails|None", discovery.installation_detail)
 
@@ -279,19 +330,32 @@ class DockerProvider(ReleaseProvider):
             logger.warning("No service_info available on compose")
             return False
         logger.info("Building", compose_path=service_info.compose_path, service=service_info.compose_service)
-        return self.execute_compose(
+        return await self.execute_compose(
             command=DockerComposeCommand.BUILD,
-            args="",
+            args=[],
             service=service_info.compose_service,
             cwd=service_info.compose_path,
             logger=logger,
             project=service_info.compose_project,
         )
 
-    def execute_compose(
+    def compose_args(
+        self, command: DockerComposeCommand, args: list[str], service: str | None, project: str | None = None
+    ) -> list[str]:
+        cmd: list[str] = ["docker-compose"] if self.cfg.compose_version == "v1" else ["docker", "compose"]
+        if project:
+            # project name may differ from directory name, e.g. `-p` or Portainer stacks
+            cmd.extend(["-p", project])
+        cmd.append(command.value)
+        cmd.extend(args)
+        if service:
+            cmd.append(service)
+        return cmd
+
+    async def execute_compose(
         self,
         command: DockerComposeCommand,
-        args: str,
+        args: list[str],
         service: str | None,
         cwd: str | None,
         logger: structlog.BoundLogger,
@@ -301,31 +365,22 @@ class DockerProvider(ReleaseProvider):
             logger.warning("Compose path %s not visible in this container, skipped %s", cwd, command)
             return False
 
-        cmd: str = "docker-compose" if self.cfg.compose_version == "v1" else "docker compose"
-        logger.info(f"Executing {cmd} {command} {args} {service}")
-        if project:
-            # project name may differ from directory name, e.g. `-p` or Portainer stacks
-            cmd = cmd + " -p " + shlex.quote(project)
-        cmd = cmd + " " + command.value
-        if args:
-            cmd = cmd + " " + args
-        if service:
-            cmd = cmd + " " + service
-
-        proc: subprocess.CompletedProcess[str] = subprocess.run(cmd, check=False, shell=True, cwd=cwd, text=True)
-        if proc.returncode == 0:
-            logger.info(f"{command} via compose successful")
+        cmd: list[str] = self.compose_args(command, args, service, project)
+        logger.info("Executing %s", " ".join(cmd))
+        result: ProcessResult = await run_process(cmd, cwd=cwd, timeout=COMPOSE_TIMEOUT)
+        if result.ok:
+            logger.info(f"{command.value} via compose successful")
+            logger.debug("compose output", stdout=result.stdout, stderr=result.stderr)
             return True
-        if proc.stderr and "unknown command: docker compose" in proc.stderr:
+        if self.cfg.compose_version != "v1" and (
+            "unknown command: docker compose" in result.stderr or "'compose' is not a docker command" in result.stderr
+        ):
             logger.warning("docker compose set to wrong version, seems like v1 installed")
             self.cfg.compose_version = "v1"
-        logger.warning(
-            f"{command} failed: %s",
-            proc.returncode,
-        )
+        logger.warning(f"{command.value} failed: %s", result.returncode, stderr=result.stderr[-2000:])
         return False
 
-    def restart(self, discovery: Discovery) -> bool:
+    async def restart(self, discovery: Discovery) -> bool:
         logger = self.log.bind(container=discovery.name, action="restart")
         installed_info: DockerImageInfo | None = cast("DockerImageInfo|None", discovery.current_detail)
         service_info: DockerServiceDetails | None = cast("DockerServiceDetails|None", discovery.installation_detail)
@@ -333,38 +388,206 @@ class DockerProvider(ReleaseProvider):
         if service_info is None:
             return False
 
-        recreate: Callable[[], bool]
-        if self.use_portainer(service_info, installed_info) and self.portainer and service_info.portainer_stack_id:
-            logger.info("Recreating via Portainer stack %s", service_info.portainer_stack_id)
-            recreate = partial(self.portainer.redeploy, service_info.portainer_stack_id)
+        recreate: Callable[[], Awaitable[bool]]
+        via_portainer: bool = False
+        portainer: PortainerClient | None = self.portainer
+        stack_id: str | None = service_info.portainer_stack_id
+        if self.use_portainer(service_info, installed_info) and portainer and stack_id:
+            logger.info("Recreating via Portainer stack %s", stack_id)
+            via_portainer = True
+
+            async def redeploy() -> bool:
+                # Portainer client is blocking, and waits for the deployment to finish
+                return await asyncio.to_thread(portainer.redeploy, stack_id)
+
+            recreate = redeploy
         else:
             recreate = partial(
                 self.execute_compose,
                 command=DockerComposeCommand.UP,
-                args="--detach --yes",
+                args=["--detach", "--yes"],
                 service=service_info.compose_service,
                 cwd=service_info.compose_path,
                 logger=logger,
                 project=service_info.compose_project,
             )
 
-        is_self_bounce: bool = bool(
-            self.self_bounce is not None
-            and installed_info
+        if self.is_self(installed_info, service_info) and self.self_bounce is not None:
+            logger.warning("Attempting to self-bounce, deferring recreation by %ss", SELF_BOUNCE_DELAY)
+            self.self_bounce.set()
+            # Deferred so that the in-flight command handling can finish and publish
+            # the final (non in-progress) state before this container is stopped/replaced.
+            self.spawn(self.self_bounce_recreate(discovery.name, service_info, recreate, via_portainer), name="self-bounce")
+            return True
+
+        async with self.project_lock(service_info):
+            return await recreate()
+
+    def is_self(self, installed_info: DockerImageInfo | None, service_info: DockerServiceDetails) -> bool:
+        return bool(
+            installed_info
             and (
                 "ghcr.io/rhizomatics/updates2mqtt" in installed_info.ref
                 or (service_info.git_repo_path and service_info.git_repo_path.endswith("updates2mqtt"))
             )
         )
-        if is_self_bounce and self.self_bounce is not None:
-            logger.warning("Attempting to self-bounce, deferring recreation by %ss", SELF_BOUNCE_DELAY)
-            self.self_bounce.set()
-            # Defer the recreate so that the in-flight command handling can finish and publish
-            # the final (non in-progress) state before this container is stopped/replaced.
-            Timer(SELF_BOUNCE_DELAY, recreate).start()
-            return True
 
-        return recreate()
+    async def self_bounce_recreate(
+        self,
+        container_name: str,
+        service_info: DockerServiceDetails,
+        recreate: Callable[[], Awaitable[bool]],
+        via_portainer: bool,
+    ) -> None:
+        """Recreate this app's own container, from somewhere that survives this container being stopped
+
+        Compose run in this container is killed when compose stops the container, before the replacement
+        is started, so a short-lived helper container runs it instead. Portainer redeploys server side.
+        """
+        logger: Any = self.log.bind(container=container_name, action="self_bounce")
+        recreated: bool = False
+        try:
+            await asyncio.sleep(SELF_BOUNCE_DELAY)
+            await self.drain_other_updates(container_name, logger)
+            async with self.project_lock(service_info):
+                if via_portainer:
+                    logger.info("Recreating self via Portainer")
+                    recreated = await recreate()
+                else:
+                    helper: Container | None = await asyncio.to_thread(self.launch_self_bounce_helper, service_info, logger)
+                    if helper is not None:
+                        await self.wait_for_self_bounce_helper(helper, logger)
+                    else:
+                        logger.warning("Recreating from inside this container, which may be interrupted as it is stopped")
+                        recreated = await recreate()
+            if recreated:
+                # the replacement container may already be up, and this one is about to be stopped
+                return
+            logger.error("Self-bounce did not recreate this container, continuing on current version")
+        except asyncio.CancelledError:
+            # normally shutdown as the helper or Portainer stops this container
+            raise
+        except Exception:
+            logger.exception("Self-bounce failed, continuing on current version")
+        if self.self_bounce is not None:
+            self.self_bounce.clear()
+
+    async def drain_other_updates(self, container_name: str, logger: Any) -> None:
+        """Wait for other in-flight updates, which would be killed part way through as this container stops"""
+        deadline: float = time.monotonic() + SELF_BOUNCE_DRAIN_TIMEOUT
+        others: set[str] = self.active_updates - {container_name}
+        if others:
+            logger.info("Waiting for %s other updates to finish before self-bounce: %s", len(others), sorted(others))
+        while others:
+            if time.monotonic() >= deadline or self.stopped.is_set():
+                logger.warning("Self-bounce proceeding with updates still in progress: %s", sorted(others))
+                return
+            await asyncio.sleep(SELF_BOUNCE_DRAIN_INTERVAL)
+            others = self.active_updates - {container_name}
+
+    def own_container(self) -> Container | None:
+        """The container this app is running in, if any"""
+        candidates: list[str] = []
+        try:
+            candidates.extend(CONTAINER_ID_RE.findall(Path("/proc/self/mountinfo").read_text()))
+        except OSError:
+            pass
+        if Path("/.dockerenv").exists():
+            # hostname defaults to the short container id, unless overridden in compose
+            candidates.append(socket.gethostname())
+        for candidate in dict.fromkeys(candidates):
+            try:
+                return self.client.containers.get(candidate)
+            except docker.errors.APIError:
+                continue
+        return None
+
+    def launch_self_bounce_helper(self, service_info: DockerServiceDetails, logger: Any) -> Container | None:
+        """Start a detached container, from this one's image and mounts, to run `compose up` on this service"""
+        if not service_info.compose_path_found:
+            logger.info("Compose path not visible, no helper can recreate this container")
+            return None
+        own: Container | None = self.own_container()
+        if own is None or not own.attrs:
+            logger.info("Unable to identify this container, no helper can recreate it")
+            return None
+        host_config: dict[str, Any] = own.attrs.get("HostConfig") or {}
+        config: dict[str, Any] = own.attrs.get("Config") or {}
+        image_id: str | None = own.attrs.get("Image")
+        if not image_id or not own.id:
+            logger.info("No image found for this container, no helper can recreate it")
+            return None
+        own_name: str = own.name or own.id[:12]
+        cmd: list[str] = self.compose_args(
+            DockerComposeCommand.UP, ["--detach", "--yes"], service_info.compose_service, service_info.compose_project
+        )
+        try:
+            helper: Container = self.client.containers.run(
+                image_id,
+                entrypoint=cmd[:1],
+                command=cmd[1:],
+                working_dir=service_info.compose_path,
+                # same docker socket, compose and git paths as this container
+                volumes_from=[own.id],
+                environment={k: v for k in DOCKER_CLIENT_ENV_VARS if (v := os.environ.get(k))},
+                network_mode=host_config.get("NetworkMode") or None,
+                user=config.get("User") or None,
+                group_add=host_config.get("GroupAdd") or None,
+                labels={SELF_BOUNCE_HELPER_LABEL: own_name, "updates2mqtt.ignore": "true"},
+                name=f"{own_name}_self_update_{int(time.time())}",
+                detach=True,
+            )
+        except docker.errors.APIError as e:
+            logger.warning("Unable to start self-bounce helper container: %s", e)
+            return None
+        logger.info("Started helper container %s to recreate this container: %s", helper.name, " ".join(cmd))
+        return helper
+
+    async def wait_for_self_bounce_helper(self, helper: Container, logger: Any) -> None:
+        """Only returns if this container survives the helper, i.e. it wasn't recreated"""
+        deadline: float = time.monotonic() + COMPOSE_TIMEOUT
+        while time.monotonic() < deadline:
+            await asyncio.sleep(RECREATE_WAIT_INTERVAL)
+            try:
+                await asyncio.to_thread(helper.reload)
+            except docker.errors.NotFound:
+                logger.warning("Self-bounce helper container removed before finishing")
+                return
+            if helper.status in ("exited", "dead"):
+                await asyncio.to_thread(self.report_self_bounce_helper, helper)
+                return
+        logger.warning("Self-bounce helper still running after %ss", COMPOSE_TIMEOUT)
+
+    def report_self_bounce_helper(self, helper: Container) -> None:
+        """Log the result of a finished helper, and remove it"""
+        logger: Any = self.log.bind(action="self_bounce", helper=helper.name)
+        exit_code: int | None = (helper.attrs.get("State") or {}).get("ExitCode")
+        output: str = ""
+        try:
+            output = helper.logs(tail=50).decode("utf-8", errors="replace")
+        except docker.errors.APIError:
+            pass
+        if exit_code == 0:
+            logger.info("Self-bounce helper completed", exit_code=exit_code)
+            logger.debug("Self-bounce helper output", output=output)
+        else:
+            logger.warning("Self-bounce helper failed", exit_code=exit_code, output=output)
+        try:
+            helper.remove()
+        except docker.errors.APIError as e:
+            logger.debug("Unable to remove helper: %s", e)
+
+    def clean_self_bounce_helpers(self) -> None:
+        """Report and remove helpers left behind by a previous instance recreating itself"""
+        try:
+            helpers: list[Container] = self.client.containers.list(
+                all=True, filters={"label": SELF_BOUNCE_HELPER_LABEL, "status": "exited"}
+            )
+        except docker.errors.APIError as e:
+            self.log.debug("Unable to list self-bounce helpers: %s", e)
+            return
+        for helper in helpers:
+            self.report_self_bounce_helper(helper)
 
     def use_portainer(self, service_info: DockerServiceDetails, installed_info: DockerImageInfo | None) -> bool:
         """Portainer redeploy only when compose can't be run directly"""
@@ -619,7 +842,7 @@ class DockerProvider(ReleaseProvider):
                 logger.debug("No result from analysis", container=c.name)
         logger.info("Completed", container_count=containers, throttled_count=throttled, result_count=results)
 
-    def command(
+    async def command(
         self,
         discovery_name: str,
         command: str,
@@ -637,24 +860,33 @@ class DockerProvider(ReleaseProvider):
                 logger.warning("Unknown entity", entity=discovery_name)
             elif command != "install":
                 logger.warning("Unknown command")
+            elif self.is_self_bouncing():
+                # this container is about to be replaced, which would kill the update part way through
+                logger.warning("Self update pending, command ignored")
+            elif discovery.can_update:
+                rediscovery: Discovery | None = None
+                # shown as installing while queued for a free update slot
+                on_update_start(discovery)
+                in_progress = discovery
+                self.active_updates.add(discovery_name)
+                try:
+                    async with self.update_slots:
+                        logger.info("Starting update ...")
+                        if await self.update(discovery):
+                            logger.debug("Rescanning ...")
+                            # on the event loop, as analysis isn't safe to run alongside a scan in another thread
+                            rediscovery = self.rescan(discovery)
+                            updated = rediscovery is not None and not rediscovery.throttled
+                            logger.info("Rescanned, updated:%s", updated)
+                        else:
+                            logger.info("Rescan with no result")
+                finally:
+                    self.active_updates.discard(discovery_name)
+                in_progress = rediscovery or discovery
+                on_update_end(in_progress)
+                in_progress = None
             else:
-                if discovery.can_update:
-                    rediscovery: Discovery | None = None
-                    logger.info("Starting update ...")
-                    on_update_start(discovery)
-                    in_progress = discovery
-                    if self.update(discovery):
-                        logger.debug("Rescanning ...")
-                        rediscovery = self.rescan(discovery)
-                        updated = rediscovery is not None and not rediscovery.throttled
-                        logger.info("Rescanned, updated:%s", updated)
-                    else:
-                        logger.info("Rescan with no result")
-                    in_progress = rediscovery or discovery
-                    on_update_end(in_progress)
-                    in_progress = None
-                else:
-                    logger.warning("Update not supported for this container")
+                logger.warning("Update not supported for this container")
         except Exception:
             logger.exception("Failed to handle", discovery_name=discovery_name, command=command)
         finally:

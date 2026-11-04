@@ -6,7 +6,11 @@ from re import Match
 
 import structlog
 
+from updates2mqtt.helpers import ProcessResult, run_process
+
 log = structlog.get_logger()
+
+GIT_PULL_TIMEOUT = 300
 
 
 def git_trust(repo_path: Path, git_path: Path) -> bool:
@@ -113,13 +117,18 @@ def git_check_update_available(repo_path: Path, git_path: Path, timeout: int = 1
     return 0
 
 
-def git_pull(repo_path: Path, git_path: Path) -> bool:
+async def git_pull(repo_path: Path, git_path: Path) -> bool:
     log.info("GIT Pulling git at %s", repo_path, action="git_pull")
-    proc = subprocess.run(f"{git_path} pull", shell=True, check=False, cwd=repo_path, timeout=300)
-    if proc.returncode == 0:
+    result: ProcessResult = await run_process([str(git_path), "pull"], cwd=repo_path, timeout=GIT_PULL_TIMEOUT)
+    if result.ok:
         log.info("GIT pull at %s successful", repo_path, action="git_pull")
         return True
     log.warning(
-        "GIT pull at %s failed: %s", repo_path, proc.returncode, action="git_pull", stdout=proc.stdout, stderr=proc.stderr
+        "GIT pull at %s failed: %s",
+        repo_path,
+        result.returncode,
+        action="git_pull",
+        stdout=result.stdout,
+        stderr=result.stderr,
     )
     return False

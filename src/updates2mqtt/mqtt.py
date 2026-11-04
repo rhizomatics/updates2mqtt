@@ -46,6 +46,8 @@ class MqttPublisher:
         self.fatal_failure = Event()
         self.connected = Event()
         self.commands_in_progress: set[tuple[str, str]] = set()
+        # strong references to running commands, as the event loop only keeps weak ones
+        self.command_tasks: set[asyncio.Task[None]] = set()
         self.log = structlog.get_logger().bind(host=cfg.host, integration="mqtt")
 
     def start(self, event_loop: asyncio.AbstractEventLoop | None = None) -> None:
@@ -348,7 +350,7 @@ class MqttPublisher:
                 comp_name,
             )
             try:
-                updated: bool = provider.command(comp_name, command, on_update_start, on_update_end)
+                updated: bool = await provider.command(comp_name, command, on_update_start, on_update_end)
                 discovery = provider.resolve(comp_name)
                 if updated and discovery:
                     if discovery.publish_policy == PublishPolicy.HOMEASSISTANT and self.hass_cfg.discovery.enabled:
@@ -426,16 +428,23 @@ class MqttPublisher:
             parsed: tuple[ReleaseProvider, str, str] | None = self.validate_command(msg=msg)
             if parsed is not None:
                 provider, comp_name, command = parsed
-                asyncio.run_coroutine_threadsafe(
-                    self.execute_command(
-                        provider=provider,
-                        comp_name=comp_name,
-                        command=command,
-                        on_update_start=update_start,
-                        on_update_end=update_end,
-                    ),
-                    loop=self.event_loop,
-                )
+
+                def spawn() -> None:
+                    task: asyncio.Task[None] = asyncio.create_task(
+                        self.execute_command(
+                            provider=provider,
+                            comp_name=comp_name,
+                            command=command,
+                            on_update_start=update_start,
+                            on_update_end=update_end,
+                        ),
+                        name=f"command:{provider.source_type}:{comp_name}",
+                    )
+                    self.command_tasks.add(task)
+                    task.add_done_callback(self.command_tasks.discard)
+
+                # called from the paho network thread for MQTT messages, so hand over to the event loop
+                self.event_loop.call_soon_threadsafe(spawn)
         else:
             self.log.error("No event loop to handle message", topic=msg.topic)
 

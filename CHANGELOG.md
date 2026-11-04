@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 1.15.1
+## 1.16.0
 - Docker build shrink
   - Remove build tooling and full docker engine from final Docker image
   - Image now smaller, and has fewer things to flag as false positives in an image scan

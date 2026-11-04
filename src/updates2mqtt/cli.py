@@ -241,7 +241,13 @@ MQTT_SECRETS: tuple[str, ...] = ("password", "client_key_password")
 MQTT_FILES: tuple[str, ...] = ("ca_certs", "client_cert", "client_key")
 
 
-DOCKER_SETTINGS: tuple[str, ...] = ("allow_pull", "allow_restart", "allow_build", "remove_old_image")
+DOCKER_SETTINGS: tuple[str, ...] = (
+    "allow_pull",
+    "allow_restart",
+    "allow_build",
+    "remove_old_image",
+    "max_concurrent_updates",
+)
 PORTAINER_SECRETS: tuple[str, ...] = ("api_key",)
 PORTAINER_FILES: tuple[str, ...] = ("ca_certs",)
 
