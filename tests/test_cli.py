@@ -1,27 +1,20 @@
 import json
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Generator
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 from omegaconf import DictConfig, OmegaConf
 
+from tests.oci.fake_registry import REGISTRY, FakeRegistry
 from updates2mqtt.cli import dump, dump_url, main
 from updates2mqtt.model import Discovery
+from updates2mqtt.oci import StaticCredentials
+from updates2mqtt.oci import media_types as mt
 
 
 def _conf(**kwargs: Any) -> DictConfig:
     return OmegaConf.create({"log_level": "ERROR", **kwargs})
-
-
-def _mock_response(status_code: int = 200, text: str = '{"ok": 1}', is_success: bool = True, is_error: bool = False) -> Mock:
-    r = Mock()
-    r.status_code = status_code
-    r.is_success = is_success
-    r.is_error = is_error
-    r.text = text
-    r.headers = {}
-    return r
 
 
 def _make_scanner(*discoveries: Discovery) -> Mock:
@@ -62,85 +55,71 @@ def _make_discovery() -> tuple[Mock, Discovery]:
 
 # === dump_url ===
 
-
-@patch("updates2mqtt.cli.print_json")
-@patch("updates2mqtt.cli.fetch_url")
-@patch("updates2mqtt.cli.ContainerDistributionAPIVersionLookup")
-def test_dump_url_tags_calls_list_endpoint(mock_lookup_cls: Mock, mock_fetch: Mock, mock_print_json: Mock) -> None:
-    mock_lookup_cls.return_value.fetch_token.return_value = "tok"
-    mock_fetch.return_value = _mock_response()
-
-    dump_url("tags", "ghcr.io/org/repo:latest", _conf())
-
-    url = mock_fetch.call_args[0][0]
-    assert "/tags/list" in url
-    mock_print_json.assert_called_once()
+REPO = "org/repo"
 
 
-@patch("updates2mqtt.cli.print_json")
-@patch("updates2mqtt.cli.fetch_url")
-@patch("updates2mqtt.cli.ContainerDistributionAPIVersionLookup")
-def test_dump_url_manifest_calls_manifests_endpoint(mock_lookup_cls: Mock, mock_fetch: Mock, mock_print_json: Mock) -> None:
-    mock_lookup_cls.return_value.fetch_token.return_value = None
-    mock_fetch.return_value = _mock_response()
-
-    dump_url("manifest", "ghcr.io/org/repo:latest", _conf())
-
-    url = mock_fetch.call_args[0][0]
-    assert "/manifests/" in url
-    mock_print_json.assert_called_once()
+@pytest.fixture
+def fake_registry() -> Generator[FakeRegistry]:
+    fake = FakeRegistry()
+    fake.add_image(REPO, "latest", labels={"v": "1"})
+    with (
+        patch("updates2mqtt.cli.HttpxTransport", return_value=fake.transport()),
+        patch("updates2mqtt.cli.DockerConfigCredentials", return_value=StaticCredentials({})),
+    ):
+        yield fake
 
 
 @patch("updates2mqtt.cli.print_json")
-@patch("updates2mqtt.cli.fetch_url")
-@patch("updates2mqtt.cli.ContainerDistributionAPIVersionLookup")
-def test_dump_url_blob_calls_blobs_endpoint(mock_lookup_cls: Mock, mock_fetch: Mock, mock_print_json: Mock) -> None:
-    mock_lookup_cls.return_value.fetch_token.return_value = None
-    mock_fetch.return_value = _mock_response()
-    digest = "sha256:" + "a" * 64
-
-    dump_url("blob", f"ghcr.io/org/repo@{digest}", _conf())
-
-    url = mock_fetch.call_args[0][0]
-    assert "/blobs/" in url
-    mock_print_json.assert_called_once()
-
-
-@patch("updates2mqtt.cli.fetch_url")
-def test_dump_url_blob_without_digest_returns_early(mock_fetch: Mock) -> None:
-    dump_url("blob", "ghcr.io/org/repo:latest", _conf())
-    mock_fetch.assert_not_called()
-
-
-@patch("updates2mqtt.cli.fetch_url")
-def test_dump_url_manifest_without_tag_returns_early(mock_fetch: Mock) -> None:
-    # Construct a ref that parses with no tag_or_digest — extremely degenerate; fall back
-    # to testing the unknown doc_type branch instead which is simpler to trigger
-    dump_url("unknown_type", "ghcr.io/org/repo:latest", _conf())
-    mock_fetch.assert_not_called()
+def test_dump_url_tags(mock_print_json: Mock, fake_registry: FakeRegistry) -> None:
+    dump_url("tags", f"{REGISTRY}/{REPO}:latest", _conf())
+    assert json.loads(mock_print_json.call_args[0][0]) == ["latest"]
+    assert fake_registry.registry_requests[-1].path == f"/v2/{REPO}/tags/list"
 
 
 @patch("updates2mqtt.cli.print_json")
-@patch("updates2mqtt.cli.fetch_url")
-@patch("updates2mqtt.cli.ContainerDistributionAPIVersionLookup")
-def test_dump_url_error_response_skips_print(mock_lookup_cls: Mock, mock_fetch: Mock, mock_print_json: Mock) -> None:
-    mock_lookup_cls.return_value.fetch_token.return_value = None
-    mock_fetch.return_value = _mock_response(status_code=403, is_success=False, is_error=True)
+def test_dump_url_manifest(mock_print_json: Mock, fake_registry: FakeRegistry) -> None:
+    dump_url("manifest", f"{REGISTRY}/{REPO}:latest", _conf())
+    assert json.loads(mock_print_json.call_args[0][0])["mediaType"] == mt.OCI_MANIFEST
 
-    dump_url("tags", "ghcr.io/org/repo:latest", _conf())
 
+@patch("updates2mqtt.cli.print_json")
+def test_dump_url_blob(mock_print_json: Mock, fake_registry: FakeRegistry) -> None:
+    digest: str = next(iter(fake_registry.blobs))
+    dump_url("blob", f"{REGISTRY}/{REPO}@{digest}", _conf())
+    assert json.loads(mock_print_json.call_args[0][0])["config"]["Labels"] == {"v": "1"}
+
+
+@patch("updates2mqtt.cli.print_json")
+def test_dump_url_referrers(mock_print_json: Mock, fake_registry: FakeRegistry) -> None:
+    dump_url("referrers", f"{REGISTRY}/{REPO}:latest", _conf())
+    assert json.loads(mock_print_json.call_args[0][0]) == []
+    # digest resolved from the tag first
+    assert fake_registry.registry_requests[-2].method == "HEAD"
+
+
+@patch("updates2mqtt.cli.print_json")
+def test_dump_url_blob_without_digest_returns_early(mock_print_json: Mock, fake_registry: FakeRegistry) -> None:
+    dump_url("blob", f"{REGISTRY}/{REPO}:latest", _conf())
+    mock_print_json.assert_not_called()
+    assert fake_registry.requests == []
+
+
+@patch("updates2mqtt.cli.print_json")
+def test_dump_url_unknown_type(mock_print_json: Mock, fake_registry: FakeRegistry) -> None:
+    dump_url("unknown_type", f"{REGISTRY}/{REPO}:latest", _conf())
+    mock_print_json.assert_not_called()
+    assert fake_registry.requests == []
+
+
+@patch("updates2mqtt.cli.print_json")
+def test_dump_url_invalid_ref(mock_print_json: Mock, fake_registry: FakeRegistry) -> None:
+    dump_url("tags", "Not A Ref", _conf())
     mock_print_json.assert_not_called()
 
 
 @patch("updates2mqtt.cli.print_json")
-@patch("updates2mqtt.cli.fetch_url")
-@patch("updates2mqtt.cli.ContainerDistributionAPIVersionLookup")
-def test_dump_url_none_response_skips_print(mock_lookup_cls: Mock, mock_fetch: Mock, mock_print_json: Mock) -> None:
-    mock_lookup_cls.return_value.fetch_token.return_value = None
-    mock_fetch.return_value = None
-
-    dump_url("tags", "ghcr.io/org/repo:latest", _conf())
-
+def test_dump_url_error_response_skips_print(mock_print_json: Mock, fake_registry: FakeRegistry) -> None:
+    dump_url("manifest", f"{REGISTRY}/{REPO}:missing", _conf())
     mock_print_json.assert_not_called()
 
 

@@ -237,3 +237,17 @@ async def test_request_stop_default_exit_code(app_with_mocked_external_dependenc
     uut = app_with_mocked_external_dependencies
     uut.request_stop()
     assert uut.exit_code == EXIT_SIGTERM
+
+
+def test_route_stdlib_logging(capsys: pytest.CaptureFixture[str]) -> None:
+    import logging
+
+    import structlog
+
+    from updates2mqtt.app import route_stdlib_logging
+
+    route_stdlib_logging("DEBUG", [structlog.processors.JSONRenderer()], logger_name="updates2mqtt.test_routing")
+    logging.getLogger("updates2mqtt.test_routing.child").debug("hello %s", "registry")
+    line = capsys.readouterr().out.strip().splitlines()[-1]
+    assert '"event": "hello registry"' in line
+    assert '"level": "debug"' in line

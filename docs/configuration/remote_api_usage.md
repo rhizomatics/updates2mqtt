@@ -13,6 +13,28 @@ in addition to local API calls to the Docker daemon.
     * Used to get release notes and icons for lots of popular containers
 
 
+## Private Registries
+
+Registry checks use the same credentials as `docker login`, read from the Docker config file,
+`~/.docker/config.json`, or `config.json` in the directory named by the `DOCKER_CONFIG` env var.
+Credentials are only sent to registries that ask for them, and logging in to Docker Hub also gets
+a higher [rate limit](https://docs.docker.com/docker-hub/usage/) than anonymous access.
+
+When running in Docker, mount the config file read-only into the Updates2MQTT container:
+
+```yaml title="docker compose snippet"
+volumes:
+  - ~/.docker/config.json:/root/.docker/config.json:ro
+```
+
+Credentials saved directly in the file, under `auths`, work as is. Where `docker login` saved them
+to a credential helper instead, such as the desktop keychain or `pass`, listed under `credsStore` or
+`credHelpers`, that helper must also be installed in the Updates2MQTT container, otherwise those
+registries are checked anonymously. The same file is used by `docker pull` when updating.
+
+A token for a single container can also be given with the `updates2mqtt.registry_token` label or
+`UPD2MQTT_REGISTRY_TOKEN` env var, see [Customizing Containers](customizing_containers.md).
+
 ## API Throttling
 
 ### Container Registry APIs

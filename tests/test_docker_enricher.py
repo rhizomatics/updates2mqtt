@@ -1,13 +1,15 @@
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import docker
+import httpx
 import pytest
 import yaml
 from pytest_httpx import HTTPXMock
 
 from tests.lib_test import docker_config
+from tests.oci.fake_registry import FakeRegistry
 from updates2mqtt.config import (
     PKG_INFO_FILE,
     SOURCE_PLATFORM_GITHUB,
@@ -19,11 +21,12 @@ from updates2mqtt.config import (
     VersionPolicy,
     docker_image_names,
 )
-from updates2mqtt.helpers import Throttler
+from updates2mqtt.helpers import APIStatsCounter, Throttler
 from updates2mqtt.integrations.docker_enrich import (
     DIFF_URL_TEMPLATES,
     REGISTRY_GHCR,
     RELEASE_URL_TEMPLATES,
+    CachingRegistryTransport,
     CommonPackageEnricher,
     ContainerDistributionAPIVersionLookup,
     DefaultPackageEnricher,
@@ -33,7 +36,10 @@ from updates2mqtt.integrations.docker_enrich import (
     PackageEnricher,
     SourceReleaseEnricher,
     id_source_platform,
+    registry_cache_ttl,
 )
+from updates2mqtt.oci import Credentials, DockerConfigCredentials, HttpRequest, StaticCredentials
+from updates2mqtt.oci import media_types as mt
 
 if TYPE_CHECKING:
     from updates2mqtt.model import ReleaseDetail
@@ -638,219 +644,259 @@ def test_condense_digest_exception_returns_none() -> None:
     assert result is None
 
 
-# === ContainerDistributionAPIVersionLookup.fetch_token ===
+# === ContainerDistributionAPIVersionLookup, over the OCI client ===
+
+FAKE_REGISTRY = "registry.example"
 
 
-@patch("updates2mqtt.integrations.docker_enrich.fetch_url")
-def test_fetch_token_mcr_no_auth_host_returns_none(mock_fetch: Mock) -> None:
-    """MCR registry has auth_host=None so fetch_token returns None without fetching."""
-    from updates2mqtt.config import RegistryConfig
-    from updates2mqtt.integrations.docker_enrich import ContainerDistributionAPIVersionLookup
-
-    lookup = ContainerDistributionAPIVersionLookup(Mock(), RegistryConfig())
-    result = lookup.fetch_token("mcr.microsoft.com", "dotnet/sdk")
-    assert result is None
-    mock_fetch.assert_not_called()
-
-
-@patch("updates2mqtt.integrations.docker_enrich.fetch_url")
-def test_fetch_token_401_with_www_authenticate_returns_token(mock_fetch: Mock) -> None:
-    """401 response with a valid www-authenticate header triggers realm-based token fetch."""
-    from updates2mqtt.config import RegistryConfig
-    from updates2mqtt.integrations.docker_enrich import ContainerDistributionAPIVersionLookup
-
-    r401 = Mock()
-    r401.status_code = 401
-    r401.is_success = False
-    r401.headers = {"www-authenticate": 'realm="https://auth.example.com",service="example",scope="repository:org/repo:pull"'}
-
-    r200 = Mock()
-    r200.is_success = True
-    r200.json.return_value = {"token": "secrettoken"}
-
-    mock_fetch.side_effect = [r401, r200]
-
-    lookup = ContainerDistributionAPIVersionLookup(Mock(), RegistryConfig())
-    token = lookup.fetch_token("unknown-registry.io", "org/repo")
-    assert token == "secrettoken"
-
-
-@patch("updates2mqtt.integrations.docker_enrich.fetch_url")
-def test_fetch_token_401_no_www_authenticate_raises(mock_fetch: Mock) -> None:
-    """401 with no www-authenticate header raises AuthError."""
-    from updates2mqtt.config import RegistryConfig
-    from updates2mqtt.integrations.docker_enrich import AuthError, ContainerDistributionAPIVersionLookup
-
-    r401 = Mock()
-    r401.status_code = 401
-    r401.is_success = False
-    r401.headers = {}  # no www-authenticate
-
-    mock_fetch.return_value = r401
-
-    lookup = ContainerDistributionAPIVersionLookup(Mock(), RegistryConfig())
-    with pytest.raises(AuthError, match="No www-authenticate"):
-        lookup.fetch_token("unknown-registry.io", "org/repo")
-
-
-@patch("updates2mqtt.integrations.docker_enrich.fetch_url")
-def test_fetch_token_404_probe_then_401_with_auth_header(mock_fetch: Mock) -> None:
-    """404 on token URL triggers /v2 probe; 401 on probe is then handled via www-authenticate."""
-    from updates2mqtt.config import RegistryConfig
-    from updates2mqtt.integrations.docker_enrich import ContainerDistributionAPIVersionLookup
-
-    r404 = Mock()
-    r404.status_code = 404
-    r404.is_success = False
-
-    r401 = Mock()
-    r401.status_code = 401
-    r401.is_success = False
-    r401.headers = {"www-authenticate": 'realm="https://auth.example.com",service="example",scope="repository:org/repo:pull"'}
-
-    r200 = Mock()
-    r200.is_success = True
-    r200.json.return_value = {"token": "probetoken"}
-
-    mock_fetch.side_effect = [r404, r401, r200]
-
-    lookup = ContainerDistributionAPIVersionLookup(Mock(), RegistryConfig())
-    token = lookup.fetch_token("unknown-registry.io", "org/repo")
-    assert token == "probetoken"
-    assert mock_fetch.call_count == 3
-
-
-# === ContainerDistributionAPIVersionLookup.lookup, index vs single platform manifest ===
-
-IMAGE_DIGEST = "sha256:6de8be84e66e4f10bea1a0817d65690f1901da67ac6815303030fea06aaedc74"
-PLATFORM_MANIFEST_DIGEST = "sha256:1111111111111111111111111111111111111111111111111111111111111111"
-CONFIG_DIGEST = "sha256:2222222222222222222222222222222222222222222222222222222222222222"
-
-
-def _response(body: dict[str, Any], digest: str | None = None) -> Mock:
-    response = Mock()
-    response.is_success = True
-    response.status_code = 200
-    response.json.return_value = body
-    response.headers = {"content-type": body.get("mediaType", "application/json")}
-    if digest:
-        response.headers["docker-content-digest"] = digest
-    response.extensions = {}
-    return response
-
-
-def _platform_manifest(media_type: str, config_media_type: str) -> dict[str, Any]:
-    return {
-        "schemaVersion": 2,
-        "mediaType": media_type,
-        "config": {"mediaType": config_media_type, "digest": CONFIG_DIGEST, "size": 1234},
-        "layers": [],
-    }
-
-
-IMAGE_CONFIG = {
-    "architecture": "amd64",
-    "os": "linux",
-    "created": "2026-09-01T00:00:00Z",
-    "config": {"Labels": {"org.opencontainers.image.version": "1.0.43"}},
-}
-
-
-def _registry(index_reply: dict[str, Any], index_digest: str = IMAGE_DIGEST) -> Mock:
-    def fetch(url: str, **_kwargs: Any) -> Mock:
-        if url.endswith("/manifests/latest"):
-            return _response(index_reply, index_digest)
-        if url.endswith(f"/manifests/{PLATFORM_MANIFEST_DIGEST}"):
-            return _response(
-                _platform_manifest("application/vnd.oci.image.manifest.v1+json", "application/vnd.oci.image.config.v1+json"),
-                PLATFORM_MANIFEST_DIGEST,
-            )
-        if url.endswith(f"/blobs/{CONFIG_DIGEST}"):
-            return _response(IMAGE_CONFIG, CONFIG_DIGEST)
-        raise AssertionError(f"Unexpected url {url}")
-
-    return Mock(side_effect=fetch)
-
-
-def _local_image() -> DockerImageInfo:
+def _local_image(ref: str = f"{FAKE_REGISTRY}/szabis/iventoy:latest", **attributes: Any) -> DockerImageInfo:
     return DockerImageInfo(
-        "szabis/iventoy:latest",
+        ref,
         attributes={
             "Os": "linux",
             "Architecture": "amd64",
             "RepoDigests": ["szabis/iventoy@sha256:24eb769a52ec27284804fbf2a55526fefe197eb14dbd8076b1b15a036a6aa8b6"],
+            **attributes,
         },
     )
 
 
-def _assert_found_update(result: DockerImageInfo) -> None:
-    assert result.image_digest == IMAGE_DIGEST
-    assert result.short_digest == "6de8be84e66e"
-    assert result.repo_digest == CONFIG_DIGEST
-    assert result.created == "2026-09-01T00:00:00Z"
-    assert result.annotations["org.opencontainers.image.version"] == "1.0.43"
-    assert result.origin == "OCI_V2"
+def _throttler() -> Mock:
+    return Mock(spec=Throttler, check_throttle=Mock(return_value=False))
+
+
+def _lookup(fake: FakeRegistry, throttler: Mock | None = None, **kwargs: Any) -> ContainerDistributionAPIVersionLookup:
+    return ContainerDistributionAPIVersionLookup(
+        throttler or _throttler(), RegistryConfig(), credentials=StaticCredentials({}), transport=fake.transport(), **kwargs
+    )
+
+
+def _image(fake: FakeRegistry, media_type: str = mt.OCI_MANIFEST, config_media_type: str = mt.OCI_CONFIG) -> tuple[str, str]:
+    """Platform manifest, untagged, returns manifest and config digests"""
+    config_digest: str = fake.add_blob(
+        {
+            "architecture": "amd64",
+            "os": "linux",
+            "created": "2026-09-01T00:00:00Z",
+            "config": {"Labels": {"org.opencontainers.image.version": "1.0.43"}},
+        }
+    )
+    manifest_digest: str = fake.add_manifest(
+        "szabis/iventoy",
+        {
+            "schemaVersion": 2,
+            "mediaType": media_type,
+            "config": {"mediaType": config_media_type, "digest": config_digest, "size": 1234},
+            "layers": [],
+        },
+    )
+    return manifest_digest, config_digest
+
+
+def _index(fake: FakeRegistry, manifest_digest: str, arch: str = "amd64") -> str:
+    return fake.add_manifest(
+        "szabis/iventoy",
+        {
+            "schemaVersion": 2,
+            "mediaType": mt.OCI_INDEX,
+            "manifests": [
+                {"mediaType": mt.OCI_MANIFEST, "digest": manifest_digest, "platform": {"os": "linux", "architecture": arch}}
+            ],
+            "annotations": {"org.opencontainers.image.source": "https://github.com/szabis/iventoy"},
+        },
+        tag="latest",
+    )
 
 
 def test_lookup_multi_platform_index() -> None:
-    index = {
-        "schemaVersion": 2,
-        "mediaType": "application/vnd.oci.image.index.v1+json",
-        "manifests": [
-            {
-                "mediaType": "application/vnd.oci.image.manifest.v1+json",
-                "digest": PLATFORM_MANIFEST_DIGEST,
-                "platform": {"os": "linux", "architecture": "amd64"},
-            }
-        ],
-    }
-    with patch("updates2mqtt.integrations.docker_enrich.fetch_url", _registry(index)):
-        result = ContainerDistributionAPIVersionLookup(Mock(check_throttle=Mock(return_value=False)), RegistryConfig()).lookup(
-            _local_image(), token="token"
-        )
-    _assert_found_update(result)
+    fake = FakeRegistry()
+    manifest_digest, config_digest = _image(fake)
+    index_digest: str = _index(fake, manifest_digest)
+
+    result = _lookup(fake).lookup(_local_image())
+
+    assert result.image_digest == index_digest
+    assert result.short_digest == index_digest[7:19]
+    assert result.repo_digest == config_digest
+    assert result.created == "2026-09-01T00:00:00Z"
+    assert result.annotations["org.opencontainers.image.version"] == "1.0.43"
+    assert result.annotations["org.opencontainers.image.source"] == "https://github.com/szabis/iventoy"
+    assert result.version == "1.0.43"
+    assert result.origin == "OCI_V2"
+    assert result.error is None
 
 
 @pytest.mark.parametrize(
     ("media_type", "config_media_type"),
-    [
-        ("application/vnd.docker.distribution.manifest.v2+json", "application/vnd.docker.container.image.v1+json"),
-        ("application/vnd.oci.image.manifest.v1+json", "application/vnd.oci.image.config.v1+json"),
-    ],
+    [(mt.DOCKER_MANIFEST, mt.DOCKER_CONFIG), (mt.OCI_MANIFEST, mt.OCI_CONFIG)],
 )
 def test_lookup_single_platform_manifest_without_index(media_type: str, config_media_type: str) -> None:
     """Issue #175 - registry returns the image manifest directly where no index published"""
-    with patch(
-        "updates2mqtt.integrations.docker_enrich.fetch_url", _registry(_platform_manifest(media_type, config_media_type))
-    ):
-        result = ContainerDistributionAPIVersionLookup(Mock(check_throttle=Mock(return_value=False)), RegistryConfig()).lookup(
-            _local_image(), token="token"
-        )
-    _assert_found_update(result)
+    fake = FakeRegistry()
+    manifest_digest, config_digest = _image(fake, media_type, config_media_type)
+    fake.manifests["szabis/iventoy", "latest"] = fake.manifests["szabis/iventoy", manifest_digest]
+
+    result = _lookup(fake).lookup(_local_image())
+
+    assert result.image_digest == manifest_digest
+    assert result.repo_digest == config_digest
+    assert result.version == "1.0.43"
 
 
-def test_lookup_single_platform_manifest_minimal_skips_config() -> None:
-    manifest = _platform_manifest(
-        "application/vnd.docker.distribution.manifest.v2+json", "application/vnd.docker.container.image.v1+json"
-    )
-    fetcher = _registry(manifest)
-    with patch("updates2mqtt.integrations.docker_enrich.fetch_url", fetcher):
-        result = ContainerDistributionAPIVersionLookup(Mock(check_throttle=Mock(return_value=False)), RegistryConfig()).lookup(
-            _local_image(), token="token", minimal=True
-        )
-    assert result.image_digest == IMAGE_DIGEST
-    assert result.repo_digest == CONFIG_DIGEST
+def test_lookup_minimal_skips_config() -> None:
+    fake = FakeRegistry()
+    manifest_digest, config_digest = _image(fake)
+    _index(fake, manifest_digest)
+
+    result = _lookup(fake).lookup(_local_image(), minimal=True)
+
+    assert result.repo_digest == config_digest
+    assert result.version is None
     assert result.origin == "OCI_V2_MINIMAL"
-    assert fetcher.call_count == 1
+    assert not any("/blobs/" in r.path for r in fake.requests)
 
 
-def test_fetch_index_accepts_single_platform_manifest_types() -> None:
-    fetcher = _registry({"manifests": []})
-    with patch("updates2mqtt.integrations.docker_enrich.fetch_url", fetcher):
-        ContainerDistributionAPIVersionLookup(Mock(), RegistryConfig()).fetch_index(
-            "registry-1.docker.io", _local_image(), "token"
-        )
-    accepted = fetcher.call_args.kwargs["response_type"]
-    assert "application/vnd.docker.distribution.manifest.v2+json" in accepted
-    assert "application/vnd.oci.image.manifest.v1+json" in accepted
-    assert accepted[0] == "application/vnd.oci.image.index.v1+json"
+def test_lookup_no_matching_platform() -> None:
+    fake = FakeRegistry()
+    manifest_digest, _config = _image(fake)
+    _index(fake, manifest_digest, arch="s390x")
+
+    result = _lookup(fake).lookup(_local_image())
+
+    assert result.image_digest is None
+    assert result.repo_digest is None
+    assert result.annotations["org.opencontainers.image.source"] == "https://github.com/szabis/iventoy"
+
+
+def test_lookup_pinned_tag_looked_up_by_tag() -> None:
+    fake = FakeRegistry()
+    manifest_digest, _config = _image(fake)
+    index_digest: str = _index(fake, manifest_digest)
+    pinned: str = "sha256:" + "9" * 64
+
+    result = _lookup(fake).lookup(_local_image(f"{FAKE_REGISTRY}/szabis/iventoy:latest@{pinned}"))
+
+    assert result.image_digest == index_digest
+    assert fake.registry_requests[0].path.endswith("/manifests/latest")
+
+
+def test_lookup_with_registry_token() -> None:
+    fake = FakeRegistry()
+    manifest_digest, _config = _image(fake)
+    _index(fake, manifest_digest)
+    fake.issued["custom"] = "repository:szabis/iventoy:pull"
+
+    result = _lookup(fake).lookup(_local_image(), token="custom")
+
+    assert result.image_digest is not None
+    assert fake.token_requests == []
+
+
+def test_lookup_auth_failure_recorded() -> None:
+    fake = FakeRegistry(users={"me": "secret"})
+    manifest_digest, _config = _image(fake)
+    _index(fake, manifest_digest)
+
+    result = _lookup(fake).lookup(_local_image())
+
+    assert result.error is not None
+    assert result.image_digest is None
+
+
+def test_lookup_uses_credentials() -> None:
+    fake = FakeRegistry(users={"me": "secret"})
+    manifest_digest, _config = _image(fake)
+    _index(fake, manifest_digest)
+    uut = ContainerDistributionAPIVersionLookup(
+        _throttler(),
+        RegistryConfig(),
+        credentials=StaticCredentials({FAKE_REGISTRY: Credentials("me", "secret")}),
+        transport=fake.transport(),
+    )
+
+    assert uut.lookup(_local_image()).version == "1.0.43"
+
+
+def test_lookup_rate_limited_throttles() -> None:
+    fake = FakeRegistry(auth=None, rate_limited=True)
+    throttler = _throttler()
+
+    result = _lookup(fake, throttler).lookup(_local_image())
+
+    assert result.throttled
+    throttler.throttle.assert_called_once()
+    assert throttler.throttle.call_args.kwargs["retry_secs"] == 42
+
+
+def test_lookup_skipped_while_throttled() -> None:
+    fake = FakeRegistry()
+    throttler = _throttler()
+    throttler.check_throttle.return_value = True
+
+    assert _lookup(fake, throttler).lookup(_local_image()).throttled
+    assert fake.requests == []
+
+
+def test_lookup_config_rate_limited_keeps_digests() -> None:
+    fake = FakeRegistry(auth=None)
+    manifest_digest, config_digest = _image(fake)
+    _index(fake, manifest_digest)
+    throttler = _throttler()
+    uut = _lookup(fake, throttler)
+    original = fake.handle
+
+    def limit_blobs(method: str, url: str, headers: Any, body: bytes = b"") -> Any:
+        if "/blobs/" in url:
+            return 429, [("Retry-After", "5")], b""
+        return original(method, url, headers, body)
+
+    fake.handle = limit_blobs  # type: ignore[method-assign]
+    result = uut.lookup(_local_image())
+
+    assert result.throttled
+    assert result.repo_digest == config_digest
+    assert result.version is None
+    assert throttler.throttle.call_args.kwargs["retry_secs"] == 5
+
+
+def test_lookup_unreachable_registry() -> None:
+    uut = ContainerDistributionAPIVersionLookup(_throttler(), RegistryConfig(), credentials=StaticCredentials({}))
+    result = uut.lookup(_local_image("127.0.0.1:9/szabis/iventoy:latest"))
+    assert result.error is not None
+    assert uut.api_stats.fetches == 1
+
+
+def test_lookup_default_credentials_from_docker_config() -> None:
+    uut = ContainerDistributionAPIVersionLookup(_throttler(), RegistryConfig())
+    assert isinstance(uut.client.auth.credentials, DockerConfigCredentials)
+
+
+@pytest.mark.parametrize(
+    ("kind", "immutable", "expected"),
+    [("token", False, None), ("manifest", False, 3600), ("manifest", True, 7776000), ("blob", True, 7776000)],
+)
+def test_registry_cache_ttl(kind: str, immutable: bool, expected: int | None) -> None:
+    request = HttpRequest("GET", "https://ghcr.io/v2/a/b/manifests/x", kind=kind, immutable=immutable)
+    assert registry_cache_ttl(RegistryConfig(), request) == expected
+
+
+def test_caching_transport_sets_hishel_ttl() -> None:
+    uut = CachingRegistryTransport(RegistryConfig())
+    kwargs: dict[str, Any] = {"headers": {}, "extensions": {}}
+    uut.set_cache_ttl(HttpRequest("GET", "https://ghcr.io/v2/a/b/blobs/x", kind="blob", immutable=True), kwargs)
+    assert kwargs == {"headers": {"Cache-Control": "max-age=7776000"}, "extensions": {"hishel_ttl": 7776000}}
+    kwargs = {"headers": {}, "extensions": {}}
+    uut.set_cache_ttl(HttpRequest("GET", "https://auth/token", kind="token"), kwargs)
+    assert kwargs == {"headers": {}, "extensions": {}}
+
+
+def test_caching_transport_counts_stats() -> None:
+    fake = FakeRegistry(auth=None)
+    manifest_digest, _config = _image(fake)
+    _index(fake, manifest_digest)
+    stats = APIStatsCounter()
+    uut = CachingRegistryTransport(RegistryConfig(), stats)
+    uut.client = httpx.Client(transport=fake.httpx_transport())
+    response = uut.send(HttpRequest("GET", f"https://{FAKE_REGISTRY}/v2/szabis/iventoy/manifests/latest", kind="manifest"))
+    assert response.is_success
+    assert stats.host_stats[FAKE_REGISTRY].fetches == 1

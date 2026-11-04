@@ -1,5 +1,7 @@
 # python
 import asyncio
+import hashlib
+import json
 import re
 import uuid
 from collections.abc import AsyncGenerator, Callable
@@ -136,25 +138,26 @@ def mock_mqtt_client() -> paho.mqtt.client.Client:
     return client
 
 
+def platform_manifest(name: str) -> bytes:
+    return json.dumps(
+        {"config": {"digest": repo_digest_for_ref(name, short=False)}, "annotations": {"test.type": "unit"}}
+    ).encode()
+
+
+def platform_manifest_digest(name: str) -> str:
+    """Content addressed, as the OCI client verifies"""
+    return f"sha256:{hashlib.sha256(platform_manifest(name)).hexdigest()}"
+
+
 @pytest.fixture
 def mock_registry(httpx_mock: HTTPXMock) -> HTTPXMock:
-    # TODO: finish
+    """Anonymous registry, with arm64 images only, for linux and macos"""
+
     def custom_response(request: httpx.Request) -> httpx.Response:
-        if "/token" in request.url.path:
-            return httpx.Response(
-                status_code=200,
-                json={"token": "fooey"},  # nosec
-            )
         m = re.match(r"/v2/([A-Za-z0-9/]+)/manifests/(sha256:[0-9a-f]+)", request.url.path)
         if m:
-            if m.group(2) == f"{digest_for_ref(m.group(1), short=False)}":
-                return httpx.Response(
-                    status_code=200,
-                    json={
-                        "config": {"digest": repo_digest_for_ref(m.group(1), short=False)},
-                        "annotations": {"test.type": "unit"},
-                    },
-                )
+            if m.group(2) == platform_manifest_digest(m.group(1)):
+                return httpx.Response(status_code=200, content=platform_manifest(m.group(1)))
             return httpx.Response(status_code=404)
         m = re.match(r"/v2/([A-Za-z0-9/]+)/manifests/([A-Za-z0-9:]+)", request.url.path)
         if m:
@@ -163,15 +166,11 @@ def mock_registry(httpx_mock: HTTPXMock) -> HTTPXMock:
                 json={
                     "manifests": [
                         {
-                            "platform": {"os": "linux", "architecture": "arm64"},
+                            "platform": {"os": os_name, "architecture": "arm64"},
                             "mediaType": "test_manifest",
-                            "digest": f"{digest_for_ref(m.group(1), short=False)}",
-                        },
-                        {
-                            "platform": {"os": "macos", "architecture": "arm64"},
-                            "mediaType": "test_manifest",
-                            "digest": f"{digest_for_ref(m.group(1), short=False)}",
-                        },
+                            "digest": platform_manifest_digest(m.group(1)),
+                        }
+                        for os_name in ("linux", "macos")
                     ]
                 },
             )

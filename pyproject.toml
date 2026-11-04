@@ -7,7 +7,7 @@ authors = [
 ]
 
 requires-python = ">=3.13"
-version = "1.16.0"
+version = "1.17.0"
 license="Apache-2.0"
 keywords=["mqtt", "docker", "oci","container","updates", "automation","home-assistant","homeassistant","selfhosting"]
 
@@ -72,6 +72,7 @@ dev = [
     "mypy",
     "types-docker>=7.2.0.20260827,<8.0.0.0",
     "types-pyyaml>=6.0.12.20260906,<7.0.0.0",
+    "niquests>=3.21.2,<4.0.0",
 ]
 docs=[
     "properdocs",

@@ -212,7 +212,9 @@ The OCI APIs require more network calls, typically one to retrieve a token, one 
 the platform specific manifest, and finally the config document. On the other hand, well-developer images also provide 
 annotations on these documents, which allow for direct links to release notes and source code, descriptions, semantic versions and more.
 
-Registries usually have an unauthenticated token system for authorization, this can be overridden per container using the
+Registries usually have an unauthenticated token system for authorization. Private registries, or a higher
+Docker Hub rate limit, need the `docker login` credentials to be visible to Updates2MQTT, see
+[Private Registries](../configuration/remote_api_usage.md#private-registries). A token can also be given per container using the
 `updates2mqtt.registry_token` container label or `UPD2MQTT_REGISTRY_TOKEN` environment variable.
 
 If the benefits of the extra calls ( release summaries, direct release note URLs, human friendly version numbers ), then

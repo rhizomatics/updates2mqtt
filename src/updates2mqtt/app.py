@@ -81,6 +81,7 @@ class App:
             ],
         )
 
+        route_stdlib_logging(str(self.cfg.log.level), renderers)
         log.debug("Logging initialized", level=self.cfg.log.level, json=self.cfg.log.json, tty=sys.stderr.isatty())
 
         self.publisher = MqttPublisher(self.cfg.mqtt, self.cfg.node, self.cfg.homeassistant)
@@ -281,6 +282,21 @@ class App:
                 "scan_count": self.scan_count,
             },
         )
+
+
+def route_stdlib_logging(level: str, renderers: list[Any], logger_name: str = "updates2mqtt.oci") -> None:
+    """Render stdlib logging, as used by the OCI client, the same way as structlog output"""
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(
+        structlog.stdlib.ProcessorFormatter(
+            foreign_pre_chain=[structlog.processors.add_log_level, structlog.processors.TimeStamper(fmt="iso")],
+            processors=[structlog.stdlib.ProcessorFormatter.remove_processors_meta, *renderers],
+        )
+    )
+    stdlib_logger: logging.Logger = logging.getLogger(logger_name)
+    stdlib_logger.handlers = [handler]
+    stdlib_logger.setLevel(getattr(logging, level, logging.INFO))
+    stdlib_logger.propagate = False
 
 
 async def repeated_call(func: Callable[..., Awaitable[Any]], interval: int = 60, *args: Any, **kwargs: Any) -> None:

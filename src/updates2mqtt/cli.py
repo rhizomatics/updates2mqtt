@@ -1,4 +1,5 @@
 import asyncio
+import dataclasses
 import json
 import re
 import ssl
@@ -6,7 +7,6 @@ import sys
 import typing
 from collections.abc import AsyncGenerator
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import structlog
 from docker.errors import DockerException
@@ -25,16 +25,18 @@ from updates2mqtt.config import (
     RegistryConfig,
     TlsMode,
 )
-from updates2mqtt.helpers import Throttler
 from updates2mqtt.integrations.docker import DockerProvider
-from updates2mqtt.integrations.docker_enrich import REGISTRIES, ContainerDistributionAPIVersionLookup, DockerImageInfo
 from updates2mqtt.model import Discovery
 from updates2mqtt.mqtt import MqttPublisher
-
-from .helpers import fetch_url
-
-if TYPE_CHECKING:
-    from httpx import Response
+from updates2mqtt.oci import (
+    DockerConfigCredentials,
+    InvalidReferenceError,
+    Manifest,
+    OCIError,
+    Reference,
+    RegistryClient,
+)
+from updates2mqtt.oci.transports.httpx_transport import HttpxTransport
 
 log = structlog.get_logger()
 
@@ -42,7 +44,7 @@ log = structlog.get_logger()
 HELP = """
 Super simple CLI
 
-Command can be `container`,`dump`,`tags`,`manifest`,`blob` or `mqtt`
+Command can be `container`,`dump`,`tags`,`manifest`,`blob`,`referrers` or `mqtt`
 
 * `container=container-name`
 * `container=hash`
@@ -53,6 +55,7 @@ Command can be `container`,`dump`,`tags`,`manifest`,`blob` or `mqtt`
 * `blob=mcr.microsoft.com/dotnet/sdk:latest`
 * `tags=quay.io/linuxserver.io/babybuddy`
 * `blob=ghcr.io/blakeblackshear/frigate@sha256:759c36ee869e3e60258350a2e221eae1a4ba1018613e0334f1bc84eb09c4bbbc`
+* `referrers=ghcr.io/rhizomatics/updates2mqtt:latest` to list signatures, SBOMs and other attached artifacts
 * `mqtt=check` to show MQTT, Portainer and image removal settings, and test the broker connection, optionally with `config=path/to/config.yaml`
 
 In addition, a `log_level=DEBUG` or other level can be added, `github_token` to try a personal access
@@ -61,100 +64,42 @@ token for GitHub release info retrieval, or `api=docker_client` to use the older
 
 """
 
-OCI_MANIFEST_TYPES: list[str] = [
-    "application/vnd.oci.image.manifest.v1+json",
-    "application/vnd.oci.image.index.v1+json",
-    "application/vnd.oci.descriptor.v1+json",
-    "application/vnd.oci.empty.v1+json",
-]
-
-OCI_CONFIG_TYPES: list[str] = [
-    "application/vnd.oci.image.config.v1+json",
-]
-
-OCI_LAYER_TYPES: list[str] = [
-    "application/vnd.oci.image.layer.v1.tar",
-    "application/vnd.oci.image.layer.v1.tar+gzip",
-    "application/vnd.oci.image.layer.v1.tar+zstd",
-]
-
-OCI_NONDISTRIBUTABLE_LAYER_TYPES: list[str] = [
-    "application/vnd.oci.image.layer.nondistributable.v1.tar",
-    "application/vnd.oci.image.layer.nondistributable.v1.tar+gzip",
-    "application/vnd.oci.image.layer.nondistributable.v1.tar+zstd",
-]
-
-# Docker Compatibility MIME Types
-DOCKER_MANIFEST_TYPES: list[str] = [
-    "application/vnd.docker.distribution.manifest.v2+json",
-    "application/vnd.docker.distribution.manifest.list.v2+json",
-    "application/vnd.docker.distribution.manifest.v1+json",
-    "application/vnd.docker.distribution.manifest.v1+prettyjws",
-]
-
-DOCKER_CONFIG_TYPES: list[str] = [
-    "application/vnd.docker.container.image.v1+json",
-]
-
-DOCKER_LAYER_TYPES: list[str] = [
-    "application/vnd.docker.image.rootfs.diff.tar.gzip",
-    "application/vnd.docker.image.rootfs.foreign.diff.tar.gzip",
-]
-
-# Combined constants
-ALL_MANIFEST_TYPES: list[str] = OCI_MANIFEST_TYPES + DOCKER_MANIFEST_TYPES
-ALL_CONFIG_TYPES: list[str] = OCI_CONFIG_TYPES + DOCKER_CONFIG_TYPES
-ALL_LAYER_TYPES: list[str] = OCI_LAYER_TYPES + OCI_NONDISTRIBUTABLE_LAYER_TYPES + DOCKER_LAYER_TYPES
-
-# All content types that might be returned by the API
-ALL_OCI_MEDIA_TYPES: list[str] = (
-    ALL_MANIFEST_TYPES
-    + ALL_CONFIG_TYPES
-    + ALL_LAYER_TYPES
-    + ["application/octet-stream", "application/json"]  # Error responses
-)
-
 
 def dump_url(doc_type: str, img_ref: str, cli_conf: DictConfig) -> None:
+    """Print a registry document, using `docker login` credentials where the registry needs them"""
     structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(cli_conf.get("log_level", "ERROR")))
-
-    lookup = ContainerDistributionAPIVersionLookup(Throttler(), RegistryConfig())
-    img_info = DockerImageInfo(img_ref)
-    if not img_info.index_name or not img_info.name:
-        log.error("Unable to parse %ss", img_ref)
+    try:
+        ref: Reference = Reference.parse(img_ref)
+    except InvalidReferenceError as e:
+        log.error("Unable to parse %s: %s", img_ref, e)
         return
 
-    api_host: str | None = REGISTRIES.get(img_info.index_name, (img_info.index_name, img_info.index_name))[1]
-
-    if doc_type == "blob":
-        if not img_info.pinned_digest:
-            log.warning("No digest found in %s", img_ref)
+    content: str
+    with RegistryClient(HttpxTransport(), credentials=DockerConfigCredentials()) as client:
+        try:
+            if doc_type == "blob":
+                if not ref.digest:
+                    log.warning("No digest found in %s", img_ref)
+                    return
+                content = client.get_blob(ref, ref.digest).content.decode(errors="replace")
+            elif doc_type == "manifest":
+                manifest: Manifest = client.get_manifest(ref)
+                log.debug("Manifest %s, digest %s", manifest.media_type, manifest.digest)
+                content = manifest.raw.decode(errors="replace")
+            elif doc_type == "tags":
+                content = json.dumps(client.list_tags(ref))
+            elif doc_type == "referrers":
+                digest: str | None = ref.digest or client.head_manifest(ref)
+                if not digest:
+                    log.warning("No digest found for %s", img_ref)
+                    return
+                content = json.dumps([dataclasses.asdict(d) for d in client.list_referrers(ref, digest)])
+            else:
+                return
+        except OCIError as e:
+            log.warning("%s: %s", img_ref, e)
             return
-        url: str = f"https://{api_host}/v2/{img_info.name}/blobs/{img_info.pinned_digest}"
-    elif doc_type == "manifest":
-        if not img_info.tag_or_digest:
-            log.warning("No tag or digest found in %s", img_ref)
-            return
-        url = f"https://{api_host}/v2/{img_info.name}/manifests/{img_info.tag_or_digest}"
-    elif doc_type == "tags":
-        url = f"https://{api_host}/v2/{img_info.name}/tags/list"
-    else:
-        return
-
-    token: str | None = lookup.fetch_token(img_info.index_name, img_info.name)
-
-    response: Response | None = fetch_url(url, bearer_token=token, follow_redirects=True, response_type=ALL_OCI_MEDIA_TYPES)
-    if response and response.is_error:
-        log.warning(f"{response.status_code}: {url}")
-        log.warning(response.text)
-    elif response and response.is_success:
-        log.debug(f"{response.status_code}: {url}")
-        log.debug("HEADERS")
-        for k, v in response.headers.items():
-            log.debug(f"{k}: {v}")
-        log.debug("CONTENTS")
-
-        print_json(response.text)
+    print_json(content)
 
 
 def docker_provider(cli_conf: DictConfig) -> DockerProvider:
@@ -390,6 +335,8 @@ def run_command(cli_conf: DictConfig) -> None:
         dump_url("manifest", cli_conf.get("manifest"), cli_conf)
     elif cli_conf.get("tags"):
         dump_url("tags", cli_conf.get("tags"), cli_conf)
+    elif cli_conf.get("referrers"):
+        dump_url("referrers", cli_conf.get("referrers"), cli_conf)
     elif cli_conf.get("mqtt"):
         if not check_mqtt(cli_conf):
             sys.exit(1)
