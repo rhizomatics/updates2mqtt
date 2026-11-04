@@ -15,6 +15,10 @@
 - Local registries on `localhost` are reached over plain http, as Docker does
 - One long-lived, cached connection to registries, rather than a new one for each request
 - `u2m-cli` adds `referrers=<image>` to list signatures, SBOMs and other artifacts attached to an image
+- Registry API stats count the expected first `401` challenge from each registry as an auth challenge, not an error
+### Fixes
+- A container caught mid-recreate by `docker compose`, briefly renamed `<id>_<name>`, is no longer published as an extra update entity
+- Topic cleaning no longer logs every other integration's update topic it skips, giving a count in its summary instead
 
 ## 1.16.0
 ### Parallel updates
