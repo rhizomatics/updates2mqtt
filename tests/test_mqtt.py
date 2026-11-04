@@ -790,11 +790,16 @@ async def test_clean_topics_skips_unrelated_topics(mock_mqtt_client: Mock, mock_
                 on_message_callback(mock_cleaner, None, msg)
 
             task = asyncio.create_task(trigger_cleanup())
-            await uut.clean_topics(mock_provider, wait_time=1)
+            with patch.object(uut, "log") as mock_log:
+                await uut.clean_topics(mock_provider, wait_time=1)
             await task
 
             # Should NOT have published anything (topic doesn't match)
             assert mock_cleaner.publish.call_count == 0
+            # counted in the summary, rather than logged one by one
+            summary = [c.args[0] for c in mock_log.bind.return_value.info.call_args_list if "Cleaned" in str(c.args[0])]
+            assert summary
+            assert "ignored:1" in summary[0]
 
 
 @pytest.mark.asyncio

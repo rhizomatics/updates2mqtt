@@ -132,11 +132,16 @@ class APIStats:
         self.cached: int = 0
         self.revalidated: int = 0
         self.failed: dict[int, int] = {}
+        # 401s answered by the auth flow, expected on the first request to a host
+        self.challenges: int = 0
         self.elapsed: float = 0
         self.max_cache_age: float = 0
 
-    def tick(self, response: Response | None) -> None:
+    def tick(self, response: Response | None, challenge: bool = False) -> None:
         self.fetches += 1
+        if challenge:
+            self.challenges += 1
+            return
         if response is None:
             self.failed.setdefault(0, 0)
             self.failed[0] += 1
@@ -164,6 +169,7 @@ class APIStats:
         return (
             f"fetches: {self.fetches}, cache ratio: {self.hit_ratio():.2%}, revalidated: {self.revalidated}, "
             + f"errors: {', '.join(f'{status_code}:{fails}' for status_code, fails in self.failed.items()) or '0'}, "
+            + f"auth challenges: {self.challenges}, "
             + f"oldest cache hit: {humanize_timespan(self.max_cache_age)}, avg elapsed: {self.average_elapsed()}s"
         )
 
@@ -175,11 +181,11 @@ class APIStatsCounter:
         self.fetches: int = 0
         self.log: Any = structlog.get_logger().bind()
 
-    def stats(self, url: str, response: Response | None) -> None:
+    def stats(self, url: str, response: Response | None, challenge: bool = False) -> None:
         try:
             host: str = urlparse(url).hostname or "UNKNOWN"
             api_stats: APIStats = self.host_stats.setdefault(host, APIStats())
-            api_stats.tick(response)
+            api_stats.tick(response, challenge=challenge)
             self.fetches += 1
             if self.fetches % self.stats_report_interval == 0:
                 self.log.info(

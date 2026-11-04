@@ -372,3 +372,16 @@ async def test_run_process_cancelled_kills_process() -> None:
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await asyncio.wait_for(task, timeout=5)
+
+
+# === compose recreate ===
+
+
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [("5c94ff38a05b_updates2mqtt", True), ("updates2mqtt", False), ("aaaaaaaaaaaa_other", False), (None, False)],
+)
+def test_is_compose_recreate_name(name: str | None, expected: bool) -> None:
+    container = Mock(id="5c94ff38a05b" + "0" * 52)
+    container.name = name
+    assert mut.is_compose_recreate_name(container) is expected

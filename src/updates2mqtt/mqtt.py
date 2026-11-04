@@ -206,7 +206,7 @@ class MqttPublisher:
                 client_id=f"updates2mqtt_clean_{self.node_cfg.name}",
                 clean_session=True,
             )
-            results = {"cleaned": 0, "matched": 0, "discovered": 0, "last_timestamp": time.time()}
+            results = {"cleaned": 0, "matched": 0, "discovered": 0, "ignored": 0, "last_timestamp": time.time()}
             cleaner.username_pw_set(self.cfg.user, password=self.cfg.password)
             cleaner.connect(host=self.cfg.host, port=self.cfg.port, keepalive=self.cfg.keepalive)
 
@@ -223,7 +223,8 @@ class MqttPublisher:
                 elif msg.topic.startswith(f"{self.cfg.topic_root}/{self.node_cfg.name}/{provider.source_type}/"):
                     discovery = self.reverse_general_topic(msg.topic, provider.source_type)
                 else:
-                    logger.debug("Ignoring other topic ", topic=msg.topic)
+                    # e.g. other integrations' update entities, as the subscription can't be narrower
+                    results["ignored"] += 1
                     return
                 results["discovered"] += 1
                 if not initial and discovery is None:
@@ -279,7 +280,8 @@ class MqttPublisher:
             cleaner.disconnect()
 
             logger.info(
-                f"Cleaned - discovered:{results['discovered']}, matched:{results['matched']}, cleaned:{results['cleaned']}"
+                f"Cleaned - discovered:{results['discovered']}, matched:{results['matched']}, cleaned:{results['cleaned']}, "
+                f"ignored:{results['ignored']}"
             )
         except Exception:
             logger.exception("Cleaning topics of stale entries failed")

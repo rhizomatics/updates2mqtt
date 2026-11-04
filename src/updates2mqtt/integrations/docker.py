@@ -832,6 +832,9 @@ class DockerProvider(ReleaseProvider):
             if self.stopped.is_set():
                 logger.info(f"Shutdown detected, aborting scan at {c}")
                 break
+            if is_compose_recreate_name(c):
+                logger.debug("Skipping container being recreated by compose", container=c.name)
+                continue
             containers = containers + 1
             result: Discovery | None = await self.analyze_off_loop(c, session)
             if result:
@@ -904,6 +907,13 @@ class DockerProvider(ReleaseProvider):
             if pkg_info is not None:
                 return pkg_info
         raise ValueError("No enricher could provide metadata, not even default enricher")
+
+
+def is_compose_recreate_name(container: Container) -> bool:
+    """Compose renames the old container to `<12 char id>_<name>` while recreating it"""
+    name: str | None = container.name
+    container_id: str | None = container.id
+    return bool(name and container_id and name.startswith(f"{container_id[:12]}_"))
 
 
 def select_versions(version_policy: VersionPolicy, installed: DockerImageInfo, latest: DockerImageInfo) -> tuple[str, str, str]:

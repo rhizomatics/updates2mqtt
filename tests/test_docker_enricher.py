@@ -900,3 +900,33 @@ def test_caching_transport_counts_stats() -> None:
     response = uut.send(HttpRequest("GET", f"https://{FAKE_REGISTRY}/v2/szabis/iventoy/manifests/latest", kind="manifest"))
     assert response.is_success
     assert stats.host_stats[FAKE_REGISTRY].fetches == 1
+
+
+def test_auth_challenge_not_counted_as_error() -> None:
+    from updates2mqtt.integrations.docker_enrich import is_auth_challenge
+    from updates2mqtt.oci import Headers, HttpResponse
+
+    request = HttpRequest("GET", "https://ghcr.io/v2/a/b/manifests/latest", kind="manifest")
+    challenge = HttpResponse(401, Headers({"WWW-Authenticate": 'Bearer realm="https://ghcr.io/token"'}), b"", request)
+    assert is_auth_challenge(request, challenge)
+    # credentials sent and still refused is a real failure
+    assert not is_auth_challenge(request.with_header("Authorization", "Bearer x"), challenge)
+    assert not is_auth_challenge(request, HttpResponse(401, Headers(), b"", request))
+    assert not is_auth_challenge(request, HttpResponse(200, Headers(), b"", request))
+
+
+def test_caching_transport_counts_challenges_separately() -> None:
+    fake = FakeRegistry()
+    manifest_digest, _config = _image(fake)
+    _index(fake, manifest_digest)
+    stats = APIStatsCounter()
+    transport = CachingRegistryTransport(RegistryConfig(), stats)
+    transport.client = httpx.Client(transport=fake.httpx_transport())
+    uut = ContainerDistributionAPIVersionLookup(
+        _throttler(), RegistryConfig(), credentials=StaticCredentials({}), transport=transport
+    )
+    assert uut.lookup(_local_image()).image_digest is not None
+    host_stats = stats.host_stats[FAKE_REGISTRY]
+    assert host_stats.challenges == 1
+    assert host_stats.failed == {}
+    assert "auth challenges: 1" in str(host_stats)

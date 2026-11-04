@@ -643,8 +643,17 @@ class CachingRegistryTransport(HttpxTransport):
                 self.api_stats.stats(request.url, None)
             raise
         if self.api_stats:
-            self.api_stats.stats(request.url, response.native)
+            self.api_stats.stats(request.url, response.native, challenge=is_auth_challenge(request, response))
         return response
+
+
+def is_auth_challenge(request: HttpRequest, response: HttpResponse) -> bool:
+    """A 401 asking for credentials not yet sent, answered by the auth flow, rather than a failure"""
+    return (
+        response.status_code == 401
+        and request.header("authorization") is None
+        and bool(response.headers.get_list("www-authenticate"))
+    )
 
 
 def cache_metadata(response: HttpResponse | None) -> CacheMetadata | None:
