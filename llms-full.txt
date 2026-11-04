@@ -177,6 +177,16 @@ volumes:
 
 The example `docker-compose.yaml` mounts `/my/container/home` for this purpose, so if your containers are in `/my/container/home/app1`, `/my/container/home/app2` etc, then Updates2MQTT will be able to find them in order to restart them. Map as many root paths as needed.
 
+#### Parallel Updates
+
+Several updates can run at once, for example when *Update All* is used in Home Assistant. Up to `max_concurrent_updates` (default 3) run in parallel, set in the `docker` section of the config file or with the `U2M_MAX_CONCURRENT_UPDATES` env var. Further updates show as in progress while they wait for a free slot. Restarts and builds for containers in the same compose project, or Portainer stack, are run one at a time.
+
+#### Updating Updates2MQTT Itself
+
+When Updates2MQTT updates its own container, it waits for any other updates in progress to finish, and ignores new update requests meanwhile. It then starts a short-lived helper container, from its own image and with the same volumes, to run `docker compose up`, so that the recreation isn’t cut short when the old container is stopped. The helper is named after the Updates2MQTT container, with a `_self_update_` suffix, and is removed by the new Updates2MQTT container when it starts, after logging the result. If the helper can’t be started, Updates2MQTT falls back to running compose from inside its own container, as in earlier versions.
+
+Containers managed as a [Portainer](https://updates2mqtt.rhizomatics.org.uk/configuration/portainer/index.md) stack are redeployed by Portainer instead.
+
 #### Ensuring Always Running
 
 Use cron to make sure the container is always up, this example will run once an hour, adapt the schedule and the location of `docker-compose.yaml` for your needs.
@@ -551,6 +561,7 @@ docker:
   allow_restart: true # if true, will do a `docker-compose up` if an update is installed
   allow_build: true # if true, will do a `docker-compose build` if a git repo is configured
   remove_old_image: false # if true, removes the replaced image after a successful update, unless still in use
+  max_concurrent_updates: 3 # updates run in parallel up to this many, others wait for a free slot
   compose_version: v2 # Controls whether to use `docker-compose` (v1) or `docker compose` (v2) command
   default_entity_picture_url: https://www.docker.com/wp-content/uploads/2022/03/Moby-logo.png # Picture for update dialog
   device_icon: mdi:docker # Material Design Icon to use when browsing entities in Home Assistant
@@ -982,7 +993,7 @@ MQTT_HOST=192.168.1.10 MQTT_USER=u2m MQTT_PASS=xxx uvx --from updates2mqtt u2m-c
 uvx --from updates2mqtt u2m-cli mqtt=check config=/path/to/config.yaml
 ```
 
-It also shows the update settings - `allow_pull`, `allow_restart`, `allow_build`, `remove_old_image` and the Portainer API settings - so you can confirm env vars like `PORTAINER_CA_CERTS` or `U2M_REMOVE_OLD_IMAGE` are being picked up. The Portainer API key is shown only as set or not set.
+It also shows the update settings - `allow_pull`, `allow_restart`, `allow_build`, `remove_old_image`, `max_concurrent_updates` and the Portainer API settings - so you can confirm env vars like `PORTAINER_CA_CERTS` or `U2M_REMOVE_OLD_IMAGE` are being picked up. The Portainer API key is shown only as set or not set.
 
 The check reports missing required values (such as `MQTT_USER`) and certificate files that don’t exist, including the Portainer `ca_certs`. It doesn’t try to connect if the MQTT settings are invalid. It exits with status 0 if the broker connection succeeds and the update settings are valid, and 1 otherwise, so it can also be used in scripts. It uses its own MQTT client id, so is safe to run alongside a live Updates2MQTT without disconnecting it.
 

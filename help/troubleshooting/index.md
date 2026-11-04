@@ -68,7 +68,7 @@ MQTT_HOST=192.168.1.10 MQTT_USER=u2m MQTT_PASS=xxx uvx --from updates2mqtt u2m-c
 uvx --from updates2mqtt u2m-cli mqtt=check config=/path/to/config.yaml
 ```
 
-It also shows the update settings - `allow_pull`, `allow_restart`, `allow_build`, `remove_old_image` and the Portainer API settings - so you can confirm env vars like `PORTAINER_CA_CERTS` or `U2M_REMOVE_OLD_IMAGE` are being picked up. The Portainer API key is shown only as set or not set.
+It also shows the update settings - `allow_pull`, `allow_restart`, `allow_build`, `remove_old_image`, `max_concurrent_updates` and the Portainer API settings - so you can confirm env vars like `PORTAINER_CA_CERTS` or `U2M_REMOVE_OLD_IMAGE` are being picked up. The Portainer API key is shown only as set or not set.
 
 The check reports missing required values (such as `MQTT_USER`) and certificate files that don’t exist, including the Portainer `ca_certs`. It doesn’t try to connect if the MQTT settings are invalid. It exits with status 0 if the broker connection succeeds and the update settings are valid, and 1 otherwise, so it can also be used in scripts. It uses its own MQTT client id, so is safe to run alongside a live Updates2MQTT without disconnecting it.
 

@@ -31,6 +31,16 @@ volumes:
 
 The example `docker-compose.yaml` mounts `/my/container/home` for this purpose, so if your containers are in `/my/container/home/app1`, `/my/container/home/app2` etc, then Updates2MQTT will be able to find them in order to restart them. Map as many root paths as needed.
 
+#### Parallel Updates
+
+Several updates can run at once, for example when *Update All* is used in Home Assistant. Up to `max_concurrent_updates` (default 3) run in parallel, set in the `docker` section of the config file or with the `U2M_MAX_CONCURRENT_UPDATES` env var. Further updates show as in progress while they wait for a free slot. Restarts and builds for containers in the same compose project, or Portainer stack, are run one at a time.
+
+#### Updating Updates2MQTT Itself
+
+When Updates2MQTT updates its own container, it waits for any other updates in progress to finish, and ignores new update requests meanwhile. It then starts a short-lived helper container, from its own image and with the same volumes, to run `docker compose up`, so that the recreation isn’t cut short when the old container is stopped. The helper is named after the Updates2MQTT container, with a `_self_update_` suffix, and is removed by the new Updates2MQTT container when it starts, after logging the result. If the helper can’t be started, Updates2MQTT falls back to running compose from inside its own container, as in earlier versions.
+
+Containers managed as a [Portainer](https://updates2mqtt.rhizomatics.org.uk/configuration/portainer/index.md) stack are redeployed by Portainer instead.
+
 #### Ensuring Always Running
 
 Use cron to make sure the container is always up, this example will run once an hour, adapt the schedule and the location of `docker-compose.yaml` for your needs.
