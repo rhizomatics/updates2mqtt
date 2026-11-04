@@ -23,11 +23,11 @@ def test_git_trust(fake_process: FakeProcess) -> None:
     assert git_trust(Path("/my/path"), GIT_EXEC)
 
 
-def test_git_pull(fake_process: FakeProcess) -> None:
-    fake_process.register("/usr/bin/git pull", returncode=0)
-    assert git_pull(Path("/my/path"), GIT_EXEC)
-    fake_process.register("/usr/bin/git pull", returncode=23)
-    assert git_pull(Path("/my/path"), GIT_EXEC) is False
+async def test_git_pull(fake_process: FakeProcess) -> None:
+    fake_process.register(["/usr/bin/git", "pull"], returncode=0)
+    assert await git_pull(Path("/my/path"), GIT_EXEC)
+    fake_process.register(["/usr/bin/git", "pull"], returncode=23)
+    assert await git_pull(Path("/my/path"), GIT_EXEC) is False
 
 
 def test_git_check_update_available(fake_process: FakeProcess) -> None:

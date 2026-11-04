@@ -226,7 +226,7 @@ def test_url_without_key_disables_portainer(mock_docker_client: DockerClient) ->
     assert uut.portainer is None
 
 
-def test_restart_uses_portainer_for_stack(mock_docker_client: DockerClient) -> None:
+async def test_restart_uses_portainer_for_stack(mock_docker_client: DockerClient) -> None:
     with patch("docker.from_env", return_value=mock_docker_client):
         uut = mut.DockerProvider(docker_config(discover_metadata={}, portainer=portainer_cfg()), NodeConfig())
     d = Discovery(
@@ -241,12 +241,12 @@ def test_restart_uses_portainer_for_stack(mock_docker_client: DockerClient) -> N
         patch.object(PortainerClient, "redeploy", return_value=True) as mock_redeploy,
         patch.object(uut, "execute_compose") as mock_compose,
     ):
-        assert uut.restart(d)
+        assert await uut.restart(d)
     mock_redeploy.assert_called_once_with("52")
     mock_compose.assert_not_called()
 
 
-def test_restart_prefers_compose_when_path_visible(mock_docker_client: DockerClient, tmp_path: Path) -> None:
+async def test_restart_prefers_compose_when_path_visible(mock_docker_client: DockerClient, tmp_path: Path) -> None:
     with patch("docker.from_env", return_value=mock_docker_client):
         uut = mut.DockerProvider(docker_config(discover_metadata={}, portainer=portainer_cfg()), NodeConfig())
     d = Discovery(
@@ -260,6 +260,6 @@ def test_restart_prefers_compose_when_path_visible(mock_docker_client: DockerCli
         patch.object(PortainerClient, "redeploy") as mock_redeploy,
         patch.object(uut, "execute_compose", return_value=True) as mock_compose,
     ):
-        assert uut.restart(d)
+        assert await uut.restart(d)
     mock_redeploy.assert_not_called()
     mock_compose.assert_called_once()
