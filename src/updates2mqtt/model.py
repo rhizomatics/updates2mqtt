@@ -112,7 +112,7 @@ class Discovery:
         update_policy: UpdatePolicy = UpdatePolicy.PASSIVE,
         version_policy: VersionPolicy = VersionPolicy.AUTO,
         version_basis: str | None = None,
-        title_template: str = "{discovery.update_type} for {discovery.name} on {discovery.node}",
+        title_template: str = "{discovery.name} {discovery.update_type} on {discovery.node}",
         device_icon: str | None = None,
         custom: dict[str, Any] | None = None,
         throttled: bool = False,
