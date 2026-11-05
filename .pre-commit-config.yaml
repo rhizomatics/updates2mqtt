@@ -32,7 +32,7 @@ repos:
         files: ^(uv\.lock|pyproject\.toml|uv\.toml)$
         pass_filenames: false
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.17.3
+    rev: v0.17.4
     hooks:
      # Run the linter.
       - id: ruff-check
@@ -85,7 +85,7 @@ repos:
       - id: actionlint
 
   - repo: https://github.com/astral-sh/ty-pre-commit
-    rev: v0.0.97
+    rev: v0.0.98
     hooks:
       - id: ty
 
