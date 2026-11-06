@@ -49,6 +49,14 @@ common_packages:
     logo_url: https://avatars.githubusercontent.com/u/17889013?s=48&v=4
     source_repo_url: https://github.com/certbot/certbot
 
+  dex:
+    docker:
+      image_name: 
+        - ghcr.io/dexidp/dex
+        - docker.io/dexidp/dex
+    logo_url: https://avatars.githubusercontent.com/u/42422344?s=60&v=4
+    source_repo_url: https://github.com/dexidp/dex
+
   docker_cli:
     docker:
       image_name: docker:cli
@@ -161,6 +169,12 @@ common_packages:
       image_name: lycheeorg/lychee
     source_repo_url: https://github.com/LycheeOrg/Lychee
     logo_url: https://avatars.githubusercontent.com/u/37916028?s=48&v=4
+
+  mailserver:
+    docker:
+      image_name: mailserver/docker-mailserver
+    source_repo_url: https://github.com/docker-mailserver/docker-mailserver
+    logo_url: https://avatars.githubusercontent.com/u/76868633?s=60&v=4
 
   mariadb:
     docker:
