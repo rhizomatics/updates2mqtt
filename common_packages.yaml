@@ -216,6 +216,12 @@ common_packages:
     logo_url: https://frigate.video/images/logo.svg
     source_repo_url: https://github.com/blakeblackshear/frigate
 
+  garage:
+    docker:
+      image_name: dxflrs/garage
+    logo_url: https://avatars.githubusercontent.com/u/94553604?s=60&v=4
+    source_repo_url: https://github.com/deuxfleurs-org/garage
+
   ghost:
     docker:
       image_name: ghost
