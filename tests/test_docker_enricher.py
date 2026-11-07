@@ -24,6 +24,8 @@ from updates2mqtt.config import (
 from updates2mqtt.helpers import APIStatsCounter, Throttler
 from updates2mqtt.integrations.docker_enrich import (
     DIFF_URL_TEMPLATES,
+    HOTIO_PAGE_URL,
+    HOTIO_SITE_TREE_URL,
     REGISTRY_GHCR,
     RELEASE_URL_TEMPLATES,
     CachingRegistryTransport,
@@ -32,6 +34,7 @@ from updates2mqtt.integrations.docker_enrich import (
     DefaultPackageEnricher,
     DockerClientVersionLookup,
     DockerImageInfo,
+    HotioPackageEnricher,
     LinuxServerIOPackageEnricher,
     PackageEnricher,
     SourceReleaseEnricher,
@@ -930,3 +933,85 @@ def test_caching_transport_counts_challenges_separately() -> None:
     assert host_stats.challenges == 1
     assert host_stats.failed == {}
     assert "auth challenges: 1" in str(host_stats)
+
+
+# === HotioPackageEnricher Tests ===
+
+
+HOTIO_TREE = {
+    "tree": [
+        {"path": "docs/containers/base.md"},
+        {"path": "docs/containers/sonarr.md"},
+        {"path": "docs/containers/autoscan.md"},
+        {"path": "docs/webhook-avatars/sonarr.png"},
+        {"path": "logos/sonarr.svg"},
+    ]
+}
+HOTIO_SONARR_PAGE = """---
+title: hotio/sonarr
+---
+
+[:octicons-mark-github-16: GitHub](https://github.com/hotio/sonarr){ class="header-links" }
+[:octicons-link-16: Upstream Project](https://github.com/sonarr/sonarr){ class="header-links" }
+"""
+
+
+def hotio_enricher() -> HotioPackageEnricher:
+    cfg: DockerConfig = docker_config(discover_metadata={"hotio.dev": MetadataSourceConfig(cache_ttl=0)})
+    enricher = HotioPackageEnricher(cfg)
+    enricher.initialize()
+    return enricher
+
+
+def test_hotio_enricher_disabled() -> None:
+    cfg = docker_config()
+    cfg.discover_metadata["hotio.dev"].enabled = False
+    enricher = HotioPackageEnricher(cfg)
+    enricher.initialize()
+    assert len(enricher.containers) == 0
+    assert enricher.enrich(DockerImageInfo("ghcr.io/hotio/sonarr:release")) is None
+
+
+def test_hotio_enricher_lists_images(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(url=HOTIO_SITE_TREE_URL, json=HOTIO_TREE)
+    enricher = hotio_enricher()
+    assert enricher.containers == {"sonarr", "autoscan"}
+    assert enricher.avatars == {"sonarr"}
+    assert len(enricher.pkgs) == 0  # pages only fetched when an image is seen
+
+
+@pytest.mark.parametrize("ref", ["ghcr.io/hotio/sonarr:release", "hotio/sonarr:latest", "docker.io/hotio/sonarr"])
+def test_hotio_enricher_enriches(httpx_mock: HTTPXMock, ref: str) -> None:
+    httpx_mock.add_response(url=HOTIO_SITE_TREE_URL, json=HOTIO_TREE)
+    httpx_mock.add_response(url=HOTIO_PAGE_URL.format(name="sonarr"), text=HOTIO_SONARR_PAGE)
+    enricher = hotio_enricher()
+    info: PackageUpdateInfo | None = enricher.enrich(DockerImageInfo(ref))
+    assert info is not None
+    assert info.source_repo_url == "https://github.com/sonarr/sonarr"
+    assert info.release_notes_url == "https://github.com/sonarr/sonarr/releases"
+    assert info.logo_url == "https://hotio.dev/webhook-avatars/sonarr.png"
+    # second lookup reuses the cached package, no further page fetch
+    assert enricher.enrich(DockerImageInfo(ref)) is info
+
+
+def test_hotio_enricher_page_without_upstream(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(url=HOTIO_SITE_TREE_URL, json=HOTIO_TREE)
+    httpx_mock.add_response(url=HOTIO_PAGE_URL.format(name="autoscan"), status_code=404)
+    info: PackageUpdateInfo | None = hotio_enricher().enrich(DockerImageInfo("ghcr.io/hotio/autoscan:release"))
+    assert info is not None
+    assert info.source_repo_url is None
+    assert info.release_notes_url is None
+    assert info.logo_url is None
+
+
+@pytest.mark.parametrize("ref", ["ghcr.io/hotio/unknown:release", "ghcr.io/hotio/base:alpine", "ghcr.io/other/sonarr"])
+def test_hotio_enricher_ignores_other_images(httpx_mock: HTTPXMock, ref: str) -> None:
+    httpx_mock.add_response(url=HOTIO_SITE_TREE_URL, json=HOTIO_TREE)
+    assert hotio_enricher().enrich(DockerImageInfo(ref)) is None
+
+
+def test_hotio_enricher_handles_api_error(httpx_mock: HTTPXMock) -> None:
+    httpx_mock.add_response(url=HOTIO_SITE_TREE_URL, status_code=403)
+    enricher = hotio_enricher()
+    assert len(enricher.containers) == 0
+    assert enricher.enrich(DockerImageInfo("ghcr.io/hotio/sonarr:release")) is None

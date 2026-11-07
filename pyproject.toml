@@ -7,7 +7,7 @@ authors = [
 ]
 
 requires-python = ">=3.13"
-version = "1.17.0"
+version = "1.17.1"
 license="Apache-2.0"
 keywords=["mqtt", "docker", "oci","container","updates", "automation","home-assistant","homeassistant","selfhosting"]
 
@@ -18,7 +18,7 @@ dependencies = [
   "structlog>=25.4.0",
   "rich>=14.0.0",
   "httpx>=0.28.1",
-  "hishel[httpx]>=1.1.0",
+  "hishel[httpx]>=1.1.0,<2",
   "usingversion>=0.1.2",
   "tzlocal>=5.3.1"
 ]

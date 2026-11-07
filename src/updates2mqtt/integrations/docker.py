@@ -39,6 +39,7 @@ from updates2mqtt.integrations.docker_enrich import (
     DockerClientVersionLookup,
     DockerImageInfo,
     DockerServiceDetails,
+    HotioPackageEnricher,
     LinuxServerIOPackageEnricher,
     LocalContainerInfo,
     PackageEnricher,
@@ -183,6 +184,7 @@ class DockerProvider(ReleaseProvider):
         self.pkg_enrichers: list[PackageEnricher] = [
             CommonPackageEnricher(self.cfg, packages),
             LinuxServerIOPackageEnricher(self.cfg),
+            HotioPackageEnricher(self.cfg),
             DefaultPackageEnricher(self.cfg),
         ]
         self.docker_client_image_lookup = DockerClientVersionLookup(

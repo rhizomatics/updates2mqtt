@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 1.17.1
+- Huge update to *Common Packages*, over 80 more common self-hosted images
+- `hotio` auto package enrichment
+- `hishel` explicitly capped at `<2.0.0` version for now
+
+
 ## 1.17.0
 ### Home Assistant
 - Update entity titles now lead with the container name, e.g. `frigate Docker Image on nuc` rather than `Docker Image for frigate on nuc`, so they read and sort better in Home Assistant

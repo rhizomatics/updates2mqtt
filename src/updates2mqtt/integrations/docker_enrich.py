@@ -521,6 +521,71 @@ class LinuxServerIOPackageEnricher(PackageEnricher):
         self.log.debug(f"Added {added} linuxserver.io package details")
 
 
+HOTIO_SITE_TREE_URL = "https://api.github.com/repos/hotio/website/git/trees/HEAD?recursive=1"
+HOTIO_PAGE_URL = "https://raw.githubusercontent.com/hotio/website/HEAD/docs/containers/{name}.md"
+HOTIO_AVATAR_URL = "https://hotio.dev/webhook-avatars/{name}.png"
+HOTIO_IMAGE_RE = re.compile(r"^(?:ghcr\.io/|docker\.io/)?hotio/([a-z0-9._-]+)$")
+HOTIO_UPSTREAM_RE = re.compile(r"\[[^\]]*Upstream Project\]\((https?://[^)\s]+)\)")
+
+
+class HotioPackageEnricher(PackageEnricher):
+    """hotio.dev images, with icons and upstream source repo from the hotio.dev website source
+
+    The image list and icons come from one cached listing of the website repo, and each image's
+    upstream project link is only fetched once a container using that image is seen
+    """
+
+    def __init__(self, docker_cfg: DockerConfig) -> None:
+        super().__init__(docker_cfg)
+        self.containers: set[str] = set()
+        self.avatars: set[str] = set()
+        self.cache_ttl: int | None = None
+
+    def initialize(self) -> None:
+        cfg: MetadataSourceConfig | None = self.cfg.discover_metadata.get("hotio.dev")
+        if cfg is None or not cfg.enabled:
+            return
+        self.cache_ttl = cfg.cache_ttl
+        self.log.debug(f"Fetching hotio.dev image list, cache_ttl={cfg.cache_ttl}")
+        response: Response | None = fetch_url(HOTIO_SITE_TREE_URL, cache_ttl=cfg.cache_ttl)
+        if not response or not response.is_success:
+            return
+        try:
+            tree: list[dict[str, Any]] = response.json().get("tree", [])
+        except ValueError as e:
+            self.log.warning("Unable to parse hotio.dev image list: %s", e)
+            return
+        for entry in tree:
+            path: str = entry.get("path", "")
+            if m := re.fullmatch(r"docs/containers/([a-z0-9._-]+)\.md", path):
+                self.containers.add(m.group(1))
+            elif m := re.fullmatch(r"docs/webhook-avatars/([a-z0-9._-]+)\.png", path):
+                self.avatars.add(m.group(1))
+        self.containers.discard("base")
+        self.log.debug(f"Found {len(self.containers)} hotio.dev images")
+
+    def enrich(self, image_info: DockerImageInfo) -> PackageUpdateInfo | None:
+        m = HOTIO_IMAGE_RE.match(image_info.untagged_ref or "")
+        if m is None or m.group(1) not in self.containers:
+            return None
+        name: str = m.group(1)
+        if name not in self.pkgs:
+            upstream: str | None = self.upstream_project(name)
+            self.pkgs[name] = PackageUpdateInfo(
+                DockerPackageUpdateInfo([f"ghcr.io/hotio/{name}", f"hotio/{name}", f"docker.io/hotio/{name}"]),
+                logo_url=HOTIO_AVATAR_URL.format(name=name) if name in self.avatars else None,
+                release_notes_url=f"{upstream}/releases" if upstream and upstream.startswith("https://github.com/") else None,
+                source_repo_url=upstream,
+            )
+        return super().enrich(image_info)
+
+    def upstream_project(self, name: str) -> str | None:
+        response: Response | None = fetch_url(HOTIO_PAGE_URL.format(name=name), cache_ttl=self.cache_ttl)
+        if response and response.is_success and (m := HOTIO_UPSTREAM_RE.search(response.text)):
+            return m.group(1)
+        return None
+
+
 class SourceReleaseEnricher:
     def __init__(self) -> None:
         self.log: Any = structlog.get_logger().bind(integration="docker")

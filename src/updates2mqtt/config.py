@@ -174,7 +174,10 @@ class DockerConfig:
     # Icon to show when browsing entities in Home Assistant
     device_icon: str = "mdi:docker"
     discover_metadata: dict[str, MetadataSourceConfig] = field(
-        default_factory=lambda: {"linuxserver.io": MetadataSourceConfig(enabled=True)}
+        default_factory=lambda: {
+            "linuxserver.io": MetadataSourceConfig(enabled=True),
+            "hotio.dev": MetadataSourceConfig(enabled=True),
+        }
     )
     registry: RegistryConfig = field(default_factory=lambda: RegistryConfig())
     default_api_backoff: int = 60 * 15
