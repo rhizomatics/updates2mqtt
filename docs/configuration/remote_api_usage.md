@@ -45,7 +45,7 @@ Docker API has [usage limits](https://docs.docker.com/docker-hub/usage/) which m
 
 `updates2mqtt` will back off if a `429` Too Many Requests response is received, and pause for that specific registry for the requested number of seconds. There's a default in `docker` config of `default_api_backoff` applied if the backoff can't be automatically determined.
 
-The main technique to avoid throttling is caching of responses, and fortunately many of the calls are cache friendly, such as the manifest retrieval. By default, responses will be cached as suggested by the registry API service ([explanation](https://hishel.com/1.1/specification/#how-it-works)), however this can be overridden with these options:
+The main technique to avoid throttling is caching of responses, and fortunately many of the calls are cache friendly, such as the manifest retrieval. By default, responses will be cached as suggested by the registry API service ([explanation](https://hishel.com/httpx.html#caching-modes)), however this can be overridden with these options:
 
 | Config Key | Default | Comments |
 | ---------- | ------- | -------- |

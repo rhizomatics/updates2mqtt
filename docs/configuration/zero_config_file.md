@@ -18,7 +18,7 @@ The core configuration can be supplied by environment variables and container la
 
 Startup will fail if `MQTT_USER` and `MQTT_PASS` are not defined some how. Run `u2m-cli mqtt=check` inside the container to see which settings are picked up from the environment, see [Troubleshooting](../help/troubleshooting.md#checking-mqtt-and-update-settings).
 
-The `PORTAINER_` env vars are only needed to update containers in Portainer stacks, see [Portainer](../installation.md#on-portainer).
+The `PORTAINER_` env vars are only needed to update containers in Portainer stacks, see [Portainer](../installation.md#portainer).
 
 The example [docker-compose.yaml](examples/docker_compose.md) and [.env](examples/env.md) demonstrate one way of doing this, or skip the `.env` file and use an `environment` section in the Compose file.
 
