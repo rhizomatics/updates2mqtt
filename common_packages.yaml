@@ -122,6 +122,12 @@ common_packages:
     logo_url: https://avatars.githubusercontent.com/u/13844975?s=48&v=4
     source_repo_url: https://github.com/home-assistant/docker
 
+  homepage:
+    docker:
+      image_name: ghcr.io/gethomepage/homepage
+    logo_url: https://avatars.githubusercontent.com/u/122929872?s=60&v=4
+    source_repo_url: https://github.com/gethomepage/homepage
+
   homarr:
     docker:
       image_name: ghcr.io/homarr-labs/homarr
