@@ -160,6 +160,12 @@ common_packages:
       image_name: docker
     release_notes_url: https://github.com/docker-library/docker/commits/master/29/dind
 
+  dockhand:
+    docker:
+      image_name: fnsys/dockhand
+    logo_url: https://avatars.githubusercontent.com/u/4663699?s=60&v=4
+    source_repo_url: https://github.com/Finsys/dockhand
+
   dozzle:
     docker:
       image_name: amir20/dozzle

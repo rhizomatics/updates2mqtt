@@ -1,7 +1,7 @@
 # CHANGELOG
 
 ## 1.17.1
-- Huge update to *Common Packages*, over 80 more common self-hosted images
+- Huge update to *Common Packages*, with 85 more common self-hosted images
 - `hotio` auto package enrichment
 - `hishel` explicitly capped at `<2.0.0` version for now
 
