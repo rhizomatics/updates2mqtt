@@ -2,29 +2,30 @@
 
 > Notify and take action on server updates via MQTT, with HomeAssistant compatibility
 
-Updates2MQTT monitors Docker image and local Git-based builds for updates, publishes update details over MQTT, and integrates with Home Assistant's MQTT Update entities. Start with installation and configuration guidance; use the Home Assistant and troubleshooting pages for integration and operations.
+Updates2MQTT monitors Docker images, Portainer stacks and local Git-based builds for updates, publishes update details over MQTT, and integrates with Home Assistant's MQTT Update entities, optionally applying the update when asked. Logos, release notes and source links come from built-in common packages and the linuxserver.io and hotio.dev catalogues. Start with installation and configuration guidance; use the Home Assistant and troubleshooting pages for integration and operations.
 
 
 ## Start here
 
 - [Updates2MQTT](https://updates2mqtt.rhizomatics.org.uk/index.md): Project overview, capabilities, and quick start
 - [Installation](https://updates2mqtt.rhizomatics.org.uk/installation/index.md): Installation and deployment options
+- [What's New](https://updates2mqtt.rhizomatics.org.uk/changelog/index.md): What's new in each release
 
 ## Configuration
 
-- [Configuring Updates2MQTT](https://updates2mqtt.rhizomatics.org.uk/configuration/index.md)
-- [Common Packages](https://updates2mqtt.rhizomatics.org.uk/configuration/common_packages/index.md)
-- [Customizing Containers](https://updates2mqtt.rhizomatics.org.uk/configuration/customizing_containers/index.md)
-- [Portainer Configuration](https://updates2mqtt.rhizomatics.org.uk/configuration/portainer/index.md)
-- [Remote API Usage](https://updates2mqtt.rhizomatics.org.uk/configuration/remote_api_usage/index.md)
-- [Improving Security](https://updates2mqtt.rhizomatics.org.uk/configuration/security/index.md)
-- [Using A Configuration File](https://updates2mqtt.rhizomatics.org.uk/configuration/using_a_config_file/index.md)
-- [Without a Configuration File](https://updates2mqtt.rhizomatics.org.uk/configuration/zero_config_file/index.md)
-- [Example Configurations](https://updates2mqtt.rhizomatics.org.uk/configuration/examples/index.md)
-- [Maximal Configuration](https://updates2mqtt.rhizomatics.org.uk/configuration/examples/config_maximal/index.md)
-- [Minimal Configuration](https://updates2mqtt.rhizomatics.org.uk/configuration/examples/config_minimal/index.md)
-- [Docker Compose](https://updates2mqtt.rhizomatics.org.uk/configuration/examples/docker_compose/index.md)
-- [Environment File](https://updates2mqtt.rhizomatics.org.uk/configuration/examples/env/index.md)
+- [Configuring Updates2MQTT](https://updates2mqtt.rhizomatics.org.uk/configuration/index.md): Overview of configuring the agent and individual containers
+- [Using A Configuration File](https://updates2mqtt.rhizomatics.org.uk/configuration/using_a_config_file/index.md): The optional config.yaml file and its settings
+- [Without a Configuration File](https://updates2mqtt.rhizomatics.org.uk/configuration/zero_config_file/index.md): Running with only environment variables and container labels
+- [Customizing Containers](https://updates2mqtt.rhizomatics.org.uk/configuration/customizing_containers/index.md): Per-container logos, release notes, update and ignore settings via env vars or labels
+- [Common Packages](https://updates2mqtt.rhizomatics.org.uk/configuration/common_packages/index.md): Built-in package metadata, and automatic linuxserver.io and hotio.dev lookups
+- [Portainer Configuration](https://updates2mqtt.rhizomatics.org.uk/configuration/portainer/index.md): Running on Portainer hosts and redeploying Portainer stacks
+- [Remote API Usage](https://updates2mqtt.rhizomatics.org.uk/configuration/remote_api_usage/index.md): Remote APIs called, private registry credentials and rate limits
+- [Improving Security](https://updates2mqtt.rhizomatics.org.uk/configuration/security/index.md): Moving secrets out of config and other hardening
+- [Example Configurations](https://updates2mqtt.rhizomatics.org.uk/configuration/examples/index.md): Example configuration and Docker Compose files
+- [Minimal Configuration](https://updates2mqtt.rhizomatics.org.uk/configuration/examples/config_minimal/index.md): Smallest working config.yaml
+- [Maximal Configuration](https://updates2mqtt.rhizomatics.org.uk/configuration/examples/config_maximal/index.md): config.yaml using all features
+- [Docker Compose](https://updates2mqtt.rhizomatics.org.uk/configuration/examples/docker_compose/index.md): Docker Compose file to run Updates2MQTT
+- [Environment File](https://updates2mqtt.rhizomatics.org.uk/configuration/examples/env/index.md): Example .env file for Docker Compose
 
 ## Home Assistant and operations
 
@@ -40,9 +41,9 @@ Updates2MQTT monitors Docker image and local Git-based builds for updates, publi
 ## Development
 
 - [Local Builds](https://updates2mqtt.rhizomatics.org.uk/local_builds/index.md): Tracking updates for locally built images
-- [Developer Documentation](https://updates2mqtt.rhizomatics.org.uk/developer/index.md)
-- [OCI Client](https://updates2mqtt.rhizomatics.org.uk/developer/oci_client/index.md)
-- [Understanding Container Metadata](https://updates2mqtt.rhizomatics.org.uk/developer/oci_container/index.md)
-- [Design Documentation](https://updates2mqtt.rhizomatics.org.uk/developer/design/index.md)
-- [Roadmap](https://updates2mqtt.rhizomatics.org.uk/developer/design/roadmap/index.md)
+- [Developer Documentation](https://updates2mqtt.rhizomatics.org.uk/developer/index.md): Developer documentation overview
+- [OCI Client](https://updates2mqtt.rhizomatics.org.uk/developer/oci_client/index.md): Design and use of the self-contained OCI registry client
+- [Understanding Container Metadata](https://updates2mqtt.rhizomatics.org.uk/developer/oci_container/index.md): OCI image indexes, manifests, configs and annotations, and how they are used
+- [Design Documentation](https://updates2mqtt.rhizomatics.org.uk/developer/design/index.md): Design notes
+- [Roadmap](https://updates2mqtt.rhizomatics.org.uk/developer/design/roadmap/index.md): Planned major features and improvements
 
