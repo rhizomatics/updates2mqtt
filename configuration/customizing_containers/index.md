@@ -65,7 +65,7 @@ Alternatively, set `UPD2MQTT_IGNORE` flag on the container itself to completely 
 
 ## Icon Sources
 
-Updates look nicer in Home Assistant with a suitable icon. Updates2mqtt comes pre-packaged with some common ones, in `common_packages.yaml`, and can automatically fetch them (and release links) for the popular [linuxserver.io](https://www.linuxserver.io) packages.
+Updates look nicer in Home Assistant with a suitable icon. Updates2mqtt comes pre-packaged with some common ones, in `common_packages.yaml`, and can automatically fetch them (and release links) for the popular [linuxserver.io](https://www.linuxserver.io) and [hotio](https://hotio.dev) packages.
 
 If you have something not covered, here are some good places to look for self-hosted app icons:
 

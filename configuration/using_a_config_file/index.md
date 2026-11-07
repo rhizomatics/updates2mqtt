@@ -50,6 +50,9 @@ docker:
     linuxserver.io:
       enabled: true
       cache_ttl: 604800 # cache metadata for 1 week
+    hotio.dev:
+      enabled: true
+      cache_ttl: 604800
   image_ref_select: # limit the containers which will be published to Home Assistant
     include:
     - .*special-dev

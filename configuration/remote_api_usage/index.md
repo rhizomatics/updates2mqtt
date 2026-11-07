@@ -10,6 +10,8 @@ Updates2MQTT uses several remote APIs to check for new versions, or pull in usef
   - Used to pull in release summaries where container images provide source links and revisions
 - **LinuxServer API**
   - Used to get release notes and icons for lots of popular containers
+- **hotio.dev**
+  - The image list and icons come from the [hotio website](https://github.com/hotio/website) repo, via one GitHub API call cached for a week, and the upstream project link for a hotio image is read from its page once a container using it is seen
 
 ## Private Registries
 
