@@ -53,7 +53,7 @@ common_packages:
     docker:
       image_name: 
         - ghcr.io/dexidp/dex
-        - docker.io/dexidp/dex
+        - dexidp/dex
     logo_url: https://avatars.githubusercontent.com/u/42422344?s=60&v=4
     source_repo_url: https://github.com/dexidp/dex
 
@@ -299,7 +299,6 @@ common_packages:
     docker:
       image_name:
         - ghcr.io/dani-garcia/vaultwarden
-        - docker.io/vaultwarden/server
         - quay.io/vaultwarden/server
         - vaultwarden/server
     logo_url: https://avatars.githubusercontent.com/u/725423?s=48&v=4
