@@ -31,6 +31,11 @@
         <changefreq>daily</changefreq>
     </url>
     <url>
+        <loc>https://updates2mqtt.rhizomatics.org.uk/configuration/common_packages/</loc>
+        <lastmod>2026-11-07</lastmod>
+        <changefreq>daily</changefreq>
+    </url>
+    <url>
         <loc>https://updates2mqtt.rhizomatics.org.uk/configuration/customizing_containers/</loc>
         <lastmod>2026-11-07</lastmod>
         <changefreq>daily</changefreq>
@@ -91,12 +96,22 @@
         <changefreq>daily</changefreq>
     </url>
     <url>
+        <loc>https://updates2mqtt.rhizomatics.org.uk/developer/</loc>
+        <lastmod>2026-11-07</lastmod>
+        <changefreq>daily</changefreq>
+    </url>
+    <url>
         <loc>https://updates2mqtt.rhizomatics.org.uk/developer/oci_client/</loc>
         <lastmod>2026-11-07</lastmod>
         <changefreq>daily</changefreq>
     </url>
     <url>
         <loc>https://updates2mqtt.rhizomatics.org.uk/developer/oci_container/</loc>
+        <lastmod>2026-11-07</lastmod>
+        <changefreq>daily</changefreq>
+    </url>
+    <url>
+        <loc>https://updates2mqtt.rhizomatics.org.uk/developer/design/</loc>
         <lastmod>2026-11-07</lastmod>
         <changefreq>daily</changefreq>
     </url>

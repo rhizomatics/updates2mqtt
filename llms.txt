@@ -13,6 +13,7 @@ Updates2MQTT monitors Docker image and local Git-based builds for updates, publi
 ## Configuration
 
 - [Configuring Updates2MQTT](https://updates2mqtt.rhizomatics.org.uk/configuration/index.md)
+- [Common Packages](https://updates2mqtt.rhizomatics.org.uk/configuration/common_packages/index.md)
 - [Customizing Containers](https://updates2mqtt.rhizomatics.org.uk/configuration/customizing_containers/index.md)
 - [Portainer Configuration](https://updates2mqtt.rhizomatics.org.uk/configuration/portainer/index.md)
 - [Remote API Usage](https://updates2mqtt.rhizomatics.org.uk/configuration/remote_api_usage/index.md)
@@ -39,7 +40,9 @@ Updates2MQTT monitors Docker image and local Git-based builds for updates, publi
 ## Development
 
 - [Local Builds](https://updates2mqtt.rhizomatics.org.uk/local_builds/index.md): Tracking updates for locally built images
+- [Developer Documentation](https://updates2mqtt.rhizomatics.org.uk/developer/index.md)
 - [OCI Client](https://updates2mqtt.rhizomatics.org.uk/developer/oci_client/index.md)
 - [Understanding Container Metadata](https://updates2mqtt.rhizomatics.org.uk/developer/oci_container/index.md)
+- [Design Documentation](https://updates2mqtt.rhizomatics.org.uk/developer/design/index.md)
 - [Roadmap](https://updates2mqtt.rhizomatics.org.uk/developer/design/roadmap/index.md)
 
