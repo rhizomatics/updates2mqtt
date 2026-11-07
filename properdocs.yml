@@ -42,19 +42,33 @@ plugins:
   - search
   - llmstxt:
       markdown_description: >
-        Updates2MQTT monitors Docker image and local Git-based builds for updates,
-        publishes update details over MQTT, and integrates with Home Assistant's
-        MQTT Update entities. Start with installation and configuration guidance;
-        use the Home Assistant and troubleshooting pages for integration and
-        operations.
+        Updates2MQTT monitors Docker images, Portainer stacks and local Git-based builds
+        for updates, publishes update details over MQTT, and integrates with Home
+        Assistant's MQTT Update entities, optionally applying the update when asked.
+        Logos, release notes and source links come from built-in common packages and
+        the linuxserver.io and hotio.dev catalogues. Start with installation and
+        configuration guidance; use the Home Assistant and troubleshooting pages for
+        integration and operations.
       full_output: llms-full.txt
       sections:
         Start here:
           - index.md: Project overview, capabilities, and quick start
           - installation.md: Installation and deployment options
+          - changelog.md: What's new in each release
         Configuration:
-          - configuration/*.md
-          - configuration/examples/*.md
+          - configuration/index.md: Overview of configuring the agent and individual containers
+          - configuration/using_a_config_file.md: The optional config.yaml file and its settings
+          - configuration/zero_config_file.md: Running with only environment variables and container labels
+          - configuration/customizing_containers.md: Per-container logos, release notes, update and ignore settings via env vars or labels
+          - configuration/common_packages.md: Built-in package metadata, and automatic linuxserver.io and hotio.dev lookups
+          - configuration/portainer.md: Running on Portainer hosts and redeploying Portainer stacks
+          - configuration/remote_api_usage.md: Remote APIs called, private registry credentials and rate limits
+          - configuration/security.md: Moving secrets out of config and other hardening
+          - configuration/examples/index.md: Example configuration and Docker Compose files
+          - configuration/examples/config_minimal.md: Smallest working config.yaml
+          - configuration/examples/config_maximal.md: config.yaml using all features
+          - configuration/examples/docker_compose.md: Docker Compose file to run Updates2MQTT
+          - configuration/examples/env.md: Example .env file for Docker Compose
         Home Assistant and operations:
           - home_assistant.md: MQTT discovery and Home Assistant update entities
         Help and support:
@@ -64,7 +78,11 @@ plugins:
           - help/troubleshooting.md: Common issues and diagnostics
         Development:
           - local_builds.md: Tracking updates for locally built images
-          - developer/*.md
+          - developer/index.md: Developer documentation overview
+          - developer/oci_client.md: Design and use of the self-contained OCI registry client
+          - developer/oci_container.md: OCI image indexes, manifests, configs and annotations, and how they are used
+          - developer/design/index.md: Design notes
+          - developer/design/roadmap.md: Planned major features and improvements
   - htmlproofer:
       skip_downloads: True
   - autorefs
