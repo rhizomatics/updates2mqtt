@@ -1,5 +1,9 @@
+[settings]
+# Cooldown for tool upgrades (policies/project_standards.md in rhizomatics/hq)
+minimum_release_age = "7d"
+
 [tools]
 prek = "latest"
-ruff = "latest"
-ty = "latest"
-uv = "latest"
+ruff = { version = "latest", minimum_release_age = "2d" }
+ty = { version = "latest", minimum_release_age = "2d" }
+uv = { version = "latest", minimum_release_age = "2d" }
