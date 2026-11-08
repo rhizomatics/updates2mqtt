@@ -251,3 +251,164 @@ def test_route_stdlib_logging(capsys: pytest.CaptureFixture[str]) -> None:
     line = capsys.readouterr().out.strip().splitlines()[-1]
     assert '"event": "hello registry"' in line
     assert '"level": "debug"' in line
+
+
+# === startup and edge paths ===
+
+
+def test_app_exits_on_invalid_config(monkeypatch: pytest.MonkeyPatch) -> None:
+    import updates2mqtt.app as app_module
+
+    monkeypatch.setattr(app_module, "load_app_config", lambda *_args, **_kwargs: None)
+    with pytest.raises(SystemExit) as exc_info:
+        App()
+    assert exc_info.value.code == 1
+
+
+def test_app_json_logging_when_not_a_terminal(
+    monkeypatch: pytest.MonkeyPatch, mock_provider_class: type, mock_publisher_class: type
+) -> None:
+    import structlog
+    from omegaconf import OmegaConf
+
+    import updates2mqtt.app as app_module
+    from updates2mqtt.config import Config
+
+    cfg = OmegaConf.structured(Config)
+    cfg.log.json = True
+    cfg.docker.enabled = False
+    monkeypatch.setattr(app_module, "load_app_config", lambda *_args, **_kwargs: cfg)
+    monkeypatch.setattr(app_module, "MqttPublisher", mock_publisher_class)
+    monkeypatch.setattr(app_module.sys.stderr, "isatty", lambda: False)
+    try:
+        uut = App()
+        assert uut.scanners == []
+        processors = structlog.get_config()["processors"]
+        assert any(isinstance(p, structlog.processors.JSONRenderer) for p in processors)
+    finally:
+        structlog.reset_defaults()
+
+
+def test_main_module_runs_app(monkeypatch: pytest.MonkeyPatch) -> None:
+    import runpy
+
+    import updates2mqtt.app as app_module
+
+    ran = Mock()
+    monkeypatch.setattr(app_module, "run", ran)
+    runpy.run_module("updates2mqtt", run_name="__main__")
+    ran.assert_called_once()
+    # importing it doesn't start the app
+    runpy.run_module("updates2mqtt.__main__", run_name="updates2mqtt.__main__")
+    ran.assert_called_once()
+
+
+async def test_scan_skipped_when_already_stopped(app_with_mocked_external_dependencies: App) -> None:
+    uut = app_with_mocked_external_dependencies
+    uut.stopped.set()
+    await uut.scan()
+    uut.scanners[0].scan.assert_not_called()  # type: ignore[attr-defined]
+    assert uut.scan_count == 0
+    assert uut.last_scan_timestamp is not None
+
+
+async def test_scan_stops_mid_scan_without_cleaning(
+    app_with_mocked_external_dependencies: App, monkeypatch: pytest.MonkeyPatch, mock_discoveries: list[Discovery]
+) -> None:
+    uut = app_with_mocked_external_dependencies
+
+    async def stop_during_scan(*_args: object) -> AsyncGenerator[Discovery]:
+        yield mock_discoveries[0]
+        uut.stopped.set()
+
+    monkeypatch.setattr(uut.scanners[0], "scan", stop_during_scan)
+    await uut.scan()
+    uut.publisher.clean_topics.assert_not_called()  # type: ignore[attr-defined]
+    assert uut.scan_count == 0
+
+
+async def test_main_loop_external_cancel_propagates(
+    app_with_mocked_external_dependencies: App, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    uut = app_with_mocked_external_dependencies
+
+    async def hang(_loop: asyncio.AbstractEventLoop) -> None:
+        await asyncio.sleep(3600)
+
+    monkeypatch.setattr(uut, "run_loop", hang)
+    running = asyncio.create_task(uut.main_loop())
+    await asyncio.sleep(0.05)
+    running.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await running
+    # still shuts down cleanly
+    uut.publisher.stop.assert_called_once()  # type: ignore[attr-defined]
+
+
+async def test_run_loop_skips_sleep_when_stopped_during_scan(
+    app_with_mocked_external_dependencies: App, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    uut = app_with_mocked_external_dependencies
+    uut.cfg.node.healthcheck.enabled = False
+    uut.cfg.scan_interval = 3600
+    uut.publisher.is_available.return_value = True  # type: ignore[attr-defined]
+
+    async def scan_then_stop() -> None:
+        uut.stopped.set()
+
+    monkeypatch.setattr(uut, "scan", scan_then_stop)
+    await asyncio.wait_for(uut.run_loop(asyncio.get_running_loop()), timeout=5)
+    assert uut.exit_code == 0
+
+
+def test_signal_handlers_tolerate_unsupported_loop(app_with_mocked_external_dependencies: App) -> None:
+    loop = Mock()
+    loop.add_signal_handler.side_effect = NotImplementedError
+    loop.remove_signal_handler.side_effect = RuntimeError
+    app_with_mocked_external_dependencies.add_signal_handlers(loop)
+    app_with_mocked_external_dependencies.remove_signal_handlers(loop)
+    assert loop.add_signal_handler.call_count == 2
+    assert loop.remove_signal_handler.call_count == 2
+
+
+@pytest.mark.parametrize("error", [RuntimeError("publish failed"), asyncio.CancelledError()])
+async def test_on_discovery_reraises_errors(
+    app_with_mocked_external_dependencies: App, mock_discoveries: list[Discovery], error: BaseException
+) -> None:
+    uut = app_with_mocked_external_dependencies
+    uut.publisher.publish_hass_state.side_effect = error  # type: ignore[attr-defined]
+    with pytest.raises(type(error)):
+        await uut.on_discovery(mock_discoveries[0])
+
+
+async def test_request_stop_is_idempotent(app_with_mocked_external_dependencies: App) -> None:
+    uut = app_with_mocked_external_dependencies
+    uut.request_stop()
+    uut.request_stop(exit_code=130)
+    assert uut.exit_code == 130
+    uut.scanners[0].stop.assert_called_once()  # type: ignore[attr-defined]
+
+
+async def test_shutdown_tasks_reports_tasks_ignoring_cancel(
+    app_with_mocked_external_dependencies: App, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import updates2mqtt.app as app_module
+
+    uut = app_with_mocked_external_dependencies
+    monkeypatch.setattr(app_module, "SHUTDOWN_TASK_TIMEOUT", 0.05)
+    release = asyncio.Event()
+
+    async def stubborn() -> None:
+        while not release.is_set():
+            try:
+                await release.wait()
+            except asyncio.CancelledError:
+                continue
+
+    task = asyncio.create_task(stubborn(), name="stubborn")
+    uut.scanners[0].background_tasks.add(task)
+    await asyncio.sleep(0)
+    await uut.shutdown_tasks()
+    assert not task.done()
+    release.set()
+    await task

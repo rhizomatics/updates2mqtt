@@ -322,7 +322,8 @@ def cherrypick_annotations(
         results.update(_select_annotation(either_name, either_label, local_info, registry_info))
     if (
         results.get("ref_name") == "ubuntu"
-        and local_info.name != "ubuntu"
+        # official images are named library/ubuntu
+        and local_info.name not in ("ubuntu", "library/ubuntu")
         and results.get("image_version")
         and re.fullmatch(r"^2\d\.\d\d$", str(results["image_version"]))
     ):
