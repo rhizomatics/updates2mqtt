@@ -39,5 +39,5 @@ and subprocesses are mocked. Tests in
 - `uv run ruff format` - format code
 - `uv run mypy src` - type check (CI also runs `ty check`)
 - `uv run codespell` - spell check
-- `pre-commit run` - check all staged files
+- `prek run` - check all staged files
 - `uv run --group docs properdocs build` - build the documentation without starting a server
