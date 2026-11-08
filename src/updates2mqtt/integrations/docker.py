@@ -144,7 +144,8 @@ class ContainerCustomization:
                 if v is not None:
                     if isinstance(getattr(self, attr), bool):
                         setattr(self, attr, v.upper() in ("TRUE", "YES", "1"))
-                    elif isinstance(getattr(self, attr), VersionPolicy):
+                    elif attr == "version_policy":
+                        # defaults to None, so the type can't be inferred from the current value
                         setattr(self, attr, VersionPolicy[v.upper()])
                     elif isinstance(getattr(self, attr), UpdatePolicy):
                         setattr(self, attr, UpdatePolicy[v.upper()])

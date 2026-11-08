@@ -59,3 +59,26 @@ def test_git_local_digest_failure(fake_process: FakeProcess) -> None:
     # Test failure case - returns None
     fake_process.register("/usr/bin/git rev-parse HEAD", returncode=128)
     assert git_local_digest(Path("/my/path"), GIT_EXEC) is None
+
+
+def test_git_trust_failure(fake_process: FakeProcess) -> None:
+    fake_process.register("/usr/bin/git config --global --add safe.directory /my/path", returncode=1)
+    assert not git_trust(Path("/my/path"), GIT_EXEC)
+
+
+def test_git_iso_timestamp_git_failure(fake_process: FakeProcess) -> None:
+    fake_process.register([fake_process.any()], returncode=128)
+    assert git_iso_timestamp(Path("/my/path"), GIT_EXEC) is None
+
+
+def test_git_iso_timestamp_unparseable(fake_process: FakeProcess) -> None:
+    fake_process.register([fake_process.any()], stdout="not a date")
+    assert git_iso_timestamp(Path("/my/path"), GIT_EXEC) is None
+
+
+def test_git_local_digest_unexpected_error(fake_process: FakeProcess) -> None:
+    def explode(process: object) -> None:
+        raise OSError("no git")
+
+    fake_process.register("/usr/bin/git rev-parse HEAD", callback=explode)
+    assert git_local_digest(Path("/my/path"), GIT_EXEC) is None

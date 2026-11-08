@@ -182,3 +182,72 @@ def test_semver_tag() -> None:
         "5.3.0",
         "semver-tag-1-SDM",
     )
+
+
+DIGEST_A = "sha256:" + "a" * 64
+DIGEST_B = "sha256:" + "b" * 64
+
+
+def test_installed_image_digest_among_latest_repo_digests() -> None:
+    installed = DockerImageInfo("foo", image_digest=DIGEST_A)
+    latest = DockerImageInfo("foo", image_digest=DIGEST_B, attributes={"RepoDigests": [f"foo@{DIGEST_A}"]})
+    assert select_versions(VersionPolicy.AUTO, installed, latest) == ("a" * 12, "a" * 12, "digest-4-FGA")
+
+
+def test_latest_image_digest_among_installed_repo_digests() -> None:
+    installed = DockerImageInfo("foo", image_digest=DIGEST_A, attributes={"RepoDigests": [f"foo@{DIGEST_B}"]})
+    latest = DockerImageInfo("foo", image_digest=DIGEST_B)
+    assert select_versions(VersionPolicy.AUTO, installed, latest) == ("a" * 12, "a" * 12, "digest-4-FGB")
+
+
+def test_non_semver_versions_qualified_with_digest() -> None:
+    same = DockerImageInfo("foo:latest", version="nightly", image_digest=DIGEST_A)
+    assert select_versions(VersionPolicy.AUTO, same, same) == (
+        f"nightly:{'a' * 12}",
+        f"nightly:{'a' * 12}",
+        "version-digest-3-SDM",
+    )
+    installed = DockerImageInfo("foo:latest", version="nightly-1", image_digest=DIGEST_A)
+    latest = DockerImageInfo("foo:latest", version="nightly-2", image_digest=DIGEST_B)
+    assert select_versions(VersionPolicy.AUTO, installed, latest) == (
+        f"nightly-1:{'a' * 12}",
+        f"nightly-2:{'b' * 12}",
+        "version-digest-3",
+    )
+
+
+def test_semver_tags() -> None:
+    installed = DockerImageInfo("foo:1.2.3", image_digest=DIGEST_A)
+    latest = DockerImageInfo("foo:1.2.4", image_digest=DIGEST_B)
+    assert select_versions(VersionPolicy.AUTO, installed, latest) == ("1.2.3", "1.2.4", "semver-tag-1")
+
+
+def test_installed_version_kept_when_latest_has_only_git_digest() -> None:
+    latest = DockerImageInfo("foo")
+    latest.git_digest = "abc"
+    assert select_versions(VersionPolicy.AUTO, DockerImageInfo("foo", version="1.0"), latest) == ("1.0", "1.0", "version-4")
+
+
+def test_installed_without_digest_evened_out() -> None:
+    latest = DockerImageInfo("foo", image_digest=DIGEST_B)
+    assert select_versions(VersionPolicy.AUTO, DockerImageInfo("foo"), latest) == ("b" * 12, "b" * 12, "digest-5")
+
+
+def test_repo_digests_compared_without_image_digests() -> None:
+    installed = DockerImageInfo("foo")
+    installed.repo_digest = DIGEST_A
+    latest = DockerImageInfo("foo")
+    latest.repo_digest = DIGEST_B
+    assert select_versions(VersionPolicy.AUTO, installed, latest) == ("a" * 12, "b" * 12, "repo-digest-6")
+
+
+def test_latest_without_digest_keeps_installed() -> None:
+    installed = DockerImageInfo("foo", image_digest=DIGEST_A)
+    latest = DockerImageInfo("foo", version="2.0")
+    assert select_versions(VersionPolicy.AUTO, installed, latest) == ("a" * 12, "a" * 12, "digest-7")
+
+
+def test_no_versions_determined() -> None:
+    latest = DockerImageInfo("foo")
+    latest.git_digest = "abc"
+    assert select_versions(VersionPolicy.AUTO, DockerImageInfo("foo"), latest) == ("UNKNOWN", "UNKNOWN", "failure-999")

@@ -4,6 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 from httpx import Response
+from pytest_httpx import HTTPXMock
 
 from updates2mqtt.config import Selector
 from updates2mqtt.helpers import APIStats, APIStatsCounter, Selection, humanize_timespan, sanitize_name, timestamp
@@ -372,3 +373,199 @@ def test_sanitize_leaves_good_name_untouched() -> None:
 
 def test_sanitize_replaces_special_chars() -> None:
     assert sanitize_name("#my_docker_container_23!/45") == "_my_docker_container_23_45"
+
+
+# === throttling ===
+
+
+def test_throttler_semaphore_forces_throttle() -> None:
+    from threading import Event
+
+    from updates2mqtt.helpers import Throttler
+
+    semaphore = Event()
+    uut = Throttler(semaphore=semaphore)
+    assert not uut.check_throttle("site")
+    semaphore.set()
+    assert uut.check_throttle("site")
+
+
+def test_throttler_pauses_then_expires() -> None:
+    from updates2mqtt.helpers import ThrottledError, Throttler
+
+    uut = Throttler(api_throttle_pause=60)
+    with pytest.raises(ThrottledError) as exc_info:
+        uut.throttle("site", retry_secs=0, raise_exception=True)
+    assert exc_info.value.retry_secs == 60
+    assert "site throttled request" in str(exc_info.value)
+    assert uut.check_throttle("site")
+    assert not uut.check_throttle("other")
+    uut.pause_api_until["site"] = time.time() - 1
+    assert not uut.check_throttle("site")
+    assert "site" not in uut.pause_api_until
+
+
+# === cache metadata and stats ===
+
+
+def test_cache_metadata_str() -> None:
+    from updates2mqtt.helpers import CacheMetadata
+
+    response = Response(200, extensions={"hishel_from_cache": True, "hishel_created_at": time.time() - 5})
+    metadata = CacheMetadata(response)
+    assert metadata.age is not None
+    assert metadata.age >= 5
+    assert str(metadata).startswith("cached: True, revalidated: False")
+
+
+def test_api_stats_challenge_counted_separately() -> None:
+    uut = APIStats()
+    uut.tick(None, challenge=True)
+    assert uut.challenges == 1
+    assert uut.failed == {}
+    assert "auth challenges: 1" in str(uut)
+
+
+def test_api_stats_tick_without_elapsed() -> None:
+    uut = APIStats()
+    response = Mock(spec=Response, extensions={}, elapsed=None, is_success=True)
+    uut.tick(response)
+    assert uut.elapsed == 0
+
+
+def test_api_stats_counter_reports_periodically() -> None:
+    uut = APIStatsCounter()
+    uut.stats_report_interval = 2
+    uut.log = Mock()
+    uut.stats("https://registry.test/v2/", None)
+    uut.log.info.assert_not_called()
+    uut.stats("https://registry.test/v2/", None)
+    uut.log.info.assert_called_once()
+
+
+# === fetching ===
+
+
+def test_fetch_url_sends_auth_and_accept_headers(httpx_mock: HTTPXMock) -> None:
+    from updates2mqtt.helpers import fetch_url
+
+    httpx_mock.add_response(url="https://api.test/thing", json={"ok": True})
+    counter = APIStatsCounter()
+    response = fetch_url(
+        "https://api.test/thing",
+        cache_ttl=0,
+        bearer_token="tok",
+        response_type="application/json",
+        api_stats_counter=counter,
+    )
+    assert response is not None
+    assert response.json() == {"ok": True}
+    sent = httpx_mock.get_requests()[0]
+    assert sent.headers["Authorization"] == "Bearer tok"
+    assert sent.headers["Accept"] == "application/json"
+    assert counter.host_stats["api.test"].fetches == 1
+
+
+def test_fetch_url_returns_non_success(httpx_mock: HTTPXMock) -> None:
+    from updates2mqtt.helpers import fetch_url
+
+    httpx_mock.add_response(url="https://api.test/missing", status_code=404)
+    response = fetch_url("https://api.test/missing", response_type=["a/b", "c/d"])
+    assert response is not None
+    assert response.status_code == 404
+
+
+def test_fetch_url_failure_counted(httpx_mock: HTTPXMock) -> None:
+    import httpx
+
+    from updates2mqtt.helpers import fetch_url
+
+    httpx_mock.add_exception(httpx.ConnectError("refused"))
+    counter = APIStatsCounter()
+    assert fetch_url("https://api.test/down", api_stats_counter=counter) is None
+    assert counter.host_stats["api.test"].failed == {0: 1}
+
+
+def test_validate_url(httpx_mock: HTTPXMock) -> None:
+    from updates2mqtt.helpers import validate_url
+
+    httpx_mock.add_response(url="https://api.test/here", method="HEAD", status_code=200)
+    httpx_mock.add_response(url="https://api.test/gone", method="HEAD", status_code=404)
+    assert validate_url("https://api.test/here", cache_ttl=0)
+    assert not validate_url("https://api.test/gone", cache_ttl=0)
+
+
+@pytest.mark.parametrize(
+    ("content_type", "content", "expected"),
+    [
+        ("application/json", b'{"a": 1}', {"a": 1}),
+        ("application/json", b"{broken", "default"),
+        ("application/octet-stream", b'{"b": 2}', {"b": 2}),
+        ("application/octet-stream", b"\x1f\x8b binary", "default"),
+        ("text/html", b"<html>", "default"),
+    ],
+)
+def test_httpx_json_content(content_type: str, content: bytes, expected: object) -> None:
+    from updates2mqtt.helpers import httpx_json_content
+
+    response = Response(200, headers={"content-type": content_type}, content=content)
+    assert httpx_json_content(response, default="default") == expected
+
+
+# === sanitizing ===
+
+
+def test_sanitize_rejects_empty() -> None:
+    with pytest.raises(ValueError, match="cannot be empty"):
+        sanitize_name("")
+
+
+def test_sanitize_without_replacement_can_empty_name() -> None:
+    with pytest.raises(ValueError, match="became empty"):
+        sanitize_name("!!!", replacement="")
+
+
+def test_sanitize_truncates_long_names() -> None:
+    assert sanitize_name("a" * 100, max_len=10) == "a" * 10
+
+
+# === processes ===
+
+
+async def test_run_process_missing_executable() -> None:
+    from updates2mqtt.helpers import run_process
+
+    result = await run_process(["/nonexistent/updates2mqtt-test-binary"])
+    assert result.returncode is None
+    assert not result.ok
+
+
+async def test_run_process_timeout_kills() -> None:
+    from updates2mqtt.helpers import run_process
+
+    result = await run_process(["sleep", "10"], timeout=0.1)
+    assert result.returncode is None
+    assert "Timed out" in result.stderr
+
+
+async def test_run_process_cancel_kills() -> None:
+    import asyncio
+
+    from updates2mqtt.helpers import run_process
+
+    task = asyncio.create_task(run_process(["sleep", "10"]))
+    await asyncio.sleep(0.1)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+
+def test_kill_process_tolerates_exited_process() -> None:
+    from updates2mqtt.helpers import kill_process
+
+    finished = Mock(returncode=0)
+    kill_process(finished)
+    finished.kill.assert_not_called()
+    vanished = Mock(returncode=None)
+    vanished.kill.side_effect = ProcessLookupError
+    kill_process(vanished)

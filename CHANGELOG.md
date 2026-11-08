@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 1.17.2
+### Fixes
+- Container level `updates2mqtt.version_policy` label, or `UPD2MQTT_VERSION_POLICY` env var, now takes effect whatever its case, e.g. `Digest` as documented, where previously only an exact uppercase value worked and others were silently ignored
+- The official `ubuntu` image keeps its own version, rather than it being suppressed by the check that stops an Ubuntu base image's version leaking into images built on it, such as `greptime/greptimedb`
+- Test coverage improved, esp for MQTT module
+
 ## 1.17.1
 - Huge update to *Common Packages*, with 85 more common self-hosted images
 - `hotio` auto package enrichment
