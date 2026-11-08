@@ -13,4 +13,5 @@ mise upgrade --local
 git pull
 project_uv lock --upgrade
 project_uv sync --dev --group docs
-prek autoupdate --cooldown-days 5
+# 7-day cooldown on hook updates (policies/project_standards.md in rhizomatics/hq)
+prek autoupdate --cooldown-days 7
