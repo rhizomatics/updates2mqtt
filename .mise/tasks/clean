@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+#MISE description="Remove build, test and lint caches and recreate an empty venv"
+# Shared copy, kept in step by rhizomatics/.github scripts/sync-admin.sh: change it there, not here.
+# To clean more, define [tasks.clean] in mise.toml instead; sync-admin.sh then leaves this out.
+set -euo pipefail
+
+rm -fr site .mypy_cache .pytest_cache .ropeproject .ruff_cache .pyre .cache htmlcov
+rm -f .coverage cov.xml
+find . -path ./.venv -prune -o -type d -name '*.egg-info' -prune -exec rm -fr {} +
+find . -type f -name '*.py[co]' -delete -o -type d -name __pycache__ -delete
+uv venv .venv --clear
