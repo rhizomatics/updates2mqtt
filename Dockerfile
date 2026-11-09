@@ -1,7 +1,16 @@
+# Pinned tool versions, kept here in one place and updated by Dependabot. These stages are only
+# copied from, never built. Docker tools come from their release images rather than apt, which lags
+# upstream releases.
+FROM docker:29.9.3-cli AS docker-cli
+FROM docker/buildx-bin:0.38.2 AS docker-buildx
+FROM docker/compose-bin:v5.7.0 AS docker-compose
+FROM ghcr.io/astral-sh/uv:0.13.7 AS uv
+
+
 FROM python:3.14-slim AS builder
 
 # Build stage: uv and the build backend stay here, only the finished venv is copied to the runtime image
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+COPY --from=uv /uv /bin/uv
 
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_NO_DEV=1
@@ -21,21 +30,14 @@ RUN uv sync --locked --no-editable
 
 FROM python:3.14-slim
 
-RUN apt-get -y update && apt-get -y upgrade
-RUN apt-get -y install git ca-certificates
-RUN install -m 0755 -d /etc/apt/keyrings
-ADD https://download.docker.com/linux/debian/gpg /etc/apt/keyrings/docker.asc
-RUN chmod a+r /etc/apt/keyrings/docker.asc
-
-# Add the docker repository to apt sources:
-RUN echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian \
-  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-   tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-RUN apt-get -y update && \
-  apt-get -y install docker-ce-cli docker-buildx-plugin docker-compose-plugin mosquitto-clients jq && \
+RUN apt-get -y update && apt-get -y upgrade && \
+  apt-get -y install git ca-certificates mosquitto-clients jq && \
   rm -rf /var/lib/apt/lists/*
+
+COPY --from=docker-cli /usr/local/bin/docker /usr/local/bin/docker
+COPY --from=docker-buildx /buildx /usr/libexec/docker/cli-plugins/docker-buildx
+COPY --from=docker-compose /docker-compose /usr/libexec/docker/cli-plugins/docker-compose
+RUN docker --version && docker buildx version && docker compose version
 
 WORKDIR /app
 

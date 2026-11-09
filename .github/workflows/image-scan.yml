@@ -3,7 +3,8 @@
 # under its existing version tags when a rebuild would pick up a fix. No new release is needed.
 #
 # Findings go to code scanning. The scan after each publish closes those the rebuild fixed, so what
-# stays open needs a person: a locked Python dependency, or a fix not yet shipped upstream.
+# stays open needs a person: a locked Python dependency, a pinned Docker tool waiting on a version
+# bump, or a fix not yet shipped upstream.
 name: Scan published image
 
 on:
@@ -27,7 +28,6 @@ env:
 jobs:
   scan:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
-    # Needs a Docker engine to ask the published image which apt packages are upgradable
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -76,26 +76,17 @@ jobs:
           if-no-files-found: warn
 
       # Only apt packages and the base image's own binaries change on a rebuild. Python packages are
-      # held by uv.lock. Go modules inside apt-installed binaries such as docker-buildx change only
-      # when the vendor ships a new package, so they count only when an apt package is upgradable;
-      # otherwise a Go fix still waiting upstream would rebuild and re-push the release every week.
+      # held by uv.lock, and the Docker CLI, buildx and compose by the image tags pinned at the top of
+      # the Dockerfile, so their Go modules and binaries need a Dependabot bump and never count here;
+      # otherwise a fix only a version bump can bring would rebuild and re-push the release every week.
       - name: Count what a rebuild would fix
         id: fixable
         env:
           REPORT: ${{ steps.json.outputs.json }}
         run: |
           severe='select(.vulnerability.severity | ascii_downcase | . == "critical" or . == "high")'
-          count=$(jq "[.matches[] | select(.artifact.type == \"deb\" or .artifact.type == \"binary\") | $severe] | length" "$REPORT")
-          go_count=$(jq "[.matches[] | select(.artifact.type == \"go-module\") | $severe] | length" "$REPORT")
-          echo "$count critical/high deb or binary findings, $go_count in Go modules"
-          if [ "$go_count" != "0" ]; then
-            upgradable=$(docker run --rm --user root --entrypoint sh "$IMAGE" -c \
-              'apt-get -qq update >/dev/null && apt list --upgradable 2>/dev/null | grep -c upgradable || true')
-            echo "$upgradable apt packages upgradable in the image"
-            if [ "$upgradable" != "0" ]; then
-              count=$((count + go_count))
-            fi
-          fi
+          pinned='[.artifact.locations[]?.path] | any(startswith("/usr/local/bin/docker") or startswith("/usr/libexec/docker/"))'
+          count=$(jq "[.matches[] | select(.artifact.type == \"deb\" or .artifact.type == \"binary\") | select($pinned | not) | $severe] | length" "$REPORT")
           echo "$count critical/high findings a rebuild would fix"
           echo "count=$count" >> "$GITHUB_OUTPUT"
 
