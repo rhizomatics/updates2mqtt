@@ -44,11 +44,8 @@ repos:
     rev: v2.4.1
     hooks:
       - id: mypy
+        # strictness comes from [tool.mypy] in pyproject.toml
         args:
-          - --warn-redundant-casts
-          - --warn-unused-ignores
-          - --warn-unreachable
-          - --report-deprecated-as-note
           - --pretty
           - --namespace-packages
           - --show-error-codes
@@ -60,6 +57,7 @@ repos:
           - pytest-httpx
           - pytest-subprocess
           - paho-mqtt
+          - types-PyYAML
           - omegaconf
           - types-docker
           - hishel[httpx]<2
