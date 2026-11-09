@@ -180,6 +180,7 @@ async def dump(fmt: str, cli_conf: DictConfig) -> None:
         print_json(json.dumps([v.as_dict() async for v in source]))
     else:
         log.warning(f"Unsupported dump format {fmt}")
+    docker_scanner.close()
 
 
 MQTT_SECRETS: tuple[str, ...] = ("password", "client_key_password")
@@ -349,6 +350,7 @@ def run_command(cli_conf: DictConfig) -> None:
         discovery: Discovery | None = asyncio.run(
             docker_scanner.rescan(Discovery(docker_scanner, cli_conf.get("container"), "cli", "manual"))
         )
+        docker_scanner.close()
         if discovery:
             log.info(discovery.as_dict())
     else:

@@ -203,6 +203,9 @@ class DockerProvider(ReleaseProvider):
         for enricher in self.pkg_enrichers:
             enricher.initialize()
         self.clean_self_bounce_helpers()
+
+    def close(self) -> None:
+        self.registry_image_lookup.close()
         self.log.debug("Docker provider initialized")
 
     def max_concurrent_updates(self) -> int:

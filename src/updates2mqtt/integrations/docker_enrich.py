@@ -745,10 +745,17 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
         self.cfg: RegistryConfig = cfg
         self.log: Any = structlog.get_logger().bind(integration="docker", tool="version_lookup")
         self.api_stats = APIStatsCounter()
+        self.owns_transport: bool = transport is None
+        self.transport: Transport = transport or CachingRegistryTransport(cfg, self.api_stats)
         self.client: RegistryClient = RegistryClient(
-            transport or CachingRegistryTransport(cfg, self.api_stats),
+            self.transport,
             credentials=credentials if credentials is not None else DockerConfigCredentials(),
         )
+
+    def close(self) -> None:
+        """Close the transport if created here, with its cache database"""
+        if self.owns_transport:
+            self.transport.close()
 
     def lookup(
         self,

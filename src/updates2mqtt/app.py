@@ -257,10 +257,15 @@ class App:
         for t in tasks:
             log.debug("Cancelling task", task=t.get_name())
             t.cancel()
+        pending: set[asyncio.Task[Any]] = set()
         if tasks:
             _done, pending = await asyncio.wait(tasks, timeout=SHUTDOWN_TASK_TIMEOUT)
             if pending:
                 log.warning("Tasks still running at shutdown: %s", [t.get_name() for t in pending])
+        # a task still running could be mid registry lookup, so leave connections for process exit
+        if not pending:
+            for scanner in self.scanners:
+                scanner.close()
         # waits for the offline availability publish to be acknowledged
         await asyncio.to_thread(self.publisher.stop)
         log.info("Shutdown handling complete")

@@ -5,7 +5,7 @@ import json
 import os
 import re
 import uuid
-from collections.abc import AsyncGenerator, Callable
+from collections.abc import AsyncGenerator, Callable, Generator
 from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
@@ -25,6 +25,7 @@ from tests.lib_test import build_mock_container, digest_for_ref, repo_digest_for
 from updates2mqtt.app import App
 from updates2mqtt.config import Config, NodeConfig
 from updates2mqtt.helpers import Throttler
+from updates2mqtt.integrations.docker_enrich import ContainerDistributionAPIVersionLookup
 from updates2mqtt.model import Discovery, ReleaseProvider
 from updates2mqtt.mqtt import MqttPublisher
 
@@ -57,6 +58,22 @@ def isolated_app_env(monkeypatch: pytest.MonkeyPatch) -> None:
     for var in list(os.environ):
         if var.startswith(("MQTT_", "PORTAINER_", "U2M_")) or var == "NODE_NAME":
             monkeypatch.delenv(var)
+
+
+@pytest.fixture(autouse=True)
+def close_registry_lookups(monkeypatch: pytest.MonkeyPatch) -> Generator[None]:
+    """Close every registry lookup a test creates, e.g. inside a DockerProvider, so no cache database is left open"""
+    created: list[ContainerDistributionAPIVersionLookup] = []
+    original_init = ContainerDistributionAPIVersionLookup.__init__
+
+    def tracking_init(self: ContainerDistributionAPIVersionLookup, *args: Any, **kwargs: Any) -> None:
+        original_init(self, *args, **kwargs)
+        created.append(self)
+
+    monkeypatch.setattr(ContainerDistributionAPIVersionLookup, "__init__", tracking_init)
+    yield
+    for lookup in created:
+        lookup.close()
 
 
 @pytest.fixture

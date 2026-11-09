@@ -255,6 +255,9 @@ class ReleaseProvider:
         self.log.info("Asking release provider to stop", source_type=self.source_type)
         self.stopped.set()
 
+    def close(self) -> None:
+        """Release held resources, e.g. connections, once no scan or update can still be running"""
+
     def spawn(self, coro: Coroutine[Any, Any, Any], name: str) -> asyncio.Task[Any]:
         """Run in the background, holding a reference so the task isn't garbage collected"""
         task: asyncio.Task[Any] = asyncio.create_task(coro, name=name)
