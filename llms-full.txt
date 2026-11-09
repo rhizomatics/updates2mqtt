@@ -232,8 +232,21 @@ See the [Portainer Configuration](https://updates2mqtt.rhizomatics.org.uk/config
 
 ## 1.17.3
 
-- Docker build changed to source Docker components from Docker via Docker, rather than `apt` packages. This now pulls in the current releases with CVEs fixed for `compress`.
+### Docker image
+
+- Docker CLI, `buildx` and `compose` now come from Docker’s own release images rather than its `apt` repository, which lags upstream releases. This picks up current releases with CVEs fixed, e.g. for `compress`
+- Versions are pinned in the `Dockerfile`, currently Docker CLI 29.9.3, `buildx` 0.38.2 and `compose` 5.7.0, and kept up to date by Dependabot
+- `uv`, used only to build the image, is also pinned rather than taking `latest`
+- Weekly image rebuilds no longer count vulnerabilities in the Docker tools, since only a version bump, not a rebuild, can fix those
+
+### Fixes
+
+- Registry cache database is now closed at shutdown, once no update is still running
+
+### Development
+
 - Improvements to test stability
+- Stricter `mypy` type checking, configured in `pyproject.toml` so editors, `uv run mypy` and pre-commit all agree
 
 ## 1.17.2
 
