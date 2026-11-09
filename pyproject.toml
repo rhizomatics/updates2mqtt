@@ -213,6 +213,9 @@ ignore-words-list="hass,referer,uint"
 
 [tool.mypy]
 mypy_path=["./src","./tests"]
+strict = true
+warn_unreachable = true
+report_deprecated_as_note = true
 
 [project.urls]
 Homepage="https://updates2mqtt.rhizomatics.org.uk"
