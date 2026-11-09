@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import httpx
@@ -22,7 +23,9 @@ def portainer_cfg() -> PortainerConfig:
     return portainer_config(url=PORTAINER_URL, api_key="ptr_secret")
 
 
-def stack(git: bool = False, stack_type: int = 2, status: int = 1, deployment_status: list | None = None) -> dict:
+def stack(
+    git: bool = False, stack_type: int = 2, status: int = 1, deployment_status: list[dict[str, Any]] | None = None
+) -> dict[str, Any]:
     return {
         "Id": 52,
         "Name": "keycloak",
@@ -35,7 +38,7 @@ def stack(git: bool = False, stack_type: int = 2, status: int = 1, deployment_st
     }
 
 
-def add_stack_responses(httpx_mock: HTTPXMock, *stacks: dict) -> None:
+def add_stack_responses(httpx_mock: HTTPXMock, *stacks: dict[str, Any]) -> None:
     for s in stacks:
         httpx_mock.add_response(url=f"{PORTAINER_URL}/api/stacks/52", method="GET", json=s)
 

@@ -336,7 +336,7 @@ def test_own_container_from_mountinfo(mock_docker_client: DockerClient, tmp_path
     mountinfo: str = f"1 2 0:1 /var/lib/docker/containers/{container_id}/hostname /etc/hostname rw - ext4 /dev/sda rw\n"
     own = Mock()
     mock_docker_client.containers.get.side_effect = lambda c: own if c == container_id else None  # type: ignore[attr-defined]
-    with patch.object(mut.Path, "read_text", return_value=mountinfo), patch.object(mut.Path, "exists", return_value=False):
+    with patch.object(Path, "read_text", return_value=mountinfo), patch.object(Path, "exists", return_value=False):
         assert uut.own_container() is own
 
 

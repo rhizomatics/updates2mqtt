@@ -105,7 +105,7 @@ class HttpResponse:
         for header in self.headers.get_list("link"):
             for target, params in _LINK_RE.findall(header):
                 if re.search(r'rel\s*=\s*"?([^";]*\s)?next(\s[^";]*)?"?', params):
-                    return urljoin(self.url or self.request.url, target)
+                    return urljoin(self.url or self.request.url, str(target))
         return None
 
 

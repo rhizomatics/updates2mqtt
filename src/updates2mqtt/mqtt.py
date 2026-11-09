@@ -157,7 +157,7 @@ class MqttPublisher:
         if not self.client or self.fatal_failure.is_set():
             self.log.warning("No client, check if started and authorized")
             return
-        if rc.getName() == "Not authorized":
+        if str(rc) == "Not authorized":
             self.fatal_failure.set()
             log.error("Invalid MQTT credentials", result_code=rc)
             return

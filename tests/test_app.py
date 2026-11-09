@@ -2,6 +2,7 @@
 import asyncio
 import os
 import signal
+import sys
 import time
 from collections.abc import AsyncGenerator
 from unittest.mock import ANY, Mock, PropertyMock, call
@@ -279,7 +280,7 @@ def test_app_json_logging_when_not_a_terminal(
     cfg.docker.enabled = False
     monkeypatch.setattr(app_module, "load_app_config", lambda *_args, **_kwargs: cfg)
     monkeypatch.setattr(app_module, "MqttPublisher", mock_publisher_class)
-    monkeypatch.setattr(app_module.sys.stderr, "isatty", lambda: False)
+    monkeypatch.setattr(sys.stderr, "isatty", lambda: False)
     try:
         uut = App()
         assert uut.scanners == []

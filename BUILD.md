@@ -45,8 +45,10 @@ Need a local Docker engine, found through `DOCKER_HOST` or the default socket. T
 `docker:dind` container and run against that, so nothing touches the engine's own containers. Images pulled inside
 it are kept in the `u2m-test-dind-cache` volume, which makes later runs faster.
 
-- `test_image.py` builds the image from the `Dockerfile` and checks it starts, as CI does on each push
-- `test_dind_update.py` runs updates end to end against a local registry and Portainer
+- `test_image.py` builds the image from the `Dockerfile` and checks it starts, the only one CI runs, on pushes and
+  PRs to `main`
+- `test_dind_update.py` runs container updates end to end, through compose against a local registry and through
+  Portainer, including a failed Portainer redeploy
 - `PORTAINER_TEST_VERSIONS=2.45.0` limits the Portainer versions tested, by default 2.45.0 and 2.39.0
 
 The integration fixtures set `DOCKER_CONFIG` for the whole session, so unit tests that read Docker client settings

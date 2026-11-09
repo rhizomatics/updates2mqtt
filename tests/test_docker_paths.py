@@ -1,6 +1,7 @@
 """Docker provider edge paths: failures from the Docker API, analysis rules and self-bounce recovery"""
 
 import asyncio
+import socket
 from pathlib import Path
 from threading import Event
 from typing import Any
@@ -15,6 +16,7 @@ from pytest_subprocess import FakeProcess
 import updates2mqtt.integrations.docker as mut
 from tests.lib_test import build_mock_container, docker_config
 from updates2mqtt.config import (
+    SOURCE_PLATFORM_GITHUB,
     GitHubConfig,
     NodeConfig,
     PublishPolicy,
@@ -187,9 +189,9 @@ def test_own_container_from_hostname(mock_docker_client: DockerClient) -> None:
     own = Mock()
     mock_docker_client.containers.get.side_effect = lambda c: own if c == "myhost" else None  # type: ignore[attr-defined]
     with (
-        patch.object(mut.Path, "read_text", side_effect=OSError("no proc")),
-        patch.object(mut.Path, "exists", return_value=True),
-        patch.object(mut.socket, "gethostname", return_value="myhost"),
+        patch.object(Path, "read_text", side_effect=OSError("no proc")),
+        patch.object(Path, "exists", return_value=True),
+        patch.object(socket, "gethostname", return_value="myhost"),
     ):
         assert uut.own_container() is own
 
@@ -198,9 +200,9 @@ def test_own_container_unknown(mock_docker_client: DockerClient) -> None:
     uut = provider(mock_docker_client)
     mock_docker_client.containers.get.side_effect = docker.errors.NotFound("no")  # type: ignore[attr-defined]
     with (
-        patch.object(mut.Path, "read_text", return_value=""),
-        patch.object(mut.Path, "exists", return_value=True),
-        patch.object(mut.socket, "gethostname", return_value="renamed"),
+        patch.object(Path, "read_text", return_value=""),
+        patch.object(Path, "exists", return_value=True),
+        patch.object(socket, "gethostname", return_value="renamed"),
     ):
         assert uut.own_container() is None
 
@@ -332,7 +334,7 @@ def test_analyze_github_enrichment(mock_docker_client: DockerClient) -> None:
     uut.github_enricher = Mock()
     container = build_mock_container("nginx:latest")
     latest = DockerImageInfo("nginx:latest", image_digest="sha256:" + "c" * 64)
-    release = Mock(source_platform=mut.SOURCE_PLATFORM_GITHUB)
+    release = Mock(source_platform=SOURCE_PLATFORM_GITHUB)
     with (
         patch.object(uut.registry_image_lookup, "lookup", return_value=latest),
         patch.object(uut.release_enricher, "enrich", return_value=release),
