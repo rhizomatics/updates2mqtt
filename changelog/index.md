@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 1.17.3
+
+Docker build changed to source Docker components from Docker via Docker, rather than `apt` packages. This now pulls in the current releases with CVEs fixed for `compress`.
+
 ## 1.17.2
 
 ### Fixes
