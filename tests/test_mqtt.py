@@ -323,9 +323,7 @@ def test_on_connect_not_authorized(mock_mqtt_client: Mock) -> None:
         uut = MqttPublisher(config, node_config, hass_config)
         uut.start()
 
-        # Simulate "Not authorized" connection failure with mock ReasonCode
-        rc = Mock()
-        rc.getName.return_value = "Not authorized"
+        rc = ReasonCode(PacketTypes.CONNACK, "Not authorized")
         uut.on_connect(mock_mqtt_client, None, Mock(), rc, None)
 
         assert uut.fatal_failure.is_set()
