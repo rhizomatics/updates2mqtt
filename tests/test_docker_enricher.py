@@ -875,6 +875,21 @@ def test_lookup_unreachable_registry() -> None:
     assert uut.api_stats.fetches == 1
 
 
+def test_lookup_close_closes_own_transport() -> None:
+    uut = ContainerDistributionAPIVersionLookup(_throttler(), RegistryConfig())
+    assert isinstance(uut.transport, CachingRegistryTransport)
+    uut.transport = Mock(wraps=uut.transport)
+    uut.close()
+    uut.transport.close.assert_called_once()
+
+
+def test_lookup_close_leaves_given_transport_open() -> None:
+    transport = Mock()
+    uut = ContainerDistributionAPIVersionLookup(_throttler(), RegistryConfig(), transport=transport)
+    uut.close()
+    transport.close.assert_not_called()
+
+
 def test_lookup_default_credentials_from_docker_config() -> None:
     uut = ContainerDistributionAPIVersionLookup(_throttler(), RegistryConfig())
     assert isinstance(uut.client.auth.credentials, DockerConfigCredentials)

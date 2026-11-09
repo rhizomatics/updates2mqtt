@@ -101,6 +101,8 @@ async def test_shutdown_tasks_cancels_background_work(app_with_mocked_external_d
     assert not unrelated.done()
     unrelated.cancel()
     uut.publisher.stop.assert_called_once()  # type: ignore[attr-defined]
+    # with nothing left running, connections can be closed
+    uut.scanners[0].close.assert_called_once()  # type: ignore[attr-defined]
 
 
 def test_run_exits_with_main_loop_code(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -411,5 +413,7 @@ async def test_shutdown_tasks_reports_tasks_ignoring_cancel(
     await asyncio.sleep(0)
     await uut.shutdown_tasks()
     assert not task.done()
+    # a task still running could use the registry connection, so it stays open
+    uut.scanners[0].close.assert_not_called()  # type: ignore[attr-defined]
     release.set()
     await task

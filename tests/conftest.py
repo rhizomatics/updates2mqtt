@@ -141,6 +141,7 @@ def mock_provider() -> ReleaseProvider:
     provider.resolve.return_value = discovery  # type: ignore[attr-defined]
     provider.discoveries = {"fooey": discovery}
     provider.background_tasks = set()
+    provider.close = Mock()  # type: ignore[method-assign]
     return provider
 
 
