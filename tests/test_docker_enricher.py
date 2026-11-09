@@ -446,6 +446,7 @@ def test_source_release_enricher_empty_annotations() -> None:
     assert result is None
 
 
+@pytest.mark.slow
 def test_source_release_enricher_github_source() -> None:
     """SourceReleaseEnricher should detect GitHub source platform"""
     enricher = SourceReleaseEnricher()
@@ -461,6 +462,7 @@ def test_source_release_enricher_github_source() -> None:
     assert result.source_repo_url == "https://github.com/myorg/myrepo"
 
 
+@pytest.mark.slow
 def test_source_release_enricher_implies_github_source() -> None:
     enricher = SourceReleaseEnricher()
     result: ReleaseDetail | None = enricher.enrich(DockerImageInfo(ref="ghcr.io/rhizomatics/updates2mqtt:latest"))
@@ -470,6 +472,7 @@ def test_source_release_enricher_implies_github_source() -> None:
     assert result.source_repo_url == "https://github.com/rhizomatics/updates2mqtt"
 
 
+@pytest.mark.slow
 def test_source_release_enricher_strips_hash_from_source() -> None:
     """SourceReleaseEnricher should strip hash fragment from source URL"""
     enricher = SourceReleaseEnricher()
@@ -499,6 +502,7 @@ def test_source_release_enricher_no_known_platform() -> None:
     assert result.source_url == "https://gitbadger.com/myorg/myrepo"
 
 
+@pytest.mark.slow
 def test_source_release_enricher_known_other_platform() -> None:
     enricher = SourceReleaseEnricher()
     annotations = {
@@ -511,6 +515,7 @@ def test_source_release_enricher_known_other_platform() -> None:
     assert result.source_url == "https://gitlab.com/myorg/myrepo"
 
 
+@pytest.mark.slow
 def test_source_release_enricher_uses_provided_source_repo_url() -> None:
     """SourceReleaseEnricher should use provided source_repo_url as fallback"""
     enricher = SourceReleaseEnricher()
@@ -590,6 +595,7 @@ def test_linuxserverio_enricher_handles_empty_response(httpx_mock: HTTPXMock) ->
     assert len(enricher.pkgs) == 0
 
 
+@pytest.mark.slow
 def test_linuxserverio_enricher_enriches() -> None:
     cfg = docker_config()
     enricher = LinuxServerIOPackageEnricher(cfg)

@@ -44,6 +44,7 @@ async def test_scanner(mock_docker_client: DockerClient, mock_registry: HTTPXMoc
     assert len(changed) == 3
 
 
+@pytest.mark.slow
 async def test_common_packages(mock_docker_client: DockerClient) -> None:
     with patch("docker.from_env", return_value=mock_docker_client):
         uut = mut.DockerProvider(docker_config(discover_metadata={}), NodeConfig())
@@ -248,6 +249,7 @@ async def test_fetch_skips_build_when_no_compose_path(mock_docker_client: Docker
             mock_build.assert_not_called()
 
 
+@pytest.mark.slow
 async def test_rescan_returns_updated_discovery(mock_docker_client: DockerClient) -> None:
     from tests.lib_test import build_mock_container
 
@@ -605,6 +607,7 @@ async def test_execute_compose_passes_project_name(
         assert await uut.restart(d)
 
 
+@pytest.mark.slow
 def test_analyze_can_restart_when_compose_path_visible(mock_docker_client: DockerClient, tmpdir: Path) -> None:
     container = build_mock_container("custom/app:latest")
     container.labels["com.docker.compose.project.working_dir"] = str(tmpdir)
@@ -622,6 +625,7 @@ def test_analyze_can_restart_when_compose_path_visible(mock_docker_client: Docke
     assert "portainer_stack_id" not in details
 
 
+@pytest.mark.slow
 def test_analyze_cannot_restart_portainer_stack(mock_docker_client: DockerClient) -> None:
     container = build_mock_container("quay.io/keycloak/keycloak:latest")
     container.labels["com.docker.compose.project.working_dir"] = "/data/compose/52"

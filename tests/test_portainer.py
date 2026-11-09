@@ -194,6 +194,7 @@ def test_is_portainer_image(ref: str | None, expected: bool) -> None:
     assert is_portainer_image(ref) == expected
 
 
+@pytest.mark.slow
 def test_analyze_can_restart_portainer_stack_when_configured(mock_docker_client: DockerClient) -> None:
     container = build_mock_container("quay.io/keycloak/keycloak:latest")
     container.labels["com.docker.compose.project.working_dir"] = "/data/compose/52"
@@ -206,6 +207,7 @@ def test_analyze_can_restart_portainer_stack_when_configured(mock_docker_client:
     assert result.can_restart is True
 
 
+@pytest.mark.slow
 def test_analyze_cannot_restart_portainer_itself(mock_docker_client: DockerClient) -> None:
     container = build_mock_container("portainer/portainer-ce:2.21.0")
     container.labels["com.docker.compose.project.working_dir"] = "/data/compose/7"

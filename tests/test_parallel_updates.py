@@ -262,6 +262,9 @@ def own_container_mock() -> Mock:
 
 
 def test_launch_self_bounce_helper(mock_docker_client: DockerClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # the shell, or the session-wide integration fixtures, may have set any of these
+    for var in mut.DOCKER_CLIENT_ENV_VARS:
+        monkeypatch.delenv(var, raising=False)
     monkeypatch.setenv("DOCKER_HOST", "tcp://socket-proxy:2375")
     uut = provider(mock_docker_client)
     service = DockerServiceDetails(compose_path=str(tmp_path), compose_service="u2m", compose_project="infra")

@@ -1,6 +1,8 @@
+import os
 from typing import Any
 from unittest.mock import MagicMock, Mock, patch
 
+import httpx
 import pytest
 
 from updates2mqtt.config import GitHubConfig
@@ -24,15 +26,30 @@ def mock_response(status_code: int = 200, json_data: dict[str, Any] | None = Non
     return r
 
 
+def ghcr_digest(repo: str, tag: str) -> str:
+    """Current digest of an image tag on GHCR, using an anonymous pull token"""
+    token = httpx.get(f"https://ghcr.io/token?scope=repository:{repo}:pull").json()["token"]
+    response = httpx.head(
+        f"https://ghcr.io/v2/{repo}/manifests/{tag}",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json",
+        },
+    )
+    response.raise_for_status()
+    return response.headers["Docker-Content-Digest"]
+
+
 @pytest.mark.slow
 def test_pkg_enricher_live() -> None:
-    uut = GithubReleaseEnricher(gh_cfg=GitHubConfig(access_token="<insert_temp_token>"))
+    # GitHub's packages API always needs a token, with read:packages
+    token: str | None = os.environ.get("GITHUB_TOKEN")
+    if not token:
+        pytest.skip("needs GITHUB_TOKEN with read:packages")
+    uut = GithubReleaseEnricher(gh_cfg=GitHubConfig(access_token=token))
     detail = ReleaseDetail("homarr", source_repo_url="https://github.com/homarr-labs/homarr")
     uut.enrich(
-        DockerImageInfo(
-            "ghcr.io/homarr-labs/homarr:latest",
-            image_digest="sha256:6a34b19bc9fd7f5c17d511f14b9e477424b65466084708066cb5213d62d1755b",
-        ),
+        DockerImageInfo("ghcr.io/homarr-labs/homarr:latest", image_digest=ghcr_digest("homarr-labs/homarr", "latest")),
         detail,
     )
     assert detail.version is not None

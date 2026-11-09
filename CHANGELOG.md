@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## 1.17.3
+Docker build changed to source Docker components from Docker via Docker, rather than `apt` packages. This now pulls in the current releases with CVEs fixed for `compress`.
+
 ## 1.17.2
 ### Fixes
 - Container level `updates2mqtt.version_policy` label, or `UPD2MQTT_VERSION_POLICY` env var, now takes effect whatever its case, e.g. `Digest` as documented, where previously only an exact uppercase value worked and others were silently ignored
