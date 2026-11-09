@@ -2,6 +2,7 @@
 import asyncio
 import hashlib
 import json
+import os
 import re
 import uuid
 from collections.abc import AsyncGenerator, Callable
@@ -48,6 +49,14 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
             item.add_marker(skip_slow)
         if "integration" in item.keywords and not config.getoption("--integration"):
             item.add_marker(skip_integration)
+
+
+@pytest.fixture(autouse=True)
+def isolated_app_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Drop the app's own settings from the environment, so a developer's shell doesn't change config defaults"""
+    for var in list(os.environ):
+        if var.startswith(("MQTT_", "PORTAINER_", "U2M_")) or var == "NODE_NAME":
+            monkeypatch.delenv(var)
 
 
 @pytest.fixture
