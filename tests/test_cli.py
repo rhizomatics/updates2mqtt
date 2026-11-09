@@ -1,7 +1,7 @@
 import json
 from collections.abc import AsyncGenerator, Generator
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from omegaconf import DictConfig, OmegaConf
@@ -245,11 +245,13 @@ def test_main_dispatches_tags(mock_oc: Mock, mock_dump_url: Mock) -> None:
 def test_main_dispatches_dump(mock_oc: Mock, mock_dump: Mock, mock_asyncio_run: Mock) -> None:
     conf = OmegaConf.create({"dump": "json"})
     mock_oc.from_cli.return_value = conf
-    mock_dump.return_value = MagicMock()  # pretend coroutine
 
     main()
 
+    mock_dump.assert_called_once_with("json", conf)
     mock_asyncio_run.assert_called_once()
+    # dump is async, so patched as an AsyncMock, and the mocked asyncio.run never awaits its coroutine
+    mock_asyncio_run.call_args.args[0].close()
 
 
 @patch("updates2mqtt.cli.docker_provider")
