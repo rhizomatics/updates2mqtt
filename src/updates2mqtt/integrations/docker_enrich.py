@@ -134,6 +134,8 @@ class DockerImageInfo(DiscoveryArtefactDetail):
         self.image_digest: str | None = image_digest
         self.short_digest: str | None = None
         self.repo_digest: str | None = None  # the single RepoDigest known to match registry
+        # digest of the image config, which is also the local image id, so comparable across local and registry
+        self.config_digest: str | None = None
         self.git_digest: str | None = None
         self.index_name: str | None = None
         self.name: str | None = None
@@ -207,6 +209,8 @@ class DockerImageInfo(DiscoveryArtefactDetail):
         if self.image_digest is not None:
             self.image_digest = self.condense_digest(self.image_digest, short=False)
             self.short_digest = self.condense_digest(self.image_digest)
+            # a local image id is its config digest, registry lookups set image_digest after construction
+            self.config_digest = self.image_digest
 
     @property
     def repo_digests(self) -> list[str]:
@@ -248,8 +252,15 @@ class DockerImageInfo(DiscoveryArtefactDetail):
 
     def reuse(self) -> DockerImageInfo:
         cloned = DockerImageInfo(
-            self.ref, self.image_digest, self.tags, self.attributes, self.annotations, self.version, self.created
+            self.ref,
+            image_digest=self.image_digest,
+            tags=self.tags,
+            attributes=self.attributes,
+            annotations=self.annotations,
+            version=self.version,
+            created=self.created,
         )
+        cloned.config_digest = self.config_digest
         cloned.origin = "REUSED"
         return cloned
 
@@ -262,6 +273,7 @@ class DockerImageInfo(DiscoveryArtefactDetail):
             "image_digest": self.image_digest,
             "repo_digest": self.repo_digest,
             "repo_digests": self.repo_digest,
+            "config_digest": self.config_digest,
             "git_digest": self.git_digest,
             "index_name": self.index_name,
             "tag": self.tag,
@@ -866,6 +878,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
             self.log.warning("Empty config digest for %s", local_image_info.ref)
         else:
             result.repo_digest = result.condense_digest(config.digest, short=False)
+            result.config_digest = result.repo_digest
             self.log.debug("Setting %s repo digest: %s", result.name, result.repo_digest)
         result.annotations.update(image.manifest.annotations)
         if minimal or config is None:

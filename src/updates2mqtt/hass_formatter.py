@@ -16,6 +16,9 @@ HASS_UPDATE_SCHEMA = [
     "in_progress",
     "update_percentage",
 ]
+# the attributes topic carries the general payload, which repeats some update entity fields;
+# Home Assistant lets json attributes override the entity's own, so filter those out
+HASS_ATTRIBUTES_TEMPLATE = "{{ dict(value_json.items() | rejectattr('0', 'in', " + repr(HASS_UPDATE_SCHEMA) + ")) | to_json }}"
 
 
 def hass_format_config(
@@ -47,6 +50,7 @@ def hass_format_config(
         config["availability_topic"] = availability_topic
     if attrs_topic:
         config["json_attributes_topic"] = attrs_topic
+        config["json_attributes_template"] = HASS_ATTRIBUTES_TEMPLATE
     if discovery.entity_picture_url:
         config["entity_picture"] = discovery.entity_picture_url
     if discovery.device_icon:

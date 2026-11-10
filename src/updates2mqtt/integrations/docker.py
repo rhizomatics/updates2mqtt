@@ -685,6 +685,7 @@ class DockerProvider(ReleaseProvider):
                 latest_info = local_info.reuse()
                 latest_info.short_digest = None
                 latest_info.image_digest = None
+                latest_info.config_digest = None
             else:
                 logger.debug("Registry selection rules suppressed metadata lookup")
                 latest_info = local_info.reuse()
@@ -924,6 +925,17 @@ def is_compose_recreate_name(container: Container) -> bool:
     return name.startswith(f"{container_id[:12]}_")
 
 
+def comparable_digests(installed: DockerImageInfo, latest: DockerImageInfo) -> tuple[str | None, str | None]:
+    """Short digests of the same kind for installed and latest
+
+    A local image id is its config digest, while a registry lookup's image digest is its manifest digest,
+    so compare config digests where both are known, otherwise the short digests
+    """
+    if installed.config_digest and latest.config_digest:
+        return installed.condense_digest(installed.config_digest), latest.condense_digest(latest.config_digest)
+    return installed.short_digest, latest.short_digest
+
+
 def select_versions(version_policy: VersionPolicy, installed: DockerImageInfo, latest: DockerImageInfo) -> tuple[str, str, str]:
     """Pick the best version string to display based on the version policy and available data
 
@@ -942,6 +954,7 @@ def select_versions(version_policy: VersionPolicy, installed: DockerImageInfo, l
     #
     # shortcircuit the logic if there's nothing to compare
     #
+    installed_digest, latest_digest = comparable_digests(installed, latest)
     if latest.throttled:
         log.debug("Flattening versions for throttled update %s", installed.ref)
         shortcircuit = "THR"
@@ -950,7 +963,7 @@ def select_versions(version_policy: VersionPolicy, installed: DockerImageInfo, l
         log.debug("Flattening versions for empty update %s", installed.ref)
         shortcircuit = "NUP"
         latest = installed
-    elif latest.short_digest == installed.short_digest and latest.short_digest is not None:
+    elif latest_digest is not None and latest_digest == installed_digest:
         log.debug("Flattening versions for identical update %s", installed.ref)
         shortcircuit = "SDM"
         latest = installed
@@ -977,17 +990,14 @@ def select_versions(version_policy: VersionPolicy, installed: DockerImageInfo, l
     if version_policy == VersionPolicy.VERSION and installed.version and latest.version:
         return installed.version, latest.version, basis("version")
 
-    installed_digest_available: bool = installed.short_digest is not None and installed.short_digest != ""
-    latest_digest_available: bool = latest.short_digest is not None and latest.short_digest != ""
-    matching_digest: bool = (
-        installed_digest_available and latest_digest_available and installed.short_digest == latest.short_digest
-    )
-    changed_digest: bool = (
-        installed_digest_available and latest_digest_available and installed.short_digest != latest.short_digest
-    )
+    installed_digest, latest_digest = comparable_digests(installed, latest)
+    installed_digest_available: bool = installed_digest is not None and installed_digest != ""
+    latest_digest_available: bool = latest_digest is not None and latest_digest != ""
+    matching_digest: bool = installed_digest_available and latest_digest_available and installed_digest == latest_digest
+    changed_digest: bool = installed_digest_available and latest_digest_available and installed_digest != latest_digest
 
     if version_policy == VersionPolicy.DIGEST and installed_digest_available and latest_digest_available:
-        return installed.short_digest, latest.short_digest, basis("digest")  # type: ignore[return-value]
+        return installed_digest, latest_digest, basis("digest")  # type: ignore[return-value]
     if (
         version_policy == VersionPolicy.VERSION_DIGEST
         and installed.version
@@ -996,8 +1006,8 @@ def select_versions(version_policy: VersionPolicy, installed: DockerImageInfo, l
         and latest_digest_available
     ):
         return (
-            f"{installed.version}:{installed.short_digest}",
-            f"{latest.version}:{latest.short_digest}",
+            f"{installed.version}:{installed_digest}",
+            f"{latest.version}:{latest_digest}",
             basis("version-digest"),
         )
 
@@ -1063,13 +1073,14 @@ def select_versions(version_policy: VersionPolicy, installed: DockerImageInfo, l
         installed.version
         and latest.version
         and (
-            (installed.version == latest.version and matching_digest)
+            # same version with a changed digest is a rebuild, the digest qualifier shows it
+            (installed.version == latest.version and (matching_digest or changed_digest))
             or (installed.version != latest.version and changed_digest)
         )
     ):
         return (
-            f"{installed.version}:{installed.short_digest}",
-            f"{latest.version}:{latest.short_digest}",
+            f"{installed.version}:{installed_digest}",
+            f"{latest.version}:{latest_digest}",
             basis("version-digest"),
         )
 
@@ -1087,7 +1098,7 @@ def select_versions(version_policy: VersionPolicy, installed: DockerImageInfo, l
     ):
         return installed.created, latest.created, basis("timestamp")
     if installed_digest_available and latest_digest_available:
-        return installed.short_digest, latest.short_digest, basis("digest")  # type: ignore[return-value]
+        return installed_digest, latest_digest, basis("digest")  # type: ignore[return-value]
     if installed.version and not latest.version and not latest.short_digest and not latest.repo_digest:
         return installed.version, installed.version, basis("version")
 
@@ -1097,7 +1108,7 @@ def select_versions(version_policy: VersionPolicy, installed: DockerImageInfo, l
     phase = 5
     if not installed_digest_available and latest_digest_available:
         # odd condition if local image has no identity, even out versions so no update alert
-        return latest.short_digest, latest.short_digest, basis("digest")  # type: ignore[return-value]
+        return latest_digest, latest_digest, basis("digest")  # type: ignore[return-value]
 
     #
     # Fall Back - Repo Digests
@@ -1119,7 +1130,7 @@ def select_versions(version_policy: VersionPolicy, installed: DockerImageInfo, l
 
     if installed_digest_available and not latest_digest_available:
         # no new digest, so latest is the current
-        return installed.short_digest, installed.short_digest, basis("digest")  # type: ignore[return-value]
+        return installed_digest, installed_digest, basis("digest")  # type: ignore[return-value]
 
     #
     # Failure to Find Any Version

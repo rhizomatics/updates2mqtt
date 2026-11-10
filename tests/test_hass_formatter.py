@@ -1,9 +1,10 @@
+import json
 from typing import Any
 
 import pytest
 
 import updates2mqtt
-from updates2mqtt.hass_formatter import hass_format_config, hass_format_state
+from updates2mqtt.hass_formatter import HASS_ATTRIBUTES_TEMPLATE, hass_format_config, hass_format_state
 from updates2mqtt.model import Discovery, ReleaseDetail
 
 
@@ -25,6 +26,7 @@ def test_formatter_includes_device(mock_discoveries: list[Discovery], monkeypatc
         "command_topic": "command_topic_1",
         "state_topic": "state_topic_1",
         "json_attributes_topic": "main_topic",
+        "json_attributes_template": HASS_ATTRIBUTES_TEMPLATE,
         "device_class": None,
         "payload_install": "unit_test|thing-1|install",
         "supported_features": ["INSTALL", "PROGRESS"],
@@ -55,6 +57,7 @@ def test_formatter_excludes_device(mock_discoveries: list[Discovery], monkeypatc
         "command_topic": "command_topic_1",
         "state_topic": "state_topic_1",
         "json_attributes_topic": "main_topic",
+        "json_attributes_template": HASS_ATTRIBUTES_TEMPLATE,
         "device_class": None,
         "payload_install": "unit_test|thing-1|install",
         "supported_features": ["INSTALL", "PROGRESS"],
@@ -92,6 +95,17 @@ def test_hass_format_config_no_attrs_topic(mock_discoveries: list[Discovery], mo
         mock_discoveries[0], "obj001", "state_topic", "cmd_topic", attrs_topic=None, force_command_topic=False
     )
     assert "json_attributes_topic" not in msg
+    assert "json_attributes_template" not in msg
+
+
+def test_attributes_template_drops_update_entity_fields() -> None:
+    jinja2 = pytest.importorskip("jinja2")
+    env = jinja2.Environment(autoescape=False)
+    env.filters["to_json"] = json.dumps
+    rendered = env.from_string(HASS_ATTRIBUTES_TEMPLATE).render(
+        value_json={"installed_version": "a", "latest_version": "b", "title": "t", "version_basis": "x", "nested": {"k": 1}}
+    )
+    assert json.loads(rendered) == {"version_basis": "x", "nested": {"k": 1}}
 
 
 def test_hass_format_config_with_entity_picture(mock_discoveries: list[Discovery], monkeypatch: pytest.MonkeyPatch) -> None:

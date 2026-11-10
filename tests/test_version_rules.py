@@ -251,3 +251,62 @@ def test_no_versions_determined() -> None:
     latest = DockerImageInfo("foo")
     latest.git_digest = "abc"
     assert select_versions(VersionPolicy.AUTO, DockerImageInfo("foo"), latest) == ("UNKNOWN", "UNKNOWN", "failure-999")
+
+
+DIGEST_C = "sha256:" + "c" * 64
+DIGEST_D = "sha256:" + "d" * 64
+
+
+def registry_latest(manifest_digest: str, config_digest: str, version: str | None = None) -> DockerImageInfo:
+    """As OCI_V2 lookup builds it: image digest from the manifest, repo and config digest from the config"""
+    latest = DockerImageInfo("foo:latest", version=version)
+    latest.image_digest = manifest_digest
+    latest.short_digest = latest.condense_digest(manifest_digest)
+    latest.repo_digest = config_digest
+    latest.config_digest = config_digest
+    return latest
+
+
+def test_rebuild_of_same_version_compares_config_digests() -> None:
+    # local image id is the config digest, RepoDigests hold the manifest digest
+    installed = DockerImageInfo(
+        "foo:latest", version="master", image_digest=DIGEST_A, attributes={"RepoDigests": [f"foo@{DIGEST_C}"]}
+    )
+    latest = registry_latest(DIGEST_D, DIGEST_B, version="master")
+    assert select_versions(VersionPolicy.AUTO, installed, latest) == (
+        f"master:{'a' * 12}",
+        f"master:{'b' * 12}",
+        "version-digest-3",
+    )
+    assert select_versions(VersionPolicy.DIGEST, installed, latest) == ("a" * 12, "b" * 12, "digest-0")
+
+
+def test_unchanged_image_matched_on_config_digest() -> None:
+    installed = DockerImageInfo(
+        "foo:latest", version="master", image_digest=DIGEST_A, attributes={"RepoDigests": [f"foo@{DIGEST_C}"]}
+    )
+    latest = registry_latest(DIGEST_C, DIGEST_A, version="master")
+    assert select_versions(VersionPolicy.AUTO, installed, latest) == (
+        f"master:{'a' * 12}",
+        f"master:{'a' * 12}",
+        "version-digest-3-SDM",
+    )
+
+
+def test_rebuild_of_casual_version_qualified_with_digest() -> None:
+    installed = DockerImageInfo("foo", version="22.04", image_digest=DIGEST_A, created="2024-01-15T10:30:00Z")
+    latest = DockerImageInfo("foo", version="22.04", image_digest=DIGEST_B, created="2024-01-20T14:00:00Z")
+    assert select_versions(VersionPolicy.AUTO, installed, latest) == (
+        f"22.04:{'a' * 12}",
+        f"22.04:{'b' * 12}",
+        "version-digest-3",
+    )
+
+
+def test_reuse_keeps_version_created_and_config_digest() -> None:
+    original = DockerImageInfo("foo:latest", version="master", image_digest=DIGEST_A, created="2024-01-15T10:30:00Z")
+    cloned = original.reuse()
+    assert cloned.version == "master"
+    assert cloned.created == "2024-01-15T10:30:00Z"
+    assert cloned.config_digest == DIGEST_A
+    assert cloned.platform is None
