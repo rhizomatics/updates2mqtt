@@ -289,19 +289,29 @@ class App:
         )
 
 
-def route_stdlib_logging(level: str, renderers: list[Any], logger_name: str = "updates2mqtt.oci") -> None:
-    """Render stdlib logging, as used by the OCI client, the same way as structlog output"""
+def route_stdlib_logging(level: str, renderers: list[Any], logger_name: str = "updates2mqtt") -> None:
+    """Render all stdlib logging the same way as structlog output, so every line has a level and timestamp
+
+    Our own stdlib loggers, such as the OCI client, log at the configured level; third party libraries
+    (httpx, docker, paho, urllib3) only at WARNING or above to keep their request chatter out.
+    Without a root handler, their records fall to Python's last resort handler as bare messages.
+    """
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(
         structlog.stdlib.ProcessorFormatter(
-            foreign_pre_chain=[structlog.processors.add_log_level, structlog.processors.TimeStamper(fmt="iso")],
+            foreign_pre_chain=[
+                structlog.processors.add_log_level,
+                structlog.stdlib.add_logger_name,
+                structlog.processors.TimeStamper(fmt="iso"),
+            ],
             processors=[structlog.stdlib.ProcessorFormatter.remove_processors_meta, *renderers],
         )
     )
-    stdlib_logger: logging.Logger = logging.getLogger(logger_name)
-    stdlib_logger.handlers = [handler]
-    stdlib_logger.setLevel(getattr(logging, level, logging.INFO))
-    stdlib_logger.propagate = False
+    configured_level: int = getattr(logging, level, logging.INFO)
+    root_logger: logging.Logger = logging.getLogger()
+    root_logger.handlers = [handler]
+    root_logger.setLevel(max(configured_level, logging.WARNING))
+    logging.getLogger(logger_name).setLevel(configured_level)
 
 
 async def repeated_call(func: Callable[..., Awaitable[Any]], interval: int = 60, *args: Any, **kwargs: Any) -> None:

@@ -1,11 +1,16 @@
 # CHANGELOG
 
+## 1.17.5
+### Fixes
+- Warnings and errors from libraries such as `httpx`, `docker` and `paho` are now logged in the same format as the app's own logs, with a level, timestamp and logger name, rather than as a bare message that log collectors couldn't parse
+
 ## 1.17.4
 ### Fixes
 - Rebuilds of an image with an unchanged version label, such as `master` or `nightly`, now show as e.g. `master:967348dc33c5` to `master:84c6c5ee889a` in the update, matching the format used once installed, rather than switching to image timestamps while an update is waiting
   - The installed image id and registry image are now compared on their config digests, where previously the registry manifest digest never matched the local image id
 - Home Assistant no longer lets the extra attributes topic override the update entity's own `installed_version`, `latest_version` and `title`, which could briefly show an update as available with identical versions
 - Images reused without a registry lookup, e.g. pinned or with registry checks disabled, keep their version and creation timestamp, which were being passed into the wrong fields
+
 
 ## 1.17.3
 ### Docker image

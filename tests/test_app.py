@@ -249,11 +249,26 @@ def test_route_stdlib_logging(capsys: pytest.CaptureFixture[str]) -> None:
 
     from updates2mqtt.app import route_stdlib_logging
 
-    route_stdlib_logging("DEBUG", [structlog.processors.JSONRenderer()], logger_name="updates2mqtt.test_routing")
-    logging.getLogger("updates2mqtt.test_routing.child").debug("hello %s", "registry")
-    line = capsys.readouterr().out.strip().splitlines()[-1]
-    assert '"event": "hello registry"' in line
-    assert '"level": "debug"' in line
+    root = logging.getLogger()
+    saved_handlers, saved_level = root.handlers[:], root.level
+    try:
+        route_stdlib_logging("DEBUG", [structlog.processors.JSONRenderer()], logger_name="updates2mqtt.test_routing")
+        logging.getLogger("updates2mqtt.test_routing.child").debug("hello %s", "registry")
+        line = capsys.readouterr().out.strip().splitlines()[-1]
+        assert '"event": "hello registry"' in line
+        assert '"level": "debug"' in line
+
+        # third party loggers get a level too, but only from WARNING up
+        logging.getLogger("test_third_party").info("chatter")
+        logging.getLogger("test_third_party").warning("trouble")
+        lines = capsys.readouterr().out.strip().splitlines()
+        assert len(lines) == 1
+        assert '"event": "trouble"' in lines[0]
+        assert '"level": "warning"' in lines[0]
+        assert '"logger": "test_third_party"' in lines[0]
+    finally:
+        root.handlers, root.level = saved_handlers, saved_level
+        logging.getLogger("updates2mqtt.test_routing").setLevel(logging.NOTSET)
 
 
 # === startup and edge paths ===
