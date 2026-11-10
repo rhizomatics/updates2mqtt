@@ -1,0 +1,7 @@
+/* The theme hides the top tabs below 76.25em, leaving the other pages only behind the
+   hamburger menu. Keep them visible down to tablet width; the tab list scrolls sideways. */
+@media screen and (min-width: 45em) and (max-width: 76.234375em) {
+  .md-tabs {
+    display: block;
+  }
+}
