@@ -33,6 +33,9 @@ theme:
     - search
     - search.share
 
+extra_css:
+  - assets/stylesheets/extra.css
+
 extra:
   social:
     - icon: fontawesome/brands/github
