@@ -230,6 +230,12 @@ See the [Portainer Configuration](https://updates2mqtt.rhizomatics.org.uk/config
 
 # CHANGELOG
 
+## 1.17.5
+
+### Fixes
+
+- Warnings and errors from libraries such as `httpx`, `docker` and `paho` are now logged in the same format as the app’s own logs, with a level, timestamp and logger name, rather than as a bare message that log collectors couldn’t parse
+
 ## 1.17.4
 
 ### Fixes
