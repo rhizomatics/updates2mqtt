@@ -82,8 +82,9 @@ plugins:
         Development:
           - local_builds.md: Tracking updates for locally built images
           - developer/index.md: Developer documentation overview
-          - developer/oci_client.md: Design and use of the self-contained OCI registry client
-          - developer/oci_container.md: OCI image indexes, manifests, configs and annotations, and how they are used
+          - developer/design/rfcs/rfc0001-oci_client.md: RFC 0001, design and use of the self-contained OCI registry client, with OCI image indexes, manifests, configs and annotations in its appendix
+          - developer/design/rfcs/rfc0002-cyber_security.md: RFC 0002, supply chain protection with update cooldowns, digest pinning, signature verification and image scanning
+          - developer/design/rfcs/rfc0003-configuration.md: RFC 0003, options for moving configuration off OmegaConf 2.3
           - developer/design/index.md: Design notes
           - developer/design/roadmap.md: Planned major features and improvements
   - htmlproofer:

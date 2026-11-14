@@ -10,7 +10,7 @@
 - Update notification and possibly application for OpenWRT and similar ( Teltonika ) routers
 
 ## OCI Client
-- ~~Upgrade OCI handling~~ done in 1.17.0, as the self-contained `updates2mqtt.oci` package, see [OCI Client](../oci_client.md)
+- ~~Upgrade OCI handling~~ done in 1.17.0, as the self-contained `updates2mqtt.oci` package, see [RFC 0001 OCI Client](rfcs/rfc0001-oci_client.md)
 - Publish separately to PyPI once the API has settled
 
 ## Minor

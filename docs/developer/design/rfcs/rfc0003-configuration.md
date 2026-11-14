@@ -1,7 +1,7 @@
 ---
 description: Options for moving configuration off OmegaConf 2.3 - upgrading to OmegaConf 2.4, adopting Hydra, moving to Pydantic Settings, or another library
 ---
-# RFC 0001 Configuration
+# RFC 0003 Configuration
 
 | | |
 |---|---|
