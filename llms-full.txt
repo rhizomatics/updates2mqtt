@@ -247,7 +247,7 @@ First steps in protecting against supply chain attacks, from [RFC 0002](https://
 
 ## ✨ Enhancements
 
-### Supply chain protection
+### Supply Chain Protection
 
 - Updates now install exactly the image digest found by the last scan, rather than pulling the tag, so a tag moved between the scan and the install can’t swap in a different image
 - The digest is pulled, e.g. `eclipse-mosquitto@sha256:...`, then tagged locally as before, so Docker Compose and Portainer use it unchanged
@@ -262,6 +262,7 @@ First steps in protecting against supply chain attacks, from [RFC 0002](https://
 
 ### Container selection
 
+- Easily exclude experimental or one-off containers
 - New `container_select` option in the `docker` config section ignores containers completely by name, e.g. experimental ones with `exclude: ["^lab_", "^beta_"]`. No patterns are set by default
 - Ignored containers aren’t checked against registries or published, and anything published for them before is cleared at the next topic clean
 
