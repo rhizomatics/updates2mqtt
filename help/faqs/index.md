@@ -28,6 +28,26 @@ Before going much lower than an hour, take a look at [Remote API Usage](https://
 
 **A**: No, every container is found and checked without any labels. Labels and `UPD2MQTT_` env vars are only for customizing a container, such as a logo, release notes link, [display name](https://updates2mqtt.rhizomatics.org.uk/configuration/customizing_containers/#display-names), or to have it ignored. See [Customizing Containers](https://updates2mqtt.rhizomatics.org.uk/configuration/customizing_containers/index.md) for the full list. From v1.17.6, an unrecognised `updates2mqtt.` label is logged as a warning and ignored.
 
+**Q**: How do I stop Updates2MQTT tracking experimental or temporary containers?
+
+**A**: If they follow a naming convention, such as `lab_` or `beta_` at the start, exclude them by name in the `docker` section of the [config file](https://updates2mqtt.rhizomatics.org.uk/configuration/using_a_config_file/index.md), from v1.18.0:
+
+config.yaml snippet
+
+```yaml
+docker:
+  container_select:
+    exclude:
+      - ^lab_
+      - ^beta_
+```
+
+They’re then ignored completely: not checked against registries, and not published to MQTT or Home Assistant. Anything already published for them is cleared at the next topic clean. Patterns are regular expressions matched anywhere in the name, so `^` anchors them to the start, and there are none by default. See [Silencing Containers](https://updates2mqtt.rhizomatics.org.uk/configuration/customizing_containers/#silencing-containers).
+
+For a one-off container, set the `updates2mqtt.ignore: true` label or `UPD2MQTT_IGNORE=true` env var on it instead. To keep a container on MQTT but out of Home Assistant, use `image_ref_select`.
+
+If containers that are gone still show in Home Assistant as *Unavailable*, their MQTT config has been removed without Home Assistant being told. Delete them in Home Assistant under *Settings → Entities*.
+
 **Q**: Do I need a label to tell Updates2MQTT where the compose file is?
 
 **A**: No. Docker Compose adds its own labels to each container it creates, including the directory it was run from, and Updates2MQTT uses those. There’s no `updates2mqtt.compose_path` label. What’s needed is for that directory to be mounted into the Updates2MQTT container at exactly the same path, so `/opt/HA:/opt/HA` rather than `/opt/HA:/compose`, otherwise it can report updates but can’t restart the container. See [Installation](https://updates2mqtt.rhizomatics.org.uk/installation/#docker).

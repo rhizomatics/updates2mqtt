@@ -21,6 +21,11 @@ First steps in protecting against supply chain attacks, from [RFC 0002](https://
 - A future release will hold back *Auto* updates until their cooldown has passed, with notice given first
 - GitHub release publication time is captured as `published` in the release attributes
 
+### Container selection
+
+- New `container_select` option in the `docker` config section ignores containers completely by name, e.g. experimental ones with `exclude: ["^lab_", "^beta_"]`. No patterns are set by default
+- Ignored containers aren’t checked against registries or published, and anything published for them before is cleared at the next topic clean
+
 ### Single MQTT connection
 
 - Topic cleaning now runs on the main MQTT connection, rather than opening a second one
@@ -33,6 +38,8 @@ First steps in protecting against supply chain attacks, from [RFC 0002](https://
 
 - Brokers set to use the username as the client id, such as EMQX with *Use Username as Client ID*, no longer take over Updates2MQTT’s session every time topics are cleaned or the healthcheck runs, which showed as repeated `Disconnect failure from broker ... Session taken over` warnings and could cause update commands to be missed
 - Topic cleaning no longer reacts to its own deletes, which could keep it deleting until its time limit
+- A registry rate-limit response asking for a sub-second wait, such as GHCR’s `retry-after: 22.232µs`, now pauses that registry for 1 second rather than 15 minutes
+- The wait is also read from the registry’s error message when there’s no `Retry-After` header, as GHCR does
 
 ## 📝 Other changes
 

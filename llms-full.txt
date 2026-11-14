@@ -260,6 +260,11 @@ First steps in protecting against supply chain attacks, from [RFC 0002](https://
 - A future release will hold back *Auto* updates until their cooldown has passed, with notice given first
 - GitHub release publication time is captured as `published` in the release attributes
 
+### Container selection
+
+- New `container_select` option in the `docker` config section ignores containers completely by name, e.g. experimental ones with `exclude: ["^lab_", "^beta_"]`. No patterns are set by default
+- Ignored containers aren’t checked against registries or published, and anything published for them before is cleared at the next topic clean
+
 ### Single MQTT connection
 
 - Topic cleaning now runs on the main MQTT connection, rather than opening a second one
@@ -272,6 +277,8 @@ First steps in protecting against supply chain attacks, from [RFC 0002](https://
 
 - Brokers set to use the username as the client id, such as EMQX with *Use Username as Client ID*, no longer take over Updates2MQTT’s session every time topics are cleaned or the healthcheck runs, which showed as repeated `Disconnect failure from broker ... Session taken over` warnings and could cause update commands to be missed
 - Topic cleaning no longer reacts to its own deletes, which could keep it deleting until its time limit
+- A registry rate-limit response asking for a sub-second wait, such as GHCR’s `retry-after: 22.232µs`, now pauses that registry for 1 second rather than 15 minutes
+- The wait is also read from the registry’s error message when there’s no `Retry-After` header, as GHCR does
 
 ## 📝 Other changes
 
@@ -1086,6 +1093,10 @@ docker:
     exclude:
     - .*dev
     - .*nightly
+  container_select: # ignore containers completely by name, regular expressions, no patterns by default
+    exclude:
+    - ^lab_
+    - ^beta_
   version_select:  # limit the containers which will be published to Home Assistant
      exclude:
      -  .*-beta.*
@@ -1183,6 +1194,26 @@ docker compose snippet
 This only changes the title. The MQTT topics and the Home Assistant `unique_id` still come from the container name, so the entity id Home Assistant first created stays the same. Entities can also be renamed in Home Assistant itself, from the entity’s settings.
 
 ## Silencing Containers
+
+### Ignoring containers by name
+
+To have Updates2MQTT ignore containers completely by their name, for example experimental ones, use `container_select` in the `docker` section of the config file, from v1.18.0. There are no patterns by default. Patterns are [regular expressions](https://docs.python.org/3/library/re.html#regular-expression-syntax), matched anywhere in the name, so use `^` for a prefix:
+
+config.yaml snippet
+
+```yaml
+docker:
+  container_select:
+    exclude:
+      - ^lab_
+      - ^beta_
+```
+
+Ignored containers aren’t checked against registries or published at all. Anything published for them before is removed from Home Assistant at the next topic clean, after the following scan.
+
+`include` works the other way round: only containers whose names match are checked, and if both are set, `include` decides.
+
+### Hiding containers from Home Assistant by image
 
 If there are containers which are changing very frequently with development builds, or for other reasons shouldn’t be published to Home Assistant, then use the `image_ref_select` in configuration.
 
@@ -2767,6 +2798,26 @@ Before going much lower than an hour, take a look at [Remote API Usage](https://
 **Q**: Do I need to add `updates2mqtt` labels to every container?
 
 **A**: No, every container is found and checked without any labels. Labels and `UPD2MQTT_` env vars are only for customizing a container, such as a logo, release notes link, [display name](https://updates2mqtt.rhizomatics.org.uk/configuration/customizing_containers/#display-names), or to have it ignored. See [Customizing Containers](https://updates2mqtt.rhizomatics.org.uk/configuration/customizing_containers/index.md) for the full list. From v1.17.6, an unrecognised `updates2mqtt.` label is logged as a warning and ignored.
+
+**Q**: How do I stop Updates2MQTT tracking experimental or temporary containers?
+
+**A**: If they follow a naming convention, such as `lab_` or `beta_` at the start, exclude them by name in the `docker` section of the [config file](https://updates2mqtt.rhizomatics.org.uk/configuration/using_a_config_file/index.md), from v1.18.0:
+
+config.yaml snippet
+
+```yaml
+docker:
+  container_select:
+    exclude:
+      - ^lab_
+      - ^beta_
+```
+
+They’re then ignored completely: not checked against registries, and not published to MQTT or Home Assistant. Anything already published for them is cleared at the next topic clean. Patterns are regular expressions matched anywhere in the name, so `^` anchors them to the start, and there are none by default. See [Silencing Containers](https://updates2mqtt.rhizomatics.org.uk/configuration/customizing_containers/#silencing-containers).
+
+For a one-off container, set the `updates2mqtt.ignore: true` label or `UPD2MQTT_IGNORE=true` env var on it instead. To keep a container on MQTT but out of Home Assistant, use `image_ref_select`.
+
+If containers that are gone still show in Home Assistant as *Unavailable*, their MQTT config has been removed without Home Assistant being told. Delete them in Home Assistant under *Settings → Entities*.
 
 **Q**: Do I need a label to tell Updates2MQTT where the compose file is?
 
