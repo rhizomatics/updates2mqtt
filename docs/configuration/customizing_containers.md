@@ -56,6 +56,29 @@ This only changes the title. The MQTT topics and the Home Assistant `unique_id` 
 
 ## Silencing Containers
 
+### Ignoring containers by name
+
+To have Updates2MQTT ignore containers completely by their name, for example experimental ones,
+use `container_select` in the `docker` section of the config file, from v1.18.0. There are no patterns
+by default. Patterns are [regular expressions](https://docs.python.org/3/library/re.html#regular-expression-syntax),
+matched anywhere in the name, so use `^` for a prefix:
+
+```yaml title="config.yaml snippet"
+docker:
+  container_select:
+    exclude:
+      - ^lab_
+      - ^beta_
+```
+
+Ignored containers aren't checked against registries or published at all. Anything published for them
+before is removed from Home Assistant at the next topic clean, after the following scan.
+
+`include` works the other way round: only containers whose names match are checked, and if both are set,
+`include` decides.
+
+### Hiding containers from Home Assistant by image
+
 If there are containers which are changing very frequently with development builds, or for other reasons
 shouldn't be published to Home Assistant, then use the `image_ref_select` in configuration.
 

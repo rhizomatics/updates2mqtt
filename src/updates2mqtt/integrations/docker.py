@@ -767,6 +767,10 @@ class DockerProvider(ReleaseProvider):
             logger.warning("No container name found, discovery rejected")
             return None
 
+        if not Selection(self.cfg.container_select, c.name):
+            logger.debug("Container ignored by container_select")
+            return None
+
         customization: ContainerCustomization = ContainerCustomization(c)
         if customization.ignore:
             logger.info("Container ignored due to UPD2MQTT_IGNORE setting")

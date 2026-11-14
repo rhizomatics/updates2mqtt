@@ -61,6 +61,10 @@ docker:
     exclude:
     - .*dev
     - .*nightly
+  container_select: # ignore containers completely by name, regular expressions, no patterns by default
+    exclude:
+    - ^lab_
+    - ^beta_
   version_select:  # limit the containers which will be published to Home Assistant
      exclude:
      -  .*-beta.*

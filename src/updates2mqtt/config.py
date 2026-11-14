@@ -186,6 +186,8 @@ class DockerConfig:
     version_select: Selector = field(default_factory=lambda: Selector())
     version_policy: VersionPolicy = VersionPolicy.AUTO
     registry_select: Selector = field(default_factory=lambda: Selector())
+    # container names to ignore completely, e.g. exclude ["^lab_", "^beta_"], as regular expressions
+    container_select: Selector = field(default_factory=lambda: Selector())
     portainer: PortainerConfig = field(default_factory=lambda: PortainerConfig())
     # how long a release has to be known before it's eligible to update, e.g. 72h, 3d, 1w, or 0 for none
     # observe only for now, reported in the update attributes, see RFC 0002

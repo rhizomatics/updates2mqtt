@@ -933,3 +933,35 @@ def test_supply_chain_checks_no_update_still_records_tag_move(mock_docker_client
         assert cooldown is None
         assert tag_move is not None
         assert tag_move.previous_digest == DIGEST_LATEST
+
+
+@pytest.mark.parametrize(
+    ("selector", "name", "analyzed"),
+    [
+        ({}, "lab_duck-ui", True),  # no patterns by default
+        ({"exclude": ["^lab_", "^beta_"]}, "lab_duck-ui", False),
+        ({"exclude": ["^lab_", "^beta_"]}, "beta_grafana", False),
+        ({"exclude": ["^lab_", "^beta_"]}, "grafana_lab_copy", True),  # prefix only
+        ({"include": ["^prod-"]}, "prod-db", True),
+        ({"include": ["^prod-"]}, "scratch", False),
+    ],
+)
+def test_analyze_container_select(
+    mock_docker_client: DockerClient, selector: dict[str, list[str]], name: str, analyzed: bool
+) -> None:
+    from updates2mqtt.config import Selector
+
+    container = build_mock_container("nginx:latest")
+    container.name = name  # type: ignore[misc]
+    with patch("docker.from_env", return_value=mock_docker_client):
+        uut = mut.DockerProvider(
+            docker_config(
+                discover_metadata={},
+                registry=RegistryConfig(api=RegistryAPI.DOCKER_CLIENT),
+                container_select=Selector(**selector),
+            ),
+            NodeConfig(),
+        )
+        assert (uut.analyze(container, "test-session") is not None) is analyzed
+        # an ignored container never reaches the registry
+        assert mock_docker_client.images.get_registry_data.called is analyzed  # type: ignore[attr-defined]
