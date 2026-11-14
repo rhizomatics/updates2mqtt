@@ -10,7 +10,7 @@ from enum import Enum
 from functools import partial
 from pathlib import Path
 from threading import Event
-from typing import Any, cast
+from typing import Any, ClassVar, cast
 
 import docker
 import docker.errors
@@ -95,6 +95,8 @@ class ContainerCustomization:
 
     label_prefix: str = "updates2mqtt."
     env_prefix: str = "UPD2MQTT_"
+    # labels and env vars with the Updates2MQTT prefixes that aren't recognised, so only warned once per container
+    warned_unrecognised: ClassVar[set[tuple[str, str]]] = set()
 
     def __init__(self, container: Container) -> None:
         self.update: UpdatePolicy = UpdatePolicy.PASSIVE  # was known as UPD2MQTT_UPDATE before policies and labels
@@ -104,6 +106,7 @@ class ContainerCustomization:
         self.ignore: bool = False
         self.version_policy: VersionPolicy | None = None
         self.registry_token: str | None = None
+        self.name: str | None = None  # display name in Home Assistant
 
         if not container.attrs or container.attrs.get("Config") is None:
             return
@@ -113,7 +116,9 @@ class ContainerCustomization:
         else:
             c_env = {}
 
-        for attr in dir(self):
+        self.warn_unrecognised(container, c_env)
+
+        for attr in list(vars(self)):
             if "__" not in attr:
                 label = f"{self.label_prefix}{attr.lower()}"
                 env_var = f"{self.env_prefix}{attr.upper()}"
@@ -151,6 +156,26 @@ class ContainerCustomization:
                         setattr(self, attr, UpdatePolicy[v.upper()])
                     else:
                         setattr(self, attr, v)
+
+    def warn_unrecognised(self, container: Container, c_env: dict[str, str]) -> None:
+        """Flag prefixed labels or env vars that do nothing, such as typos or settings copied from out of date guides"""
+        known: set[str] = {f"{self.label_prefix}{attr.lower()}" for attr in vars(self)}
+        known.update(f"{self.env_prefix}{attr.upper()}" for attr in vars(self))
+        known.add(SELF_BOUNCE_HELPER_LABEL)
+        candidates: list[str] = [label for label in container.labels or {} if label.startswith(self.label_prefix)]
+        candidates.extend(env_var for env_var in c_env if env_var.startswith(self.env_prefix))
+        candidates = [key for key in candidates if key not in known]
+        for key in candidates:
+            if (container.name or "", key) not in self.warned_unrecognised:
+                self.warned_unrecognised.add((container.name or "", key))
+                log.warning(
+                    "Ignoring unrecognised container setting, see "
+                    "https://updates2mqtt.rhizomatics.org.uk/configuration/customizing_containers/",
+                    setting=key,
+                    integration="docker",
+                    container=container.name,
+                    action="customize",
+                )
 
 
 class DockerProvider(ReleaseProvider):
@@ -216,6 +241,10 @@ class DockerProvider(ReleaseProvider):
                 "Invalid max_concurrent_updates %s, using %s", self.cfg.max_concurrent_updates, DEFAULT_MAX_CONCURRENT_UPDATES
             )
             return DEFAULT_MAX_CONCURRENT_UPDATES
+
+    @property
+    def updating(self) -> bool:
+        return bool(self.active_updates)
 
     def is_self_bouncing(self) -> bool:
         return self.self_bounce is not None and self.self_bounce.is_set()
@@ -794,6 +823,7 @@ class DockerProvider(ReleaseProvider):
                 session,
                 node=self.node_cfg.name,
                 entity_picture_url=customization.picture or pkg_info.logo_url,
+                display_name=customization.name,
                 current_version=public_installed_version,
                 publish_policy=publish_policy,
                 update_policy=update_policy,

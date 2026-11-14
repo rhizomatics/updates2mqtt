@@ -388,3 +388,16 @@ def test_discovery_as_dict_scan_count(mock_provider: ReleaseProvider) -> None:
 
     result = d2.as_dict()
     assert result["scan_count"] == 2
+
+
+def test_discovery_title_display_name_overrides_template(mock_provider: ReleaseProvider) -> None:
+    uut = Discovery(
+        mock_provider,
+        "my-app",
+        "sess001",
+        "server01",
+        update_type="Docker Image",
+        display_name="My App Update",
+    )
+    assert uut.title == "My App Update"
+    assert uut.name == "my-app"

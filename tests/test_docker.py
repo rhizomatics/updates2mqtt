@@ -755,3 +755,33 @@ async def test_update_no_wait_when_self_bouncing(mock_docker_client: DockerClien
     with patch.object(uut, "fetch", return_value="sha256:new"), patch.object(uut, "restart", return_value=True):
         assert await uut.update(d)
     assert mock_docker_client.containers.get.call_count == 1  # type: ignore[attr-defined]
+
+
+def test_container_customization_name() -> None:
+    uut = ContainerCustomization(Container(attrs={"Config": {"Labels": {"updates2mqtt.name": "Mosquitto Broker"}}}))
+    assert uut.name == "Mosquitto Broker"
+    uut = ContainerCustomization(Container(attrs={"Config": {"Env": ["UPD2MQTT_NAME=Frigate NVR"]}}))
+    assert uut.name == "Frigate NVR"
+
+
+def test_container_customization_warns_unrecognised_once() -> None:
+    ContainerCustomization.warned_unrecognised.clear()
+    container = Container(
+        attrs={
+            "Name": "/mqtt",
+            "Config": {
+                "Labels": {
+                    "updates2mqtt.compose_path": "/opt/HA/docker-compose.yml",
+                    "updates2mqtt.picture": "https://example.com/logo.svg",
+                    "updates2mqtt.self_update_helper": "updates2mqtt",
+                },
+                "Env": ["UPD2MQTT_PCITURE=https://example.com/logo.svg", "UPD2MQTT_IGNORE=false", "OTHER=1"],
+            },
+        }
+    )
+    with patch.object(mut, "log") as mock_log:
+        uut = ContainerCustomization(container)
+        ContainerCustomization(container)
+    warned = sorted(c.kwargs["setting"] for c in mock_log.warning.call_args_list)
+    assert warned == ["UPD2MQTT_PCITURE", "updates2mqtt.compose_path"]
+    assert uut.picture == "https://example.com/logo.svg"

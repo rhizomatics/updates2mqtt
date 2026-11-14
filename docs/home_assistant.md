@@ -98,6 +98,23 @@ device firmware etc), then pick one of the container names you know.
 
 ![Home Assistant Entities](images/ha_entities.png){width=640}
 
+### Testing an Update
+
+To see the whole thing work end to end, including the *Install* button, make a container look out of date by
+running it from an older image under the tag the compose file uses. For example, with a compose service `mosquitto` using
+`eclipse-mosquitto:latest`:
+
+```bash
+docker pull eclipse-mosquitto:2.0.15
+docker tag eclipse-mosquitto:2.0.15 eclipse-mosquitto:latest
+docker compose up -d mosquitto
+docker restart updates2mqtt
+```
+
+The restart triggers a fresh scan, and after that the update should show in Home Assistant, ready to install, which will pull
+the real `latest` again and recreate the container. Pick a container that's harmless to restart, and if you use your MQTT broker,
+expect Updates2MQTT to briefly lose its connection while the broker is recreated.
+
 ## Custom config
 
 None of this is necessary, all optional for tuning how it works with Home Assistant.
