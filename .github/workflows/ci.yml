@@ -72,6 +72,12 @@ jobs:
     needs: test
     # Not when called from a release workflow
     if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    # deploys from main push to gh-pages, so one at a time, or a later push is rejected as not a fast-forward;
+    # a deploy waiting behind another is replaced by any newer one, so the latest docs win, and nothing is cancelled
+    # mid-push. Pull request runs only build, so each gets its own group.
+    concurrency:
+      group: ${{ github.event_name == 'push' && 'docs-deploy-main' || format('docs-build-{0}', github.run_id) }}
+      cancel-in-progress: false
     runs-on: ubuntu-slim
     permissions:
       contents: write

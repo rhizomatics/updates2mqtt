@@ -3,6 +3,7 @@
 minimum_release_age = "7d"
 
 [tools]
+actionlint = "latest"
 prek = "latest"
 ruff = { version = "latest", minimum_release_age = "2d" }
 shellcheck = "latest"
