@@ -187,6 +187,15 @@ When Updates2MQTT updates its own container, it waits for any other updates in p
 
 Containers managed as a [Portainer](https://updates2mqtt.rhizomatics.org.uk/configuration/portainer/index.md) stack are redeployed by Portainer instead.
 
+#### Health Check
+
+The Docker image includes `/app/healthcheck.sh`, used by the `healthcheck` in the example [docker-compose.yaml](https://updates2mqtt.rhizomatics.org.uk/configuration/examples/docker_compose/index.md). It doesn’t connect to MQTT itself. Instead it reads a small heartbeat file the app writes every `interval` seconds (5 minutes by default), at `updates2mqtt.heartbeat` in the system temp directory, usually `/tmp`. That file records when the app last ran its heartbeat, and when the MQTT broker last acknowledged one. To put it somewhere else, set the `U2M_HEARTBEAT_FILE` env var on the container, which both the app and the check use. The `heartbeat_file` setting in the `node.healthcheck` config section only moves it for the app, as the check can’t read the config file.
+
+- If the app has stopped writing heartbeats, it’s assumed stuck, and the check stops it so Docker’s `restart` policy brings it back up
+- If the app is running but the broker hasn’t acknowledged a heartbeat recently, the container is marked *unhealthy* without being restarted, as a restart doesn’t fix a broker or network problem
+
+The check takes an optional maximum age in seconds as its second argument, 480 by default. Older compose files pass the heartbeat topic as the first argument, which still works, but is no longer needed.
+
 #### Ensuring Always Running
 
 Use cron to make sure the container is always up, this example will run once an hour, adapt the schedule and the location of `docker-compose.yaml` for your needs.
@@ -251,6 +260,19 @@ First steps in protecting against supply chain attacks, from [RFC 0002](https://
 - A future release will hold back *Auto* updates until their cooldown has passed, with notice given first
 - GitHub release publication time is captured as `published` in the release attributes
 
+### Single MQTT connection
+
+- Topic cleaning now runs on the main MQTT connection, rather than opening a second one
+- The container healthcheck no longer connects to MQTT. It reads a heartbeat file the app writes, recording when the app last ran its heartbeat, and when the broker last acknowledged one
+- A stalled app is still restarted, as before. A broker that hasn’t acknowledged a heartbeat marks the container *unhealthy*, without restart loops while the broker is down
+- The file defaults to `updates2mqtt.heartbeat` in the system temp directory. Set `U2M_HEARTBEAT_FILE` to move it, for both the app and the healthcheck, or `heartbeat_file` in the `node.healthcheck` config section for the app alone
+- Existing compose healthchecks that pass the heartbeat topic still work, and the topic is no longer needed
+
+## 🐞 Bug Fixes
+
+- Brokers set to use the username as the client id, such as EMQX with *Use Username as Client ID*, no longer take over Updates2MQTT’s session every time topics are cleaned or the healthcheck runs, which showed as repeated `Disconnect failure from broker ... Session taken over` warnings and could cause update commands to be missed
+- Topic cleaning no longer reacts to its own deletes, which could keep it deleting until its time limit
+
 ## 📝 Other changes
 
 - All GitHub Actions in the build and release workflows are now pinned by commit SHA, kept up to date by Dependabot
@@ -258,7 +280,7 @@ First steps in protecting against supply chain attacks, from [RFC 0002](https://
 
 ## 📚 Documentation
 
-- *Improving Security* now covers restricting MQTT update commands with a Mosquitto ACL, and limiting Docker API access
+- [Improving Security](https://updates2mqtt.rhizomatics.org.uk/configuration/security/#docker-api-access) now covers restricting MQTT update commands with a Mosquitto ACL, and limiting Docker API access
 - Design docs reorganized into RFCs, with the OCI client as RFC 0001, cyber security as RFC 0002 and configuration as RFC 0003
 - [Design Principles](https://updates2mqtt.rhizomatics.org.uk/developer/design/design_principles/) added
 
@@ -1021,6 +1043,7 @@ node:
     enabled: true
     interval: 300 # publish a heartbeat every 5 minutes
     topic_template: healthcheck/{node_name}/updates2mqtt
+    heartbeat_file: /tmp/updates2mqtt.heartbeat # read by the container healthcheck, empty to not write one, or set U2M_HEARTBEAT_FILE
 mqtt:
   host: ${oc.env:MQTT_HOST}
   user: ${oc.env:MQTT_USER}
@@ -1077,19 +1100,20 @@ log:
 
 The core configuration can be supplied by environment variables and container labels, everything else will default, either to fixed values built into Updates2MQTT, or in the case of the node name, taken from the operating system.
 
-| Env Var              | Default      |
-| -------------------- | ------------ |
-| MQTT_HOST            | localhost    |
-| MQTT_PORT            | 1883         |
-| MQTT_USER            | *NO DEFAULT* |
-| MQTT_PASS            | *NO DEFAULT* |
-| MQTT_VERSION         | 3.11         |
-| U2M_LOG_LEVEL        | INFO         |
-| U2M_REMOVE_OLD_IMAGE | false        |
-| PORTAINER_URL        | *NONE*       |
-| PORTAINER_API_KEY    | *NONE*       |
-| PORTAINER_CA_CERTS   | *NONE*       |
-| PORTAINER_VERIFY_SSL | true         |
+| Env Var              | Default                                                                                                                          |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| MQTT_HOST            | localhost                                                                                                                        |
+| MQTT_PORT            | 1883                                                                                                                             |
+| MQTT_USER            | *NO DEFAULT*                                                                                                                     |
+| MQTT_PASS            | *NO DEFAULT*                                                                                                                     |
+| MQTT_VERSION         | 3.11                                                                                                                             |
+| U2M_LOG_LEVEL        | INFO                                                                                                                             |
+| U2M_REMOVE_OLD_IMAGE | false                                                                                                                            |
+| U2M_HEARTBEAT_FILE   | `updates2mqtt.heartbeat` in the temp dir, see [Health Check](https://updates2mqtt.rhizomatics.org.uk/installation/#health-check) |
+| PORTAINER_URL        | *NONE*                                                                                                                           |
+| PORTAINER_API_KEY    | *NONE*                                                                                                                           |
+| PORTAINER_CA_CERTS   | *NONE*                                                                                                                           |
+| PORTAINER_VERIFY_SSL | true                                                                                                                             |
 
 Startup will fail if `MQTT_USER` and `MQTT_PASS` are not defined some how. Run `u2m-cli mqtt=check` inside the container to see which settings are picked up from the environment, see [Troubleshooting](https://updates2mqtt.rhizomatics.org.uk/help/troubleshooting/#checking-mqtt-and-update-settings).
 
@@ -2561,7 +2585,7 @@ services:
     restart: always
     env_file: ./.env  # Environment variables file
     healthcheck:
-      test: ["CMD", "/app/healthcheck.sh","healthcheck/MYNODENAME/updates2mqtt"] # Change for your node name
+      test: ["CMD", "/app/healthcheck.sh"] # reads the heartbeat file written by the app, no MQTT connection needed
       interval: 5m
       timeout: 30s
       retries: 3
@@ -2762,6 +2786,13 @@ Before going much lower than an hour, take a look at [Remote API Usage](https://
 
 ## MQTT
 
+**Q**: Why does the log show `Disconnect failure from broker` with `Session taken over` every few minutes?
+
+**A**: Another MQTT connection is using the same client id as Updates2MQTT, so the broker drops one in favour of the other. The usual causes are:
+
+- Two Updates2MQTT instances with the same node name, e.g. a copied `config.yaml` or `NODE_NAME`, as the client id is `updates2mqtt_<node name>`. Give each one its own `node.name`.
+- A broker set to use the username as the client id, such as EMQX with *Use Username as Client ID* turned on, where every connection with the same username counts as the same client. From v1.18.0 Updates2MQTT makes only one connection, and its container healthcheck doesn’t connect to MQTT at all, so it works with this setting. With older versions, or anything else sharing the username, turn the setting off or give each its own username.
+
 **Q**: Why is there a `Disconnect failure from broker` warning when I update my MQTT broker container?
 
 **A**: Recreating the broker container drops Updates2MQTT’s connection to it, as it would any other MQTT client, and it reconnects automatically once the new broker is up. From v1.17.6, when this happens during an update it’s logged as information rather than a warning. The update entity for the broker may show as unavailable for a moment while it reconnects.
@@ -2881,7 +2912,7 @@ Use a desktop MQTT app - [MQTTX](https://mqttx.app) will let you subscribe to `#
 
 These tools will let you inspect messages, and also publish your own, so can create your own update message and see if it gets picked up by the Home Assistant app.
 
-Alternatively, use the debug option and logging of Mosquitto broker, or the built-in admin/debug UI of EMQX broker. Or the handy command line `mosquitto_sub` and `mosquitto_pub`, which are also used by the Updates2MQTT health check.
+Alternatively, use the debug option and logging of Mosquitto broker, or the built-in admin/debug UI of EMQX broker. Or the handy command line `mosquitto_sub` and `mosquitto_pub`, which are included in the Updates2MQTT Docker image.
 
 ## Home Assistant
 

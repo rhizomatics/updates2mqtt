@@ -46,6 +46,13 @@ Before going much lower than an hour, take a look at [Remote API Usage](https://
 
 ## MQTT
 
+**Q**: Why does the log show `Disconnect failure from broker` with `Session taken over` every few minutes?
+
+**A**: Another MQTT connection is using the same client id as Updates2MQTT, so the broker drops one in favour of the other. The usual causes are:
+
+- Two Updates2MQTT instances with the same node name, e.g. a copied `config.yaml` or `NODE_NAME`, as the client id is `updates2mqtt_<node name>`. Give each one its own `node.name`.
+- A broker set to use the username as the client id, such as EMQX with *Use Username as Client ID* turned on, where every connection with the same username counts as the same client. From v1.18.0 Updates2MQTT makes only one connection, and its container healthcheck doesn’t connect to MQTT at all, so it works with this setting. With older versions, or anything else sharing the username, turn the setting off or give each its own username.
+
 **Q**: Why is there a `Disconnect failure from broker` warning when I update my MQTT broker container?
 
 **A**: Recreating the broker container drops Updates2MQTT’s connection to it, as it would any other MQTT client, and it reconnects automatically once the new broker is up. From v1.17.6, when this happens during an update it’s logged as information rather than a warning. The update entity for the broker may show as unavailable for a moment while it reconnects.
