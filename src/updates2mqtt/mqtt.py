@@ -8,7 +8,6 @@ from threading import Event
 from typing import Any, Literal, cast
 
 import paho.mqtt.client as mqtt
-import paho.mqtt.subscribeoptions
 import structlog
 from paho.mqtt.client import MQTT_CLEAN_START_FIRST_ONLY, MQTTMessage, MQTTMessageInfo
 from paho.mqtt.enums import CallbackAPIVersion, MQTTErrorCode, MQTTProtocolVersion
@@ -43,7 +42,6 @@ class MqttPublisher:
         self.providers_by_type: dict[str, ReleaseProvider] = {}
         self.event_loop: asyncio.AbstractEventLoop | None = None
         self.client: mqtt.Client | None = None
-        self.protocol: MQTTProtocolVersion = MQTTProtocolVersion.MQTTv311
         self.fatal_failure = Event()
         self.connected = Event()
         # lets long running work, e.g. topic cleaning, finish early on shutdown
@@ -67,7 +65,6 @@ class MqttPublisher:
                 logger.info("No valid MQTT protocol version found (%s), setting to default v3.11", self.cfg.protocol)
                 protocol = MQTTProtocolVersion.MQTTv311
             logger.debug("MQTT protocol set to %r", protocol)
-            self.protocol = protocol
 
             self.event_loop = event_loop or asyncio.get_event_loop()
             self.client = mqtt.Client(
@@ -220,10 +217,10 @@ class MqttPublisher:
             for topic_filter in filters:
                 client.message_callback_add(topic_filter, handler)
             for topic_filter in filters:
-                if self.protocol == MQTTProtocolVersion.MQTTv5:
-                    client.subscribe(topic_filter, options=paho.mqtt.subscribeoptions.SubscribeOptions(noLocal=True))
-                else:
-                    client.subscribe(topic_filter)
+                # no MQTT v5 noLocal, as brokers such as EMQX apply it to retained messages by their original
+                # publisher's client id, which is this client's own id across restarts, so it would hide every
+                # topic to be cleaned; echoes of our own deletes are empty, and skipped by the handler
+                client.subscribe(topic_filter)
 
             while (
                 time.time() - results["last_timestamp"] <= wait_time

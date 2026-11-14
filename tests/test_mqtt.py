@@ -648,11 +648,11 @@ async def test_clean_topics_exits_on_fatal_failure(mock_mqtt_client: Mock, mock_
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(("protocol", "with_options"), [("3.11", False), ("5", True)])
+@pytest.mark.parametrize("protocol", ["3.11", "5"])
 async def test_clean_topics_subscribes_on_main_client(
-    mock_mqtt_client: Mock, mock_provider: ReleaseProvider, protocol: str, with_options: bool
+    mock_mqtt_client: Mock, mock_provider: ReleaseProvider, protocol: str
 ) -> None:
-    """Cleaning subscribes on the main connection, with noLocal only where MQTT v5 supports it"""
+    """Cleaning subscribes on the main connection, without noLocal, which would hide our own retained topics"""
     config = OmegaConf.structured(MqttConfig)
     config.protocol = protocol
     hass_config = OmegaConf.structured(HomeAssistantConfig)
@@ -666,7 +666,8 @@ async def test_clean_topics_subscribes_on_main_client(
 
     subscribed = {c.args[0]: c.kwargs for c in mock_mqtt_client.subscribe.call_args_list}
     assert set(subscribed) >= {"homeassistant/update/#", f"updates2mqtt/cleannode/{mock_provider.source_type}/+/#"}
-    assert ("options" in subscribed["homeassistant/update/#"]) is with_options
+    assert "options" not in subscribed["homeassistant/update/#"]
+    assert "options" not in subscribed[f"updates2mqtt/cleannode/{mock_provider.source_type}/+/#"]
 
 
 # === missing branch coverage ===
