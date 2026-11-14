@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import re
 import typing
 from abc import abstractmethod
@@ -859,7 +860,8 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
         return result
 
     def throttle(self, index_name: str, error: RateLimitedError) -> None:
-        retry_secs: int | None = round(error.retry_after) if error.retry_after else None
+        # round up, as a sub-second wait such as GHCR's microseconds would round to 0, which means "use the default"
+        retry_secs: int | None = max(1, math.ceil(error.retry_after)) if error.retry_after is not None else None
         self.throttler.throttle(index_name, retry_secs=retry_secs, explanation=str(error))
 
     def apply_manifest(

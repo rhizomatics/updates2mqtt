@@ -1036,3 +1036,14 @@ def test_hotio_enricher_handles_api_error(httpx_mock: HTTPXMock) -> None:
     enricher = hotio_enricher()
     assert len(enricher.containers) == 0
     assert enricher.enrich(DockerImageInfo("ghcr.io/hotio/sonarr:release")) is None
+
+
+@pytest.mark.parametrize(("retry_after", "expected"), [(22.232e-6, 1), (0.0, 1), (1.2, 2), (42.0, 42), (None, None)])
+def test_throttle_rounds_sub_second_waits_up(retry_after: float | None, expected: int | None) -> None:
+    from updates2mqtt.oci.errors import RateLimitedError
+
+    throttler = _throttler()
+    uut = _lookup(FakeRegistry(), throttler)
+    uut.throttle("ghcr.io", RateLimitedError("429 TOOMANYREQUESTS", retry_after=retry_after))
+    # a microsecond wait used to round to 0, which the throttler took as "use the 15 minute default"
+    assert throttler.throttle.call_args.kwargs["retry_secs"] == expected

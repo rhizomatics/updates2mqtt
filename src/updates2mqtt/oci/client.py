@@ -11,7 +11,7 @@ import logging
 from collections.abc import Collection, Generator, Sequence
 from typing import Any, Self, TypeVar
 
-from .auth import CredentialStore, RegistryAuth, parse_retry_after
+from .auth import CredentialStore, RegistryAuth, parse_retry_after, retry_after_from_errors
 from .errors import AuthenticationError, NotFoundError, OCIError, RateLimitedError, RegistryError
 from .http import AsyncTransport, HttpRequest, HttpResponse, Transport, with_query
 from .media_types import ALL_MANIFEST_MEDIA_TYPES, OCI_INDEX
@@ -63,7 +63,10 @@ def check_response(response: HttpResponse, what: str) -> None:
     message: str = f"{what}: {response.status_code} {detail}".rstrip()
     status: int = response.status_code
     if status == 429:
-        raise RateLimitedError(message, retry_after=parse_retry_after(response.headers.get("retry-after")), errors=errors)
+        retry_after: float | None = parse_retry_after(response.headers.get("retry-after"))
+        if retry_after is None:
+            retry_after = retry_after_from_errors(errors)
+        raise RateLimitedError(message, retry_after=retry_after, errors=errors)
     if status in (401, 403):
         raise AuthenticationError(message, status, errors)
     if status == 404:

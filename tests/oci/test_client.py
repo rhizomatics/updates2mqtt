@@ -392,3 +392,27 @@ def test_closes_only_own_transport() -> None:
     assert not transport.closed
     with RegistryClient() as uut:
         assert uut.transport is not None
+
+
+class _RateLimitedResponse:
+    def __init__(self, headers: dict[str, str], message: str) -> None:
+        self.is_success = False
+        self.status_code = 429
+        self.headers = headers
+        self._body = {"errors": [{"code": "TOOMANYREQUESTS", "message": message}]}
+
+    def json(self) -> object:
+        return self._body
+
+
+def test_rate_limit_retry_after_from_ghcr_message_without_header() -> None:
+    from updates2mqtt.oci.client import check_response
+    from updates2mqtt.oci.errors import RateLimitedError
+
+    with pytest.raises(RateLimitedError) as e:
+        check_response(_RateLimitedResponse({}, "retry-after: 22.232µs, allowed: 44000/minute"), "Blob")  # type: ignore[arg-type]
+    assert e.value.retry_after == pytest.approx(22.232e-6)
+
+    with pytest.raises(RateLimitedError) as e:
+        check_response(_RateLimitedResponse({"retry-after": "30"}, "retry-after: 1s"), "Blob")  # type: ignore[arg-type]
+    assert e.value.retry_after == 30  # the header wins

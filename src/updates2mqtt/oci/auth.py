@@ -80,6 +80,37 @@ def parse_www_authenticate(*headers: str) -> list[Challenge]:
     return challenges
 
 
+GO_DURATION_UNITS: dict[str, float] = {
+    "ns": 1e-9,
+    "us": 1e-6,
+    "µs": 1e-6,
+    "μs": 1e-6,
+    "ms": 1e-3,
+    "s": 1.0,
+    "m": 60.0,
+    "h": 3600.0,
+}
+GO_DURATION_RE = re.compile(r"([0-9]*\.?[0-9]+)(ns|us|µs|μs|ms|s|m|h)")
+RETRY_AFTER_IN_MESSAGE_RE = re.compile(r"retry-after:\s*((?:[0-9]*\.?[0-9]+(?:ns|us|µs|μs|ms|s|m|h))+)", re.IGNORECASE)
+
+
+def parse_go_duration(value: str) -> float | None:
+    """Seconds from a Go duration such as `22.232µs`, `1.5s` or `1m30s`, as GHCR puts in its 429 error messages"""
+    parts: list[tuple[str, str]] = GO_DURATION_RE.findall(value)
+    if not parts or "".join(n + u for n, u in parts) != value:
+        return None
+    return sum(float(n) * GO_DURATION_UNITS[u] for n, u in parts)
+
+
+def retry_after_from_errors(errors: list[dict[str, Any]]) -> float | None:
+    """Seconds to wait from a registry's error messages, e.g. GHCR's `retry-after: 22.232µs`, when there's no header"""
+    for error in errors:
+        match = RETRY_AFTER_IN_MESSAGE_RE.search(str(error.get("message") or ""))
+        if match:
+            return parse_go_duration(match.group(1))
+    return None
+
+
 def parse_retry_after(value: str | None) -> float | None:
     """Seconds, from either form of Retry-After"""
     if not value:

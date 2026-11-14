@@ -16,7 +16,13 @@ from updates2mqtt.oci import (
     StaticCredentials,
     parse_www_authenticate,
 )
-from updates2mqtt.oci.auth import config_key_registry, parse_retry_after, run_credential_helper
+from updates2mqtt.oci.auth import (
+    config_key_registry,
+    parse_go_duration,
+    parse_retry_after,
+    retry_after_from_errors,
+    run_credential_helper,
+)
 
 # === challenges ===
 
@@ -197,3 +203,29 @@ def test_static_and_chained() -> None:
     chained = ChainedCredentials(StaticCredentials({}), static)
     assert chained.get("docker.io") == Credentials("a", "b")
     assert chained.get("ghcr.io") is None
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("22.232µs", 22.232e-6),
+        ("22.232us", 22.232e-6),
+        ("500ms", 0.5),
+        ("1.5s", 1.5),
+        ("1m30s", 90.0),
+        ("2h", 7200.0),
+        ("10", None),
+        ("soon", None),
+        ("5s later", None),
+    ],
+)
+def test_parse_go_duration(value: str, expected: float | None) -> None:
+    result = parse_go_duration(value)
+    assert result == pytest.approx(expected) if expected is not None else result is None
+
+
+def test_retry_after_from_errors() -> None:
+    ghcr = [{"code": "TOOMANYREQUESTS", "message": "retry-after: 22.232µs, allowed: 44000/minute"}]
+    assert retry_after_from_errors(ghcr) == pytest.approx(22.232e-6)
+    assert retry_after_from_errors([{"code": "TOOMANYREQUESTS", "message": "slow down"}]) is None
+    assert retry_after_from_errors([]) is None
