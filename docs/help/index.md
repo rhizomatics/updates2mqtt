@@ -13,6 +13,8 @@ If you think its a bug, raise a bug request, or see if anyone else has the same 
 
 Have a look at the [What's New](../changelog.md) too, including any breaking changes.
 
+{{ pagetree(siblings) }}
+
 ## Community Guides
 
 Walkthroughs written by people using Updates2MQTT, which can be a useful complement to these docs:
@@ -21,4 +23,3 @@ Walkthroughs written by people using Updates2MQTT, which can be a useful complem
   setup for Home Assistant running as a Docker container rather than HassOS, including the Mosquitto user, Docker networking, and a way of testing an update.
     - Written for v1.8. The `UPDATES2MQTT_*` env vars and the `updates2mqtt.compose_path` label in its examples aren't used by Updates2MQTT, see the [FAQs](faqs.md#containers), and `updates2mqtt.name` only works from v1.17.6.
 
-{{ pagetree(siblings) }}
