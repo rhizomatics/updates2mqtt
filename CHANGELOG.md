@@ -3,7 +3,7 @@ title: What's New
 ---
 
 # 1.18.0
-First steps in protecting against supply chain attacks, from [RFC 0002](developer/design/rfcs/rfc0002-cyber_security.md), see [Supply Chain Protection](configuration/supply_chain.md)
+First steps in protecting against supply chain attacks, from [RFC 0002](https://updates2mqtt.rhizomatics.org.uk/developer/design/rfcs/rfc0002-cyber_security/), see [Supply Chain Protection](https://updates2mqtt.rhizomatics.org.uk/configuration/security/#supply-chain-protection)
 ## ✨ Enhancements
 ### Supply Chain Protection
 - Updates now install exactly the image digest found by the last scan, rather than pulling the tag, so a tag moved between the scan and the install can't swap in a different image
