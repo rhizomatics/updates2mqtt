@@ -49,6 +49,8 @@ This will give you shell access inside the container, which is a good way of che
 
 If the host, port, user and password for MQTT are incorrect then usually this will show in the logs, or use a MQTT client to verify that Updates2MQTT is successfully posting to topics ( and that HomeAssistant itself is publishing to the same broker OK).
 
+A `Disconnect failure from broker` warning while updating the broker’s own container is expected, see the [FAQs](https://updates2mqtt.rhizomatics.org.uk/help/faqs/#mqtt).
+
 Updates2MQTT uses the [Eclipse Paho Python Client](https://github.com/eclipse-paho/paho.mqtt.python) for all MQTT interaction, using v2 of the callback API, and supports the older MQTT implementations as well as the newer v5 protocol. The [Issues](https://github.com/eclipse-paho/paho.mqtt.python/issues?q=is%3Aissue) list might give you some clues for your situation.
 
 ### Checking MQTT and Update Settings

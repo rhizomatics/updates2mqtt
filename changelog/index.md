@@ -1,21 +1,45 @@
-# CHANGELOG
+______________________________________________________________________
 
-## 1.17.5
+## title: What’s New
 
-### Fixes
+# 1.17.6
+
+## ✨ Enhancements
+
+- New `updates2mqtt.name` container label, or `UPD2MQTT_NAME` env var, to set the title shown in Home Assistant in place of the generated one, e.g. `Mosquitto Broker` rather than `mosquitto Docker Image on nuc`
+- Only the title changes, topics and entity ids still come from the container name
+- Unrecognised `updates2mqtt.` labels or `UPD2MQTT_` env vars on a container are now logged as a warning, once per container, rather than silently ignored, to catch typos or settings copied from out of date guides
+- `UPDATES2MQTT_` env vars, which have never been used, and unknown `U2M_` ones, are logged as a warning at startup
+
+## 🐞 Bug Fixes
+
+- Updating the MQTT broker’s own container no longer logs a `Disconnect failure from broker` warning, since the dropped connection is expected and reconnects, and is logged as information instead
+
+## 📝 Other changes
+
+- New FAQs on labels, compose paths, digests shown instead of versions, removing old images, and updating the broker container
+- New *Testing an Update* section for Home Assistant, and a *Community Guides* section in Help
+- Fixes to typos and broken links in *Customizing Containers*
+- `ty` type check issues in the CLI fixed
+
+# 1.17.5
+
+## 🐞 Bug Fixes
 
 - Warnings and errors from libraries such as `httpx`, `docker` and `paho` are now logged in the same format as the app’s own logs, with a level, timestamp and logger name, rather than as a bare message that log collectors couldn’t parse
 
-## 1.17.4
+# 1.17.4
 
-### Fixes
+## 🐞 Bug Fixes
 
 - Rebuilds of an image with an unchanged version label, such as `master` or `nightly`, now show as e.g. `master:967348dc33c5` to `master:84c6c5ee889a` in the update, matching the format used once installed, rather than switching to image timestamps while an update is waiting
 - The installed image id and registry image are now compared on their config digests, where previously the registry manifest digest never matched the local image id
 - Home Assistant no longer lets the extra attributes topic override the update entity’s own `installed_version`, `latest_version` and `title`, which could briefly show an update as available with identical versions
 - Images reused without a registry lookup, e.g. pinned or with registry checks disabled, keep their version and creation timestamp, which were being passed into the wrong fields
 
-## 1.17.3
+# 1.17.3
+
+## ✨ Enhancements
 
 ### Docker image
 
@@ -24,30 +48,37 @@
 - `uv`, used only to build the image, is also pinned rather than taking `latest`
 - Weekly image rebuilds no longer count vulnerabilities in the Docker tools, since only a version bump, not a rebuild, can fix those
 
-### Fixes
+## 🐞 Bug Fixes
 
 - Registry cache database is now closed at shutdown, once no update is still running
 
-### Development
+## 📝 Other changes
 
 - Improvements to test stability
 - Stricter `mypy` type checking, configured in `pyproject.toml` so editors, `uv run mypy` and pre-commit all agree
 
-## 1.17.2
+# 1.17.2
 
-### Fixes
+## 🐞 Bug Fixes
 
 - Container level `updates2mqtt.version_policy` label, or `UPD2MQTT_VERSION_POLICY` env var, now takes effect whatever its case, e.g. `Digest` as documented, where previously only an exact uppercase value worked and others were silently ignored
 - The official `ubuntu` image keeps its own version, rather than it being suppressed by the check that stops an Ubuntu base image’s version leaking into images built on it, such as `greptime/greptimedb`
 - Test coverage improved, esp for MQTT module
 
-## 1.17.1
+# 1.17.1
+
+## ✨ Enhancements
 
 - Huge update to *Common Packages*, with 85 more common self-hosted images
 - `hotio` auto package enrichment
+
+## 📝 Other changes
+
 - `hishel` explicitly capped at `<2.0.0` version for now
 
-## 1.17.0
+# 1.17.0
+
+## ✨ Enhancements
 
 ### Home Assistant
 
@@ -59,21 +90,26 @@
 - Private registries supported, using `docker login` credentials from the Docker config file, including credential helpers and identity tokens
 - Logging in to Docker Hub also gets its higher rate limit
 - See [Private Registries](https://updates2mqtt.rhizomatics.org.uk/configuration/remote_api_usage/#private-registries)
-- Registry authentication now follows each registry’s own challenge, rather than a built in list of token services, so registries not specially known also work
+
+## 🐞 Bug Fixes
+
+- A container caught mid-recreate by `docker compose`, briefly renamed `<id>_<name>`, is no longer published as an extra update entity
+- Topic cleaning no longer logs every other integration’s update topic it skips, giving a count in its summary instead
 - Content fetched by digest is checked against it
 - Multi-platform images now match the platform variant, e.g. `arm/v7` rather than `arm/v6`
+
+## 📝 Other changes
+
+- Registry authentication now follows each registry’s own challenge, rather than a built in list of token services, so registries not specially known also work
 - Image digest now worked out from the content where a registry doesn’t send it
 - Local registries on `localhost` are reached over plain http, as Docker does
 - One long-lived, cached connection to registries, rather than a new one for each request
 - `u2m-cli` adds `referrers=<image>` to list signatures, SBOMs and other artifacts attached to an image
 - Registry API stats count the expected first `401` challenge from each registry as an auth challenge, not an error
 
-### Fixes
+# 1.16.0
 
-- A container caught mid-recreate by `docker compose`, briefly renamed `<id>_<name>`, is no longer published as an extra update entity
-- Topic cleaning no longer logs every other integration’s update topic it skips, giving a count in its summary instead
-
-## 1.16.0
+## ✨ Enhancements
 
 ### Parallel updates
 
@@ -91,6 +127,8 @@
 - The new container logs the helper’s result and removes it
 - Falls back to the previous in-container recreate if the helper can’t be started
 
+## 📝 Other changes
+
 ### Shutdown
 
 - SIGTERM and SIGINT now stop the service promptly, including between scans, cancelling in-flight updates and marking the node offline before exiting
@@ -100,7 +138,9 @@
 - Remove build tooling and full docker engine from final Docker image
 - Image now smaller, and has fewer things to flag as false positives in an image scan
 
-## 1.15.0
+# 1.15.0
+
+## ✨ Enhancements
 
 ### Home Assistant
 
@@ -113,37 +153,52 @@
 - **Behaviour change**: while Updates2MQTT is down, including while it is updating its own container, its update entities in Home Assistant show as *unavailable* rather than keeping their last state. They come back when it reconnects
 - See [Home Assistant Integration](https://updates2mqtt.rhizomatics.org.uk/home_assistant/#availability)
 
-## 1.14.4
+# 1.14.4
 
-- Security Fixes
+## 🐞 Bug Fixes
+
+### Security
+
 - Build chain certificate update for eMudhra intermediate ca certs issue
 - Container rebuilt with latest `uv` version and os `ca-certificates` for eMudhra issue
+
+## 📝 Other changes
+
 - CI workflow now has a docker container integration test
 
-## 1.14.3
+# 1.14.3
+
+## 🐞 Bug Fixes
 
 ### Portainer
 
 - Wait for the stack deployment to complete, using the stack’s deployment status, rather than treating Portainer accepting the redeploy request as success.
 - Portainer 2.41+ now deploys in the background, so a failed deployment was previously reported as a successful update. Failures now log Portainer’s error message, and a redeploy requested while another deployment of the stack is in progress waits for that to finish first
+
+## 📝 Other changes
+
 - Added dind test framework to automate integration testing for compose and portainer
 
-## 1.14.2
+# 1.14.2
 
-### Configuration
+## ✨ Enhancements
 
-- A default `config.yaml` is no longer auto-generated when `MQTT_USER` and `MQTT_PASS` are set as env vars, since the env vars already fully describe the config. Set `U2M_AUTOGEN_CONFIG=1` to generate it anyway
+- A default `config.yaml` is no longer auto-generated when `MQTT_USER` and `MQTT_PASS` are set as env vars, since the env vars already fully describe the config, and it can create an unnecessary file. Set `U2M_AUTOGEN_CONFIG=1` to generate it anyway
 
-### Fixes
+## 🐞 Bug Fixes
 
-- After an update, Home Assistant could keep showing the old installed version until the next scan or a restart of Updates2MQTT, most likely when updating via Portainer, where the redeploy can return before the container is recreated. The post-update rescan now waits (up to 60s) for the container to be running the newly pulled image before republishing its state
+- After an update, Home Assistant could keep showing the old installed version until the next scan or a restart of Updates2MQTT
+- Most likely when updating via Portainer, where the redeploy can return before the container is recreated.
+- The post-update rescan now waits (up to 60s) for the container to be running the newly pulled image before republishing its state
 
-## 1.14.1
+# 1.14.1
+
+## ✨ Enhancements
 
 ### Portainer
 
-- `PORTAINER_CA_CERTS` env var, or `ca_certs` in config, to verify Portainer with a private root CA
-- `PORTAINER_VERIFY_SSL` env var, as alternative to `verify_ssl` in config
+- New `PORTAINER_CA_CERTS` env var, or `ca_certs` in config, to verify Portainer with a private root CA
+- New `PORTAINER_VERIFY_SSL` env var, as alternative to `verify_ssl` in config
 
 ### Docker
 
@@ -153,16 +208,18 @@
 
 - `mqtt=check` also reports the update and Portainer settings, with the env var each comes from, and checks the Portainer `ca_certs` file exists
 
-### Fixes
+## 🐞 Bug Fixes
 
 - When `PORTAINER_API_KEY` or `PORTAINER_URL` were set, an auto-generated config file copied their values into `config.yaml`, rather than referencing the env vars as for MQTT settings
 - [Without a Configuration File](https://updates2mqtt.rhizomatics.org.uk/configuration/zero_config_file/index.md) docs listed `MQTT_PASSWORD` rather than the correct `MQTT_PASS` env var
 
-### Docs
+## 📚 Documentation
 
 - README and translations updated for Portainer support and old image removal
 
-## 1.14.0
+# 1.14.0
+
+## ✨ Enhancements
 
 ### Portainer
 
@@ -170,12 +227,14 @@
 - Instructions and limitations at [Portainer Configuration](https://updates2mqtt.rhizomatics.org.uk/configuration/portainer/index.md)
 - This is in Beta at present, so use with caution, and feedback where you have issues
 
-### Internal
+## 📝 Other changes
 
 - Automated testing on every build extended to Py3.15, and backwards to Py3.14
 - Omegaconf restricted to `<2.4.0` as [new release](https://github.com/hydra-ecosystem/omegaconf/releases#release-v2.4.0) broke many tests. Reviewing use of `pydantic` instead for config before embarking on upgrade for omegaconf (project has been moribund since 2022)
 
-## 1.13.0
+# 1.13.0
+
+## ✨ Enhancements
 
 ### Compose
 
@@ -191,7 +250,9 @@
 - Images are pulled locally first, and the redeploy doesn’t pull, so only the updated containers are recreated
 - Web editor and Git stacks supported, Portainer itself and its agents are excluded
 
-## 1.12.0
+# 1.12.0
+
+## ✨ Enhancements
 
 ### MQTT TLS
 
@@ -202,17 +263,20 @@
 
 ### CLI
 
-- Debug CLI script renamed from `cli` to `u2m-cli`, so it can be installed with `uv tool install updates2mqtt`
 - CLI with no arguments now shows help instead of trying to look up a `frigate` container, and a Docker connection failure gives a one line error rather than a stack trace
 - New `mqtt=check` CLI command to show MQTT settings (without secrets) and test the broker connection
 
-### Fixes
+## 🐞 Bug Fixes
 
 - Rejected MQTT credentials at startup no longer wait for the full connection timeout
 
-## 1.11.1
+## 📝 Other changes
 
-### Fixes
+- Debug CLI script renamed from `cli` to `u2m-cli`, so it can be installed with `uv tool install updates2mqtt`
+
+# 1.11.1
+
+## 🐞 Bug Fixes
 
 - Fix for [#175](https://github.com/rhizomatics/updates2mqtt/issues/175) (OCI_V2 lookup never finds an update for single-platform images without an image index)
 - OCI_V2_MINIMAL mode now fixed
@@ -222,13 +286,15 @@
 - Image creation time now read correctly from OCI image config
 - Python 3.13 compatibility issue found in config validation and resolved
 
-### Internal
+## 📝 Other changes
 
 - Minor dependency update
 - Documentation site generation switched from mkdocs to ProperDocs
 - `ty` now also used for type checking, and minor type fixes made
 
-## 1.11.0
+# 1.11.0
+
+## ✨ Enhancements
 
 ### MQTT TLS
 
@@ -240,91 +306,139 @@
 
 - The default `tcp` transport can now be overridden by using `transport` in MQTT configuration, for either `websockets` or `unix`
 
-### Internal
+## 📝 Other changes
 
 - Minor dependency update
 - Upgraded ruff to `0.16.0` and enabled its huge number of new checks in that version, fixing minor issues identified
 
-## 1.10.0
+# 1.10.0
+
+## ✨ Enhancements
 
 - TLS support for MQTT brokers
 - Password is no longer mandatory, to support client-cert auth, or no-auth
 - Node name now defaults to $NODE_NAME if set, where no node name in config, failing which back to `os.uname()` as before
-- Updated common Docker images, including Valkey, OpenClaw and Vaultwarden
+- Added more common Docker images, including Valkey, OpenClaw and Vaultwarden
+
+## 📝 Other changes
+
 - Dependency refresh
 
-## 1.9.7
+# 1.9.7
 
-- Reduce MQTT login churn where broker keep alive \<= client keep alive
+## ✨ Enhancements
+
 - Add configurable MQTT keep alive, defaulting to 30 secs (previously hardcoded to 60s)
 - Moved connection log line back to debug
 - MQTT QoS changed to 1, so queued messages are resent if there is a disconnect. QoS logged.
+- Reduce MQTT login churn where broker keep alive \<= client keep alive
 
-## 1.9.6
+# 1.9.6
+
+## ✨ Enhancements
 
 - MQTT now has a `connect_timeout` defaulting to 10 seconds, and will wait for this before attempting to publish scan updates
+
+## 🐞 Bug Fixes
+
 - Drop duplicate update commands when update for that component already in hand
 
-## 1.9.5
+# 1.9.5
 
-- Dependencies update
+## ✨ Enhancements
+
 - Additional common packages added for logos and repos, including MariaDB and Redis
 - Cache age stats easier to understand
 - Common packages can have a list of image names
 - Improve self-bounce behavior, allow more time for command to complete before exit
+
+## 🐞 Bug Fixes
+
 - Clean up lingering in progress state from previous update
+
+## 📝 Other changes
+
+- Dependencies update
 - Replace TaskGroup with simpler `await` usage so MQTT updates appear as they happen rather than in bulk at end of scan
 
-## 1.9.4
+# 1.9.4
+
+## ✨ Enhancements
 
 - More defensive access to linuxserver.io docker image info to handle missing fields, prompted by changes to HomeAssistant image in early May 2026
 - Better defensive data access on registry manifests, versions, labels, annotations
+
+## 📝 Other changes
+
 - Improved test coverage
 
-## 1.9.3
+# 1.9.3
+
+## ✨ Enhancements
 
 ### Logging
 
 - New option to emit JSON structured logs when running as server (not attached to terminal)
-- Fixed stacktrace logs on server having `rich` library’s box drawing special chars
+
+## 📝 Other changes
+
 - Loggers cached as per structlog best practice, and colour switched off for headless tty
 
-## 1.9.2
+## 🐞 Bug Fixes
+
+- Fixed stacktrace logs on server having `rich` library’s box drawing special chars
+
+# 1.9.2
+
+## 🐞 Bug Fixes
 
 - Fix handling of expired Github access token
 
-## 1.9.1
+# 1.9.1
+
+## ✨ Enhancements
 
 - Translations for Dutch, French, German, Hindi, Italian, Japanese, Polish, Portuguese, Simplified Chinese and Spanish
 - Vertalingen voor Nederlands, Traductions en français, Übersetzungen auf Deutsch, हिंदी में अनुवाद, Traduzioni in italiano, 日本語の翻訳, Tłumaczenia po polsku, Traduções em português, 简体中文翻译 en traducciones al español
 
-## 1.9.0
+# 1.9.0
+
+## ✨ Enhancements
 
 - Use the GitHub package versions API for GHCR images without a valid tag in image
 - CLI improved to allow single container dump
 - Github API now has its own `cache_ttl` config
+
+## 📝 Other changes
+
 - Refactor GitHub API code to separate module
 
-## 1.8.5
+# 1.8.5
+
+## ✨ Enhancements
 
 - Initial clean of MQTT topic on startup to remove any hanging in-progress status
 - Default max summary size now 6K
 - Truncation now logged
 
-## 1.8.4
+# 1.8.4
+
+## ✨ Enhancements
 
 ### Release Info
 
 - Default max summary size now 8K, to avoid Home Assistant warnings on state
 - This limit can be increased, or removed, if the Update entities are excluded from Home Assistant’s state history
 
-## 1.8.3
+# 1.8.3
 
-### Release Info
+## ✨ Enhancements
 
 - Release summaries can now have a max length, using `release_summary_max_size`, default 16k
 
-## 1.8.2
+# 1.8.2
+
+## ✨ Enhancements
 
 ### Version Detection
 
@@ -339,7 +453,9 @@
 
 - Added EMQX, Mosquitto, Plex, Emby, Tailscale, AppWrite, Traefik, Grafana, Prometheus, WhatsUpDocker, Lychee and HomeAssistant
 
-## 1.8.1
+# 1.8.1
+
+## ✨ Enhancements
 
 ### Home Assistant
 
@@ -357,7 +473,9 @@
 
 - MQTT result code, MID and publish status logged at debug, and at warning if non-success result code
 
-## 1.8.0
+# 1.8.0
+
+## ✨ Enhancements
 
 ### Package Info
 
@@ -381,11 +499,15 @@
   - Now runs only after scan
   - Checks topics against current discoveries vs previous session key based check
 
-## 1.7.3
+# 1.7.3
+
+## 🐞 Bug Fixes
 
 - Minor fix for stats reporting
 
-## 1.7.2
+# 1.7.2
+
+## ✨ Enhancements
 
 ### API Stats
 
@@ -400,20 +522,22 @@
 
 ### CLI
 
-- Fixed issues with docker.io fetches
 - Colourful and jq friendly JSON output
 - Log level now defaults to WARNING to make it easier to pipe results to `jq`, can change to see headers using `log_level=DEBUG`
 
-## 1.7.1
+## 🐞 Bug Fixes
+
+- Fixed issues with docker.io fetches from CLI
+
+# 1.7.1
+
+## 📝 Other changes
 
 - No code change, version changed to fix a pypi publish issue
 
-## 1.7.0
+# 1.7.0
 
-### py3.14
-
-- Image now built with python 3.14 by default
-- Tests update for py3.14 mock async changes
+## ✨ Enhancements
 
 ### OCI Container Registry APIs
 
@@ -465,7 +589,16 @@
 - Additional logging and defaults for caching
 - Local cache TTL override can be removed by using `None` for cache_ttl in registry config
 
-## 1.6.0
+## 📝 Other changes
+
+### py3.14
+
+- Image now built with python 3.14 by default
+- Tests update for py3.14 mock async changes
+
+# 1.6.0
+
+## ✨ Enhancements
 
 ### MQTT Topics
 
@@ -501,63 +634,98 @@
 - For local git repos, install available check made now at discovery time
   - Install update in HA only appears if there’s a pull available
 
-### Internal
+## 📝 Other changes
 
 - Many more test cases added, focusing on Docker and MQTT integration
 - Self-bounce now recognized and attempts to set exit code to 1, though container may still override that
 
-## 1.5.2
+# 1.5.2
 
-### Internal
+## 📝 Other changes
 
 - Build backend changed to `uv_build`
 - GitHub Actions workflows updated, including to new uv actions
 
-## 1.5.1
+# 1.5.1
+
+## ✨ Enhancements
 
 - `MQTT_VERSION` environment variable added, defaults to `3.11`
 - `U2M_AUTOGEN_CONFIG` environment variable added to control auto-generation of config files and directories
 - `U2M_LOG_LEVEL` environment variable added to set log level without config file
 - Title generation for Docker images reverts to same whether HA device set or not
+
+## 📝 Other changes
+
 - Test added to ensure component always functions without a config file, if no env var present
 
-## 1.5.0
+# 1.5.0
+
+## ✨ Enhancements
 
 - Target specific service on docker compose commands, where available from `com.docker.compose.service` label
-- Log level in config is now an enum, and forced to be upper case
-- Removed unnecessary latest_version fields from config message, which also saves a redundant MQTT subscription
 - Publication of `command_topic` for each discovery can now be forced with `force_command_topic` option
 - More common packages: docker:cli
 - Common packages can now match on the image ref rather than base name, for example `docker:cli`
-- Reduced log noise in INFO and increased logging detail for DEBUG
 - Common Packages now allow entries without all the values, initially `rtl_433` which lacks a logo
 
-## 1.4.2
+## 📝 Other changes
+
+- Log level in config is now an enum, and forced to be upper case
+- Removed unnecessary latest_version fields from config message, which also saves a redundant MQTT subscription
+- Reduced log noise in INFO and increased logging detail for DEBUG
+
+# 1.4.2
+
+## ✨ Enhancements
+
+- An `area` can be defined in the Home Assistant section of config and this will then be used as `suggested_area` for device
+
+## 📝 Other changes
 
 - Replace `origin` in config MQTT message with `device` for better HomeAssistant compatibility
-- An `area` can be defined in the Home Assistant section of config and this will then be used as `suggested_area` for device
-- Icon and release note info added for Owntone, Nextcloud, n8n, and Homarr
 - More testcases
 
-## 1.4.1
+## 📚 Documentation
+
+- Icon and release note info added for Owntone, Nextcloud, n8n, and Homarr
+
+# 1.4.1
+
+## ✨ Enhancements
 
 - More logging for Docker discovery on why Home Assistant doesn’t show an update button
-- More test cases
+
+## 📝 Other changes
+
 - `MqttClient` is now `MqttPublisher` to avoid confusion with actual MQTT client
 - Task cleanup now only interrupts explicit list of tasks - healthcheck and discovery tasks
+- More test cases
 
-## 1.4.0
+# 1.4.0
+
+## ✨ Enhancements
 
 - MQTT protocol can now be set, to one of `3.1`,`3.11` or `5`
 - Debug messages now provided for `on_subscribe` and `on_unsubscribe` callbacks
+
+## 📚 Documentation
+
 - Troubleshooting, installation, configuration docs updated, images optimized
 
-## 1.3.7
+# 1.3.7
+
+## ✨ Enhancements
 
 - Improved initial setup when run without config or env vars for MQTT
+
+## 📝 Other changes
+
 - Minor test deps update and pyproject docs
 
-## 1.3.6
+# 1.3.6
+
+## ✨ Enhancements
 
 - Changed exit code on graceful shutdown to 143
 - App now exits if the MQTT username / password is not authorized

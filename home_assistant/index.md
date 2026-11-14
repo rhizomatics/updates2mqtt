@@ -63,6 +63,19 @@ Rather than wait for a container to need an update, you can check right away tha
 
 From the [Entities View](https://www.home-assistant.io/docs/configuration/entities_domains/), or the [Developer Tools](https://www.home-assistant.io/docs/tools/dev-tools/), filter the entities by `update.` If there are lots of other updates (HassOS apps, Zigbee device firmware etc), then pick one of the container names you know.
 
+### Testing an Update
+
+To see the whole thing work end to end, including the *Install* button, make a container look out of date by running it from an older image under the tag the compose file uses. For example, with a compose service `mosquitto` using `eclipse-mosquitto:latest`:
+
+```bash
+docker pull eclipse-mosquitto:2.0.15
+docker tag eclipse-mosquitto:2.0.15 eclipse-mosquitto:latest
+docker compose up -d mosquitto
+docker restart updates2mqtt
+```
+
+The restart triggers a fresh scan, and after that the update should show in Home Assistant, ready to install, which will pull the real `latest` again and recreate the container. Pick a container that’s harmless to restart, and if you use your MQTT broker, expect Updates2MQTT to briefly lose its connection while the broker is recreated.
+
 ## Custom config
 
 None of this is necessary, all optional for tuning how it works with Home Assistant.
