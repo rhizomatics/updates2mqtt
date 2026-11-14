@@ -2,6 +2,36 @@ ______________________________________________________________________
 
 ## title: What’s New
 
+# 1.18.0
+
+First steps in protecting against supply chain attacks, from [RFC 0002](https://updates2mqtt.rhizomatics.org.uk/developer/design/rfcs/rfc0002-cyber_security/index.md), see [Supply Chain Protection](https://updates2mqtt.rhizomatics.org.uk/configuration/supply_chain/index.md)
+
+## ✨ Enhancements
+
+### Supply chain protection
+
+- Updates now install exactly the image digest found by the last scan, rather than pulling the tag, so a tag moved between the scan and the install can’t swap in a different image
+- The digest is pulled, e.g. `eclipse-mosquitto@sha256:...`, then tagged locally as before, so Docker Compose and Portainer use it unchanged
+- If the digest is no longer in the registry, the update is abandoned rather than falling back to the tag, and the next scan finds the new digest
+- New release history records when each image digest was first seen, in `release_history.json` next to `config.yaml`, so it survives container recreation and Updates2MQTT updating itself
+- A full version tag, such as `2.0.18`, found pointing at a different digest is logged and reported in a new `tag_moved` attribute
+- Update cooldown, how long a release has to be known before it’s eligible to install, is calculated and reported in a new `cooldown` attribute, but **not yet enforced**
+- Defaults to `3d`, set with `cooldown` in the `docker` config section, or per container with the `updates2mqtt.cooldown` label or `UPD2MQTT_COOLDOWN` env var
+- Measured from first sighting, or the GitHub release publication time if that’s later, as an image’s own creation time can’t be trusted
+- A future release will hold back *Auto* updates until their cooldown has passed, with notice given first
+- GitHub release publication time is captured as `published` in the release attributes
+
+## 📝 Other changes
+
+- All GitHub Actions in the build and release workflows are now pinned by commit SHA, kept up to date by Dependabot
+- `niquests` (http client) moved from dev to primary dependency in `pyproject.toml`
+
+## 📚 Documentation
+
+- *Improving Security* now covers restricting MQTT update commands with a Mosquitto ACL, and limiting Docker API access
+- Design docs reorganized into RFCs, with the OCI client as RFC 0001, cyber security as RFC 0002 and configuration as RFC 0003
+- [Design Principles](https://updates2mqtt.rhizomatics.org.uk/developer/design/design_principles/) added
+
 # 1.17.6
 
 ## ✨ Enhancements

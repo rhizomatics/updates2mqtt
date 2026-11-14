@@ -20,7 +20,8 @@ Updates2MQTT monitors Docker images, Portainer stacks and local Git-based builds
 - [Common Packages](https://updates2mqtt.rhizomatics.org.uk/configuration/common_packages/index.md): Built-in package metadata, and automatic linuxserver.io and hotio.dev lookups
 - [Portainer Configuration](https://updates2mqtt.rhizomatics.org.uk/configuration/portainer/index.md): Running on Portainer hosts and redeploying Portainer stacks
 - [Remote API Usage](https://updates2mqtt.rhizomatics.org.uk/configuration/remote_api_usage/index.md): Remote APIs called, private registry credentials and rate limits
-- [Improving Security](https://updates2mqtt.rhizomatics.org.uk/configuration/security/index.md): Moving secrets out of config and other hardening
+- [Improving Security](https://updates2mqtt.rhizomatics.org.uk/configuration/security/index.md): Moving secrets out of config, restricting MQTT update commands and Docker API access, and other hardening
+- [Supply Chain Protection](https://updates2mqtt.rhizomatics.org.uk/configuration/supply_chain/index.md): Supply chain protection - digest-pinned installs, release history, version tag moves and update cooldowns
 - [Example Configurations](https://updates2mqtt.rhizomatics.org.uk/configuration/examples/index.md): Example configuration and Docker Compose files
 - [Minimal Configuration](https://updates2mqtt.rhizomatics.org.uk/configuration/examples/config_minimal/index.md): Smallest working config.yaml
 - [Maximal Configuration](https://updates2mqtt.rhizomatics.org.uk/configuration/examples/config_maximal/index.md): config.yaml using all features

@@ -1,10 +1,10 @@
 # RFC 0002 Cyber Security Improvements
 
-|                |                          |
-| -------------- | ------------------------ |
-| **Status**     | Draft                    |
-| **Created**    | 2026-11-14               |
-| **Supersedes** | the *Cooldown* RFC draft |
+|                |                                                          |
+| -------------- | -------------------------------------------------------- |
+| **Status**     | Phases 0 and 1 implemented in 1.18.0, later phases draft |
+| **Created**    | 2026-11-14                                               |
+| **Supersedes** | the *Cooldown* RFC draft                                 |
 
 ## Motivation
 
@@ -52,7 +52,8 @@ This is the foundation that every other control relies on.
   - Pull by the image index digest where there is one, so multi-platform images still pick the right platform.
 - **Tag-mutation detection:**
   - Record which digest each *versioned* tag had when first seen.
-  - If a versioned tag later points to a different digest, publish a warning attribute and log it, and treat the new digest as brand new for cooldown purposes.
+  - If a versioned tag later points to a different digest, publish a `tag_moved` attribute and log it, and treat the new digest as brand new for cooldown purposes.
+  - This is informational, not a block. Some publishers, including Docker Official Images, routinely rebuild version tags for base image fixes.
   - Floating tags such as `latest`, `stable` or `nightly` are expected to move and are not flagged.
 
 ### Release time
@@ -190,6 +191,14 @@ Each phase can ship and be useful on its own, and each builds the foundation the
 | **3. Signatures and trust levels** | Signature and provenance verification through OCI referrers. Trust levels with per-level cooldowns. Signing and SBOM for Updates2MQTT’s own image | Signed images may update sooner, and changed signers are held | Gives evidence-based exceptions, which make strict cooldowns livable                                               |
 | **4. Scanning**                    | Attestation SBOM/VEX reading, optional Trivy or Grype service, scan attributes, scan-based clearing and exceptions                                | Scans can hold or clear updates                               | Most moving parts and external dependencies, so built last on a settled policy model                               |
 
+- **1.18.0 delivered phases 0 and 1:**
+  - digest-pinned installs
+  - the persistent release history in `conf/release_history.json`, keeping the latest 50 digests and versioned tags per image
+  - `tag_moved` and `cooldown` attributes
+  - the `docker.cooldown` setting, defaulting to `3d`, with the `updates2mqtt.cooldown` label and `UPD2MQTT_COOLDOWN` env var
+  - SHA-pinned GitHub Actions
+  - documentation of MQTT ACLs and Docker API access
+- **Not yet done:** registry push time as a release-time source. 1.18.0 uses first sighting, plus GitHub release `published_at` when that’s later.
 - Phases 0 and 1 need only one or two new settings, which can go into the current configuration system without waiting for [RFC 0003](https://updates2mqtt.rhizomatics.org.uk/developer/design/rfcs/rfc0003-configuration/index.md).
 - If RFC 0003 lands first, the cooldown and trust settings should be designed in its model from the start.
 

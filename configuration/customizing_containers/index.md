@@ -93,16 +93,17 @@ If you have something not covered, here are some good places to look for self-ho
 
 The following environment variables can be used to configure containers for `updates2mqtt`:
 
-| Env Var                   | Description                                                                                                                           | Default         |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
-| `UPD2MQTT_UPDATE`         | Update mode, either `Passive` or `Auto`. If `Auto`, updates will be installed automatically.                                          | `Passive`       |
-| `UPD2MQTT_PICTURE`        | URL to an icon to use in Home Assistant.                                                                                              | Docker logo URL |
-| `UPD2MQTT_RELNOTES`       | URL to release notes for the package.                                                                                                 |                 |
-| `UPD2MQTT_GIT_REPO_PATH`  | Relative path to a local git repo if the image is built locally.                                                                      |                 |
-| `UPD2MQTT_IGNORE`         | If set to `True`, the container will be ignored by Updates2MQTT.                                                                      | False           |
-| `UPD2MQTT_NAME`           | Display name for the update in Home Assistant, in place of the generated title.                                                       |                 |
-| `UPD2MQTT_VERSION_POLICY` | Change how version derived from container label or image hash, `Version`,`Digest`,`Version_Digest`,`Timestamp` with default of `Auto` |                 |
-| `UPD2MQTT_REGISTRY_TOKEN` | Access token for authentication to container distribution API, as alternative to making a call to `token` service                     |                 |
+| Env Var                   | Description                                                                                                                                                                                             | Default                     |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| `UPD2MQTT_UPDATE`         | Update mode, either `Passive` or `Auto`. If `Auto`, updates will be installed automatically.                                                                                                            | `Passive`                   |
+| `UPD2MQTT_PICTURE`        | URL to an icon to use in Home Assistant.                                                                                                                                                                | Docker logo URL             |
+| `UPD2MQTT_RELNOTES`       | URL to release notes for the package.                                                                                                                                                                   |                             |
+| `UPD2MQTT_GIT_REPO_PATH`  | Relative path to a local git repo if the image is built locally.                                                                                                                                        |                             |
+| `UPD2MQTT_IGNORE`         | If set to `True`, the container will be ignored by Updates2MQTT.                                                                                                                                        | False                       |
+| `UPD2MQTT_NAME`           | Display name for the update in Home Assistant, in place of the generated title.                                                                                                                         |                             |
+| `UPD2MQTT_COOLDOWN`       | Update cooldown for this container, e.g. `72h`, `7d`, or `0` for none, see [Supply Chain Protection](https://updates2mqtt.rhizomatics.org.uk/configuration/supply_chain/#update-cooldown). From v1.18.0 | `docker` `cooldown` setting |
+| `UPD2MQTT_VERSION_POLICY` | Change how version derived from container label or image hash, `Version`,`Digest`,`Version_Digest`,`Timestamp` with default of `Auto`                                                                   |                             |
+| `UPD2MQTT_REGISTRY_TOKEN` | Access token for authentication to container distribution API, as alternative to making a call to `token` service                                                                                       |                             |
 
 ## Docker Labels
 
@@ -118,6 +119,7 @@ Alternatively, use Docker labels
 | `updates2mqtt.version_policy` | `UPD2MQTT_VERSION_POLICY` |
 | `updates2mqtt.registry_token` | `UPD2MQTT_REGISTRY_TOKEN` |
 | `updates2mqtt.name`           | `UPD2MQTT_NAME`           |
+| `updates2mqtt.cooldown`       | `UPD2MQTT_COOLDOWN`       |
 
 Labels take precedence over env vars where both are set. In the list form of compose `labels`, don’t put quotes around the value, since `- updates2mqtt.name="Mosquitto"` makes the quotes part of the name; use the map form shown here, or `- updates2mqtt.name=Mosquitto`.
 
