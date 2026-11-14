@@ -18,6 +18,7 @@ node:
     enabled: true
     interval: 300 # publish a heartbeat every 5 minutes
     topic_template: healthcheck/{node_name}/updates2mqtt
+    heartbeat_file: /tmp/updates2mqtt.heartbeat # read by the container healthcheck, empty to not write one, or set U2M_HEARTBEAT_FILE
 mqtt:
   host: ${oc.env:MQTT_HOST}
   user: ${oc.env:MQTT_USER}

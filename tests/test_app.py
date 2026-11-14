@@ -5,7 +5,8 @@ import signal
 import sys
 import time
 from collections.abc import AsyncGenerator
-from unittest.mock import ANY, Mock, PropertyMock, call
+from pathlib import Path
+from unittest.mock import ANY, Mock, PropertyMock, call, patch
 
 import pytest
 
@@ -197,20 +198,45 @@ async def test_on_discovery_auto_update_skipped_when_recent(
 # === heartbeat ===
 
 
-async def test_heartbeat_publishes_when_publisher_available(
+def read_heartbeat_file(app: App) -> tuple[int, int]:
+    alive, mqtt_acked = Path(app.cfg.node.healthcheck.heartbeat_file).read_text().split()
+    return int(alive), int(mqtt_acked)
+
+
+async def test_heartbeat_publishes_and_records_acknowledgement(
     app_with_mocked_external_dependencies: App,
 ) -> None:
     uut = app_with_mocked_external_dependencies
     uut.publisher.is_available.return_value = True  # type: ignore[attr-defined]
+    uut.publisher.publish_confirmed.return_value = True  # type: ignore[attr-defined]
 
     await uut.heartbeat()
 
-    uut.publisher.publish.assert_called_once()  # type: ignore[attr-defined]
-    payload = uut.publisher.publish.call_args.kwargs["payload"]  # type: ignore[attr-defined]
+    uut.publisher.publish_confirmed.assert_called_once()  # type: ignore[attr-defined]
+    topic, payload = uut.publisher.publish_confirmed.call_args.args  # type: ignore[attr-defined]
+    assert topic == uut.heartbeat_topic
     assert "heartbeat_raw" in payload
+    alive, mqtt_acked = read_heartbeat_file(uut)
+    assert alive == pytest.approx(time.time(), abs=5)
+    assert mqtt_acked == pytest.approx(time.time(), abs=5)
 
 
-async def test_heartbeat_skips_when_publisher_unavailable(
+async def test_heartbeat_unacknowledged_keeps_last_acknowledgement(
+    app_with_mocked_external_dependencies: App,
+) -> None:
+    uut = app_with_mocked_external_dependencies
+    uut.publisher.is_available.return_value = True  # type: ignore[attr-defined]
+    uut.publisher.publish_confirmed.return_value = False  # type: ignore[attr-defined]
+    uut.last_mqtt_heartbeat = 1000.0
+
+    await uut.heartbeat()
+
+    alive, mqtt_acked = read_heartbeat_file(uut)
+    assert alive == pytest.approx(time.time(), abs=5)
+    assert mqtt_acked == 1000  # so the healthcheck sees the broker connection going stale
+
+
+async def test_heartbeat_still_marks_alive_when_publisher_unavailable(
     app_with_mocked_external_dependencies: App,
 ) -> None:
     uut = app_with_mocked_external_dependencies
@@ -218,7 +244,50 @@ async def test_heartbeat_skips_when_publisher_unavailable(
 
     await uut.heartbeat()
 
-    uut.publisher.publish.assert_not_called()  # type: ignore[attr-defined]
+    uut.publisher.publish_confirmed.assert_not_called()  # type: ignore[attr-defined]
+    assert read_heartbeat_file(uut)[1] == 0  # never acknowledged
+
+
+async def test_heartbeat_file_failure_logged_once_then_not_retried(
+    app_with_mocked_external_dependencies: App, tmp_path: Path
+) -> None:
+    uut = app_with_mocked_external_dependencies
+    uut.publisher.is_available.return_value = False  # type: ignore[attr-defined]
+    blocker = tmp_path / "not_a_dir"
+    blocker.write_text("")
+    uut.cfg.node.healthcheck.heartbeat_file = str(blocker / "updates2mqtt.heartbeat")
+
+    with (
+        patch("updates2mqtt.app.log") as mock_log,
+        patch("updates2mqtt.app.tempfile.mkstemp", side_effect=OSError("read-only file system")) as mkstemp,
+    ):
+        await uut.heartbeat()
+        await uut.heartbeat()
+        await uut.heartbeat()
+
+    assert mock_log.warning.call_count == 1
+    assert mkstemp.call_count == 1  # not retried for the rest of the run
+    assert uut.heartbeat_file_failed
+
+
+async def test_heartbeat_file_leaves_no_temporary_files(app_with_mocked_external_dependencies: App) -> None:
+    uut = app_with_mocked_external_dependencies
+    uut.publisher.is_available.return_value = False  # type: ignore[attr-defined]
+    await uut.heartbeat()
+    await uut.heartbeat()
+    heartbeat_file = Path(uut.cfg.node.healthcheck.heartbeat_file)
+    assert [p.name for p in heartbeat_file.parent.iterdir()] == [heartbeat_file.name]
+
+
+async def test_heartbeat_file_disabled(app_with_mocked_external_dependencies: App) -> None:
+    uut = app_with_mocked_external_dependencies
+    uut.publisher.is_available.return_value = False  # type: ignore[attr-defined]
+    heartbeat_file = Path(uut.cfg.node.healthcheck.heartbeat_file)
+    uut.cfg.node.healthcheck.heartbeat_file = ""
+
+    await uut.heartbeat()
+
+    assert not heartbeat_file.exists()
 
 
 # === shutdown ===

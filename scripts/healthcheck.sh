@@ -1,99 +1,58 @@
 #!/bin/bash
 
-# MQTT Health Check Script
-# Checks if the heartbeat timestamp in MQTT payload is recent enough
-# Requires MQTT connection details to be available as environment variables
-#   - MQTT_HOST (defaults to localhost)
-#   - MQTT_PORT (defaults to 1883)
-#   - MQTT_USER (no default)
-#   - MQTT_PASS (no default)
+# Health Check Script
+#
+# Reads the heartbeat file the app writes on every heartbeat, rather than subscribing to the
+# heartbeat topic, so it doesn't open a second MQTT connection. Brokers set to use the username
+# as the client id, such as EMQX with `use_username_as_clientid`, treat a second connection with
+# the same username as the same client, and kick the app off its session.
+#
+# The file holds `<alive epoch> <mqtt acknowledged epoch>`:
+#   - alive is written on every heartbeat, so if it's stale the app is wedged, and is restarted
+#   - mqtt is written only when the broker acknowledged the heartbeat publish, so if it's stale
+#     the MQTT connection is down, reported as unhealthy, without restarting, as that won't help
+#
+# Arguments, both optional, as before:
+#   $1 heartbeat topic, no longer used, kept so existing compose healthchecks still work
+#   $2 how old a heartbeat can be before failing, in seconds, default 480
+# Environment:
+#   U2M_HEARTBEAT_FILE, as for the app, else updates2mqtt.heartbeat in $TMPDIR or /tmp, the app's default
 
-# Arguments
-MQTT_TOPIC=$1
-TIMEOUT_SECONDS=${2:-480}  # How old the heartbeat can be before failing
-log_file="/var/log/healthcheck.log"
+TIMEOUT_SECONDS=${2:-480}
+HEARTBEAT_FILE="${U2M_HEARTBEAT_FILE:-${TMPDIR:-/tmp}/updates2mqtt.heartbeat}"
+
+EXIT_SUCCESS=0
+EXIT_STALE_HEARTBEAT=1
+EXIT_NO_HEARTBEAT=2
+EXIT_INVALID_DATA=3
 
 info() {
-    echo $1 >&2
+    echo "$1" >&2
 }
 
 error() {
     echo "ERROR: $1" >&2
 }
 
-if [ -z "$MQTT_TOPIC" ] ; then
-    error "MQTT topic not provided as first argument"
-    exit $EXIT_DEPENDENCY_ERROR
+if [ ! -f "$HEARTBEAT_FILE" ]; then
+    # nothing to judge yet, e.g. still starting, which the compose start_period allows for
+    error "No heartbeat file at $HEARTBEAT_FILE yet"
+    exit $EXIT_NO_HEARTBEAT
 fi
 
-# Configuration
-MQTT_HOST="${MQTT_HOST:-localhost}"
-MQTT_PORT="${MQTT_PORT:-1883}"
-SUBSCRIBE_TIMEOUT="${SUBSCRIBE_TIMEOUT:-10}"  # How long to wait for a message
-
-# Exit codes
-EXIT_SUCCESS=0
-EXIT_STALE_HEARTBEAT=1
-EXIT_NO_MESSAGE=2
-EXIT_INVALID_DATA=3
-EXIT_DEPENDENCY_ERROR=4
-
-# Check if required commands are available
-if ! command -v mosquitto_sub &> /dev/null; then
-    error "mosquitto_sub command not found"
-    exit $EXIT_DEPENDENCY_ERROR
-fi
-
-if ! command -v jq &> /dev/null; then
-    error "jq command not found (required for JSON parsing)"
-    exit $EXIT_DEPENDENCY_ERROR
-fi
-
-# Get current timestamp
-current_time=$(date +%s)
-
-# Subscribe to MQTT topic and get one message
-info "Subscribing to topic: $MQTT_TOPIC on $MQTT_HOST:$MQTT_PORT"
-mqtt_payload=$(mosquitto_sub -h "$MQTT_HOST" -p "$MQTT_PORT" -u "$MQTT_USER" -P "$MQTT_PASS" -t "$MQTT_TOPIC" -C 1 -W "$SUBSCRIBE_TIMEOUT" 2>&1)
-sub_result=$?
-
-# Check if mosquitto_sub succeeded
-if [ $sub_result -ne 0 ]; then
-    error "Failed to receive message from MQTT broker"
-    error "mosquitto_sub output: $mqtt_payload"
-    exit $EXIT_NO_MESSAGE
-fi
-
-# Check if we got empty payload
-if [ -z "$mqtt_payload" ]; then
-    error "No message received within ${SUBSCRIBE_TIMEOUT}s timeout"
-    exit $EXIT_NO_MESSAGE
-fi
-
-info "Received heartbeat payload: $mqtt_payload"
-
-# Extract heartbeat_raw timestamp from JSON
-heartbeat_raw=$(echo "$mqtt_payload" | jq -r '.heartbeat_raw // empty' 2>/dev/null)
-
-if [ -z "$heartbeat_raw" ] || [ "$heartbeat_raw" == "null" ]; then
-    error "Could not extract heartbeat_raw from payload"
-    error "$mqtt_payload"
+read -r alive mqtt_acked < "$HEARTBEAT_FILE"
+if ! [[ "$alive" =~ ^[0-9]+$ && "$mqtt_acked" =~ ^[0-9]+$ ]]; then
+    error "Unexpected heartbeat file contents: $(head -c 100 "$HEARTBEAT_FILE")"
     exit $EXIT_INVALID_DATA
 fi
 
-# Convert to integer (remove decimal part)
-heartbeat_timestamp=${heartbeat_raw%.*}
+current_time=$(date +%s)
+alive_age=$((current_time - alive))
+mqtt_age=$((current_time - mqtt_acked))
+info "Heartbeat age ${alive_age}s, last acknowledged by MQTT broker ${mqtt_age}s ago"
 
-# Calculate age of the heartbeat
-age=$((current_time - heartbeat_timestamp))
-
-info "Heartbeat timestamp: $heartbeat_timestamp"
-info "Current timestamp: $current_time"
-info "Heartbeat age: ${age}s"
-
-# Check if heartbeat is too old
-if [ $age -gt $TIMEOUT_SECONDS ]; then
-    error "Heartbeat is ${age}s old (threshold: ${TIMEOUT_SECONDS}s)"
+if [ $alive_age -gt $TIMEOUT_SECONDS ]; then
+    error "Heartbeat is ${alive_age}s old (threshold: ${TIMEOUT_SECONDS}s)"
     # Docker does not restart containers solely because a healthcheck fails, it just
     # marks them unhealthy. If the main process is wedged (e.g. a self-update via
     # `docker compose up` blocked waiting for this container to stop), kill PID 1 so
@@ -103,5 +62,10 @@ if [ $age -gt $TIMEOUT_SECONDS ]; then
     exit $EXIT_STALE_HEARTBEAT
 fi
 
-info "SUCCESS: Heartbeat is fresh (${age}s old)"
+if [ "$mqtt_acked" -eq 0 ] || [ $mqtt_age -gt $TIMEOUT_SECONDS ]; then
+    error "MQTT broker hasn't acknowledged a heartbeat in ${TIMEOUT_SECONDS}s, check the broker and MQTT settings"
+    exit $EXIT_STALE_HEARTBEAT
+fi
+
+info "SUCCESS: Heartbeat is fresh and acknowledged by the MQTT broker"
 exit $EXIT_SUCCESS

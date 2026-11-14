@@ -6,6 +6,7 @@ import os
 import re
 import uuid
 from collections.abc import AsyncGenerator, Callable, Generator
+from pathlib import Path
 from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
@@ -88,8 +89,10 @@ def app_with_mocked_external_dependencies(
     monkeypatch: pytest.MonkeyPatch,
     mock_provider_class: type,
     mock_publisher_class: type,
+    tmp_path: Path,
 ) -> App:
     cfg: DictConfig = OmegaConf.structured(Config)
+    cfg.node.healthcheck.heartbeat_file = str(tmp_path / "updates2mqtt.heartbeat")
     monkeypatch.setattr(updates2mqtt.app, "load_app_config", lambda *_args, **__kwargs: cfg)
     monkeypatch.setattr(updates2mqtt.app, "DockerProvider", mock_provider_class)
     monkeypatch.setattr(updates2mqtt.app, "MqttPublisher", mock_publisher_class)

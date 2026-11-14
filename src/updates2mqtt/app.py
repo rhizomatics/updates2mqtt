@@ -1,7 +1,9 @@
 import asyncio
 import logging
+import os
 import signal
 import sys
+import tempfile
 import time
 import uuid
 from collections.abc import Awaitable, Callable
@@ -107,6 +109,8 @@ class App:
         self.exit_code: int = 0
         self.main_task: asyncio.Task[Any] | None = None
         self.heartbeat_loop_task: asyncio.Task[None] | None = None
+        self.last_mqtt_heartbeat: float | None = None
+        self.heartbeat_file_failed: bool = False
         self.heartbeat_topic = self.cfg.node.healthcheck.topic_template.format(node_name=self.cfg.node.name)
 
         log.info(
@@ -275,13 +279,11 @@ class App:
         log.info("Shutdown handling complete")
 
     async def heartbeat(self) -> None:
-        if not self.publisher.is_available():
-            return
-        heartbeat_stamp: str = datetime.now(UTC).isoformat()
-        log.debug("Publishing health check", heartbeat_stamp=heartbeat_stamp)
-        self.publisher.publish(
-            topic=self.heartbeat_topic,
-            payload={
+        """Publish the heartbeat, and record in the heartbeat file that the app is running, and if the broker got it"""
+        if self.publisher.is_available():
+            heartbeat_stamp: str = datetime.now(UTC).isoformat()
+            log.debug("Publishing health check", heartbeat_stamp=heartbeat_stamp)
+            payload: dict[str, Any] = {
                 "version": updates2mqtt.version,  # pyright: ignore[reportAttributeAccessIssue]
                 "node": self.cfg.node.name,
                 "heartbeat_raw": time.time(),
@@ -289,8 +291,31 @@ class App:
                 "startup_stamp": self.startup_timestamp,
                 "last_scan_stamp": self.last_scan_timestamp,
                 "scan_count": self.scan_count,
-            },
-        )
+            }
+            # worker thread, as waiting for the broker's acknowledgement blocks
+            if await asyncio.to_thread(self.publisher.publish_confirmed, self.heartbeat_topic, payload):
+                self.last_mqtt_heartbeat = time.time()
+            else:
+                log.debug("Heartbeat not acknowledged by broker")
+        self.write_heartbeat_file()
+
+    def write_heartbeat_file(self) -> None:
+        """`<alive epoch> <mqtt acknowledged epoch>`, read by healthcheck.sh, with 0 if never acknowledged"""
+        path_name: str = self.cfg.node.healthcheck.heartbeat_file
+        if not path_name or self.heartbeat_file_failed:
+            # once a write has failed, don't keep trying, or logging, for the rest of this run
+            return
+        path = Path(path_name)
+        try:
+            # unpredictable temporary name, then an atomic rename, so the healthcheck never reads a partial
+            # file, and a planted symlink in a shared temp dir can't redirect the write
+            fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+            with os.fdopen(fd, "w") as f:
+                f.write(f"{int(time.time())} {int(self.last_mqtt_heartbeat or 0)}\n")
+            Path(tmp_name).replace(path)
+        except OSError as e:
+            log.warning("Unable to write heartbeat file for healthcheck, not trying again until restart: %s", e, path=path_name)
+            self.heartbeat_file_failed = True
 
 
 def route_stdlib_logging(level: str, renderers: list[Any], logger_name: str = "updates2mqtt") -> None:

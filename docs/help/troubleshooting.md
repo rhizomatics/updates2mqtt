@@ -104,7 +104,7 @@ Use a desktop MQTT app - [MQTTX](https://mqttx.app) will let you subscribe to `#
 These tools will let you inspect messages, and also publish your own, so can create
 your own update message and see if it gets picked up by the Home Assistant app.
 
-Alternatively, use the debug option and logging of Mosquitto broker, or the built-in admin/debug UI of EMQX broker. Or the handy command line `mosquitto_sub` and `mosquitto_pub`, which are also used by the Updates2MQTT health check.
+Alternatively, use the debug option and logging of Mosquitto broker, or the built-in admin/debug UI of EMQX broker. Or the handy command line `mosquitto_sub` and `mosquitto_pub`, which are included in the Updates2MQTT Docker image.
 
 ## Home Assistant
 

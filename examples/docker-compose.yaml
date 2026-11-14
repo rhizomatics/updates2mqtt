@@ -11,7 +11,7 @@ services:
     restart: always
     env_file: ./.env  # Environment variables file
     healthcheck:
-      test: ["CMD", "/app/healthcheck.sh","healthcheck/MYNODENAME/updates2mqtt"] # Change for your node name
+      test: ["CMD", "/app/healthcheck.sh"] # reads the heartbeat file written by the app, no MQTT connection needed
       interval: 5m
       timeout: 30s
       retries: 3

@@ -16,11 +16,20 @@ First steps in protecting against supply chain attacks, from [RFC 0002](develope
   - Measured from first sighting, or the GitHub release publication time if that's later, as an image's own creation time can't be trusted
   - A future release will hold back *Auto* updates until their cooldown has passed, with notice given first
 - GitHub release publication time is captured as `published` in the release attributes
+### Single MQTT connection
+- Topic cleaning now runs on the main MQTT connection, rather than opening a second one
+- The container healthcheck no longer connects to MQTT. It reads a heartbeat file the app writes, recording when the app last ran its heartbeat, and when the broker last acknowledged one
+  - A stalled app is still restarted, as before. A broker that hasn't acknowledged a heartbeat marks the container *unhealthy*, without restart loops while the broker is down
+  - The file defaults to `updates2mqtt.heartbeat` in the system temp directory. Set `U2M_HEARTBEAT_FILE` to move it, for both the app and the healthcheck, or `heartbeat_file` in the `node.healthcheck` config section for the app alone
+  - Existing compose healthchecks that pass the heartbeat topic still work, and the topic is no longer needed
+## 🐞 Bug Fixes
+- Brokers set to use the username as the client id, such as EMQX with *Use Username as Client ID*, no longer take over Updates2MQTT's session every time topics are cleaned or the healthcheck runs, which showed as repeated `Disconnect failure from broker ... Session taken over` warnings and could cause update commands to be missed
+- Topic cleaning no longer reacts to its own deletes, which could keep it deleting until its time limit
 ## 📝 Other changes
 - All GitHub Actions in the build and release workflows are now pinned by commit SHA, kept up to date by Dependabot
 - `niquests` (http client) moved from dev to primary dependency in `pyproject.toml`
 ## 📚 Documentation
-- *Improving Security* now covers restricting MQTT update commands with a Mosquitto ACL, and limiting Docker API access
+- [Improving Security](https://updates2mqtt.rhizomatics.org.uk/configuration/security/#docker-api-access) now covers restricting MQTT update commands with a Mosquitto ACL, and limiting Docker API access
 - Design docs reorganized into RFCs, with the OCI client as RFC 0001, cyber security as RFC 0002 and configuration as RFC 0003
 - [Design Principles](https://updates2mqtt.rhizomatics.org.uk/developer/design/design_principles/) added
 

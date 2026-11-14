@@ -49,6 +49,24 @@ Updates2MQTT falls back to running compose from inside its own container, as in 
 
 Containers managed as a [Portainer](configuration/portainer.md) stack are redeployed by Portainer instead.
 
+#### Health Check
+
+The Docker image includes `/app/healthcheck.sh`, used by the `healthcheck` in the example
+[docker-compose.yaml](configuration/examples/docker_compose.md). It doesn't connect to MQTT itself. Instead
+it reads a small heartbeat file the app writes every `interval` seconds (5 minutes by default), at
+`updates2mqtt.heartbeat` in the system temp directory, usually `/tmp`. That file records when the app last ran its
+heartbeat, and when the MQTT broker last acknowledged one. To put it somewhere else, set the `U2M_HEARTBEAT_FILE`
+env var on the container, which both the app and the check use. The `heartbeat_file` setting in the
+`node.healthcheck` config section only moves it for the app, as the check can't read the config file.
+
+- If the app has stopped writing heartbeats, it's assumed stuck, and the check stops it so Docker's `restart`
+  policy brings it back up
+- If the app is running but the broker hasn't acknowledged a heartbeat recently, the container is marked
+  *unhealthy* without being restarted, as a restart doesn't fix a broker or network problem
+
+The check takes an optional maximum age in seconds as its second argument, 480 by default. Older
+compose files pass the heartbeat topic as the first argument, which still works, but is no longer needed.
+
 #### Ensuring Always Running
 
 Use cron to make sure the container is always up, this example will run once an hour, adapt the schedule

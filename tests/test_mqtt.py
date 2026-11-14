@@ -643,187 +643,30 @@ async def test_clean_topics_exits_on_fatal_failure(mock_mqtt_client: Mock, mock_
         uut = MqttPublisher(config, node_config, hass_config)
         uut.start()
         uut.fatal_failure.set()
-
-        # Should return immediately without creating a cleaner client
-        with patch("updates2mqtt.mqtt.mqtt.Client") as mock_cleaner_class:
-            await uut.clean_topics(mock_provider, wait_time=1)
-            mock_cleaner_class.assert_not_called()
+        await uut.clean_topics(mock_provider, wait_time=1)
+        mock_mqtt_client.message_callback_add.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_clean_topics_removes_stale_discovery(mock_mqtt_client: Mock, mock_provider: ReleaseProvider) -> None:
-    """clean_topics should remove messages with different session"""
+@pytest.mark.parametrize(("protocol", "with_options"), [("3.11", False), ("5", True)])
+async def test_clean_topics_subscribes_on_main_client(
+    mock_mqtt_client: Mock, mock_provider: ReleaseProvider, protocol: str, with_options: bool
+) -> None:
+    """Cleaning subscribes on the main connection, with noLocal only where MQTT v5 supports it"""
     config = OmegaConf.structured(MqttConfig)
+    config.protocol = protocol
     hass_config = OmegaConf.structured(HomeAssistantConfig)
     node_config = OmegaConf.structured(NodeConfig)
     node_config.name = "cleannode"
 
-    mock_cleaner = Mock()
-    mock_cleaner.loop = Mock()
-
     with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
         uut = MqttPublisher(config, node_config, hass_config)
         uut.start()
-        uut.providers_by_type[mock_provider.source_type] = mock_provider
+        await uut.clean_topics(mock_provider, wait_time=0)
 
-        with patch("updates2mqtt.mqtt.mqtt.Client", return_value=mock_cleaner):
-            # Simulate a message with old session arriving
-            async def trigger_cleanup() -> None:
-                await asyncio.sleep(0.1)
-                # Get the on_message callback that was set
-                on_message_callback = mock_cleaner.on_message
-                # Create a mock retained message with old session
-                msg = Mock()
-                msg.retain = True
-                msg.payload = {}
-                msg.topic = f"homeassistant/update/cleannode_{mock_provider.source_type}_container1/update/config"
-                on_message_callback(mock_cleaner, None, msg)
-
-            # Run clean_topics with short wait_time
-            task = asyncio.create_task(trigger_cleanup())
-            await uut.clean_topics(mock_provider, wait_time=1)
-            await task
-
-            # Should have published empty message to remove stale topic
-            calls = [call for call in mock_cleaner.publish.call_args_list if call[0][1] == ""]
-            assert len(calls) == 1
-
-
-@pytest.mark.asyncio
-async def test_clean_topics_retains_current_discoveries(mock_mqtt_client: Mock, mock_provider: ReleaseProvider) -> None:
-    """clean_topics should keep messages with current session"""
-    config = OmegaConf.structured(MqttConfig)
-    hass_config = OmegaConf.structured(HomeAssistantConfig)
-    node_config = OmegaConf.structured(NodeConfig)
-    node_config.name = "cleannode"
-
-    mock_cleaner = Mock()
-    mock_cleaner.loop = Mock()
-
-    with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
-        uut = MqttPublisher(config, node_config, hass_config)
-        uut.start()
-        uut.providers_by_type[mock_provider.source_type] = mock_provider
-        with patch("updates2mqtt.mqtt.mqtt.Client", return_value=mock_cleaner):
-
-            async def trigger_cleanup() -> None:
-                await asyncio.sleep(0.1)
-                on_message_callback = mock_cleaner.on_message
-                msg = Mock()
-                msg.retain = True
-                msg.payload = {}
-                msg.topic = f"homeassistant/update/cleannode_{mock_provider.source_type}_fooey/update/config"
-                on_message_callback(mock_cleaner, None, msg)
-
-            task = asyncio.create_task(trigger_cleanup())
-            await uut.clean_topics(mock_provider, wait_time=1)
-            await task
-
-            # Should NOT have published empty message (message retained)
-            empty_publish_calls = [call for call in mock_cleaner.publish.call_args_list if call[0][1] == ""]
-            assert len(empty_publish_calls) == 0
-
-
-@pytest.mark.asyncio
-async def test_clean_topics_force_removes_untrackable(mock_mqtt_client: Mock, mock_provider: ReleaseProvider) -> None:
-    """clean_topics with force=True should remove messages without session"""
-    config = OmegaConf.structured(MqttConfig)
-    hass_config = OmegaConf.structured(HomeAssistantConfig)
-    node_config = OmegaConf.structured(NodeConfig)
-    node_config.name = "cleannode"
-
-    mock_cleaner = Mock()
-    mock_cleaner.loop = Mock()
-
-    with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
-        uut = MqttPublisher(config, node_config, hass_config)
-        uut.start()
-        uut.providers_by_type[mock_provider.source_type] = mock_provider
-
-        with patch("updates2mqtt.mqtt.mqtt.Client", return_value=mock_cleaner):
-
-            async def trigger_cleanup() -> None:
-                await asyncio.sleep(0.1)
-                on_message_callback = mock_cleaner.on_message
-                msg = Mock()
-                msg.retain = True
-                msg.payload = {}
-                msg.topic = f"homeassistant/update/cleannode_{mock_provider.source_type}_container1/update/config"
-                on_message_callback(mock_cleaner, None, msg)
-
-            task = asyncio.create_task(trigger_cleanup())
-            await uut.clean_topics(mock_provider)
-            await task
-
-            # Should have published empty message to remove untrackable topic
-            empty_publish_calls = [call for call in mock_cleaner.publish.call_args_list if call[0][1] == ""]
-            assert len(empty_publish_calls) == 1
-
-
-@pytest.mark.asyncio
-async def test_clean_topics_skips_unrelated_topics(mock_mqtt_client: Mock, mock_provider: ReleaseProvider) -> None:
-    """clean_topics should skip topics that don't match prefixes"""
-    config = OmegaConf.structured(MqttConfig)
-    hass_config = OmegaConf.structured(HomeAssistantConfig)
-    node_config = OmegaConf.structured(NodeConfig)
-    node_config.name = "cleannode"
-
-    mock_cleaner = Mock()
-    mock_cleaner.loop = Mock()
-
-    with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
-        uut = MqttPublisher(config, node_config, hass_config)
-        uut.start()
-
-        with patch("updates2mqtt.mqtt.mqtt.Client", return_value=mock_cleaner):
-
-            async def trigger_cleanup() -> None:
-                await asyncio.sleep(0.1)
-                on_message_callback = mock_cleaner.on_message
-                msg = Mock()
-                msg.retain = True
-                # Topic doesn't match the expected prefixes
-                msg.topic = "some/other/topic"
-                msg.payload = json.dumps({"source_session": "old_session"}).encode()
-                on_message_callback(mock_cleaner, None, msg)
-
-            task = asyncio.create_task(trigger_cleanup())
-            with patch.object(uut, "log") as mock_log:
-                await uut.clean_topics(mock_provider, wait_time=1)
-            await task
-
-            # Should NOT have published anything (topic doesn't match)
-            assert mock_cleaner.publish.call_count == 0
-            # counted in the summary, rather than logged one by one
-            summary = [c.args[0] for c in mock_log.bind.return_value.info.call_args_list if "Cleaned" in str(c.args[0])]
-            assert summary
-            assert "ignored:1" in summary[0]
-
-
-@pytest.mark.asyncio
-async def test_clean_topics_subscribes_to_correct_topics(mock_mqtt_client: Mock, mock_provider: ReleaseProvider) -> None:
-    """clean_topics should subscribe to hass discovery and updates2mqtt topics"""
-    config = OmegaConf.structured(MqttConfig)
-    hass_config = OmegaConf.structured(HomeAssistantConfig)
-    node_config = OmegaConf.structured(NodeConfig)
-    node_config.name = "cleannode"
-
-    mock_cleaner = Mock()
-    mock_cleaner.loop = Mock()
-
-    with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
-        uut = MqttPublisher(config, node_config, hass_config)
-        uut.start()
-
-        with patch("updates2mqtt.mqtt.mqtt.Client", return_value=mock_cleaner):
-            await uut.clean_topics(mock_provider, wait_time=0)
-
-            # Should subscribe to both topic patterns
-            subscribe_calls = mock_cleaner.subscribe.call_args_list
-            topics_subscribed = [call[0][0] for call in subscribe_calls]
-
-            assert "homeassistant/update/#" in topics_subscribed
-            assert f"updates2mqtt/cleannode/{mock_provider.source_type}/#" in topics_subscribed
+    subscribed = {c.args[0]: c.kwargs for c in mock_mqtt_client.subscribe.call_args_list}
+    assert set(subscribed) >= {"homeassistant/update/#", f"updates2mqtt/cleannode/{mock_provider.source_type}/+/#"}
+    assert ("options" in subscribed["homeassistant/update/#"]) is with_options
 
 
 # === missing branch coverage ===

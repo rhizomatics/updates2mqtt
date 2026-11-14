@@ -71,32 +71,35 @@ def test_publish_queues_when_disconnected(uut: MqttPublisher, mock_mqtt_client: 
 # === topic cleaning ===
 
 
-def run_clean(uut: MqttPublisher, provider: ReleaseProvider, messages: list[tuple[str, Any]], initial: bool = False) -> Mock:
-    """Clean with a fake cleaner client that delivers the given retained messages on its first loop"""
-    cleaner = Mock()
+async def run_clean(
+    uut: MqttPublisher, provider: ReleaseProvider, messages: list[tuple[str, Any]], initial: bool = False
+) -> dict[str, Any]:
+    """Clean on the main client, delivering the given retained messages through its per-topic callbacks"""
+    client: Mock = uut.client  # type: ignore[assignment]
+    handlers: dict[str, Callable[..., None]] = {}
+    client.message_callback_add.side_effect = lambda topic_filter, handler: handlers.__setitem__(topic_filter, handler)
+    client.publish.reset_mock()
 
-    def deliver(_timeout: float) -> None:
-        if cleaner.loop.call_count == 1:
-            for topic, payload in messages:
-                msg = Mock(topic=topic, payload=payload)
-                cleaner.on_message(cleaner, None, msg)
-        else:
-            uut.stopping.set()
+    async def deliver() -> None:
+        while not handlers:
+            await asyncio.sleep(0.01)
+        for topic, payload in messages:
+            for topic_filter, handler in handlers.items():
+                if paho.mqtt.client.topic_matches_sub(topic_filter, topic):
+                    handler(client, None, Mock(topic=topic, payload=payload))
+                    break
+        uut.stopping.set()
 
-    cleaner.loop.side_effect = deliver
-    with patch("updates2mqtt.mqtt.mqtt.Client", return_value=cleaner):
-        uut.clean_topics_blocking(provider, wait_time=5, max_time=10, initial=initial)
+    delivery = asyncio.create_task(deliver())
+    await uut.clean_topics(provider, wait_time=5, max_time=10, initial=initial)
+    await delivery
     uut.stopping.clear()
-    return cleaner
+    return {c.args[0]: c.args[1] for c in client.publish.call_args_list}
 
 
-def published(cleaner: Mock) -> dict[str, Any]:
-    return {c.args[0]: c.args[1] for c in cleaner.publish.call_args_list}
-
-
-def test_clean_state_and_attribute_topics(uut: MqttPublisher, mock_provider: ReleaseProvider) -> None:
+async def test_clean_state_and_attribute_topics(uut: MqttPublisher, mock_provider: ReleaseProvider) -> None:
     base = f"updates2mqtt/{NODE}/unit_test"
-    cleaner = run_clean(
+    published = await run_clean(
         uut,
         mock_provider,
         [
@@ -104,16 +107,18 @@ def test_clean_state_and_attribute_topics(uut: MqttPublisher, mock_provider: Rel
             (f"{base}/gone/state", b'{"installed_version": "v1", "latest_version": "v2"}'),
             (f"{base}/fooey", b'{"name": "fooey"}'),
             (f"{base}/gone", b'{"name": "gone"}'),
-            (f"{base}/odd/topic/shape", None),
+            (f"{base}/odd/topic/shape", b"x"),
+            # already deleted, including the echo of our own deletes, so nothing to do
+            (f"{base}/deleted", b""),
             ("homeassistant/update/othernode_thing/update/config", b"{}"),
         ],
     )
-    assert published(cleaner) == {f"{base}/gone/state": "", f"{base}/gone": "", f"{base}/odd/topic/shape": ""}
+    assert published == {f"{base}/gone/state": "", f"{base}/gone": "", f"{base}/odd/topic/shape": ""}
 
 
-def test_clean_initial_clears_lingering_in_progress(uut: MqttPublisher, mock_provider: ReleaseProvider) -> None:
+async def test_clean_initial_clears_lingering_in_progress(uut: MqttPublisher, mock_provider: ReleaseProvider) -> None:
     base = f"updates2mqtt/{NODE}/unit_test"
-    cleaner = run_clean(
+    published = await run_clean(
         uut,
         mock_provider,
         [
@@ -122,14 +127,14 @@ def test_clean_initial_clears_lingering_in_progress(uut: MqttPublisher, mock_pro
         ],
         initial=True,
     )
-    republished = {topic: json.loads(payload) for topic, payload in published(cleaner).items()}
+    republished = {topic: json.loads(payload) for topic, payload in published.items()}
     assert republished[f"{base}/fooey/state"]["in_progress"] is False
     assert republished[f"{base}/fooey"]["update"]["in_progress"] is False
 
 
-def test_clean_initial_clears_incomplete_state_and_bad_json(uut: MqttPublisher, mock_provider: ReleaseProvider) -> None:
+async def test_clean_initial_clears_incomplete_state_and_bad_json(uut: MqttPublisher, mock_provider: ReleaseProvider) -> None:
     base = f"updates2mqtt/{NODE}/unit_test"
-    cleaner = run_clean(
+    published = await run_clean(
         uut,
         mock_provider,
         [
@@ -140,12 +145,40 @@ def test_clean_initial_clears_incomplete_state_and_bad_json(uut: MqttPublisher, 
         ],
         initial=True,
     )
-    assert published(cleaner) == {f"{base}/fooey/state": "", f"{base}/fooey": ""}
+    assert published == {f"{base}/fooey/state": "", f"{base}/fooey": ""}
 
 
-def test_clean_survives_client_failure(uut: MqttPublisher, mock_provider: ReleaseProvider) -> None:
-    with patch("updates2mqtt.mqtt.mqtt.Client", side_effect=OSError("broker gone")):
-        uut.clean_topics_blocking(mock_provider, wait_time=1, max_time=1)
+async def test_clean_uses_main_connection_and_tidies_up(uut: MqttPublisher, mock_provider: ReleaseProvider) -> None:
+    client: Mock = uut.client  # type: ignore[assignment]
+    with patch("updates2mqtt.mqtt.mqtt.Client") as client_class:
+        await run_clean(uut, mock_provider, [])
+    client_class.assert_not_called()  # no second connection to be taken over by username-as-client-id brokers
+    filters = [c.args[0] for c in client.message_callback_add.call_args_list]
+    assert filters == ["homeassistant/update/#", f"updates2mqtt/{NODE}/unit_test/+/#"]
+    assert [c.args[0] for c in client.message_callback_remove.call_args_list] == filters
+    assert [c.args[0] for c in client.unsubscribe.call_args_list] == filters
+
+
+def test_clean_filters_leave_commands_to_the_command_handler() -> None:
+    # the command topic itself must not match the cleaning filter, or commands sent while cleaning would be lost
+    command_topic = f"updates2mqtt/{NODE}/unit_test"
+    assert not paho.mqtt.client.topic_matches_sub(f"updates2mqtt/{NODE}/unit_test/+/#", command_topic)
+    assert paho.mqtt.client.topic_matches_sub(f"updates2mqtt/{NODE}/unit_test/+/#", f"{command_topic}/fooey")
+    assert paho.mqtt.client.topic_matches_sub(f"updates2mqtt/{NODE}/unit_test/+/#", f"{command_topic}/fooey/state")
+
+
+async def test_clean_skipped_when_disconnected(uut: MqttPublisher, mock_provider: ReleaseProvider) -> None:
+    client: Mock = uut.client  # type: ignore[assignment]
+    uut.connected.clear()
+    await uut.clean_topics(mock_provider, wait_time=1, max_time=1)
+    client.message_callback_add.assert_not_called()
+
+
+async def test_clean_survives_subscribe_failure(uut: MqttPublisher, mock_provider: ReleaseProvider) -> None:
+    client: Mock = uut.client  # type: ignore[assignment]
+    client.subscribe.side_effect = OSError("broker gone")
+    await uut.clean_topics(mock_provider, wait_time=1, max_time=1)
+    assert client.message_callback_remove.call_count == 2  # callbacks still removed
 
 
 def test_reverse_config_topic_unknown_provider(uut: MqttPublisher) -> None:

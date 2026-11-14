@@ -1,5 +1,6 @@
 import os
 import ssl
+import tempfile
 import typing
 from dataclasses import dataclass, field
 from enum import EnumMeta, StrEnum, auto
@@ -208,11 +209,20 @@ class HomeAssistantConfig:
     release_summary_max_size: int = 6144
 
 
+def default_heartbeat_file() -> str:
+    """In the system temp dir, which follows TMPDIR, as healthcheck.sh does, and is writable for non-root users"""
+    return str(Path(tempfile.gettempdir()) / "updates2mqtt.heartbeat")
+
+
 @dataclass
 class HealthCheckConfig:
     enabled: bool = True
     interval: int = 300  # Interval in seconds to publish heartbeat message, 0 to disable
     topic_template: str = "healthcheck/{node_name}/updates2mqtt"
+    # local file for the container healthcheck, holding when the app last ran its heartbeat, and when the broker
+    # last acknowledged one, so no separate MQTT connection is needed to check it; empty to not write one.
+    # U2M_HEARTBEAT_FILE sets it for both the app and healthcheck.sh, which can't read this config file
+    heartbeat_file: str = field(default_factory=lambda: f"${{oc.env:U2M_HEARTBEAT_FILE,{default_heartbeat_file()}}}")
 
 
 @dataclass
@@ -266,6 +276,7 @@ def is_autogen_config() -> bool:
 KNOWN_U2M_ENV_VARS: frozenset[str] = frozenset(
     (
         "U2M_AUTOGEN_CONFIG",
+        "U2M_HEARTBEAT_FILE",
         "U2M_LOG_LEVEL",
         "U2M_MAX_CONCURRENT_UPDATES",
         "U2M_REMOVE_OLD_IMAGE",

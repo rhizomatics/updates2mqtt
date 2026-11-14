@@ -11,6 +11,7 @@ The core configuration can be supplied by environment variables and container la
 | MQTT_VERSION         | 3.11         |
 | U2M_LOG_LEVEL        | INFO         |
 | U2M_REMOVE_OLD_IMAGE | false        |
+| U2M_HEARTBEAT_FILE   | `updates2mqtt.heartbeat` in the temp dir, see [Health Check](../installation.md#health-check) |
 | PORTAINER_URL        | *NONE*       |
 | PORTAINER_API_KEY    | *NONE*       |
 | PORTAINER_CA_CERTS   | *NONE*       |

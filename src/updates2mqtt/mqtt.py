@@ -43,9 +43,10 @@ class MqttPublisher:
         self.providers_by_type: dict[str, ReleaseProvider] = {}
         self.event_loop: asyncio.AbstractEventLoop | None = None
         self.client: mqtt.Client | None = None
+        self.protocol: MQTTProtocolVersion = MQTTProtocolVersion.MQTTv311
         self.fatal_failure = Event()
         self.connected = Event()
-        # lets worker threads, e.g. topic cleaning, finish early on shutdown
+        # lets long running work, e.g. topic cleaning, finish early on shutdown
         self.stopping = Event()
         self.commands_in_progress: set[tuple[str, str]] = set()
         # strong references to running commands, as the event loop only keeps weak ones
@@ -66,6 +67,7 @@ class MqttPublisher:
                 logger.info("No valid MQTT protocol version found (%s), setting to default v3.11", self.cfg.protocol)
                 protocol = MQTTProtocolVersion.MQTTv311
             logger.debug("MQTT protocol set to %r", protocol)
+            self.protocol = protocol
 
             self.event_loop = event_loop or asyncio.get_event_loop()
             self.client = mqtt.Client(
@@ -191,96 +193,44 @@ class MqttPublisher:
     async def clean_topics(
         self, provider: ReleaseProvider, wait_time: int = 5, max_time: int = 120, initial: bool = False
     ) -> None:
-        """Runs its own blocking MQTT client loop, so in a worker thread to keep the event loop free"""
-        await asyncio.to_thread(self.clean_topics_blocking, provider, wait_time, max_time, initial)
+        """Remove stale retained topics for this node, reading them through the main connection
 
-    def clean_topics_blocking(
-        self, provider: ReleaseProvider, wait_time: int = 5, max_time: int = 120, initial: bool = False
-    ) -> None:
+        A second connection under the same MQTT username would take over the main session on brokers set to use the
+        username as the client id, such as EMQX with `use_username_as_clientid`, so cleaning shares the main client,
+        with per-topic callbacks so retained messages don't reach the command handler
+        """
         logger = self.log.bind(action="clean")
-
-        if self.fatal_failure.is_set():
+        client: mqtt.Client | None = self.client
+        if self.fatal_failure.is_set() or client is None:
             return
+        if not self.connected.is_set():
+            logger.info("Not connected to broker, clean cycle skipped")
+            return
+
+        results: dict[str, Any] = {"cleaned": 0, "matched": 0, "discovered": 0, "ignored": 0, "last_timestamp": time.time()}
+        # below the command topic, so commands arriving while cleaning still reach on_message
+        filters: list[str] = [
+            f"{self.hass_cfg.discovery.prefix}/update/#",
+            f"{self.cfg.topic_root}/{self.node_cfg.name}/{provider.source_type}/+/#",
+        ]
+        handler: Callable[[mqtt.Client, Any, mqtt.MQTTMessage], None] = self.cleanup_handler(provider, initial, results, logger)
         try:
             logger.info("Starting clean cycle, wait time: %s, max time: %s, initial: %s", wait_time, max_time, initial)
             cutoff_time: float = time.time() + max_time
-            cleaner = mqtt.Client(
-                callback_api_version=CallbackAPIVersion.VERSION1,
-                client_id=f"updates2mqtt_clean_{self.node_cfg.name}",
-                clean_session=True,
-            )
-            results = {"cleaned": 0, "matched": 0, "discovered": 0, "ignored": 0, "last_timestamp": time.time()}
-            cleaner.username_pw_set(self.cfg.user, password=self.cfg.password)
-            cleaner.connect(host=self.cfg.host, port=self.cfg.port, keepalive=self.cfg.keepalive)
-
-            def cleanup(_client: mqtt.Client, _userdata: Any, msg: mqtt.MQTTMessage) -> None:
-                discovery: Discovery | None = None
-                if msg.topic.startswith(
-                    f"{self.hass_cfg.discovery.prefix}/update/{self.node_cfg.name}_{provider.source_type}_"
-                ):
-                    discovery = self.reverse_config_topic(msg.topic, provider.source_type)
-                elif msg.topic.startswith(
-                    f"{self.cfg.topic_root}/{self.node_cfg.name}/{provider.source_type}/"
-                ) and msg.topic.endswith("/state"):
-                    discovery = self.reverse_state_topic(msg.topic, provider.source_type)
-                elif msg.topic.startswith(f"{self.cfg.topic_root}/{self.node_cfg.name}/{provider.source_type}/"):
-                    discovery = self.reverse_general_topic(msg.topic, provider.source_type)
+            for topic_filter in filters:
+                client.message_callback_add(topic_filter, handler)
+            for topic_filter in filters:
+                if self.protocol == MQTTProtocolVersion.MQTTv5:
+                    client.subscribe(topic_filter, options=paho.mqtt.subscribeoptions.SubscribeOptions(noLocal=True))
                 else:
-                    # e.g. other integrations' update entities, as the subscription can't be narrower
-                    results["ignored"] += 1
-                    return
-                results["discovered"] += 1
-                if not initial and discovery is None:
-                    logger.debug("Removing unknown discovery", topic=msg.topic)
-                    cleaner.publish(msg.topic, "", retain=True)
-                    results["cleaned"] += 1
-                elif discovery is not None:
-                    results["matched"] += 1
-
-                try:
-                    if msg.payload:
-                        payload = json.loads(msg.payload)
-                        update_section = payload.get("update") if isinstance(payload.get("update"), dict) else None
-                        lingering_in_progress = payload.get("in_progress") or (
-                            update_section and update_section.get("in_progress")
-                        )
-                        if lingering_in_progress and initial:
-                            logger.info("Clearing lingering in-progress state at %s", msg.topic)
-                            payload["in_progress"] = False
-                            if update_section is not None:
-                                update_section["in_progress"] = False
-                            cleaner.publish(msg.topic, json.dumps(payload), retain=True)
-                            results["cleaned"] += 1
-                        elif (
-                            initial
-                            and msg.topic.endswith("/state")
-                            and (payload.get("installed_version") is None or payload.get("latest_version") is None)
-                        ):
-                            # Stale/incomplete state message (e.g. from an older schema) leaves HA showing
-                            # "unknown" forever, since it has nothing to compare against. Clear it so the
-                            # upcoming scan can publish a complete replacement.
-                            logger.info("Clearing stale incomplete state at %s", msg.topic)
-                            cleaner.publish(msg.topic, "", retain=True)
-                            results["cleaned"] += 1
-                except Exception as e:
-                    logger.warning("Invalid payload at %s: %s", msg.topic, e)
-                    cleaner.publish(msg.topic, "", retain=True)
-                    results["cleaned"] += 1
-
-                results["last_timestamp"] = time.time()
-
-            cleaner.on_message = cleanup
-            options = paho.mqtt.subscribeoptions.SubscribeOptions(noLocal=True)
-            cleaner.subscribe(f"{self.hass_cfg.discovery.prefix}/update/#", options=options)
-            cleaner.subscribe(f"{self.cfg.topic_root}/{self.node_cfg.name}/{provider.source_type}/#", options=options)
+                    client.subscribe(topic_filter)
 
             while (
                 time.time() - results["last_timestamp"] <= wait_time
                 and time.time() <= cutoff_time
                 and not self.stopping.is_set()
             ):
-                cleaner.loop(0.5)
-            cleaner.disconnect()
+                await asyncio.sleep(0.5)
 
             logger.info(
                 f"Cleaned - discovered:{results['discovered']}, matched:{results['matched']}, cleaned:{results['cleaned']}, "
@@ -288,6 +238,75 @@ class MqttPublisher:
             )
         except Exception:
             logger.exception("Cleaning topics of stale entries failed")
+        finally:
+            for topic_filter in filters:
+                try:
+                    if self.client is client:
+                        client.unsubscribe(topic_filter)
+                    client.message_callback_remove(topic_filter)
+                except Exception as e:
+                    logger.debug("Unable to remove clean subscription %s: %s", topic_filter, e)
+
+    def cleanup_handler(
+        self, provider: ReleaseProvider, initial: bool, results: dict[str, Any], logger: Any
+    ) -> Callable[[mqtt.Client, Any, mqtt.MQTTMessage], None]:
+        """Callback for retained messages seen while cleaning, run on the MQTT network thread"""
+
+        def cleanup(client: mqtt.Client, _userdata: Any, msg: mqtt.MQTTMessage) -> None:
+            if not msg.payload:
+                # an already deleted topic, including the echo of our own deletes, so nothing to clean
+                return
+            discovery: Discovery | None = None
+            if msg.topic.startswith(f"{self.hass_cfg.discovery.prefix}/update/{self.node_cfg.name}_{provider.source_type}_"):
+                discovery = self.reverse_config_topic(msg.topic, provider.source_type)
+            elif msg.topic.startswith(
+                f"{self.cfg.topic_root}/{self.node_cfg.name}/{provider.source_type}/"
+            ) and msg.topic.endswith("/state"):
+                discovery = self.reverse_state_topic(msg.topic, provider.source_type)
+            elif msg.topic.startswith(f"{self.cfg.topic_root}/{self.node_cfg.name}/{provider.source_type}/"):
+                discovery = self.reverse_general_topic(msg.topic, provider.source_type)
+            else:
+                # e.g. other integrations' update entities, as the subscription can't be narrower
+                results["ignored"] += 1
+                return
+            results["discovered"] += 1
+            if not initial and discovery is None:
+                logger.debug("Removing unknown discovery", topic=msg.topic)
+                client.publish(msg.topic, "", retain=True)
+                results["cleaned"] += 1
+            elif discovery is not None:
+                results["matched"] += 1
+
+            try:
+                payload = json.loads(msg.payload)
+                update_section = payload.get("update") if isinstance(payload.get("update"), dict) else None
+                lingering_in_progress = payload.get("in_progress") or (update_section and update_section.get("in_progress"))
+                if lingering_in_progress and initial:
+                    logger.info("Clearing lingering in-progress state at %s", msg.topic)
+                    payload["in_progress"] = False
+                    if update_section is not None:
+                        update_section["in_progress"] = False
+                    client.publish(msg.topic, json.dumps(payload), retain=True)
+                    results["cleaned"] += 1
+                elif (
+                    initial
+                    and msg.topic.endswith("/state")
+                    and (payload.get("installed_version") is None or payload.get("latest_version") is None)
+                ):
+                    # Stale/incomplete state message (e.g. from an older schema) leaves HA showing
+                    # "unknown" forever, since it has nothing to compare against. Clear it so the
+                    # upcoming scan can publish a complete replacement.
+                    logger.info("Clearing stale incomplete state at %s", msg.topic)
+                    client.publish(msg.topic, "", retain=True)
+                    results["cleaned"] += 1
+            except Exception as e:
+                logger.warning("Invalid payload at %s: %s", msg.topic, e)
+                client.publish(msg.topic, "", retain=True)
+                results["cleaned"] += 1
+
+            results["last_timestamp"] = time.time()
+
+        return cleanup
 
     def safe_json_decode(self, jsonish: str | bytes | None) -> Any:
         if jsonish is None:
@@ -573,6 +592,21 @@ class MqttPublisher:
     def loop_once(self) -> None:
         if self.client:
             self.client.loop()
+
+    def publish_confirmed(self, topic: str, payload: dict[str, Any], timeout: float = 10.0) -> bool:
+        """Publish at QoS 1 and wait for the broker to acknowledge it, so a True proves the connection works"""
+        if not self.client:
+            return False
+        info: MQTTMessageInfo = self.client.publish(topic, payload=json.dumps(payload), qos=1, retain=True)
+        if info.rc != MQTTErrorCode.MQTT_ERR_SUCCESS:
+            self.log.debug("Confirmed publish to %s not sent, rc: %s", topic, info.rc)
+            return False
+        try:
+            info.wait_for_publish(timeout=timeout)
+        except (RuntimeError, ValueError) as e:
+            self.log.debug("Confirmed publish to %s not acknowledged: %s", topic, e)
+            return False
+        return info.is_published()
 
     def publish(self, topic: str, payload: dict[str, Any], qos: int = 1, retain: bool = True) -> None:
         if self.client:
