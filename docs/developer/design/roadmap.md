@@ -8,6 +8,10 @@
 - Package up better for running as a `systemd` or `init.d` service
   - Possibly as a `.deb` or `.rpm`
 - Update notification and possibly application for OpenWRT and similar ( Teltonika ) routers
+- Other update sources, potentially notification only
+  - `mise`
+  - `uv`
+  - `npm`
 
 ## OCI Client
 - ~~Upgrade OCI handling~~ done in 1.17.0, as the self-contained `updates2mqtt.oci` package, see [RFC 0001 OCI Client](rfcs/rfc0001-oci_client.md)
@@ -16,6 +20,11 @@
 ## Minor
 - Improve presentation within HA
   - XXXX Docker Image not Docker Image for XXXX [1.17.0]
+
+## Other Consumers
+- Possibly a `homarr`,`homepage` etc widget
+- Keep look out for other possible consumers, either update specific, or MQTT interpreters
+- Investigate appropriate OTel metrics or similar for aggregating package install and update availability
 
 ## Migrate off httpx
 - Consider niquests or httpx2

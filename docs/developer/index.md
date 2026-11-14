@@ -1,5 +1,5 @@
 ---
-description: Developer documentation for updates2mqtt, covering the OCI registry client, container metadata, design notes and test coverage.
+description: Developer documentation for updates2mqtt, covering design notes, the roadmap and RFCs, including the OCI registry client.
 ---
 # Developer Documentation
 
