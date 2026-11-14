@@ -281,6 +281,7 @@ First steps in protecting against supply chain attacks, from [RFC 0002](https://
 - New *Testing an Update* section for Home Assistant, and a *Community Guides* section in Help
 - Fixes to typos and broken links in *Customizing Containers*
 - `ty` type check issues in the CLI fixed
+- `paho-mqtt` updated from `v2.1.0` to `v2.2.0`, with improvements to keepalive handling and hardening against malformed packets.
 
 # 1.17.5
 
