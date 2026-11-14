@@ -2,12 +2,26 @@
 title: What's New
 ---
 
+# 1.17.6
+## ✨ Enhancements
+- New `updates2mqtt.name` container label, or `UPD2MQTT_NAME` env var, to set the title shown in Home Assistant in place of the generated one, e.g. `Mosquitto Broker` rather than `mosquitto Docker Image on nuc`
+  - Only the title changes, topics and entity ids still come from the container name
+- Unrecognised `updates2mqtt.` labels or `UPD2MQTT_` env vars on a container are now logged as a warning, once per container, rather than silently ignored, to catch typos or settings copied from out of date guides
+- `UPDATES2MQTT_` env vars, which have never been used, and unknown `U2M_` ones, are logged as a warning at startup
+## 🐞 Bug Fixes
+- Updating the MQTT broker's own container no longer logs a `Disconnect failure from broker` warning, since the dropped connection is expected and reconnects, and is logged as information instead
+## 📝 Other changes
+- New FAQs on labels, compose paths, digests shown instead of versions, removing old images, and updating the broker container
+- New *Testing an Update* section for Home Assistant, and a *Community Guides* section in Help
+- Fixes to typos and broken links in *Customizing Containers*
+- `ty` type check issues in the CLI fixed
+
 # 1.17.5
-## 🐞Bug Fixes
+## 🐞 Bug Fixes
 - Warnings and errors from libraries such as `httpx`, `docker` and `paho` are now logged in the same format as the app's own logs, with a level, timestamp and logger name, rather than as a bare message that log collectors couldn't parse
 
 # 1.17.4
-## 🐞Bug Fixes
+## 🐞 Bug Fixes
 - Rebuilds of an image with an unchanged version label, such as `master` or `nightly`, now show as e.g. `master:967348dc33c5` to `master:84c6c5ee889a` in the update, matching the format used once installed, rather than switching to image timestamps while an update is waiting
   - The installed image id and registry image are now compared on their config digests, where previously the registry manifest digest never matched the local image id
 - Home Assistant no longer lets the extra attributes topic override the update entity's own `installed_version`, `latest_version` and `title`, which could briefly show an update as available with identical versions
@@ -20,14 +34,14 @@ title: What's New
   - Versions are pinned in the `Dockerfile`, currently Docker CLI 29.9.3, `buildx` 0.38.2 and `compose` 5.7.0, and kept up to date by Dependabot
   - `uv`, used only to build the image, is also pinned rather than taking `latest`
 - Weekly image rebuilds no longer count vulnerabilities in the Docker tools, since only a version bump, not a rebuild, can fix those
-## 🐞Bug Fixes
+## 🐞 Bug Fixes
 - Registry cache database is now closed at shutdown, once no update is still running
 ## 📝 Other changes
 - Improvements to test stability
 - Stricter `mypy` type checking, configured in `pyproject.toml` so editors, `uv run mypy` and pre-commit all agree
 
 # 1.17.2
-## 🐞Bug Fixes
+## 🐞 Bug Fixes
 - Container level `updates2mqtt.version_policy` label, or `UPD2MQTT_VERSION_POLICY` env var, now takes effect whatever its case, e.g. `Digest` as documented, where previously only an exact uppercase value worked and others were silently ignored
 - The official `ubuntu` image keeps its own version, rather than it being suppressed by the check that stops an Ubuntu base image's version leaking into images built on it, such as `greptime/greptimedb`
 - Test coverage improved, esp for MQTT module
@@ -49,7 +63,7 @@ title: What's New
 - Private registries supported, using `docker login` credentials from the Docker config file, including credential helpers and identity tokens
   - Logging in to Docker Hub also gets its higher rate limit
   - See [Private Registries](configuration/remote_api_usage.md#private-registries)
-## 🐞Bug Fixes
+## 🐞 Bug Fixes
 - A container caught mid-recreate by `docker compose`, briefly renamed `<id>_<name>`, is no longer published as an extra update entity
 - Topic cleaning no longer logs every other integration's update topic it skips, giving a count in its summary instead
 - Content fetched by digest is checked against it
@@ -96,7 +110,7 @@ title: What's New
   - See [Home Assistant Integration](./home_assistant.md#availability)
 
 # 1.14.4
-## 🐞Bug Fixes
+## 🐞 Bug Fixes
 ### Security
   - Build chain certificate update for eMudhra intermediate ca certs issue
   - Container rebuilt with latest `uv` version and os `ca-certificates` for eMudhra issue
@@ -104,7 +118,7 @@ title: What's New
 - CI workflow now has a docker container integration test
 
 # 1.14.3
-## 🐞Bug Fixes
+## 🐞 Bug Fixes
 ### Portainer
 - Wait for the stack deployment to complete, using the stack's deployment status, rather than treating Portainer accepting the redeploy request as success. 
   - Portainer 2.41+ now deploys in the background, so a failed deployment was previously reported as a successful update. Failures now log Portainer's error message, and a redeploy requested while another deployment of the stack is in progress waits for that to finish first
@@ -114,7 +128,7 @@ title: What's New
 # 1.14.2
 ## ✨ Enhancements
 - A default `config.yaml` is no longer auto-generated when `MQTT_USER` and `MQTT_PASS` are set as env vars, since the env vars already fully describe the config, and it can create an unnecessary file. Set `U2M_AUTOGEN_CONFIG=1` to generate it anyway
-## 🐞Bug Fixes
+## 🐞 Bug Fixes
 - After an update, Home Assistant could keep showing the old installed version until the next scan or a restart of Updates2MQTT
  - Most likely when updating via Portainer, where the redeploy can return before the container is recreated. 
  - The post-update rescan now waits (up to 60s) for the container to be running the newly pulled image before republishing its state
@@ -128,7 +142,7 @@ title: What's New
 - Optionally remove the replaced image after a successful update, using `remove_old_image` in config or `U2M_REMOVE_OLD_IMAGE` env var
 ### CLI
 - `mqtt=check` also reports the update and Portainer settings, with the env var each comes from, and checks the Portainer `ca_certs` file exists
-## 🐞Bug Fixes
+## 🐞 Bug Fixes
 - When `PORTAINER_API_KEY` or `PORTAINER_URL` were set, an auto-generated config file copied their values into `config.yaml`, rather than referencing the env vars as for MQTT settings
 - [Without a Configuration File](./configuration/zero_config_file.md) docs listed `MQTT_PASSWORD` rather than the correct `MQTT_PASS` env var
 ## 📚 Documentation
@@ -167,13 +181,13 @@ title: What's New
 ### CLI
 - CLI with no arguments now shows help instead of trying to look up a `frigate` container, and a Docker connection failure gives a one line error rather than a stack trace
 - New `mqtt=check` CLI command to show MQTT settings (without secrets) and test the broker connection
-## 🐞Bug Fixes
+## 🐞 Bug Fixes
 - Rejected MQTT credentials at startup no longer wait for the full connection timeout
 ## 📝 Other changes
 - Debug CLI script renamed from `cli` to `u2m-cli`, so it can be installed with `uv tool install updates2mqtt`
 
 # 1.11.1
-## 🐞Bug Fixes
+## 🐞 Bug Fixes
 - Fix for [#175](https://github.com/rhizomatics/updates2mqtt/issues/175) (OCI_V2 lookup never finds an update for single-platform images without an image index)
 - OCI_V2_MINIMAL mode now fixed
 - CLI fixed for case sensitive API names
@@ -217,7 +231,7 @@ title: What's New
 # 1.9.6
 ## ✨ Enhancements
 - MQTT now has a `connect_timeout` defaulting to 10 seconds, and will wait for this before attempting to publish scan updates
-## 🐞Bug Fixes
+## 🐞 Bug Fixes
 - Drop duplicate update commands when update for that component already in hand
 
 # 1.9.5
@@ -226,7 +240,7 @@ title: What's New
 - Cache age stats easier to understand
 - Common packages can have a list of image names
 - Improve self-bounce behavior, allow more time for command to complete before exit
-## 🐞Bug Fixes
+## 🐞 Bug Fixes
 - Clean up lingering in progress state from previous update
 ## 📝 Other changes
 - Dependencies update
@@ -245,11 +259,11 @@ title: What's New
 - New option to emit JSON structured logs when running as server (not attached to terminal)
 ## 📝 Other changes
 - Loggers cached as per structlog best practice, and colour switched off for headless tty
-## 🐞Bug Fixes
+## 🐞 Bug Fixes
 - Fixed stacktrace logs on server having `rich` library's box drawing special chars
 
 # 1.9.2
-## 🐞Bug Fixes
+## 🐞 Bug Fixes
 - Fix handling of expired Github access token
 
 # 1.9.1
@@ -322,7 +336,7 @@ title: What's New
     - Checks topics against current discoveries vs previous session key based check
 
 # 1.7.3
-## 🐞Bug Fixes
+## 🐞 Bug Fixes
 - Minor fix for stats reporting
 
 # 1.7.2
@@ -337,7 +351,7 @@ title: What's New
 ### CLI
 - Colourful and jq friendly JSON output
 - Log level now defaults to WARNING to make it easier to pipe results to `jq`, can change to see headers using `log_level=DEBUG`
-## 🐞Bug Fixes
+## 🐞 Bug Fixes
 - Fixed issues with docker.io fetches from CLI
 
 # 1.7.1

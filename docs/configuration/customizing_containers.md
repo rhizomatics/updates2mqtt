@@ -45,7 +45,7 @@ If the chosen option isn't available, they'll all fail back to `auto`. A diagnos
 
 ## Display Names
 
-Each container shows up in Home Assistant with a title like `mosquitto Docker Image on nuc`, built from the container name, the type of update and the node name. To use a name of your own instead, set the `updates2mqtt.name` label or `UPD2MQTT_NAME` env var:
+Each container shows up in Home Assistant with a title like `mosquitto Docker Image on nuc`, built from the container name, the type of update and the node name. From v1.17.6, to use a name of your own instead, set the `updates2mqtt.name` label or `UPD2MQTT_NAME` env var:
 
 ```yaml title="docker compose snippet"
     labels:
@@ -121,7 +121,7 @@ Labels take precedence over env vars where both are set. In the list form of com
 
 None of these are required. Containers are found and checked for updates without any labels, and the location of the compose file is taken from the labels Docker Compose adds itself, so there's no need for a compose path label.
 
-Any `updates2mqtt.` label or `UPD2MQTT_` env var that isn't in this list, often a typo or a setting copied from an older guide, is logged as a warning, once per container, and otherwise ignored.
+Any `updates2mqtt.` label or `UPD2MQTT_` env var that isn't in this list, often a typo or a setting copied from an older guide, is logged as a warning, once per container, from v1.17.6, and otherwise ignored.
 
 
 ```yaml title="Example Compose Snippet"
