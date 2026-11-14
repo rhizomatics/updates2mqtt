@@ -259,7 +259,33 @@ def is_autogen_config() -> bool:
     return not is_env_complete_config()
 
 
+# U2M_ env vars read directly or via oc.env interpolation in the config dataclasses
+KNOWN_U2M_ENV_VARS: frozenset[str] = frozenset(
+    (
+        "U2M_AUTOGEN_CONFIG",
+        "U2M_LOG_LEVEL",
+        "U2M_MAX_CONCURRENT_UPDATES",
+        "U2M_REMOVE_OLD_IMAGE",
+    )
+)
+
+
+def unrecognised_env_vars(environ: typing.Mapping[str, str] | None = None) -> list[str]:
+    """Env vars that look aimed at Updates2MQTT but that it doesn't use, usually typos or from old blog posts"""
+    environ = os.environ if environ is None else environ
+    return sorted(k for k in environ if k.startswith("UPDATES2MQTT_") or (k.startswith("U2M_") and k not in KNOWN_U2M_ENV_VARS))
+
+
+def warn_unrecognised_env_vars(environ: typing.Mapping[str, str] | None = None) -> None:
+    for env_var in unrecognised_env_vars(environ):
+        log.warning(
+            "Ignoring unrecognised environment variable, see https://updates2mqtt.rhizomatics.org.uk/configuration/",
+            env_var=env_var,
+        )
+
+
 def load_app_config(conf_file_path: Path, return_invalid: bool = False) -> Config | None:
+    warn_unrecognised_env_vars()
     base_cfg: DictConfig = OmegaConf.structured(Config)
     if conf_file_path.exists():
         cfg: DictConfig = typing.cast("DictConfig", OmegaConf.merge(base_cfg, OmegaConf.load(conf_file_path)))

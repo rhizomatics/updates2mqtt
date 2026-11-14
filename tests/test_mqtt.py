@@ -1060,3 +1060,25 @@ def test_publish_hass_config_includes_availability(mock_mqtt_client: Mock, mock_
     # Home Assistant defaults of online/offline are used, so no payload overrides
     assert "payload_available" not in payload
     assert "payload_not_available" not in payload
+
+
+@pytest.mark.parametrize(("updating", "level"), [(True, "info"), (False, "warning")])
+def test_on_disconnect_failure_during_update(mock_mqtt_client: Mock, updating: bool, level: str) -> None:
+    """A broker drop while an update runs is expected when the broker itself is being recreated"""
+    config = OmegaConf.structured(MqttConfig)
+    hass_config = OmegaConf.structured(HomeAssistantConfig)
+    node_config = OmegaConf.structured(NodeConfig)
+
+    with (
+        patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client),
+        patch("asyncio.get_event_loop"),
+    ):
+        uut = MqttPublisher(config, node_config, hass_config)
+        uut.start()
+
+    provider = Mock(spec=ReleaseProvider)
+    provider.updating = updating
+    uut.providers_by_type["docker"] = provider
+    uut.log = Mock()
+    uut.on_disconnect(mock_mqtt_client, None, Mock(), ReasonCode(PacketTypes.DISCONNECT, "Unspecified error"), None)
+    assert getattr(uut.log, level).called

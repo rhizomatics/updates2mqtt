@@ -117,6 +117,10 @@ def docker_provider(cli_conf: DictConfig) -> DockerProvider:
     return docker_scanner
 
 
+def _as_dict(value: object) -> dict[str, typing.Any]:
+    return value if isinstance(value, dict) else {}
+
+
 async def dump(fmt: str, cli_conf: DictConfig) -> None:
     structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(cli_conf.get("log_level", "ERROR")))
     console = Console()
@@ -156,13 +160,16 @@ async def dump(fmt: str, cli_conf: DictConfig) -> None:
         )
         async for discovery in source:
             v = discovery.as_dict()
+            current: dict[str, typing.Any] = _as_dict(v.get("current_detail"))
+            release: dict[str, typing.Any] = _as_dict(v.get("release"))
+            last_scan: dict[str, typing.Any] = _as_dict(v.get("last_scan"))
             console.print(
                 ",".join(
-                    f'"{v}"'
-                    for v in (
+                    f'"{field}"'
+                    for field in (
                         v["name"],
-                        v["current_detail"].get("image_ref"),  # type: ignore[union-attr] #ty: ignore[unresolved-attribute]
-                        v["current_detail"].get("index_name"),  # type: ignore[union-attr] #ty: ignore[unresolved-attribute]
+                        current.get("image_ref"),
+                        current.get("index_name"),
                         v["installed_version"],
                         v["latest_version"],
                         v["version_basis"],
@@ -171,8 +178,8 @@ async def dump(fmt: str, cli_conf: DictConfig) -> None:
                         v["can_build"],
                         v["can_restart"],
                         v["update_type"],
-                        v.get("release", {}).get("source"),  # type: ignore[union-attr] #ty: ignore[unresolved-attribute]
-                        v.get("last_scan", {}).get("throttled"),  # type: ignore[union-attr] #ty: ignore[unresolved-attribute]
+                        release.get("source"),
+                        last_scan.get("throttled"),
                     )
                 )
             )

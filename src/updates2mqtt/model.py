@@ -113,6 +113,7 @@ class Discovery:
         version_policy: VersionPolicy = VersionPolicy.AUTO,
         version_basis: str | None = None,
         title_template: str = "{discovery.name} {discovery.update_type} on {discovery.node}",
+        display_name: str | None = None,
         device_icon: str | None = None,
         custom: dict[str, Any] | None = None,
         throttled: bool = False,
@@ -134,6 +135,7 @@ class Discovery:
         self.can_build: bool = can_build
         self.can_restart: bool = can_restart
         self.title_template: str | None = title_template
+        self.display_name: str | None = display_name
         self.device_icon: str | None = device_icon
         self.update_type: str | None = update_type
         self.status: str = status
@@ -196,6 +198,8 @@ class Discovery:
 
     @property
     def title(self) -> str:
+        if self.display_name:
+            return self.display_name
         if self.title_template:
             return self.title_template.format(discovery=self)
         return self.name
@@ -264,6 +268,11 @@ class ReleaseProvider:
         self.background_tasks.add(task)
         task.add_done_callback(self.background_tasks.discard)
         return task
+
+    @property
+    def updating(self) -> bool:
+        """True while an update is being applied, which may restart the MQTT broker itself"""
+        return False
 
     def __str__(self) -> str:
         """Stringify"""

@@ -182,6 +182,9 @@ class MqttPublisher:
         self.connected.clear()
         if rc == 0:
             self.log.debug("Disconnected from broker", result_code=rc)
+        elif any(provider.updating for provider in self.providers_by_type.values()):
+            # expected when the update being applied recreates the broker container, reconnects automatically
+            self.log.info("Disconnected from broker during update, will reconnect", result_code=rc)
         else:
             self.log.warning("Disconnect failure from broker", result_code=rc)
 

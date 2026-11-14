@@ -19,7 +19,7 @@ or using labels
       updates2mqtt.picture: https://frigate.video/images/logo.svg
       updates2mqtt.relnotes: https://github.com/blakeblackshear/frigate/releases
 ```
-  l
+
 The images will show up in the *Update* section of *Settings* menu in HomeAssistant,
 as will the release notes link. SVG icons should be used.
 
@@ -35,13 +35,24 @@ This can be overridden at container level using using the `updates2mqtt.version_
    - `AUTO` - to do the best it can with versions, git repo digests, timestamps, index digests or config digests
    - `VERSION` - always choose simple version unless version not available
      - Some images use version oddly, where its more of a label applying to multiple releases than a version. Also
-       there's guarantee for container images that a human friendly version always points to the same thing.
+       there's no guarantee for container images that a human friendly version always points to the same thing.
      - This is useful where you know the image has sensible versions and trust it enough
-   - `TIMESTAMP` - always use the creation timestamp of the image, where its conistent with the digests
+   - `TIMESTAMP` - always use the creation timestamp of the image, where it's consistent with the digests
    - `DIGEST` - always use the 12-char abbreviated digest, even if version available
    - `VERSION_DIGEST` - use a `version:1234567890ab` style combo of version and digest id where both available
 
-If the chosen option isn't available, they'll all fail back to `auto`. A diagnostic code, `version-select` that ties back to precisely which [code])(https://github.com/rhizomatics/updates2mqtt/blob/main/src/updates2mqtt/integrations/docker.py#L533) used is included in the attributes.
+If the chosen option isn't available, they'll all fail back to `auto`. A diagnostic code, `version-select` that ties back to precisely which [code](https://github.com/rhizomatics/updates2mqtt/blob/main/src/updates2mqtt/integrations/docker.py#L533) used is included in the attributes.
+
+## Display Names
+
+Each container shows up in Home Assistant with a title like `mosquitto Docker Image on nuc`, built from the container name, the type of update and the node name. From v1.17.6, to use a name of your own instead, set the `updates2mqtt.name` label or `UPD2MQTT_NAME` env var:
+
+```yaml title="docker compose snippet"
+    labels:
+      updates2mqtt.name: Mosquitto Broker
+```
+
+This only changes the title. The MQTT topics and the Home Assistant `unique_id` still come from the container name, so the entity id Home Assistant first created stays the same. Entities can also be renamed in Home Assistant itself, from the entity's settings.
 
 ## Silencing Containers
 
@@ -87,7 +98,7 @@ The following environment variables can be used to configure containers for `upd
 | `UPD2MQTT_RELNOTES`        | URL to release notes for the package.                                                        |                 |
 | `UPD2MQTT_GIT_REPO_PATH`   | Relative path to a local git repo if the image is built locally.                             |                 |
 | `UPD2MQTT_IGNORE`          | If set to `True`, the container will be ignored by Updates2MQTT.                             | False           |
-                        |                 |
+| `UPD2MQTT_NAME`            | Display name for the update in Home Assistant, in place of the generated title.              |                 |
 | `UPD2MQTT_VERSION_POLICY` | Change how version derived from container label or image hash, `Version`,`Digest`,`Version_Digest`,`Timestamp` with default of `Auto`|
 | `UPD2MQTT_REGISTRY_TOKEN` | Access token for authentication to container distribution API, as alternative to making a call to `token` service |
 
@@ -98,12 +109,19 @@ Alternatively, use Docker labels
 | Label                          | Env Var                    |
 |--------------------------------|----------------------------|
 | `updates2mqtt.update`          | `UPD2MQTT_UPDATE`          |
-| `updates2mqtt.picture`         | `UPD2MQTT_PCITURE`         |
+| `updates2mqtt.picture`         | `UPD2MQTT_PICTURE`         |
 | `updates2mqtt.relnotes`        | `UPD2MQTT_RELNOTES`        |
 | `updates2mqtt.git_repo_path`   | `UPD2MQTT_GIT_REPO_PATH`   |
 | `updates2mqtt.ignore`          | `UPD2MQTT_IGNORE`          |
 | `updates2mqtt.version_policy`  | `UPD2MQTT_VERSION_POLICY`  |
 | `updates2mqtt.registry_token`  | `UPD2MQTT_REGISTRY_TOKEN`  |
+| `updates2mqtt.name`            | `UPD2MQTT_NAME`            |
+
+Labels take precedence over env vars where both are set. In the list form of compose `labels`, don't put quotes around the value, since `- updates2mqtt.name="Mosquitto"` makes the quotes part of the name; use the map form shown here, or `- updates2mqtt.name=Mosquitto`.
+
+None of these are required. Containers are found and checked for updates without any labels, and the location of the compose file is taken from the labels Docker Compose adds itself, so there's no need for a compose path label.
+
+Any `updates2mqtt.` label or `UPD2MQTT_` env var that isn't in this list, often a typo or a setting copied from an older guide, is logged as a warning, once per container, from v1.17.6, and otherwise ignored.
 
 
 ```yaml title="Example Compose Snippet"

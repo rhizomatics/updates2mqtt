@@ -4,6 +4,9 @@
 
 - Some form of `apt` support, at least publishing security updates required
 - Remote config changes (see [#18](https://github.com/rhizomatics/updates2mqtt/issues/18))
+- Package up better for running as a `systemd` or `init.d` service
+  - Possibly as a `.deb` or `.rpm`
+- Update notification and possibly application for OpenWRT and similar ( Teltonika ) routers
 
 ## OCI Client
 - ~~Upgrade OCI handling~~ done in 1.17.0, as the self-contained `updates2mqtt.oci` package, see [OCI Client](../oci_client.md)
