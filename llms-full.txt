@@ -243,7 +243,7 @@ ______________________________________________________________________
 
 # 1.18.0
 
-First steps in protecting against supply chain attacks, from [RFC 0002](https://updates2mqtt.rhizomatics.org.uk/developer/design/rfcs/rfc0002-cyber_security/index.md), see [Supply Chain Protection](https://updates2mqtt.rhizomatics.org.uk/configuration/supply_chain/index.md)
+First steps in protecting against supply chain attacks, from [RFC 0002](https://updates2mqtt.rhizomatics.org.uk/developer/design/rfcs/rfc0002-cyber_security/), see [Supply Chain Protection](https://updates2mqtt.rhizomatics.org.uk/configuration/supply_chain/)
 
 ## ✨ Enhancements
 
