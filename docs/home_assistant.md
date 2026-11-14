@@ -26,10 +26,10 @@ The `homeassistant` default topic prefix matches the default Updates2MQTT config
 
 ## Device Creation
 
-A Home Assistant device will be created for each Updates2MQTT agent on each server, and Home Assistant
-will then group all the relevant entities together on this device page. Use `device_creation: false` in the 
-`homeassistant` config block if you want to switch off this behaviour, and `area` if you want to provide
-a `suggested_area` for the device.
+A Home Assistant device will be created for each Updates2MQTT agent on each server, and Home Assistant will then group all the relevant entities together on this device page. Use `device_creation: false` in the 
+`homeassistant` config block if you want to switch off this behaviour, and `area` if you want to provide a `suggested_area` for the device.
+
+![Device Info Page](images/ha_device_info.png){width=700}
 
 ## MQTT Topics
 
