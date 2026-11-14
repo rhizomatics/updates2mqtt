@@ -42,8 +42,9 @@ Updates2MQTT monitors Docker images, Portainer stacks and local Git-based builds
 
 - [Local Builds](https://updates2mqtt.rhizomatics.org.uk/local_builds/index.md): Tracking updates for locally built images
 - [Developer Documentation](https://updates2mqtt.rhizomatics.org.uk/developer/index.md): Developer documentation overview
-- [OCI Client](https://updates2mqtt.rhizomatics.org.uk/developer/oci_client/index.md): Design and use of the self-contained OCI registry client
-- [Understanding Container Metadata](https://updates2mqtt.rhizomatics.org.uk/developer/oci_container/index.md): OCI image indexes, manifests, configs and annotations, and how they are used
+- [RFC 0001 OCI Client](https://updates2mqtt.rhizomatics.org.uk/developer/design/rfcs/rfc0001-oci_client/index.md): RFC 0001, design and use of the self-contained OCI registry client, with OCI image indexes, manifests, configs and annotations in its appendix
+- [RFC 0002 Cyber Security Improvements](https://updates2mqtt.rhizomatics.org.uk/developer/design/rfcs/rfc0002-cyber_security/index.md): RFC 0002, supply chain protection with update cooldowns, digest pinning, signature verification and image scanning
+- [RFC 0003 Configuration](https://updates2mqtt.rhizomatics.org.uk/developer/design/rfcs/rfc0003-configuration/index.md): RFC 0003, options for moving configuration off OmegaConf 2.3
 - [Design Documentation](https://updates2mqtt.rhizomatics.org.uk/developer/design/index.md): Design notes
 - [Roadmap](https://updates2mqtt.rhizomatics.org.uk/developer/design/roadmap/index.md): Planned major features and improvements
 

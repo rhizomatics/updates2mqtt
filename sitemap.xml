@@ -101,22 +101,37 @@
         <changefreq>daily</changefreq>
     </url>
     <url>
-        <loc>https://updates2mqtt.rhizomatics.org.uk/developer/oci_client/</loc>
-        <lastmod>2026-11-14</lastmod>
-        <changefreq>daily</changefreq>
-    </url>
-    <url>
-        <loc>https://updates2mqtt.rhizomatics.org.uk/developer/oci_container/</loc>
-        <lastmod>2026-11-14</lastmod>
-        <changefreq>daily</changefreq>
-    </url>
-    <url>
         <loc>https://updates2mqtt.rhizomatics.org.uk/developer/design/</loc>
         <lastmod>2026-11-14</lastmod>
         <changefreq>daily</changefreq>
     </url>
     <url>
+        <loc>https://updates2mqtt.rhizomatics.org.uk/developer/design/design_principles/</loc>
+        <lastmod>2026-11-14</lastmod>
+        <changefreq>daily</changefreq>
+    </url>
+    <url>
         <loc>https://updates2mqtt.rhizomatics.org.uk/developer/design/roadmap/</loc>
+        <lastmod>2026-11-14</lastmod>
+        <changefreq>daily</changefreq>
+    </url>
+    <url>
+        <loc>https://updates2mqtt.rhizomatics.org.uk/developer/design/rfcs/</loc>
+        <lastmod>2026-11-14</lastmod>
+        <changefreq>daily</changefreq>
+    </url>
+    <url>
+        <loc>https://updates2mqtt.rhizomatics.org.uk/developer/design/rfcs/rfc0001-oci_client/</loc>
+        <lastmod>2026-11-14</lastmod>
+        <changefreq>daily</changefreq>
+    </url>
+    <url>
+        <loc>https://updates2mqtt.rhizomatics.org.uk/developer/design/rfcs/rfc0002-cyber_security/</loc>
+        <lastmod>2026-11-14</lastmod>
+        <changefreq>daily</changefreq>
+    </url>
+    <url>
+        <loc>https://updates2mqtt.rhizomatics.org.uk/developer/design/rfcs/rfc0003-configuration/</loc>
         <lastmod>2026-11-14</lastmod>
         <changefreq>daily</changefreq>
     </url>
