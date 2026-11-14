@@ -5,7 +5,7 @@ title: What's New
 # 1.18.0
 First steps in protecting against supply chain attacks, from [RFC 0002](developer/design/rfcs/rfc0002-cyber_security.md), see [Supply Chain Protection](configuration/supply_chain.md)
 ## ✨ Enhancements
-### Supply chain protection
+### Supply Chain Protection
 - Updates now install exactly the image digest found by the last scan, rather than pulling the tag, so a tag moved between the scan and the install can't swap in a different image
   - The digest is pulled, e.g. `eclipse-mosquitto@sha256:...`, then tagged locally as before, so Docker Compose and Portainer use it unchanged
   - If the digest is no longer in the registry, the update is abandoned rather than falling back to the tag, and the next scan finds the new digest
@@ -17,7 +17,8 @@ First steps in protecting against supply chain attacks, from [RFC 0002](develope
   - A future release will hold back *Auto* updates until their cooldown has passed, with notice given first
 - GitHub release publication time is captured as `published` in the release attributes
 ### Container selection
-- New `container_select` option in the `docker` config section ignores containers completely by name, e.g. experimental ones with `exclude: ["^lab_", "^beta_"]`. No patterns are set by default
+- Easily exclude experimental or one-off containers
+  - New `container_select` option in the `docker` config section ignores containers completely by name, e.g. experimental ones with `exclude: ["^lab_", "^beta_"]`. No patterns are set by default
   - Ignored containers aren't checked against registries or published, and anything published for them before is cleared at the next topic clean
 ### Single MQTT connection
 - Topic cleaning now runs on the main MQTT connection, rather than opening a second one
