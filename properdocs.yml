@@ -66,7 +66,8 @@ plugins:
           - configuration/common_packages.md: Built-in package metadata, and automatic linuxserver.io and hotio.dev lookups
           - configuration/portainer.md: Running on Portainer hosts and redeploying Portainer stacks
           - configuration/remote_api_usage.md: Remote APIs called, private registry credentials and rate limits
-          - configuration/security.md: Moving secrets out of config and other hardening
+          - configuration/security.md: Moving secrets out of config, restricting MQTT update commands and Docker API access, and other hardening
+          - configuration/supply_chain.md: Supply chain protection - digest-pinned installs, release history, version tag moves and update cooldowns
           - configuration/examples/index.md: Example configuration and Docker Compose files
           - configuration/examples/config_minimal.md: Smallest working config.yaml
           - configuration/examples/config_maximal.md: config.yaml using all features

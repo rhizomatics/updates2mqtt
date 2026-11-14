@@ -2208,12 +2208,13 @@ wheels = [
 
 [[package]]
 name = "updates2mqtt"
-version = "1.17.6"
+version = "1.18.0"
 source = { editable = "." }
 dependencies = [
     { name = "docker" },
     { name = "hishel", extra = ["httpx"] },
     { name = "httpx" },
+    { name = "niquests" },
     { name = "omegaconf" },
     { name = "paho-mqtt" },
     { name = "rich" },
@@ -2230,7 +2231,6 @@ dev = [
     { name = "genbadge", extra = ["all"] },
     { name = "icdiff" },
     { name = "mypy" },
-    { name = "niquests" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
@@ -2264,6 +2264,7 @@ requires-dist = [
     { name = "docker", specifier = ">=7.1.0" },
     { name = "hishel", extras = ["httpx"], specifier = ">=1.1.0,<2" },
     { name = "httpx", specifier = ">=0.28.1" },
+    { name = "niquests", specifier = ">=3.21.2,<4.0.0" },
     { name = "omegaconf", specifier = ">=2.3.0,<2.4.0" },
     { name = "paho-mqtt", specifier = ">=2.1.0,<3.0.0" },
     { name = "rich", specifier = ">=14.0.0" },
@@ -2280,7 +2281,6 @@ dev = [
     { name = "genbadge", extras = ["all"] },
     { name = "icdiff" },
     { name = "mypy" },
-    { name = "niquests", specifier = ">=3.21.2,<4.0.0" },
     { name = "pytest", specifier = ">=9.0.0" },
     { name = "pytest-asyncio", specifier = ">=1.2.0" },
     { name = "pytest-cov", specifier = ">=7.0.0" },

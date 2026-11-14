@@ -81,6 +81,7 @@ class GithubReleaseEnricher:
             if api_response and api_response.is_success:
                 api_results: Any = httpx_json_content(api_response, {})
                 detail.summary = api_results.get("body")
+                detail.published = api_results.get("published_at")
                 reactions = api_results.get("reactions")
                 if reactions:
                     detail.net_score = reactions.get("+1", 0) - reactions.get("-1", 0)

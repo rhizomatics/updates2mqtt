@@ -37,6 +37,7 @@ docker:
   allow_pull: true
   allow_restart: true
   allow_build: true
+  cooldown: 3d
   compose_version: v2
   default_entity_picture_url: https://www.docker.com/wp-content/uploads/2022/03/Moby-logo.png
   device_icon: mdi:docker

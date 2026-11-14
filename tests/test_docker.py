@@ -785,3 +785,151 @@ def test_container_customization_warns_unrecognised_once() -> None:
     warned = sorted(c.kwargs["setting"] for c in mock_log.warning.call_args_list)
     assert warned == ["UPD2MQTT_PCITURE", "updates2mqtt.compose_path"]
     assert uut.picture == "https://example.com/logo.svg"
+
+
+DIGEST_LATEST = "sha256:" + "d" * 64
+
+
+def registry_info(ref: str, digest: str | None = DIGEST_LATEST, origin: str = "OCI_V2") -> DockerImageInfo:
+    info = DockerImageInfo(ref)
+    info.image_digest = digest
+    info.origin = origin
+    return info
+
+
+@pytest.mark.parametrize(
+    ("ref", "expected"),
+    [
+        ("nginx", "nginx"),
+        ("nginx:latest", "nginx"),
+        ("ghcr.io/rhizomatics/updates2mqtt:1.18.0", "ghcr.io/rhizomatics/updates2mqtt"),
+        ("localhost:5000/app:1.0", "localhost:5000/app"),
+        ("localhost:5000/app", "localhost:5000/app"),
+        (f"nginx:1.27@{DIGEST_LATEST}", "nginx"),
+    ],
+)
+def test_untagged_ref(ref: str, expected: str) -> None:
+    assert mut.untagged_ref(ref) == expected
+
+
+def test_approved_digest_only_from_registry_lookups() -> None:
+    assert mut.approved_digest(registry_info("nginx:latest")) == DIGEST_LATEST
+    assert mut.approved_digest(registry_info("nginx:latest", origin="DOCKER_CLIENT")) == DIGEST_LATEST
+    assert mut.approved_digest(registry_info("nginx:latest", origin="REUSED")) is None  # local image id
+    assert mut.approved_digest(registry_info("nginx:latest", digest=None)) is None
+    assert mut.approved_digest(registry_info("nginx:latest", digest="abc")) is None
+    throttled = registry_info("nginx:latest")
+    throttled.throttled = True
+    assert mut.approved_digest(throttled) is None
+    assert mut.approved_digest(None) is None
+
+
+async def test_fetch_pulls_approved_digest_and_tags_it(mock_docker_client: DockerClient) -> None:
+    from unittest.mock import MagicMock
+
+    with patch("docker.from_env", return_value=mock_docker_client):
+        uut = mut.DockerProvider(docker_config(discover_metadata={}), NodeConfig())
+        discovery = Discovery(
+            uut,
+            "fetch-test-container",
+            "test-session",
+            "node001",
+            can_pull=True,
+            current_detail=DockerImageInfo("localhost:5000/app:2.0", platform="linux/amd64"),
+            latest_detail=registry_info("localhost:5000/app:2.0"),
+        )
+        mock_image = MagicMock()
+        mock_image.id = "sha256:abc123"
+        mock_image.tag.return_value = True
+        mock_docker_client.images.pull.return_value = mock_image  # type: ignore[attr-defined]
+
+        assert await uut.fetch(discovery) == "sha256:abc123"
+
+        mock_docker_client.images.pull.assert_called_once_with(  # type: ignore[attr-defined]
+            f"localhost:5000/app@{DIGEST_LATEST}", platform="linux/amd64", all_tags=False
+        )
+        mock_image.tag.assert_called_once_with("localhost:5000/app", "2.0")
+
+
+async def test_fetch_never_falls_back_to_tag_when_digest_gone(mock_docker_client: DockerClient) -> None:
+    with patch("docker.from_env", return_value=mock_docker_client):
+        uut = mut.DockerProvider(docker_config(discover_metadata={}), NodeConfig())
+        discovery = Discovery(
+            uut,
+            "fetch-test-container",
+            "test-session",
+            "node001",
+            can_pull=True,
+            current_detail=DockerImageInfo("nginx:latest"),
+            latest_detail=registry_info("nginx:latest"),
+        )
+        mock_docker_client.images.pull.side_effect = docker.errors.NotFound("manifest unknown")  # type: ignore[attr-defined]
+
+        assert await uut.fetch(discovery) is None
+        mock_docker_client.images.pull.assert_called_once()  # type: ignore[attr-defined]
+
+
+async def test_fetch_pinned_ref_pulls_as_before(mock_docker_client: DockerClient) -> None:
+    from unittest.mock import MagicMock
+
+    with patch("docker.from_env", return_value=mock_docker_client):
+        uut = mut.DockerProvider(docker_config(discover_metadata={}), NodeConfig())
+        pinned = f"nginx:1.27@{DIGEST_LATEST}"
+        discovery = Discovery(
+            uut,
+            "fetch-test-container",
+            "test-session",
+            "node001",
+            can_pull=True,
+            current_detail=DockerImageInfo(pinned),
+            latest_detail=registry_info(pinned),
+        )
+        mock_docker_client.images.pull.return_value = MagicMock(id="sha256:abc123")  # type: ignore[attr-defined]
+
+        await uut.fetch(discovery)
+        mock_docker_client.images.pull.assert_called_once_with(pinned, platform=None, all_tags=False)  # type: ignore[attr-defined]
+
+
+def test_supply_chain_checks_cooldown_and_label_override(mock_docker_client: DockerClient) -> None:
+    with patch("docker.from_env", return_value=mock_docker_client):
+        uut = mut.DockerProvider(docker_config(discover_metadata={}, cooldown="2d"), NodeConfig())
+        customization = ContainerCustomization(Container())
+        local = DockerImageInfo("eclipse-mosquitto:2.0.18")
+        logger = Mock()
+
+        cooldown, tag_move = uut.supply_chain_checks(
+            customization, local, registry_info("eclipse-mosquitto:2.0.18"), None, True, logger
+        )
+        assert cooldown is not None
+        assert cooldown.policy == "2d"
+        assert cooldown.active()
+        assert not cooldown.enforced
+        assert tag_move is None
+
+        customization.cooldown = "0"
+        assert uut.supply_chain_checks(customization, local, registry_info("eclipse-mosquitto:2.0.18"), None, True, logger) == (
+            None,
+            None,
+        )
+
+        customization.cooldown = "whenever"
+        cooldown, _ = uut.supply_chain_checks(
+            customization, local, registry_info("eclipse-mosquitto:2.0.18"), None, True, logger
+        )
+        assert cooldown is not None
+        assert cooldown.policy == "2d"  # falls back to the docker setting
+        logger.warning.assert_called_once()
+
+
+def test_supply_chain_checks_no_update_still_records_tag_move(mock_docker_client: DockerClient) -> None:
+    with patch("docker.from_env", return_value=mock_docker_client):
+        uut = mut.DockerProvider(docker_config(discover_metadata={}), NodeConfig())
+        customization = ContainerCustomization(Container())
+        local = DockerImageInfo("eclipse-mosquitto:2.0.18")
+        uut.supply_chain_checks(customization, local, registry_info("eclipse-mosquitto:2.0.18"), None, False, Mock())
+        cooldown, tag_move = uut.supply_chain_checks(
+            customization, local, registry_info("eclipse-mosquitto:2.0.18", digest="sha256:" + "e" * 64), None, False, Mock()
+        )
+        assert cooldown is None
+        assert tag_move is not None
+        assert tag_move.previous_digest == DIGEST_LATEST

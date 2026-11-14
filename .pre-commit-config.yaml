@@ -77,6 +77,8 @@ repos:
     rev: v1.7.12
     hooks:
       - id: actionlint
+        env:
+          SHELLCHECK_OPTS: --exclude=SC2086
 
   - repo: https://github.com/astral-sh/ty-pre-commit
     rev: v0.0.99

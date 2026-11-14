@@ -14,6 +14,7 @@ from tzlocal import get_localzone
 
 from updates2mqtt.config import NodeConfig, PublishPolicy, StrKeyedDict, UpdatePolicy, VersionPolicy
 from updates2mqtt.helpers import sanitize_name, timestamp
+from updates2mqtt.supply_chain import CooldownStatus, TagMove
 
 
 class DiscoveryDetail:
@@ -69,6 +70,7 @@ class ReleaseDetail(DiscoveryDetail):
         self.title: str | None = None
         self.summary: str | None = summary
         self.net_score: int | None = None
+        self.published: str | None = None  # when the source release was published, ISO 8601
 
     def as_dict(self) -> StrKeyedDict:
         if not self.summary and self.diff_url:
@@ -88,6 +90,7 @@ class ReleaseDetail(DiscoveryDetail):
             "notes_url": self.notes_url,
             "summary": summary,
             "net_score": str(self.net_score) if self.net_score is not None else None,
+            "published": self.published,
         }
 
 
@@ -122,6 +125,8 @@ class Discovery:
         installation_detail: DiscoveryInstallationDetail | None = None,
         current_detail: DiscoveryArtefactDetail | None = None,
         latest_detail: DiscoveryArtefactDetail | None = None,
+        cooldown: CooldownStatus | None = None,
+        tag_move: TagMove | None = None,
     ) -> None:
         self.provider: ReleaseProvider = provider
         self.source_type: str = provider.source_type
@@ -154,6 +159,8 @@ class Discovery:
         self.current_detail: DiscoveryArtefactDetail | None = current_detail
         self.latest_detail: DiscoveryArtefactDetail | None = latest_detail
         self.installation_detail: DiscoveryInstallationDetail | None = installation_detail
+        self.cooldown: CooldownStatus | None = cooldown  # supply chain cooldown for the latest version, RFC 0002
+        self.tag_move: TagMove | None = tag_move  # versioned tag seen pointing at a different digest
 
         if previous:
             self.update_last_attempt = previous.update_last_attempt
@@ -236,6 +243,8 @@ class Discovery:
             results["release"] = self.release_detail.as_dict() if self.release_detail else None
         if self.custom:
             results[self.source_type] = self.custom
+        results["cooldown"] = self.cooldown.as_dict() if self.cooldown else None
+        results["tag_moved"] = self.tag_move.as_dict() if self.tag_move else None
         return results
 
 

@@ -1,4 +1,5 @@
 import asyncio
+import datetime as dt
 import os
 import random
 import re
@@ -48,6 +49,15 @@ from updates2mqtt.integrations.docker_enrich import (
 from updates2mqtt.integrations.github_enrich import GithubReleaseEnricher
 from updates2mqtt.integrations.portainer import PortainerClient, is_portainer_image
 from updates2mqtt.model import Discovery, ReleaseDetail, ReleaseProvider
+from updates2mqtt.supply_chain import (
+    CooldownStatus,
+    ReleaseHistory,
+    Sighting,
+    TagMove,
+    evaluate_cooldown,
+    parse_duration,
+    parse_timestamp,
+)
 
 from .git_utils import git_check_update_available, git_iso_timestamp, git_local_digest, git_pull, git_trust
 
@@ -90,6 +100,26 @@ def safe_json_dt(t: float | None) -> str | None:
     return time.strftime("%Y-%m-%dT%H:%M:%S.0000", time.gmtime(t)) if t else None
 
 
+# lookups that report the digest the tag points to in the registry, so it can be pulled by digest
+PULLABLE_DIGEST_ORIGINS: frozenset[str] = frozenset(("OCI_V2", "OCI_V2_MINIMAL", "DOCKER_CLIENT"))
+
+
+def approved_digest(latest_info: DockerImageInfo | None) -> str | None:
+    """The registry digest the last scan found for the tag, which an update should install"""
+    if latest_info is None or latest_info.origin not in PULLABLE_DIGEST_ORIGINS or latest_info.throttled:
+        return None
+    digest: str | None = latest_info.image_digest
+    return digest if digest and digest.startswith("sha256:") else None
+
+
+def untagged_ref(image_ref: str) -> str:
+    """Strip any tag or digest from an image ref, allowing for a registry port, e.g. localhost:5000/app:1.0"""
+    ref: str = image_ref.split("@", 1)[0]
+    head, _, last = ref.rpartition("/")
+    name: str = last.split(":", 1)[0]
+    return f"{head}/{name}" if head else name
+
+
 class ContainerCustomization:
     """Local customization of a Docker container, by label or env var"""
 
@@ -107,6 +137,7 @@ class ContainerCustomization:
         self.version_policy: VersionPolicy | None = None
         self.registry_token: str | None = None
         self.name: str | None = None  # display name in Home Assistant
+        self.cooldown: str | None = None  # overrides the docker cooldown, e.g. 72h, 3d, or 0 for none
 
         if not container.attrs or container.attrs.get("Config") is None:
             return
@@ -186,10 +217,14 @@ class DockerProvider(ReleaseProvider):
         packages: dict[str, PackageUpdateInfo] | None = None,
         github_cfg: GitHubConfig | None = None,
         self_bounce: Event | None = None,
+        release_history: ReleaseHistory | None = None,
     ) -> None:
         super().__init__(node_cfg, "docker")
         self.client: docker.DockerClient = docker.from_env()
         self.cfg: DockerConfig = cfg
+        # first sightings of each digest, in memory only unless given a persistent one
+        self.release_history: ReleaseHistory = release_history or ReleaseHistory()
+        self.warned_cooldowns: set[str] = set()
         # asyncio primitives bind to the running loop on first use, so safe to create here
         self.update_slots: asyncio.Semaphore = asyncio.Semaphore(self.max_concurrent_updates())
         # compose and Portainer act on a whole project/stack, so serialize those per project
@@ -314,6 +349,16 @@ class DockerProvider(ReleaseProvider):
 
         image_ref: str | None = installed_info.ref if installed_info else None
         platform: str | None = installed_info.platform if installed_info else None
+        digest: str | None = approved_digest(cast("DockerImageInfo|None", discovery.latest_detail))
+        if (
+            discovery.can_pull
+            and image_ref
+            and installed_info
+            and digest
+            and installed_info.tag
+            and not installed_info.pinned_digest
+        ):
+            return await self.pull_approved(image_ref, installed_info.tag, digest, platform, logger)
         if discovery.can_pull and image_ref:
             logger.info("Pulling", image_ref=image_ref, platform=platform)
             # Docker SDK is blocking, so pull in a worker thread to leave the event loop free
@@ -338,6 +383,67 @@ class DockerProvider(ReleaseProvider):
                 else:
                     logger.debug("Skipping git_pull, no update")
         return None
+
+    async def pull_approved(self, image_ref: str, tag: str, digest: str, platform: str | None, logger: Any) -> str | None:
+        """Pull exactly the digest found by the last scan, then tag it locally so compose and Portainer use it
+
+        Pulling the tag instead would take whatever the registry serves at install time, which may not be what
+        was checked. If the digest has gone, the update fails rather than falling back to the tag.
+        """
+        repository: str = untagged_ref(image_ref)
+        pull_ref: str = f"{repository}@{digest}"
+        logger.info("Pulling approved digest", image_ref=pull_ref, tag=tag, platform=platform)
+        try:
+            image: Image = await asyncio.to_thread(self.pull_image, pull_ref, platform)
+        except docker.errors.APIError as e:
+            logger.warning(
+                "Approved digest not pulled, update abandoned rather than pulling the tag: %s", e, image_ref=pull_ref
+            )
+            return None
+        if not image:
+            logger.warning("Unable to pull approved digest", image_ref=pull_ref, platform=platform)
+            return None
+        if not await asyncio.to_thread(image.tag, repository, tag):
+            logger.warning("Pulled approved digest but unable to tag it", image_ref=pull_ref, tag=tag)
+            return None
+        logger.info("Pulled", image_id=image.id, image_ref=pull_ref, tag=tag, platform=platform)
+        return image.id
+
+    def supply_chain_checks(
+        self,
+        customization: ContainerCustomization,
+        local_info: DockerImageInfo,
+        latest_info: DockerImageInfo,
+        release_info: ReleaseDetail | None,
+        update_available: bool,
+        logger: Any,
+    ) -> tuple[CooldownStatus | None, TagMove | None]:
+        """Record the latest digest, report a moved versioned tag, and the cooldown if there's an update"""
+        digest: str | None = approved_digest(latest_info)
+        if digest is None or local_info.pinned_digest:
+            return None, None
+        sighting: Sighting = self.release_history.observe(
+            f"{local_info.index_name}/{local_info.name}", digest, tag=local_info.tag
+        )
+        if not update_available:
+            return None, sighting.tag_move
+
+        policy: str = str(customization.cooldown or self.cfg.cooldown)
+        duration: dt.timedelta | None = parse_duration(policy)
+        if duration is None:
+            if policy not in self.warned_cooldowns:
+                self.warned_cooldowns.add(policy)
+                logger.warning("Invalid cooldown %s, expected e.g. 72h, 3d or 0, using %s", policy, self.cfg.cooldown)
+            policy = str(self.cfg.cooldown)
+            duration = parse_duration(policy)
+        if not duration:
+            return None, sighting.tag_move
+        cooldown: CooldownStatus = evaluate_cooldown(
+            policy, duration, sighting.first_seen, parse_timestamp(release_info.published if release_info else None)
+        )
+        if cooldown.active():
+            logger.debug("Update would be held by cooldown until %s (observe only)", cooldown.until.isoformat())
+        return cooldown, sighting.tag_move
 
     def pull_image(self, image_ref: str, platform: str | None) -> "Image":
         return self.client.images.pull(image_ref, platform=platform, all_tags=False)
@@ -808,6 +914,15 @@ class DockerProvider(ReleaseProvider):
                 version_policy, local_info, latest_info
             )
 
+            cooldown, tag_move = self.supply_chain_checks(
+                customization,
+                local_info,
+                latest_info,
+                release_info,
+                public_installed_version != public_latest_version,
+                logger,
+            )
+
             publish_policy: PublishPolicy = PublishPolicy.HOMEASSISTANT
             img_ref_selection = Selection(self.cfg.image_ref_select, local_info.ref)
             version_selection = Selection(self.cfg.version_select, latest_info.version)
@@ -842,6 +957,8 @@ class DockerProvider(ReleaseProvider):
                 installation_detail=service_info,
                 current_detail=local_info,
                 latest_detail=latest_info,
+                cooldown=cooldown,
+                tag_move=tag_move,
             )
             logger.debug("Analyze generated discovery: %s", discovery)
             return discovery

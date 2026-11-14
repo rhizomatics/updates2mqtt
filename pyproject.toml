@@ -7,7 +7,7 @@ authors = [
 ]
 
 requires-python = ">=3.13"
-version = "1.17.6"
+version = "1.18.0"
 license="Apache-2.0"
 keywords=["mqtt", "docker", "oci","container","updates", "automation","home-assistant","homeassistant","selfhosting"]
 
@@ -20,7 +20,8 @@ dependencies = [
   "httpx>=0.28.1",
   "hishel[httpx]>=1.1.0,<2",
   "usingversion>=0.1.2",
-  "tzlocal>=5.3.1"
+  "tzlocal>=5.3.1",
+  "niquests>=3.21.2,<4.0.0",
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -69,8 +70,7 @@ dev = [
     "codespell",
     "mypy",
     "types-docker>=7.2.0.20260827,<8.0.0.0",
-    "types-pyyaml>=6.0.12.20260906,<7.0.0.0",
-    "niquests>=3.21.2,<4.0.0",
+    "types-pyyaml>=6.0.12.20260906,<7.0.0.0"
 ]
 docs=[
     "properdocs",

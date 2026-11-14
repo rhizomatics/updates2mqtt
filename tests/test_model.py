@@ -401,3 +401,27 @@ def test_discovery_title_display_name_overrides_template(mock_provider: ReleaseP
     )
     assert uut.title == "My App Update"
     assert uut.name == "my-app"
+
+
+def test_discovery_as_dict_supply_chain(mock_provider: ReleaseProvider) -> None:
+    import datetime as dt
+
+    from updates2mqtt.supply_chain import TagMove, evaluate_cooldown
+
+    first_seen = dt.datetime(2026, 11, 1, tzinfo=dt.UTC)
+    uut = Discovery(
+        mock_provider,
+        "my-app",
+        "sess001",
+        "server01",
+        cooldown=evaluate_cooldown("3d", dt.timedelta(days=3), first_seen),
+        tag_move=TagMove("2.0.18", "sha256:aaa", "sha256:bbb", first_seen),
+    )
+    attrs: dict[str, Any] = dict(uut.as_dict())
+    assert attrs["cooldown"]["until"] == "2026-11-04T00:00:00+00:00"
+    assert attrs["cooldown"]["enforced"] is False
+    assert attrs["tag_moved"]["previous_digest"] == "sha256:aaa"
+
+    plain = Discovery(mock_provider, "my-app", "sess001", "server01").as_dict()
+    assert plain["cooldown"] is None
+    assert plain["tag_moved"] is None

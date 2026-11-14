@@ -19,10 +19,13 @@ from updates2mqtt.model import Discovery, ReleaseProvider
 from .config import Config, PublishPolicy, UpdatePolicy, load_app_config
 from .integrations.docker import DockerProvider
 from .mqtt import MqttPublisher
+from .supply_chain import ReleaseHistory
 
 log = structlog.get_logger()
 
 CONF_FILE = Path("conf/config.yaml")
+# kept with the config, as conf is always a mounted volume, so survives container recreation
+RELEASE_HISTORY_FILE = CONF_FILE.parent / "release_history.json"
 UPDATE_INTERVAL = 60 * 60 * 4
 # Docker allows 10s after SIGTERM before killing, so leave time for the offline publish
 SHUTDOWN_TASK_TIMEOUT = 5
@@ -97,6 +100,7 @@ class App:
                     packages=self.cfg.packages,
                     github_cfg=self.cfg.github,
                     self_bounce=self.self_bounce,
+                    release_history=ReleaseHistory(RELEASE_HISTORY_FILE),
                 )
             )
         self.stopped = Event()
