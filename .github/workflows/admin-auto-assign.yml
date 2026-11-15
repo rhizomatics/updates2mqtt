@@ -1,4 +1,4 @@
-# Managed by rhizomatics/.github (scripts/sync-admin.sh) - edit there, not here.
+# Managed by rhizomatics/hq (admin/sync-admin.sh) - edit there, not here.
 name: Auto assign
 
 on:
@@ -13,4 +13,4 @@ jobs:
     permissions:
       issues: write
       pull-requests: write
-    uses: rhizomatics/.github/.github/workflows/reusable-auto-assign.yml@4e24df59a184885f400e8dbfd077b2c1bdbc7526 # 1.0.0
+    uses: rhizomatics/hq/.github/workflows/reusable-auto-assign.yml@5c22e38809c2209b38d5ed13e2a8ea01b9c2d96e # v1.0.0
