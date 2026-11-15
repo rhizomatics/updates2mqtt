@@ -139,7 +139,7 @@ MQTTを活用したセルフホスティングに役立つ他のアプリ：
 
 ## Home Assistant向け Rhizomatics オープンソース
 
-### HACS
+### Home Assistant Marketplace
 - [AutoArm](https://autoarm.rhizomatics.org.uk) - 物理ボタン、在室検知、カレンダー、太陽情報などを使用してHome Assistantの警報コントロールパネルを自動的にアームおよびディスアーム
 - [Remote Logger](https://remote-logger.rhizomatics.org.uk) - Home Assistant用のOpenTelemetry（OTLP）およびSyslogイベントキャプチャ
 - [Supernotify](https://supernotify.rhizomatics.org.uk) - 強力なチャイムとセキュリティカメラ統合を含む、簡単なマルチチャンネルメッセージング向け統合通知。

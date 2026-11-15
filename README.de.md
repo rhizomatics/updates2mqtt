@@ -139,7 +139,7 @@ Diese Komponente basiert auf mehreren Open-Source-Paketen:
 
 ## Rhizomatics Open Source für Home Assistant
 
-### HACS
+### Home Assistant Marketplace
 - [AutoArm](https://autoarm.rhizomatics.org.uk) - Automatisches Scharf- und Unscharfschalten von Home Assistant Alarmzentralen mit physischen Tasten, Anwesenheit, Kalendern, Sonne und mehr
 - [Remote Logger](https://remote-logger.rhizomatics.org.uk) - OpenTelemetry (OTLP) und Syslog-Ereigniserfassung für Home Assistant
 - [Supernotify](https://supernotify.rhizomatics.org.uk) - Einheitliche Benachrichtigung für einfaches Multi-Kanal-Messaging, einschließlich leistungsstarker Türklingel- und Sicherheitskamera-Integration.

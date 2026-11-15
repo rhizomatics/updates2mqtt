@@ -139,7 +139,7 @@ restarter:
 
 ## 面向 Home Assistant 的 Rhizomatics 开源项目
 
-### HACS
+### Home Assistant Marketplace
 - [AutoArm](https://autoarm.rhizomatics.org.uk) - 使用实体按钮、人员检测、日历、太阳及更多条件自动布防和撤防 Home Assistant 报警控制面板
 - [Remote Logger](https://remote-logger.rhizomatics.org.uk) - 适用于 Home Assistant 的 OpenTelemetry (OTLP) 和 Syslog 事件采集
 - [Supernotify](https://supernotify.rhizomatics.org.uk) - 统一通知，实现简便的多渠道消息推送，包括强大的门铃和安防摄像头集成。

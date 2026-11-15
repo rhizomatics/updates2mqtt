@@ -139,7 +139,7 @@ MQTT की मदद से सेल्फ-होस्टिंग के ल
 
 ## Home Assistant के लिए Rhizomatics Open Source
 
-### HACS
+### Home Assistant Marketplace
 - [AutoArm](https://autoarm.rhizomatics.org.uk) - भौतिक बटन, उपस्थिति, कैलेंडर, सूर्य और अधिक का उपयोग करके Home Assistant अलार्म नियंत्रण पैनल को स्वचालित रूप से सशस्त्र और निरस्त्र करें
 - [Remote Logger](https://remote-logger.rhizomatics.org.uk) - Home Assistant के लिए OpenTelemetry (OTLP) और Syslog इवेंट कैप्चर
 - [Supernotify](https://supernotify.rhizomatics.org.uk) - शक्तिशाली चाइम और सुरक्षा कैमरा एकीकरण सहित आसान मल्टी-चैनल मैसेजिंग के लिए एकीकृत अधिसूचना।
