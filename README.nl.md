@@ -139,7 +139,7 @@ Dit component maakt gebruik van verschillende open source-pakketten:
 
 ## Rhizomatics Open Source voor Home Assistant
 
-### HACS
+### Home Assistant Marketplace
 - [AutoArm](https://autoarm.rhizomatics.org.uk) - Automatisch in- en uitschakelen van Home Assistant alarmbedieningspanelen met fysieke knoppen, aanwezigheid, kalenders, zon en meer
 - [Remote Logger](https://remote-logger.rhizomatics.org.uk) - OpenTelemetry (OTLP) en Syslog-gebeurtenisopname voor Home Assistant
 - [Supernotify](https://supernotify.rhizomatics.org.uk) - Uniforme notificatie voor eenvoudige multi-channel messaging, inclusief krachtige integratie van deurbellen en beveiligingscamera's.

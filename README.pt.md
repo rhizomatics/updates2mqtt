@@ -139,7 +139,7 @@ Este componente depende de vários pacotes de código aberto:
 
 ## Rhizomatics Open Source para Home Assistant
 
-### HACS
+### Home Assistant Marketplace
 - [AutoArm](https://autoarm.rhizomatics.org.uk) - Armar e desarmar automaticamente painéis de controle de alarme do Home Assistant usando botões físicos, presença, calendários, sol e muito mais
 - [Remote Logger](https://remote-logger.rhizomatics.org.uk) - Captura de eventos OpenTelemetry (OTLP) e Syslog para Home Assistant
 - [Supernotify](https://supernotify.rhizomatics.org.uk) - Notificação unificada para mensagens multicanais fáceis, incluindo poderosa integração de campainha e câmera de segurança.
