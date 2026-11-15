@@ -4,7 +4,7 @@
 FROM docker:29.9.3-cli AS docker-cli
 FROM docker/buildx-bin:0.38.2 AS docker-buildx
 FROM docker/compose-bin:v5.7.0 AS docker-compose
-FROM ghcr.io/astral-sh/uv:0.13.7 AS uv
+FROM ghcr.io/astral-sh/uv:0.13.8 AS uv
 
 
 FROM python:3.14-slim AS builder
