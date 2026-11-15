@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+
+{% block extrahead %}
+  {{ super() }}
+  {# Page views: GoatCounter, cookieless, so no consent banner (hq policies/project_standards.md) #}
+  <script data-goatcounter="https://updates2mqtt.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+{% endblock %}

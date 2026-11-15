@@ -8,6 +8,7 @@ edit_uri: edit/main/docs/
 
 theme:
   name: materialx
+  custom_dir: overrides
   highlightjs: true
   logo: images/updates2mqtt-dark-256x256.png
   language: en
