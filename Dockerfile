@@ -4,10 +4,10 @@
 FROM docker:29.9.3-cli AS docker-cli
 FROM docker/buildx-bin:0.38.2 AS docker-buildx
 FROM docker/compose-bin:v5.7.0 AS docker-compose
-FROM ghcr.io/astral-sh/uv:0.13.7 AS uv
+FROM ghcr.io/astral-sh/uv:0.13.8 AS uv
 
 
-FROM python:3.14-slim AS builder
+FROM python:3.15-slim AS builder
 
 # Build stage: uv and the build backend stay here, only the finished venv is copied to the runtime image
 COPY --from=uv /uv /bin/uv
@@ -28,7 +28,7 @@ ADD README.md /app/README.md
 RUN uv sync --locked --no-editable
 
 
-FROM python:3.14-slim
+FROM python:3.15-slim
 
 RUN apt-get -y update && apt-get -y upgrade && \
   apt-get -y install git ca-certificates mosquitto-clients jq && \
