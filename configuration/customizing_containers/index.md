@@ -156,3 +156,28 @@ restarter:
     labels:
         updates2mqtt.relnotes: https://component.my.com/release_notes
 ```
+
+## Where Settings Have to be Set
+
+From v1.19.0, only the picture, release notes and display name settings are accepted when they come from the image itself, that is from a `LABEL` or `ENV` in its Dockerfile. All the others decide what gets updated, when, and where commands are run, so they have to be set on the container, in the compose file, an `.env` file or the `docker run` command. This stops an image opting itself into automatic updates, switching off its own cooldown, or hiding itself from update checks.
+
+A setting that’s ignored for this reason is logged once per container as `Ignoring container setting supplied by the image`. If you build your own images with these settings baked in, move them to the compose file. Setting the same value in the compose file as the image already has doesn’t count, since Docker reports the two identically.
+
+The picture and release notes settings must be `http://` or `https://` URLs, anything else is ignored.
+
+### Trusting an image’s own settings
+
+If you do want an image to carry its own settings, typically one you build and publish yourself, list it as `trust_image_settings` in the `docker` section of the config. Every setting is then accepted from that image’s labels and environment, as it was before v1.19.0:
+
+config.yaml snippet
+
+```yaml
+docker:
+  trust_image_settings:
+    - ghcr.io/myorg/myapp
+    - registry.example.com/tools/backup:2.1
+```
+
+Each entry is an image ref exactly as it’s written in the compose file. Without a tag it covers that image at any tag or digest, and with a tag or digest it covers only that one. Wildcards and patterns such as `ghcr.io/myorg/*` are refused, and logged at startup, so that trust is always given to a named image, not to everything in a registry or organisation.
+
+Trusting an image means trusting everyone who can push to it: with these settings it can turn on automatic updates for itself, and choose where git commands are run.

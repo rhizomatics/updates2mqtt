@@ -40,6 +40,8 @@ docker:
   allow_pull: true # if true, will do a `docker pull` if an update is available
   allow_restart: true # if true, will do a `docker-compose up` if an update is installed
   allow_build: true # if true, will do a `docker-compose build` if a git repo is configured
+  git_repo_roots: [] # directories local build git repos must be inside, e.g. [/home/containers], any path if empty
+  trust_image_settings: [] # images allowed to supply any setting from their own labels, exact refs only, no wildcards
   remove_old_image: false # if true, removes the replaced image after a successful update, unless still in use
   max_concurrent_updates: 3 # updates run in parallel up to this many, others wait for a free slot
   cooldown: 3d # how long a release must be known before it's eligible, reported only for now, see Supply Chain Protection

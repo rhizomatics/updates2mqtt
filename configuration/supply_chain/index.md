@@ -17,6 +17,11 @@ Now an update pulls the exact digest found by the last scan, e.g. `eclipse-mosqu
 
 This applies when the registry check is enabled. Containers with a digest pinned in their compose file, e.g. `nginx:1.27@sha256:...`, are pulled by that ref, as before.
 
+From v1.19.0:
+
+- `docker compose up` is run with `--pull never`, so a service with `pull_policy: always` can’t have Compose pull the tag again, and replace the image that was checked
+- If the last scan has no digest for the image, for example because the registry was rate limiting, an *Auto* update is skipped until a scan finds one. An update asked for from Home Assistant still pulls the tag, with a warning in the log
+
 ## Release history
 
 Updates2MQTT records when it first saw each image digest, in `release_history.json` alongside `config.yaml` in the `conf` directory. It’s kept there because `conf` is always a mounted volume, so the history survives the Updates2MQTT container being recreated, including when it updates itself.

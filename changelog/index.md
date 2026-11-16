@@ -2,6 +2,66 @@ ______________________________________________________________________
 
 ## title: What’s New
 
+# 1.19.0
+
+Security hardening, following an audit of how container settings, git, MQTT commands and the build pipeline could be misused. See [Improving Security](https://updates2mqtt.rhizomatics.org.uk/configuration/security/)
+
+## 🔒 Security
+
+### Container settings
+
+- **Breaking:** settings that come from an image’s own labels or environment, rather than being set on the container, are now ignored, apart from the picture, release notes and display name. An image could otherwise opt itself into *Auto* updates, switch off its cooldown, hide itself from update checks, or choose where git is run
+- Set `updates2mqtt.*` labels and `UPD2MQTT_*` env vars in the compose file, `.env` file or `docker run` command, as most installs already do
+- A setting ignored for this reason is logged once per container
+- Docker Compose labels supplied by an image, not by Compose, are ignored, so an image can’t choose the directory `docker compose` runs in
+- Picture and release notes settings are only accepted as `http://` or `https://` URLs
+- New `trust_image_settings` option in the `docker` config section names images, such as your own, whose settings are all accepted as before. Entries are exact image refs, and wildcards are refused
+
+### Local builds
+
+- Git commands are no longer run through a shell, so a repo path can’t inject commands
+- Repos are no longer added to the global git `safe.directory` list. Each git command marks its repo as safe for that command only, and runs with `ext::` remotes, `core.fsmonitor` and hooks switched off
+- New `git_repo_roots` option in the `docker` config section limits local build repos to the listed directories
+- Git is no longer run during scans when `allow_build` is off
+
+### Installing updates
+
+- `docker compose up` now runs with `--pull never`, so a service with `pull_policy: always` can’t replace the checked image by pulling the tag again
+- An *Auto* update is skipped, until the next scan, if there’s no digest from the registry to pull by. Updates asked for from Home Assistant still pull the tag in that case, with a warning
+
+### MQTT
+
+- Retained messages on the command topic are ignored, as they’d repeat the install on every reconnect
+- Commands can name the digest they expect, as `docker|<container>|install|sha256:...`, and are ignored if the latest scan found a different one
+- A warning is logged at startup if the connection to a broker on another host isn’t encrypted
+
+### Secrets
+
+- Container environment variables are no longer logged when analyzing a container fails, and the `registry_token` setting is masked in debug logs
+- A generated `config.yaml` is created readable only by its owner, and a warning is logged for an existing one that holds secrets and is readable by all users
+- GitHub release lookups, which send the access token if one is configured, are only made for an exact `https://github.com/owner/repo` source URL
+
+### Docker image
+
+- **Breaking:** `mosquitto-clients` (`mosquitto_sub`, `mosquitto_pub`) and `jq` are no longer in the image, as the healthcheck stopped using them in 1.18.0. Use `u2m-cli mqtt=check` to test the broker connection from inside the container
+- Version tags, such as `1.19.0`, are now immutable. Publishing fails if the tag is already in the registry
+- The weekly rebuild for base image and system package fixes is published as a revision, `1.19.0-r1`, `1.19.0-r2` and so on, with the floating `1.19` and `release` tags moving to it
+- The base image is pinned by digest, which Dependabot moves after its usual cooldown. The weekly rebuild only moves to a newer base image digest once it’s been published for 7 days
+
+## 📝 Other changes
+
+- Pull request documentation builds run in their own read-only CI job, separate from the job that publishes docs from `main`
+- The last GitHub Action referenced by tag is now pinned by commit SHA
+- The published image is signed with cosign, using the release workflow’s identity, and carries an SBOM attestation
+- Linting no longer exempts `shell=True` subprocess calls
+- Example compose file sets `no-new-privileges`
+- `SECURITY.md` added, with how to report a vulnerability
+
+## 📚 Documentation
+
+- [Improving Security](https://updates2mqtt.rhizomatics.org.uk/configuration/security/) has a new section on the protections that have to be set up by hand, such as running as a non-root user, a read-only filesystem, and other containers that hold the Docker socket, and how to verify the published image
+- README healthcheck description brought up to date, in all languages
+
 # 1.18.0
 
 First steps in protecting against supply chain attacks, from [RFC 0002](https://updates2mqtt.rhizomatics.org.uk/developer/design/rfcs/rfc0002-cyber_security/), see [Supply Chain Protection](https://updates2mqtt.rhizomatics.org.uk/configuration/supply_chain/)
