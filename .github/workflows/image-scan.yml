@@ -1,6 +1,14 @@
 # Scans the published image for vulnerabilities that have a fix available. The base image and apt
 # packages only change when the image is rebuilt, so the weekly run rebuilds the latest release
-# under its existing version tags when a rebuild would pick up a fix. No new release is needed.
+# when a rebuild would pick up a fix. No new release is needed.
+#
+# Version tags are immutable, so a rebuild is published as a new revision, e.g. `1.18.0-r1`, and the
+# floating `1.18` and `release` tags move to it, see docker-publish.yml.
+#
+# The base image is pinned by digest in the Dockerfile. A rebuild moves to the tag's current digest
+# only once that has been out for BASE_COOLDOWN_DAYS, the same wait Dependabot applies before it
+# proposes the new digest for the next release. Debian's apt packages have no such wait, a rebuild
+# takes whatever the Debian security archive has that day.
 #
 # Findings go to code scanning. The scan after each publish closes those the rebuild fixed, so what
 # stays open needs a person: a locked Python dependency, a pinned Docker tool waiting on a version
@@ -24,6 +32,7 @@ permissions: {}
 
 env:
   IMAGE: ghcr.io/${{ github.repository }}:release
+  BASE_COOLDOWN_DAYS: 7
 
 jobs:
   scan:
@@ -78,7 +87,8 @@ jobs:
       # Only apt packages and the base image's own binaries change on a rebuild. Python packages are
       # held by uv.lock, and the Docker CLI, buildx and compose by the image tags pinned at the top of
       # the Dockerfile, so their Go modules and binaries need a Dependabot bump and never count here;
-      # otherwise a fix only a version bump can bring would rebuild and re-push the release every week.
+      # otherwise a fix only a version bump can bring would rebuild and publish a new revision every week.
+      # Apt packages are upgraded by any rebuild, the base image's binaries only by a newer base image.
       - name: Count what a rebuild would fix
         id: fixable
         env:
@@ -86,16 +96,63 @@ jobs:
         run: |
           severe='select(.vulnerability.severity | ascii_downcase | . == "critical" or . == "high")'
           pinned='[.artifact.locations[]?.path] | any(startswith("/usr/local/bin/docker") or startswith("/usr/libexec/docker/"))'
-          count=$(jq "[.matches[] | select(.artifact.type == \"deb\" or .artifact.type == \"binary\") | select($pinned | not) | $severe] | length" "$REPORT")
-          echo "$count critical/high findings a rebuild would fix"
-          echo "count=$count" >> "$GITHUB_OUTPUT"
+          apt=$(jq "[.matches[] | select(.artifact.type == \"deb\") | $severe] | length" "$REPORT")
+          base=$(jq "[.matches[] | select(.artifact.type == \"binary\") | select($pinned | not) | $severe] | length" "$REPORT")
+          echo "$apt critical/high findings an apt upgrade would fix, $base a newer base image might"
+          echo "apt=$apt" >> "$GITHUB_OUTPUT"
+          echo "base=$base" >> "$GITHUB_OUTPUT"
 
-      # Never on workflow_run: that is the scan after a publish, and rebuilding from it could loop
-      - name: Rebuild the latest release
-        if: steps.fixable.outputs.count != '0' && (github.event_name == 'schedule' || inputs.rebuild)
+      # The newest digest of the base image tag, if it differs from the one pinned in the release's
+      # Dockerfile and has been published for the cooldown. Docker Hub reports when a tag was last
+      # pushed, which is when its current digest appeared.
+      - name: Find a base image past its cooldown
+        id: base
+        if: github.event_name == 'schedule' || inputs.rebuild
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)
-          echo "Rebuilding $tag"
-          gh workflow run docker-publish.yml --ref "$tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+          pinned=$(gh api -H "Accept: application/vnd.github.raw" "repos/$GITHUB_REPOSITORY/contents/Dockerfile?ref=$tag" |
+            sed -nE 's/^FROM ([^ ]+@sha256:[0-9a-f]{64}) AS python-base$/\1/p')
+          if [[ -z "$pinned" ]]; then
+            echo "Release $tag doesn't pin its base image by digest, so a rebuild takes the tag as it is today"
+            exit 0
+          fi
+          name_tag="${pinned%@*}"
+          repo="${name_tag%%:*}"
+          [[ "$repo" == */* ]] || repo="library/$repo"
+
+          info=$(curl -fsSL "https://hub.docker.com/v2/repositories/$repo/tags/${name_tag#*:}")
+          digest=$(jq -r '.digest // empty' <<<"$info")
+          pushed=$(jq -r '.tag_last_pushed // empty' <<<"$info")
+          if [[ ! "$digest" =~ ^sha256:[0-9a-f]{64}$ || -z "$pushed" ]]; then
+            echo "::warning::No digest or push time from Docker Hub for $name_tag, keeping the pinned base image"
+            exit 0
+          fi
+          age_days=$(( ($(date +%s) - $(date -d "$pushed" +%s)) / 86400 ))
+          if [[ "$digest" == "${pinned#*@}" ]]; then
+            echo "$name_tag is still at the pinned digest"
+          elif (( age_days < BASE_COOLDOWN_DAYS )); then
+            echo "Newer $name_tag is $age_days days old, under the $BASE_COOLDOWN_DAYS day cooldown, keeping the pinned base image"
+          else
+            echo "Newer $name_tag is $age_days days old, past its cooldown: $digest"
+            echo "image=$name_tag@$digest" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Never on workflow_run: that is the scan after a publish, and rebuilding from it could loop.
+      # Runs docker-publish.yml from main, so the rebuild uses the current workflow, on the release's code.
+      - name: Rebuild the latest release
+        if: >-
+          (github.event_name == 'schedule' || inputs.rebuild) &&
+          (steps.fixable.outputs.apt != '0' || (steps.fixable.outputs.base != '0' && steps.base.outputs.image != ''))
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.base.outputs.tag }}
+          BASE_IMAGE: ${{ steps.base.outputs.image }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch || 'main' }}
+        run: |
+          echo "Rebuilding $TAG as a new revision${BASE_IMAGE:+, on $BASE_IMAGE}"
+          gh workflow run docker-publish.yml --ref "$DEFAULT_BRANCH" \
+            -f "release_tag=$TAG" ${BASE_IMAGE:+-f "base_image=$BASE_IMAGE"}

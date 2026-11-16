@@ -16,6 +16,18 @@ if TYPE_CHECKING:
 
 log: Any = structlog.get_logger()
 
+# the source url comes from image labels, so only an exact github.com owner/repo is turned into an API call,
+# as the access token is sent with it
+GITHUB_REPO_RE = re.compile(r"https://github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+?)(?:\.git)?/?")
+
+
+def github_repo(source_repo_url: str | None) -> tuple[str, str] | None:
+    """Owner and repo name from a GitHub repo url, None for anything else"""
+    match = GITHUB_REPO_RE.fullmatch(source_repo_url or "")
+    if not match or not match.group(1).strip(".") or not match.group(2).strip("."):
+        return None
+    return match.group(1), match.group(2)
+
 
 class GithubReleaseEnricher:
     def __init__(self, gh_cfg: GitHubConfig) -> None:
@@ -28,6 +40,10 @@ class GithubReleaseEnricher:
     def enrich(self, image: DockerImageInfo, detail: ReleaseDetail) -> None:
 
         if not detail.source_repo_url or not image.name:
+            return
+        repo: tuple[str, str] | None = github_repo(detail.source_repo_url)
+        if repo is None:
+            self.log.debug("Not a GitHub repo url, skipping release lookup: %s", detail.source_repo_url)
             return
 
         if not detail.version or not re.fullmatch(VERSION_RE, detail.version):
@@ -48,7 +64,7 @@ class GithubReleaseEnricher:
                             detail.version = t
 
         if detail.version is not None:
-            base_api = detail.source_repo_url.replace("https://github.com", "https://api.github.com/repos")
+            base_api = f"https://api.github.com/repos/{repo[0]}/{repo[1]}"
 
             api_response: Response | None = fetch_url(
                 f"{base_api}/releases/tags/{detail.version}",
@@ -110,11 +126,11 @@ class GithubReleaseEnricher:
             self.log.debug("No access token available for packages API")
             return None
 
-        match = re.match(r"https://github\.com/([^/]+)/(?:[^/]+?)(?:\.git)?$", source_repo_url)
-        if not match:
+        repo: tuple[str, str] | None = github_repo(source_repo_url)
+        if not repo:
             self.log.debug("Invalid source repo URL for GitHub API use: %s", source_repo_url)
             return None
-        org_or_user: str = match.group(1)
+        org_or_user: str = repo[0]
 
         api_result: Response | None = fetch_url(
             f"https://api.github.com/orgs/{org_or_user}/packages/container/{package}/versions",

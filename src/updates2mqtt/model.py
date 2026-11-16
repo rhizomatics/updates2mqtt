@@ -189,6 +189,11 @@ class Discovery:
         return json.dumps(dump)
 
     @property
+    def latest_digest(self) -> str | None:
+        """Digest of the latest release found by the scan, where the provider has one, e.g. `sha256:...`"""
+        return getattr(self.latest_detail, "image_digest", None)
+
+    @property
     def can_update(self) -> bool:
         return self.can_pull or self.can_build or self.can_restart
 

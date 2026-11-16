@@ -9,6 +9,8 @@ services:
       - /my/container/home:/my/container/home # Optional, map all root paths for docker compose directories
       - ./logs/healthcheck.log:/var/log/healthcheck.log
     restart: always
+    security_opt:
+      - no-new-privileges:true # nothing in the container needs to gain privileges through setuid binaries
     env_file: ./.env  # Environment variables file
     healthcheck:
       test: ["CMD", "/app/healthcheck.sh"] # reads the heartbeat file written by the app, no MQTT connection needed

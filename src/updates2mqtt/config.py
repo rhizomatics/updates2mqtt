@@ -25,10 +25,10 @@ SOURCE_PLATFORM_CODEBERG = "CodeBerg"
 SOURCE_PLATFORM_GITLAB = "GitLab"
 SOURCE_PLATFORM_SOURCEHUT = "SourceHut"
 SOURCE_PLATFORMS: dict[str, str] = {
-    SOURCE_PLATFORM_GITHUB: r"https://github.com/.*",
-    SOURCE_PLATFORM_GITLAB: r"https://gitlab.com/.*",
-    SOURCE_PLATFORM_CODEBERG: r"https://codeberg.org/.*",
-    SOURCE_PLATFORM_SOURCEHUT: r"https://sr.ht/.*",
+    SOURCE_PLATFORM_GITHUB: r"https://github\.com/.*",
+    SOURCE_PLATFORM_GITLAB: r"https://gitlab\.com/.*",
+    SOURCE_PLATFORM_CODEBERG: r"https://codeberg\.org/.*",
+    SOURCE_PLATFORM_SOURCEHUT: r"https://sr\.ht/.*",
 }
 
 
@@ -166,6 +166,13 @@ class DockerConfig:
     allow_pull: bool = True
     allow_restart: bool = True
     allow_build: bool = True
+    # directories that local build git repos have to be inside, e.g. ["/home/containers"]. Any path set on a
+    # container is accepted while this is empty
+    git_repo_roots: list[str] = field(default_factory=list)
+    # images trusted to supply any setting through their own labels or env, e.g. ones you build yourself.
+    # Plain image refs only, as written in the compose file, with or without a tag, e.g. ["ghcr.io/me/myapp"].
+    # Wildcards and patterns are refused
+    trust_image_settings: list[str] = field(default_factory=list)
     # remove the previous image once a container has been recreated with the new one
     remove_old_image: bool = "${oc.env:U2M_REMOVE_OLD_IMAGE,false}"  # type: ignore[assignment] # ty: ignore[invalid-assignment]
     compose_version: str = "v2"
@@ -300,11 +307,51 @@ def warn_unrecognised_env_vars(environ: typing.Mapping[str, str] | None = None) 
         )
 
 
+# settings that hold credentials, as dotted paths into the config file
+SECRET_SETTINGS: tuple[str, ...] = (
+    "mqtt.password",
+    "mqtt.client_key_password",
+    "github.access_token",
+    "docker.portainer.api_key",
+)
+
+
+def literal_secrets(file_cfg: Any) -> list[str]:
+    """Secret settings written into the config file itself, rather than left to an env var interpolation"""
+    found: list[str] = []
+    raw: Any = OmegaConf.to_container(file_cfg, resolve=False) if OmegaConf.is_config(file_cfg) else file_cfg
+    for setting in SECRET_SETTINGS:
+        value: Any = raw
+        for key in setting.split("."):
+            value = value.get(key) if isinstance(value, dict) else None
+        if isinstance(value, str) and value and "${" not in value:
+            found.append(setting)
+    return found
+
+
+def warn_exposed_secrets(conf_file_path: Path, file_cfg: Any) -> None:
+    """Warn if a config file holding secrets can be read by every user on the host"""
+    try:
+        if conf_file_path.stat().st_mode & 0o004:
+            secrets: list[str] = literal_secrets(file_cfg)
+            if secrets:
+                log.warning(
+                    "Config file holds secrets and is readable by all users, restrict it with `chmod 600`, "
+                    "or move the secrets to environment variables",
+                    path=conf_file_path.as_posix(),
+                    settings=secrets,
+                )
+    except Exception as e:
+        log.debug("Unable to check config file permissions: %s", e)
+
+
 def load_app_config(conf_file_path: Path, return_invalid: bool = False) -> Config | None:
     warn_unrecognised_env_vars()
     base_cfg: DictConfig = OmegaConf.structured(Config)
     if conf_file_path.exists():
-        cfg: DictConfig = typing.cast("DictConfig", OmegaConf.merge(base_cfg, OmegaConf.load(conf_file_path)))
+        file_cfg: Any = OmegaConf.load(conf_file_path)
+        warn_exposed_secrets(conf_file_path, file_cfg)
+        cfg: DictConfig = typing.cast("DictConfig", OmegaConf.merge(base_cfg, file_cfg))
     elif is_autogen_config():
         if not conf_file_path.parent.exists():
             try:
@@ -313,7 +360,9 @@ def load_app_config(conf_file_path: Path, return_invalid: bool = False) -> Confi
             except Exception as e:
                 log.warning("Unable to create config directory: %s", e, path=conf_file_path.parent)
         try:
-            conf_file_path.write_text(OmegaConf.to_yaml(base_cfg))
+            # owner only from the start, as secrets are likely to be added to it
+            with os.fdopen(os.open(conf_file_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "w") as f:
+                f.write(OmegaConf.to_yaml(base_cfg))
             log.info(f"Auto-generated a new config file at {conf_file_path}")
         except Exception as e:
             log.warning("Unable to write config file: %s", e, path=conf_file_path)

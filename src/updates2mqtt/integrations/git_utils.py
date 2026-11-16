@@ -1,6 +1,7 @@
 import datetime
 import re
 import subprocess
+from collections.abc import Sequence
 from pathlib import Path
 from re import Match
 
@@ -11,27 +12,54 @@ from updates2mqtt.helpers import ProcessResult, run_process
 log = structlog.get_logger()
 
 GIT_PULL_TIMEOUT = 300
+GIT_LOCAL_TIMEOUT = 30
+# Repo paths come from container settings, and the repo's own config is read by every git command,
+# so switch off the config driven ways of running a program that these commands could reach.
+# Command line config takes precedence over the repo's. Defence in depth, not a complete list.
+GIT_HARDENING: tuple[str, ...] = (
+    "protocol.ext.allow=never",
+    "core.fsmonitor=false",
+    "core.hooksPath=/dev/null",
+)
 
 
-def git_trust(repo_path: Path, git_path: Path) -> bool:
-    try:
-        subprocess.run(f"{git_path} config --global --add safe.directory {repo_path}", check=True, shell=True, cwd=repo_path)
+def git_command(git_path: Path, repo_path: Path, *args: str) -> list[str]:
+    """Argument list for a git command in a repo, never a shell string, as the path isn't trusted
+
+    The repo is marked safe for this command only, rather than in the global git config, since it's
+    usually owned by a different user to the one Updates2MQTT runs as
+    """
+    cmd: list[str] = [str(git_path), "-c", f"safe.directory={repo_path.resolve()}"]
+    for setting in GIT_HARDENING:
+        cmd.extend(("-c", setting))
+    cmd.extend(args)
+    return cmd
+
+
+def git_repo_allowed(repo_path: Path, roots: Sequence[str] | None) -> bool:
+    """Whether a repo is inside one of the allowed root directories, any repo being allowed if none are set"""
+    if not roots:
         return True
-    except Exception as e:
-        log.warning("GIT Unable to trust repo at %s: %s", repo_path, e, action="git_trust")
+    try:
+        resolved: Path = repo_path.resolve()
+        return any(resolved.is_relative_to(Path(root).resolve()) for root in roots)
+    except (OSError, ValueError) as e:
+        log.warning("GIT Unable to check repo path %s: %s", repo_path, e, action="git_repo_allowed")
         return False
 
 
 def git_iso_timestamp(repo_path: Path, git_path: Path) -> str | None:
     result = None
     try:
-        result = subprocess.run(
-            str(git_path) + r" log -1 --format=%cI --no-show-signature",
+        # argument list from git_command, never a shell, with only the repo path coming from configuration
+        result = subprocess.run(  # nosec B603
+            git_command(git_path, repo_path, "log", "-1", "--format=%cI", "--no-show-signature"),
             cwd=repo_path,
-            shell=True,
+            stdin=subprocess.DEVNULL,
             text=True,
             capture_output=True,
             check=True,
+            timeout=GIT_LOCAL_TIMEOUT,
         )
         # round-trip the iso format for pythony consistency
         return datetime.datetime.fromisoformat(result.stdout.strip()).isoformat()
@@ -51,13 +79,15 @@ def git_iso_timestamp(repo_path: Path, git_path: Path) -> str | None:
 def git_local_digest(repo_path: Path, git_path: Path) -> str | None:
     result = None
     try:
-        result = subprocess.run(
-            f"{git_path} rev-parse HEAD",
+        # argument list from git_command, never a shell, with only the repo path coming from configuration
+        result = subprocess.run(  # nosec B603
+            git_command(git_path, repo_path, "rev-parse", "HEAD"),
             cwd=repo_path,
-            shell=True,
+            stdin=subprocess.DEVNULL,
             text=True,
             capture_output=True,
             check=True,
+            timeout=GIT_LOCAL_TIMEOUT,
         )
         if result.returncode == 0:
             log.debug("Local git rev-parse", action="git_local_digest", path=repo_path, version=result.stdout.strip())
@@ -78,12 +108,24 @@ def git_local_digest(repo_path: Path, git_path: Path) -> str | None:
 def git_check_update_available(repo_path: Path, git_path: Path, timeout: int = 120) -> int:
     result = None
     try:
-        # check if remote repo ahead
-        result = subprocess.run(
-            f"{git_path} fetch;{git_path} status -uno",
+        # check if remote repo ahead, status is still worth having if the fetch fails, e.g. when offline
+        fetched = subprocess.run(  # nosec B603
+            git_command(git_path, repo_path, "fetch"),
+            stdin=subprocess.DEVNULL,
             capture_output=True,
             text=True,
-            shell=True,
+            check=False,
+            cwd=repo_path,
+            timeout=timeout,
+        )
+        if fetched.returncode != 0:
+            log.debug("GIT fetch failed", action="git_check", path=repo_path, returncode=fetched.returncode)
+        # argument list from git_command, never a shell, with only the repo path coming from configuration
+        result = subprocess.run(  # nosec B603
+            git_command(git_path, repo_path, "status", "-uno"),
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
             check=True,
             cwd=repo_path,
             timeout=timeout,
@@ -119,7 +161,7 @@ def git_check_update_available(repo_path: Path, git_path: Path, timeout: int = 1
 
 async def git_pull(repo_path: Path, git_path: Path) -> bool:
     log.info("GIT Pulling git at %s", repo_path, action="git_pull")
-    result: ProcessResult = await run_process([str(git_path), "pull"], cwd=repo_path, timeout=GIT_PULL_TIMEOUT)
+    result: ProcessResult = await run_process(git_command(git_path, repo_path, "pull"), cwd=repo_path, timeout=GIT_PULL_TIMEOUT)
     if result.ok:
         log.info("GIT pull at %s successful", repo_path, action="git_pull")
         return True

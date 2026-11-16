@@ -7,7 +7,7 @@ authors = [
 ]
 
 requires-python = ">=3.13"
-version = "1.18.0"
+version = "1.19.0"
 license="Apache-2.0"
 keywords=["mqtt", "docker", "oci","container","updates", "automation","home-assistant","homeassistant","selfhosting"]
 
@@ -99,7 +99,6 @@ module-name = "updates2mqtt"
 [tool.bandit]
 exclude_dirs = ["tests"]
 skips=["B404", #import subprocess
-"B602" #popen with shell=True
 ]
 
 [tool.ty.src]
@@ -155,7 +154,7 @@ ignore = [
    #"D103","D100","D101","D102","D104","D107","D415","D400","D415","ANN401",
     #"S101","C901","FURB113",
     "BLE001",# catch Exception
-    "S602","S607","S404" ] # subprocess usage
+    "S607","S404" ] # subprocess usage, though never with a shell, so S602 stays on
 unfixable = ["B"]
 
 

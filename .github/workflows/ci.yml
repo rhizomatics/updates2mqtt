@@ -67,16 +67,39 @@ jobs:
     - name: Build image and check it starts
       run: uv run pytest tests/integration/test_image.py --integration -o addopts=""
 
+  docs-check:
+    name: Docs build check
+    needs: test
+    # Builds pull request code, so read-only, with no credentials left in the checkout
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-slim
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - name: Install uv
+      uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      with:
+        python-version: 3.14
+    - name: ProperDocs build check
+      run:  |
+        uv sync --locked --dev --group docs
+        sudo apt-get update
+        sudo apt-get install pngquant
+        uv run properdocs build
+
   docs:
     name: Badges and docs
     needs: test
-    # Not when called from a release workflow
-    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    # Only for main, never pull requests, as this job can write to the repo. Not when called from a release workflow
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     # deploys from main push to gh-pages, so one at a time, or a later push is rejected as not a fast-forward;
     # a deploy waiting behind another is replaced by any newer one, so the latest docs win, and nothing is cancelled
-    # mid-push. Pull request runs only build, so each gets its own group.
+    # mid-push.
     concurrency:
-      group: ${{ github.event_name == 'push' && 'docs-deploy-main' || format('docs-build-{0}', github.run_id) }}
+      group: docs-deploy-main
       cancel-in-progress: false
     runs-on: ubuntu-slim
     permissions:
@@ -89,14 +112,11 @@ jobs:
         python-version: 3.14
     - name: Install dependencies
       run: uv sync --locked --all-extras --dev
-    # badges and docs publish from main only, PR checkouts are detached so can't pull or push
     - name: Download test results
-      if: github.event_name == 'push'
       uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
       with:
         name: test-results
     - name: Generate badges
-      if: github.event_name == 'push'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
@@ -107,8 +127,8 @@ jobs:
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
         TEMP_DIR=$(mktemp -d)
         cd $TEMP_DIR
-        git clone --single-branch --branch badges https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git . 2>/dev/null
-        cp -r ${{ github.workspace }}/badges .
+        git clone --single-branch --branch badges "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" . 2>/dev/null
+        cp -r "${GITHUB_WORKSPACE}/badges" .
         git add badges
         if git commit -m "Update badges [skip ci]"; then
           git push origin badges --force
@@ -117,15 +137,7 @@ jobs:
           echo "No changes to badges"
         fi
 
-    - name: ProperDocs build check
-      if: github.event_name == 'pull_request'
-      run:  |
-        uv sync --dev --group docs
-        sudo apt-get update
-        sudo apt-get install pngquant
-        uv run properdocs build
     - name: ProperDocs
-      if: github.event_name == 'push'
       run:  |
         git pull --no-tags
         uv sync --dev --group docs

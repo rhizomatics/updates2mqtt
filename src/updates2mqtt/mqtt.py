@@ -25,6 +25,8 @@ MQTT_NAME = r"[A-Za-z0-9_\-\.]+"
 AVAILABILITY_ONLINE = "online"  # Home Assistant default payload_available
 AVAILABILITY_OFFLINE = "offline"  # Home Assistant default payload_not_available
 OFFLINE_PUBLISH_TIMEOUT = 2.0
+# brokers reached without leaving this host, where an unencrypted connection isn't exposed to the network
+LOCAL_BROKER_HOSTS: frozenset[str] = frozenset(("localhost", "127.0.0.1", "::1"))
 
 
 @dataclass
@@ -93,6 +95,11 @@ class MqttPublisher:
                     logger.warning(
                         "TLS set to insecure mode, broker host name will not be validated, do not use for production."
                     )
+            elif self.cfg.transport != "unix" and str(self.cfg.host).lower() not in LOCAL_BROKER_HOSTS:
+                logger.warning(
+                    "MQTT connection is not encrypted, so the password and update commands cross the network in clear, "
+                    "set tls_mode to protect them, see https://updates2mqtt.rhizomatics.org.uk/configuration/security/"
+                )
             rc: MQTTErrorCode = self.client.connect(
                 host=self.cfg.host,
                 port=self.cfg.port,
@@ -332,11 +339,13 @@ class MqttPublisher:
                 payload = msg.payload.decode("utf-8")
             elif isinstance(msg.payload, str):
                 payload = msg.payload
-            if payload and "|" in payload:
-                source_type, comp_name, command = payload.split("|")
-            else:
-                logger.warning("Invalid command format, expecting `source_type|comp_name|command`")
+            parts: list[str] = payload.split("|") if payload else []
+            if len(parts) not in (3, 4):
+                logger.warning("Invalid command format, expecting `source_type|comp_name|command` with an optional `|digest`")
                 return None
+            source_type, comp_name, command = parts[:3]
+            # optional, so a script or automation can say which release it means to install
+            expected_digest: str | None = parts[3] if len(parts) == 4 else None
             logger.debug("Validating %s:%s:%s", source_type, comp_name, command)
 
             provider: ReleaseProvider | None = self.providers_by_topic.get(msg.topic) if msg.topic else None
@@ -353,6 +362,14 @@ class MqttPublisher:
             if not comp_name:
                 logger.warning("Missing comp_name in command message: %s", msg.payload)
                 return None
+            if expected_digest is not None:
+                discovery: Discovery | None = provider.resolve(comp_name)
+                latest_digest: str | None = discovery.latest_digest if discovery else None
+                if not expected_digest or latest_digest != expected_digest:
+                    logger.warning(
+                        "Command is for digest %s, but the latest scan found %s, ignored", expected_digest, latest_digest
+                    )
+                    return None
 
             in_progress_key: tuple[str, str] = (source_type, comp_name)
             if in_progress_key in self.commands_in_progress:
@@ -436,7 +453,10 @@ class MqttPublisher:
 
     def on_message(self, _client: mqtt.Client, _userdata: Any, msg: mqtt.MQTTMessage) -> None:
         """Callback for incoming MQTT messages"""
-        if msg.topic in self.providers_by_topic:
+        if msg.retain and msg.topic in self.providers_by_topic:
+            # a retained command would be delivered again on every reconnect and restart, repeating the install
+            self.log.warning("Ignoring retained command on %s, commands must not be published with retain", msg.topic)
+        elif msg.topic in self.providers_by_topic:
             self.handle_message(msg)
         else:
             # apparently the root non-wildcard sub sometimes brings in child topics

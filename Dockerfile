@@ -1,13 +1,20 @@
-# Pinned tool versions, kept here in one place and updated by Dependabot. These stages are only
-# copied from, never built. Docker tools come from their release images rather than apt, which lags
+# Base for the build and runtime stages, normally the pinned python-base stage below. The weekly
+# rebuild in image-scan.yml overrides it with a newer digest of the same tag, once that digest has
+# been out for its cooldown, to pick up fixes without waiting for a release.
+ARG BASE_IMAGE=python-base
+
+# Pinned base image and tool versions, kept here in one place and updated by Dependabot, which moves
+# the base image digest as well as the tags, after its own cooldown. The tool stages are only copied
+# from, never built. Docker tools come from their release images rather than apt, which lags
 # upstream releases.
+FROM python:3.14-slim@sha256:9aaa474097d094040649f2162a627c0049b408f52138d980916788d80f04802f AS python-base
 FROM docker:29.9.3-cli AS docker-cli
 FROM docker/buildx-bin:0.38.2 AS docker-buildx
 FROM docker/compose-bin:v5.7.0 AS docker-compose
 FROM ghcr.io/astral-sh/uv:0.13.8 AS uv
 
 
-FROM python:3.14-slim AS builder
+FROM ${BASE_IMAGE} AS builder
 
 # Build stage: uv and the build backend stay here, only the finished venv is copied to the runtime image
 COPY --from=uv /uv /bin/uv
@@ -28,10 +35,10 @@ ADD README.md /app/README.md
 RUN uv sync --locked --no-editable
 
 
-FROM python:3.14-slim
+FROM ${BASE_IMAGE}
 
 RUN apt-get -y update && apt-get -y upgrade && \
-  apt-get -y install git ca-certificates mosquitto-clients jq && \
+  apt-get -y install git ca-certificates && \
   rm -rf /var/lib/apt/lists/*
 
 COPY --from=docker-cli /usr/local/bin/docker /usr/local/bin/docker
@@ -45,7 +52,8 @@ COPY --from=builder /app/.venv /app/.venv
 ADD scripts/healthcheck.sh /app
 RUN chmod ug+x /app/healthcheck.sh
 ADD common_packages.yaml /app
-RUN mkdir /app/.cache && chmod a+rw /app/.cache
+# writable by whichever user the container is run as, with the sticky bit so only a file's owner can replace it
+RUN mkdir /app/.cache && chmod 1777 /app/.cache
 
 ENV PATH="/app/.venv/bin:$PATH"
 # Use explicit path and python executable rather than `uv run` to get proper signal handling

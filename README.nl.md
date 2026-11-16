@@ -74,7 +74,7 @@ Updates2MQTT publiceert `online` of `offline` naar een bewaard (retained) topic 
 
 ## Gezondheidcontrole (Healthcheck)
 
-Een `healthcheck.sh`-script is opgenomen in de Docker-image en kan worden gebruikt als Docker healthcheck als de containeromgevingsvariabelen `MQTT_HOST`, `MQTT_PORT`, `MQTT_USER` en `MQTT_PASS` zijn ingesteld. Het gebruikt het Linux-pakket `mosquitto-clients` dat de opdracht `mosquitto_sub` biedt om u te abonneren op onderwerpen.
+Een `healthcheck.sh`-script is opgenomen in de Docker-image en kan worden gebruikt als Docker healthcheck. Het maakt zelf geen verbinding met MQTT. In plaats daarvan leest het een heartbeat-bestand dat de app schrijft, waarin staat wanneer de app voor het laatst zijn heartbeat heeft uitgevoerd en wanneer de MQTT-broker er voor het laatst een heeft bevestigd. Er zijn dus geen MQTT-instellingen of extra pakketten nodig. Voer `docker exec -it updates2mqtt u2m-cli mqtt=check` uit om de MQTT-instellingen en de verbinding met de broker rechtstreeks te testen.
 
 !!! tip
 

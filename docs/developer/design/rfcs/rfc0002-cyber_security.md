@@ -175,8 +175,8 @@ This is the strongest signal available, and it wasn't in the first draft.
 - **To do:**
     - Pin all GitHub Actions by commit SHA, including first-party ones such as `actions/checkout@v7` and `astral-sh/setup-uv@v7`.
     - Review Dependabot auto-merge now that cooldowns are in place. Limit it to patch updates, or require CI and a cooldown.
-    - Sign the Docker image (cosign keyless), in addition to the provenance attestation, so users and Updates2MQTT itself can verify it.
-    - Publish an SBOM attestation with the image.
+    - Done in 1.19.0: the Docker image is signed (cosign keyless), in addition to the provenance attestation, so users and Updates2MQTT itself can verify it.
+    - Done in 1.19.0: an SBOM attestation is published with the image.
 - **Security guidance for users:**
     - MQTT broker ACLs, so only Home Assistant can publish to Updates2MQTT's command topics. Also TLS.
     - Running behind a Docker socket proxy that allows only the API calls Updates2MQTT needs.

@@ -217,6 +217,39 @@ def test_validate_command_accepts_str_payload(uut: MqttPublisher, mock_provider:
     assert parsed == (mock_provider, "fooey", "install")
 
 
+def test_validate_command_with_matching_digest(uut: MqttPublisher, mock_provider: ReleaseProvider) -> None:
+    mock_provider.discoveries["fooey"].latest_detail = Mock(image_digest="sha256:abc")
+    parsed = uut.validate_command(command("updates2mqtt/cleannode/unit_test", "unit_test|fooey|install|sha256:abc"))
+    assert parsed == (mock_provider, "fooey", "install")
+
+
+@pytest.mark.parametrize("payload", ["unit_test|fooey|install|sha256:other", "unit_test|fooey|install|"])
+def test_validate_command_rejects_other_digest(uut: MqttPublisher, mock_provider: ReleaseProvider, payload: str) -> None:
+    mock_provider.discoveries["fooey"].latest_detail = Mock(image_digest="sha256:abc")
+    assert uut.validate_command(command("updates2mqtt/cleannode/unit_test", payload)) is None
+    assert uut.commands_in_progress == set()
+
+
+def test_validate_command_rejects_digest_when_none_known(uut: MqttPublisher) -> None:
+    assert uut.validate_command(command("updates2mqtt/cleannode/unit_test", "unit_test|fooey|install|sha256:abc")) is None
+
+
+@pytest.mark.parametrize(
+    ("host", "tls_mode", "warned"),
+    [("broker.example.com", "off", True), ("localhost", "off", False), ("broker.example.com", "on", False)],
+)
+def test_start_warns_of_unencrypted_remote_broker(mock_mqtt_client: Mock, host: str, tls_mode: str, warned: bool) -> None:
+    with patch.object(paho.mqtt.client.Client, "__new__", lambda *_args, **_kwargs: mock_mqtt_client):
+        publisher = new_publisher()
+        publisher.cfg.host = host
+        publisher.cfg.tls_mode = tls_mode  # type: ignore[assignment]
+        publisher.log = Mock()
+        publisher.log.bind.return_value = publisher.log
+        publisher.start(event_loop=Mock())
+    warnings = [str(c) for c in publisher.log.warning.mock_calls]
+    assert any("not encrypted" in w for w in warnings) is warned
+
+
 def test_handle_message_without_event_loop(mock_provider: ReleaseProvider) -> None:
     publisher = new_publisher()
     publisher.handle_message(command("updates2mqtt/cleannode/unit_test", "unit_test|fooey|install"))

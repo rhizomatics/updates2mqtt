@@ -183,3 +183,40 @@ def test_registry_api_case_insensitive(value: str, expected: RegistryAPI) -> Non
 def test_registry_api_minimal_distinct_from_oci_v2() -> None:
     assert len({RegistryAPI.OCI_V2_MINIMAL, RegistryAPI.OCI_V2}) == 2
     assert len(RegistryAPI) == 4
+
+
+def test_generated_config_is_owner_only(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("U2M_AUTOGEN_CONFIG", "true")
+    conf_path = tmp_path / "conf" / "config.yaml"
+    load_app_config(conf_path, return_invalid=True)
+    assert conf_path.exists()
+    assert conf_path.stat().st_mode & 0o077 == 0
+
+
+@pytest.mark.parametrize(
+    ("content", "mode", "warned"),
+    [
+        ("mqtt:\n  user: u\n  password: hunter2\n", 0o644, True),
+        ("mqtt:\n  user: u\n  password: hunter2\n", 0o600, False),
+        ("mqtt:\n  user: u\n  password: ${oc.env:MQTT_PASS}\n", 0o644, False),
+        ("mqtt:\n  user: u\ngithub:\n  access_token: ghp_abc\n", 0o644, True),
+        ("mqtt:\n  user: u\n", 0o644, False),
+    ],
+)
+def test_warns_when_config_with_secrets_is_world_readable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, content: str, mode: int, warned: bool
+) -> None:
+    import updates2mqtt.config as config_module
+
+    monkeypatch.setenv("MQTT_PASS", "from-env")
+    conf_path = tmp_path / "config.yaml"
+    conf_path.write_text(content)
+    conf_path.chmod(mode)
+    mock_log = Mock()
+    monkeypatch.setattr(config_module, "log", mock_log)
+    assert load_app_config(conf_path) is not None
+    warnings = [str(c) for c in mock_log.warning.mock_calls]
+    assert any("readable by all users" in w for w in warnings) is warned
+    # the secret itself is never logged
+    assert "hunter2" not in str(mock_log.mock_calls)
+    assert "ghp_abc" not in str(mock_log.mock_calls)

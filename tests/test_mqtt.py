@@ -365,10 +365,17 @@ def test_on_message_known_topic(mock_mqtt_client: Mock, mock_provider: ReleasePr
         msg.topic = topic
         msg.payload = b"unit_test|comp|install"
         msg.mid = 1
+        msg.retain = False
 
         with patch.object(uut, "handle_message") as mock_handle:
             uut.on_message(mock_mqtt_client, None, msg)
             mock_handle.assert_called_once_with(msg)
+
+        # a retained command would be redelivered on every reconnect, so is never acted on
+        msg.retain = True
+        with patch.object(uut, "handle_message") as mock_handle:
+            uut.on_message(mock_mqtt_client, None, msg)
+            mock_handle.assert_not_called()
 
 
 def test_on_message_unknown_topic(mock_mqtt_client: Mock) -> None:

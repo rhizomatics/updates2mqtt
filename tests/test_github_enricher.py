@@ -4,10 +4,11 @@ from unittest.mock import MagicMock, Mock, patch
 
 import httpx
 import pytest
+from pytest_httpx import HTTPXMock
 
 from updates2mqtt.config import GitHubConfig
 from updates2mqtt.integrations.docker_enrich import DockerImageInfo
-from updates2mqtt.integrations.github_enrich import GithubReleaseEnricher
+from updates2mqtt.integrations.github_enrich import GithubReleaseEnricher, github_repo
 from updates2mqtt.model import ReleaseDetail
 
 
@@ -425,3 +426,31 @@ def test_match_packages_matching_digest_returns_tags(mock_fetch: Mock) -> None:
     assert "v1.0.0" in tags
     assert release_url == "https://github.com/org/repo/pkgs/container/myimage/1"
     assert created_at == "2024-01-01T00:00:00Z"
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        ("https://github.com/rhizomatics/updates2mqtt", ("rhizomatics", "updates2mqtt")),
+        ("https://github.com/rhizomatics/updates2mqtt.git", ("rhizomatics", "updates2mqtt")),
+        ("https://github.com/rhizomatics/updates2mqtt/", ("rhizomatics", "updates2mqtt")),
+        ("https://githubxcom/owner/repo", None),
+        ("https://github.com.evil.example/owner/repo", None),
+        ("https://github.com/../user", None),
+        ("https://github.com/owner/repo/../../user", None),
+        ("https://github.com/owner/repo?x=1", None),
+        ("http://github.com/owner/repo", None),
+        (None, None),
+    ],
+)
+def test_github_repo_only_accepts_github_repo_urls(url: str | None, expected: tuple[str, str] | None) -> None:
+    assert github_repo(url) == expected
+
+
+def test_enrich_never_sends_token_to_lookalike_host(httpx_mock: HTTPXMock) -> None:
+    detail = ReleaseDetail("app", source_repo_url="https://githubxcom/owner/repo")
+    detail.version = "1.2.3"
+    GithubReleaseEnricher(GitHubConfig(access_token="tok")).enrich(DockerImageInfo("owner/app:1.2.3"), detail)
+    # no request made at all, pytest-httpx fails the test on an unexpected one
+    assert httpx_mock.get_requests() == []
+    assert detail.summary is None

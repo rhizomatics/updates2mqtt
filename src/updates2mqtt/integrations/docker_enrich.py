@@ -86,6 +86,8 @@ UNKNOWN_NAME = "**UNKNOWN_NAME**"
 # Portainer stacks run compose from /data/compose/<stack id> inside the Portainer container
 PORTAINER_COMPOSE_PATH = re.compile(r"^/data/compose/(\d+)(?:/|$)")
 
+COMPOSE_WORKING_DIR_LABEL = "com.docker.compose.project.working_dir"
+
 REGISTRY_GHCR = "ghcr.io"
 REGISTRY_DOCKER = "docker.io"
 REGISTRY_MCR = "mcr.microsoft.com"
@@ -419,12 +421,28 @@ class LocalContainerInfo:
             annotations=container.image.labels if container.image else None,
             attributes=container.image.attrs if container.image else None,
         )
+        compose_labels: dict[str, str] = container.labels or {}
+        image_labels: Any = container.image.labels if container.image else None
+        working_dir: str | None = compose_labels.get(COMPOSE_WORKING_DIR_LABEL)
+        if (
+            working_dir is not None
+            and isinstance(image_labels, dict)
+            and image_labels.get(COMPOSE_WORKING_DIR_LABEL) == working_dir
+        ):
+            # compose sets its labels on the containers it creates, never on images, so these came from the image,
+            # and would have compose run in a directory of the image's choosing
+            log.warning(
+                "Ignoring compose labels supplied by the image rather than by Docker Compose",
+                container=container.name,
+                integration="docker",
+            )
+            compose_labels = {}
         service_info: DockerServiceDetails = DockerServiceDetails(
             container.name,
-            compose_path=container.labels.get("com.docker.compose.project.working_dir"),
-            compose_service=container.labels.get("com.docker.compose.service"),
-            compose_version=container.labels.get("com.docker.compose.version"),
-            compose_project=container.labels.get("com.docker.compose.project"),
+            compose_path=compose_labels.get(COMPOSE_WORKING_DIR_LABEL),
+            compose_service=compose_labels.get("com.docker.compose.service"),
+            compose_version=compose_labels.get("com.docker.compose.version"),
+            compose_project=compose_labels.get("com.docker.compose.project"),
         )
 
         labels: dict[str, str | float | int | bool | None] = cherrypick_annotations(image_info, None)

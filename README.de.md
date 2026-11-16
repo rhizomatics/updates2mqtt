@@ -74,7 +74,7 @@ Updates2MQTT veröffentlicht `online` oder `offline` an ein beibehaltenes (retai
 
 ## Gesundheitsprüfung
 
-Ein `healthcheck.sh`-Skript ist im Docker-Image enthalten und kann als Docker-Healthcheck verwendet werden, wenn die Container-Umgebungsvariablen `MQTT_HOST`, `MQTT_PORT`, `MQTT_USER` und `MQTT_PASS` gesetzt sind. Es verwendet das Linux-Paket `mosquitto-clients`, das den Befehl `mosquitto_sub` zum Abonnieren von Topics bereitstellt.
+Ein `healthcheck.sh`-Skript ist im Docker-Image enthalten und kann als Docker-Healthcheck verwendet werden. Es verbindet sich nicht selbst mit MQTT. Stattdessen liest es eine Heartbeat-Datei, die die App schreibt und die festhält, wann die App zuletzt ihren Heartbeat ausgeführt hat und wann der MQTT-Broker zuletzt einen bestätigt hat. Es braucht daher weder MQTT-Einstellungen noch zusätzliche Pakete. Um die MQTT-Einstellungen und die Verbindung zum Broker direkt zu testen, `docker exec -it updates2mqtt u2m-cli mqtt=check` ausführen.
 
 !!! tip
 

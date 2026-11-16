@@ -74,7 +74,7 @@ Updates2MQTT 会向保留（retained）主题 `updates2mqtt/{node_name}/availabi
 
 ## 健康检查
 
-Docker 镜像中包含一个 `healthcheck.sh` 脚本，如果容器环境变量 `MQTT_HOST`、`MQTT_PORT`、`MQTT_USER` 和 `MQTT_PASS` 已设置，则可将其用作 Docker 健康检查。它使用提供 `mosquitto_sub` 命令订阅主题的 `mosquitto-clients` Linux 包。
+Docker 镜像中包含一个 `healthcheck.sh` 脚本，可将其用作 Docker 健康检查。它本身不连接 MQTT，而是读取应用写入的心跳文件，其中记录了应用上次执行心跳的时间，以及 MQTT 代理上次确认心跳的时间，因此不需要 MQTT 设置或额外的软件包。要直接测试 MQTT 设置和与代理的连接，请运行 `docker exec -it updates2mqtt u2m-cli mqtt=check`。
 
 !!! tip
 

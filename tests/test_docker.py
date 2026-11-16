@@ -21,7 +21,7 @@ from updates2mqtt.config import (
     UpdatePolicy,
 )
 from updates2mqtt.integrations.docker import ContainerCustomization, DockerComposeCommand
-from updates2mqtt.integrations.docker_enrich import DockerImageInfo, DockerServiceDetails
+from updates2mqtt.integrations.docker_enrich import DockerImageInfo, DockerServiceDetails, LocalContainerInfo
 from updates2mqtt.model import Discovery
 
 
@@ -520,7 +520,6 @@ def test_analyze_with_git_repo_uses_git_local_digest(mock_docker_client: DockerC
         with (
             patch("updates2mqtt.integrations.docker.git_local_digest", return_value="abc123def456789") as mock_git_ver,
             patch("updates2mqtt.integrations.docker.git_check_update_available", return_value=0),
-            patch("updates2mqtt.integrations.docker.git_trust"),
             patch("updates2mqtt.integrations.docker.git_iso_timestamp", return_value=None),
         ):
             result = uut.analyze(container, "test-session")
@@ -549,7 +548,6 @@ def test_analyze_git_repo_with_updates_available(mock_docker_client: DockerClien
         with (
             patch("updates2mqtt.integrations.docker.git_local_digest", return_value="abc123def456789"),
             patch("updates2mqtt.integrations.docker.git_check_update_available", return_value=3),
-            patch("updates2mqtt.integrations.docker.git_trust"),
             patch("updates2mqtt.integrations.docker.git_iso_timestamp", return_value=None),
         ):
             result = uut.analyze(container, "test-session")
@@ -578,7 +576,6 @@ def test_analyze_git_local_digest_returns_none(mock_docker_client: DockerClient,
         with (
             patch("updates2mqtt.integrations.docker.git_local_digest", return_value=None),
             patch("updates2mqtt.integrations.docker.git_check_update_available", return_value=0),
-            patch("updates2mqtt.integrations.docker.git_trust"),
             patch("updates2mqtt.integrations.docker.git_iso_timestamp", return_value=None),
         ):
             result = uut.analyze(container, "test-session")
@@ -603,7 +600,9 @@ async def test_execute_compose_passes_project_name(
                 compose_path=str(tmpdir), compose_service="keycloak", compose_project="identity"
             ),
         )
-        fake_process.register(["docker", "compose", "-p", "identity", "up", "--detach", "--yes", "keycloak"], returncode=0)
+        fake_process.register(
+            ["docker", "compose", "-p", "identity", "up", "--detach", "--yes", "--pull", "never", "keycloak"], returncode=0
+        )
         assert await uut.restart(d)
 
 
@@ -965,3 +964,287 @@ def test_analyze_container_select(
         assert (uut.analyze(container, "test-session") is not None) is analyzed
         # an ignored container never reaches the registry
         assert mock_docker_client.images.get_registry_data.called is analyzed  # type: ignore[attr-defined]
+
+
+def container_from_image(
+    labels: dict[str, str] | None = None,
+    env: list[str] | None = None,
+    image_labels: dict[str, str] | None = None,
+    image_env: list[str] | None = None,
+) -> Container:
+    """A container whose labels and env include whatever its image declared, as Docker merges them"""
+    c: Container = build_mock_container("vendor/app:1.0")
+    c.image.labels = dict(image_labels or {})  # type: ignore[union-attr,misc]
+    c.image.attrs["Config"] = {"Env": list(image_env or [])}  # type: ignore[union-attr]
+    c.labels.update(image_labels or {})
+    c.labels.update(labels or {})
+    c.attrs["Config"]["Env"] = [*(image_env or []), *(env or [])]
+    return c
+
+
+def test_customization_ignores_policy_settings_supplied_by_image() -> None:
+    ContainerCustomization.warned_unrecognised.clear()
+    container = container_from_image(
+        image_labels={
+            "updates2mqtt.update": "auto",
+            "updates2mqtt.cooldown": "0",
+            "updates2mqtt.ignore": "true",
+            "updates2mqtt.git_repo_path": "config",
+            "updates2mqtt.registry_token": "abc",
+            "updates2mqtt.version_policy": "version",
+        }
+    )
+    with patch.object(mut, "log") as mock_log:
+        uut = ContainerCustomization(container)
+        ContainerCustomization(container)
+    assert uut.update == UpdatePolicy.PASSIVE
+    assert uut.cooldown is None
+    assert uut.ignore is False
+    assert uut.git_repo_path is None
+    assert uut.registry_token is None
+    assert uut.version_policy is None
+    # one warning per setting, not repeated on the next scan
+    assert mock_log.warning.call_count == 6
+
+
+def test_customization_ignores_policy_env_vars_supplied_by_image() -> None:
+    uut = ContainerCustomization(
+        container_from_image(image_env=["UPD2MQTT_UPDATE=auto", "UPD2MQTT_GIT_REPO_PATH=config", "PATH=/usr/bin"])
+    )
+    assert uut.update == UpdatePolicy.PASSIVE
+    assert uut.git_repo_path is None
+
+
+def test_customization_allows_presentation_settings_from_image() -> None:
+    uut = ContainerCustomization(
+        container_from_image(
+            image_labels={
+                "updates2mqtt.picture": "https://example.com/logo.svg",
+                "updates2mqtt.relnotes": "https://example.com/releases",
+                "updates2mqtt.name": "Example App",
+            }
+        )
+    )
+    assert uut.picture == "https://example.com/logo.svg"
+    assert uut.relnotes == "https://example.com/releases"
+    assert uut.name == "Example App"
+
+
+def test_customization_container_settings_override_image() -> None:
+    # set where the container is created, to a different value than the image declares
+    uut = ContainerCustomization(
+        container_from_image(
+            labels={"updates2mqtt.update": "auto", "updates2mqtt.git_repo_path": "build"},
+            image_labels={"updates2mqtt.update": "passive", "updates2mqtt.git_repo_path": "config"},
+        )
+    )
+    assert uut.update == UpdatePolicy.AUTO
+    assert uut.git_repo_path == "build"
+
+
+def test_customization_falls_back_to_container_env_when_label_from_image() -> None:
+    uut = ContainerCustomization(
+        container_from_image(env=["UPD2MQTT_UPDATE=auto"], image_labels={"updates2mqtt.update": "passive"})
+    )
+    assert uut.update == UpdatePolicy.AUTO
+
+
+def test_customization_rejects_urls_that_are_not_http() -> None:
+    uut = ContainerCustomization(
+        container_from_image(
+            labels={"updates2mqtt.picture": "javascript:alert(1)", "updates2mqtt.relnotes": "file:///etc/passwd"}
+        )
+    )
+    assert uut.picture is None
+    assert uut.relnotes is None
+
+
+def test_customization_does_not_log_registry_token() -> None:
+    container = container_from_image(labels={"updates2mqtt.registry_token": "s3cr3t-token"})
+    with patch.object(mut, "log") as mock_log:
+        uut = ContainerCustomization(container)
+    assert uut.registry_token == "s3cr3t-token"
+    assert "s3cr3t-token" not in str(mock_log.mock_calls)
+
+
+def test_compose_labels_supplied_by_image_are_ignored(tmp_path: Path) -> None:
+    spoofed = {
+        "com.docker.compose.project.working_dir": str(tmp_path),
+        "com.docker.compose.service": "app",
+        "com.docker.compose.project": "evil",
+    }
+    _info, service_info = LocalContainerInfo().build_image_info(container_from_image(image_labels=spoofed))
+    assert service_info.compose_path is None
+    assert service_info.compose_service is None
+    assert service_info.compose_project is None
+    assert not service_info.compose_path_found
+
+
+def test_compose_labels_set_by_compose_are_used(tmp_path: Path) -> None:
+    # images built by compose carry its project and service labels, but never the working dir
+    real = {
+        "com.docker.compose.project.working_dir": str(tmp_path),
+        "com.docker.compose.service": "app",
+        "com.docker.compose.project": "stack",
+    }
+    container = container_from_image(
+        labels=real, image_labels={"com.docker.compose.service": "app", "com.docker.compose.project": "stack"}
+    )
+    _info, service_info = LocalContainerInfo().build_image_info(container)
+    assert service_info.compose_path == str(tmp_path)
+    assert service_info.compose_service == "app"
+    assert service_info.compose_project == "stack"
+
+
+def test_analyze_ignores_git_repo_outside_roots(mock_docker_client: DockerClient, tmp_path: Path) -> None:
+    allowed = tmp_path / "allowed"
+    allowed.mkdir()
+    container = build_mock_container("custom/build:latest")
+    container.labels["updates2mqtt.git_repo_path"] = "."
+    container.labels["com.docker.compose.project.working_dir"] = str(tmp_path)
+    container.image.attrs["RepoDigests"] = []  # type: ignore[union-attr]
+
+    with patch("docker.from_env", return_value=mock_docker_client):
+        uut = mut.DockerProvider(
+            docker_config(discover_metadata={}, allow_build=True, git_repo_roots=[str(allowed)]), NodeConfig()
+        )
+        with (
+            patch("updates2mqtt.integrations.docker.git_local_digest") as mock_digest,
+            patch("updates2mqtt.integrations.docker.git_check_update_available") as mock_check,
+            patch("updates2mqtt.integrations.docker.git_iso_timestamp") as mock_timestamp,
+        ):
+            result = uut.analyze(container, "test-session")
+
+    assert result is not None
+    assert result.can_build is False
+    assert result.installation_detail.git_repo_path is None  # type: ignore[union-attr]
+    mock_digest.assert_not_called()
+    mock_check.assert_not_called()
+    mock_timestamp.assert_not_called()
+
+
+def test_analyze_runs_no_git_when_builds_not_allowed(mock_docker_client: DockerClient, tmp_path: Path) -> None:
+    container = build_mock_container("custom/build:latest")
+    container.labels["updates2mqtt.git_repo_path"] = "."
+    container.labels["com.docker.compose.project.working_dir"] = str(tmp_path)
+
+    with patch("docker.from_env", return_value=mock_docker_client):
+        uut = mut.DockerProvider(docker_config(discover_metadata={}, allow_build=False), NodeConfig())
+        with (
+            patch("updates2mqtt.integrations.docker.git_local_digest") as mock_digest,
+            patch("updates2mqtt.integrations.docker.git_check_update_available") as mock_check,
+            patch("updates2mqtt.integrations.docker.git_iso_timestamp") as mock_timestamp,
+        ):
+            uut.analyze(container, "test-session")
+
+    mock_digest.assert_not_called()
+    mock_check.assert_not_called()
+    mock_timestamp.assert_not_called()
+
+
+def test_analyze_failure_does_not_log_container_environment(mock_docker_client: DockerClient) -> None:
+    container = build_mock_container("vendor/app:1.0")
+    container.attrs["Config"]["Env"] = ["DB_PASSWORD=hunter2"]
+
+    with patch("docker.from_env", return_value=mock_docker_client):
+        uut = mut.DockerProvider(docker_config(discover_metadata={}), NodeConfig())
+        uut.log = Mock()
+        uut.log.bind.return_value = uut.log
+        with patch("updates2mqtt.integrations.docker.select_versions", side_effect=RuntimeError("boom")):
+            assert uut.analyze(container, "test-session") is None
+
+    uut.log.exception.assert_called_once()
+    assert "hunter2" not in str(uut.log.mock_calls)
+
+
+async def test_fetch_auto_update_skipped_without_approved_digest(mock_docker_client: DockerClient) -> None:
+    with patch("docker.from_env", return_value=mock_docker_client):
+        uut = mut.DockerProvider(docker_config(discover_metadata={}), NodeConfig())
+        discovery = Discovery(
+            uut,
+            "auto-container",
+            "test-session",
+            "node003",
+            can_pull=True,
+            update_policy=UpdatePolicy.AUTO,
+            current_detail=DockerImageInfo("vendor/app:1.0"),
+            latest_detail=DockerImageInfo("vendor/app:1.0"),  # e.g. throttled, so no registry digest
+        )
+        with patch.object(uut, "pull_image") as mock_pull:
+            assert await uut.fetch(discovery) is None
+        mock_pull.assert_not_called()
+
+
+async def test_fetch_manual_update_pulls_tag_without_approved_digest(mock_docker_client: DockerClient) -> None:
+    with patch("docker.from_env", return_value=mock_docker_client):
+        uut = mut.DockerProvider(docker_config(discover_metadata={}), NodeConfig())
+        discovery = Discovery(
+            uut,
+            "manual-container",
+            "test-session",
+            "node003",
+            can_pull=True,
+            current_detail=DockerImageInfo("vendor/app:1.0"),
+            latest_detail=DockerImageInfo("vendor/app:1.0"),
+        )
+        with patch.object(uut, "pull_image", return_value=Mock(id="sha256:new")) as mock_pull:
+            assert await uut.fetch(discovery) == "sha256:new"
+        mock_pull.assert_called_once_with("vendor/app:1.0", None)
+
+
+def test_customization_takes_all_settings_from_trusted_image() -> None:
+    container = container_from_image(
+        image_labels={"updates2mqtt.update": "auto", "updates2mqtt.cooldown": "0", "updates2mqtt.git_repo_path": "src"}
+    )
+    uut = ContainerCustomization(container, trust_image=True)
+    assert uut.update == UpdatePolicy.AUTO
+    assert uut.cooldown == "0"
+    assert uut.git_repo_path == "src"
+
+
+@pytest.mark.parametrize(
+    ("image_ref", "trusted", "expected"),
+    [
+        ("ghcr.io/me/app:1.2", ["ghcr.io/me/app"], True),
+        ("ghcr.io/me/app:1.2", ["ghcr.io/me/app:1.2"], True),
+        ("ghcr.io/me/app:1.3", ["ghcr.io/me/app:1.2"], False),
+        ("ghcr.io/me/app@sha256:abc", ["ghcr.io/me/app"], True),
+        ("localhost:5000/app:1.0", ["localhost:5000/app"], True),
+        ("ghcr.io/me/app-evil:1.2", ["ghcr.io/me/app"], False),
+        ("ghcr.io/me/app/sub:1.2", ["ghcr.io/me/app"], False),
+        ("ghcr.io/other/app:1.2", ["ghcr.io/me/app"], False),
+        ("ghcr.io/me/app:1.2", [], False),
+        (None, ["ghcr.io/me/app"], False),
+    ],
+)
+def test_is_trusted_image(image_ref: str | None, trusted: list[str], expected: bool) -> None:
+    assert mut.is_trusted_image(image_ref, mut.trusted_image_refs(trusted, Mock())) is expected
+
+
+@pytest.mark.parametrize(
+    "entry",
+    ["*", "ghcr.io/me/*", "ghcr.io/*/app", "ghcr.io/me/app:*", ".*", "ghcr.io/me/.*", "^ghcr.io/me/app$", "app?", "", "a b"],
+)
+def test_trusted_image_refs_refuses_wildcards_and_patterns(entry: str) -> None:
+    logger = Mock()
+    assert mut.trusted_image_refs([entry, "ghcr.io/me/app"], logger) == frozenset({"ghcr.io/me/app"})
+    logger.warning.assert_called_once()
+    assert not mut.is_trusted_image("ghcr.io/me/other:1.0", mut.trusted_image_refs([entry], Mock()))
+
+
+def test_analyze_honours_image_settings_only_for_trusted_images(mock_docker_client: DockerClient) -> None:
+    def analyze(trusted: list[str]) -> Discovery | None:
+        container = container_from_image(image_labels={"updates2mqtt.update": "auto"})
+        with patch("docker.from_env", return_value=mock_docker_client):
+            uut = mut.DockerProvider(docker_config(discover_metadata={}, trust_image_settings=trusted), NodeConfig())
+            return uut.analyze(container, "test-session")
+
+    untrusted = analyze([])
+    trusted = analyze(["vendor/app"])
+    wildcard = analyze(["vendor/*"])
+    assert untrusted is not None
+    assert trusted is not None
+    assert wildcard is not None
+    assert untrusted.update_policy == UpdatePolicy.PASSIVE
+    assert trusted.update_policy == UpdatePolicy.AUTO
+    assert wildcard.update_policy == UpdatePolicy.PASSIVE

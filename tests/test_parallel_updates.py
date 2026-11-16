@@ -274,7 +274,7 @@ def test_launch_self_bounce_helper(mock_docker_client: DockerClient, tmp_path: P
     kwargs: dict[str, Any] = mock_docker_client.containers.run.call_args.kwargs  # type: ignore[attr-defined]
     assert mock_docker_client.containers.run.call_args.args == ("sha256:current",)  # type: ignore[attr-defined]
     assert kwargs["entrypoint"] == ["docker"]
-    assert kwargs["command"] == ["compose", "-p", "infra", "up", "--detach", "--yes", "u2m"]
+    assert kwargs["command"] == ["compose", "-p", "infra", "up", "--detach", "--yes", "--pull", "never", "u2m"]
     assert kwargs["working_dir"] == str(tmp_path)
     assert kwargs["volumes_from"] == ["f" * 64]
     assert kwargs["environment"] == {"DOCKER_HOST": "tcp://socket-proxy:2375"}

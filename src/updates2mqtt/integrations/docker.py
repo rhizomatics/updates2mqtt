@@ -59,7 +59,7 @@ from updates2mqtt.supply_chain import (
     parse_timestamp,
 )
 
-from .git_utils import git_check_update_available, git_iso_timestamp, git_local_digest, git_pull, git_trust
+from .git_utils import git_check_update_available, git_iso_timestamp, git_local_digest, git_pull, git_repo_allowed
 
 if typing.TYPE_CHECKING:
     from docker.models.images import Image
@@ -88,6 +88,9 @@ DOCKER_CLIENT_ENV_VARS = ("DOCKER_HOST", "DOCKER_TLS_VERIFY", "DOCKER_CERT_PATH"
 DEFAULT_MAX_CONCURRENT_UPDATES = 3
 # Generous, since a compose build can compile a whole image
 COMPOSE_TIMEOUT = 60 * 60
+# Images are pulled by digest beforehand, so compose mustn't pull the tag again, as it would for a
+# service with `pull_policy: always`, and install something other than what was checked
+COMPOSE_UP_ARGS: tuple[str, ...] = ("--detach", "--yes", "--pull", "never")
 # Docker writes per-container files under .../containers/<id>/, bind mounted into the container
 CONTAINER_ID_RE = re.compile(r"/containers/([0-9a-f]{64})/")
 # Recreation may complete after the restart call returns, e.g. Portainer redeploy,
@@ -120,6 +123,29 @@ def untagged_ref(image_ref: str) -> str:
     return f"{head}/{name}" if head else name
 
 
+# an image ref is literal, anything that looks like a pattern is refused rather than guessed at
+IMAGE_REF_PATTERN_CHARS = frozenset("*?[]{}()^$|+\\ ")
+
+
+def trusted_image_refs(refs: Any, logger: Any) -> frozenset[str]:
+    """Image refs whose own settings are trusted, dropping, with a warning, any that aren't a plain ref"""
+    trusted: set[str] = set()
+    for ref in refs or []:
+        ref = str(ref).strip()
+        if not ref or IMAGE_REF_PATTERN_CHARS.intersection(ref) or ".*" in ref:
+            logger.warning("Ignoring trust_image_settings entry %r, wildcards and patterns are not accepted", ref)
+            continue
+        trusted.add(ref)
+    return frozenset(trusted)
+
+
+def is_trusted_image(image_ref: str | None, trusted: frozenset[str]) -> bool:
+    """An entry with a tag or digest matches only that exact ref, one without matches the image at any tag"""
+    if not image_ref or not trusted:
+        return False
+    return image_ref in trusted or untagged_ref(image_ref) in trusted
+
+
 class ContainerCustomization:
     """Local customization of a Docker container, by label or env var"""
 
@@ -127,8 +153,15 @@ class ContainerCustomization:
     env_prefix: str = "UPD2MQTT_"
     # labels and env vars with the Updates2MQTT prefixes that aren't recognised, so only warned once per container
     warned_unrecognised: ClassVar[set[tuple[str, str]]] = set()
+    # the only settings an image may supply for itself, as they're presentational. The rest decide what gets
+    # updated, when, and which paths commands run in, so have to be set on the container, by whoever runs it,
+    # otherwise an image could opt itself into automatic updates, or out of cooldowns and update checks
+    image_settable: ClassVar[frozenset[str]] = frozenset(("picture", "relnotes", "name"))
+    url_settings: ClassVar[frozenset[str]] = frozenset(("picture", "relnotes"))
+    secret_settings: ClassVar[frozenset[str]] = frozenset(("registry_token",))
 
-    def __init__(self, container: Container) -> None:
+    def __init__(self, container: Container, trust_image: bool = False) -> None:
+        """All settings are taken from the image too if `trust_image`, for images listed in `trust_image_settings`"""
         self.update: UpdatePolicy = UpdatePolicy.PASSIVE  # was known as UPD2MQTT_UPDATE before policies and labels
         self.git_repo_path: str | None = None
         self.picture: str | None = None
@@ -148,35 +181,44 @@ class ContainerCustomization:
             c_env = {}
 
         self.warn_unrecognised(container, c_env)
+        image_labels, image_env = self.image_settings(container)
 
         for attr in list(vars(self)):
             if "__" not in attr:
                 label = f"{self.label_prefix}{attr.lower()}"
                 env_var = f"{self.env_prefix}{attr.upper()}"
                 v: Any = None
-                if label in container.labels:
-                    # precedence to labels
-                    v = container.labels.get(label)
+                # precedence to labels
+                for source, key, values, image_values in (
+                    ("label", label, container.labels or {}, image_labels),
+                    ("env var", env_var, c_env, image_env),
+                ):
+                    if key not in values:
+                        continue
+                    candidate: Any = values.get(key)
+                    if not trust_image and attr not in self.image_settable and image_values.get(key) == candidate:
+                        self.warn_once(
+                            container,
+                            f"image:{key}",
+                            "Ignoring container setting supplied by the image, set it on the container to use it",
+                            key,
+                        )
+                        continue
+                    if attr in self.url_settings and not str(candidate).lower().startswith(("http://", "https://")):
+                        self.warn_once(container, f"url:{key}", "Ignoring container setting that isn't an http(s) URL", key)
+                        continue
+                    v = candidate
                     log.debug(
-                        "%s set from label %s=%s",
+                        "%s set from %s %s=%s",
                         attr,
-                        label,
-                        v,
+                        source,
+                        key,
+                        "*****" if attr in self.secret_settings else v,
                         integration="docker",
                         container=container.name,
                         action="customize",
                     )
-                elif env_var in c_env:
-                    v = c_env[env_var]
-                    log.debug(
-                        "%s set from env var %s=%s",
-                        attr,
-                        env_var,
-                        v,
-                        integration="docker",
-                        container=container.name,
-                        action="customize",
-                    )
+                    break
                 if v is not None:
                     if isinstance(getattr(self, attr), bool):
                         setattr(self, attr, v.upper() in ("TRUE", "YES", "1"))
@@ -187,6 +229,27 @@ class ContainerCustomization:
                         setattr(self, attr, UpdatePolicy[v.upper()])
                     else:
                         setattr(self, attr, v)
+
+    @staticmethod
+    def image_settings(container: Container) -> tuple[dict[str, str], dict[str, str]]:
+        """Labels and env vars the container inherited from its image, rather than being given when it was created"""
+        try:
+            image: Any = container.image
+            labels: Any = image.labels if image else None
+            attrs: Any = image.attrs if image else None
+        except Exception:
+            # image since removed, or no image recorded for the container, so nothing to compare with
+            return {}, {}
+        env_pairs: Any = (attrs.get("Config") or {}).get("Env") if isinstance(attrs, dict) else None
+        env: dict[str, str] = {}
+        if isinstance(env_pairs, list):
+            env = dict(pair.split("=", maxsplit=1) for pair in env_pairs if isinstance(pair, str) and "=" in pair)
+        return (dict(labels) if isinstance(labels, dict) else {}), env
+
+    def warn_once(self, container: Container, warning_key: str, message: str, setting: str) -> None:
+        if (container.name or "", warning_key) not in self.warned_unrecognised:
+            self.warned_unrecognised.add((container.name or "", warning_key))
+            log.warning(message, setting=setting, integration="docker", container=container.name, action="customize")
 
     def warn_unrecognised(self, container: Container, c_env: dict[str, str]) -> None:
         """Flag prefixed labels or env vars that do nothing, such as typos or settings copied from out of date guides"""
@@ -225,6 +288,8 @@ class DockerProvider(ReleaseProvider):
         # first sightings of each digest, in memory only unless given a persistent one
         self.release_history: ReleaseHistory = release_history or ReleaseHistory()
         self.warned_cooldowns: set[str] = set()
+        self.warned_repo_paths: set[str] = set()
+        self.trusted_images: frozenset[str] = trusted_image_refs(self.cfg.trust_image_settings, self.log)
         # asyncio primitives bind to the running loop on first use, so safe to create here
         self.update_slots: asyncio.Semaphore = asyncio.Semaphore(self.max_concurrent_updates())
         # compose and Portainer act on a whole project/stack, so serialize those per project
@@ -360,6 +425,15 @@ class DockerProvider(ReleaseProvider):
         ):
             return await self.pull_approved(image_ref, installed_info.tag, digest, platform, logger)
         if discovery.can_pull and image_ref:
+            if not (installed_info and installed_info.pinned_digest):
+                # nothing from the last scan to pull by digest, e.g. registry throttled or lookups disabled
+                if discovery.update_policy == UpdatePolicy.AUTO:
+                    logger.warning(
+                        "No registry digest from the last scan, automatic update skipped rather than pulling an unchecked tag",
+                        image_ref=image_ref,
+                    )
+                    return None
+                logger.warning("No registry digest from the last scan, pulling the tag as it is now", image_ref=image_ref)
             logger.info("Pulling", image_ref=image_ref, platform=platform)
             # Docker SDK is blocking, so pull in a worker thread to leave the event loop free
             image: Image = await asyncio.to_thread(self.pull_image, image_ref, platform)
@@ -538,7 +612,7 @@ class DockerProvider(ReleaseProvider):
             recreate = partial(
                 self.execute_compose,
                 command=DockerComposeCommand.UP,
-                args=["--detach", "--yes"],
+                args=list(COMPOSE_UP_ARGS),
                 service=service_info.compose_service,
                 cwd=service_info.compose_path,
                 logger=logger,
@@ -652,7 +726,7 @@ class DockerProvider(ReleaseProvider):
             return None
         own_name: str = own.name or own.id[:12]
         cmd: list[str] = self.compose_args(
-            DockerComposeCommand.UP, ["--detach", "--yes"], service_info.compose_service, service_info.compose_project
+            DockerComposeCommand.UP, list(COMPOSE_UP_ARGS), service_info.compose_service, service_info.compose_project
         )
         try:
             helper: Container = self.client.containers.run(
@@ -771,7 +845,10 @@ class DockerProvider(ReleaseProvider):
             logger.debug("Container ignored by container_select")
             return None
 
-        customization: ContainerCustomization = ContainerCustomization(c)
+        image_ref: str | None = (c.attrs.get("Config") or {}).get("Image")
+        customization: ContainerCustomization = ContainerCustomization(
+            c, trust_image=is_trusted_image(image_ref, self.trusted_images)
+        )
         if customization.ignore:
             logger.info("Container ignored due to UPD2MQTT_IGNORE setting")
             return None
@@ -801,6 +878,19 @@ class DockerProvider(ReleaseProvider):
 
         try:
             service_info.git_repo_path = customization.git_repo_path
+            if (
+                service_info.git_repo_path
+                and service_info.compose_path
+                and not git_repo_allowed(
+                    self.full_repo_path(service_info.compose_path, service_info.git_repo_path), self.cfg.git_repo_roots
+                )
+            ):
+                if c.name not in self.warned_repo_paths:
+                    self.warned_repo_paths.add(c.name)
+                    logger.warning(
+                        "Git repo path %s is outside the configured git_repo_roots, ignored", service_info.git_repo_path
+                    )
+                service_info.git_repo_path = None
 
             registry_selection = Selection(self.cfg.registry_select, local_info.index_name)
             latest_info: DockerImageInfo
@@ -842,10 +932,9 @@ class DockerProvider(ReleaseProvider):
                 else:
                     self.log.debug("Not a github release or no github configured")
 
-            if service_info.git_repo_path and service_info.compose_path:
-                full_repo_path: Path = Path(service_info.compose_path).joinpath(service_info.git_repo_path)
-
-                git_trust(full_repo_path, Path(self.node_cfg.git_path))
+            if self.cfg.allow_build and service_info.git_repo_path and service_info.compose_path:
+                # git reads the repo's own config, so only run it where local builds are wanted
+                full_repo_path: Path = self.full_repo_path(service_info.compose_path, service_info.git_repo_path)
                 service_info.git_local_timestamp = git_iso_timestamp(full_repo_path, Path(self.node_cfg.git_path))
 
             can_pull: bool = (
@@ -967,7 +1056,8 @@ class DockerProvider(ReleaseProvider):
             logger.debug("Analyze generated discovery: %s", discovery)
             return discovery
         except Exception:
-            logger.exception("Docker Discovery Failure", container_attrs=c.attrs)
+            # not the container attrs, which hold its environment, and so often other services' secrets
+            logger.exception("Docker Discovery Failure", image_ref=(c.attrs.get("Config") or {}).get("Image"))
         logger.debug("Analyze returned empty discovery")
         return None
 

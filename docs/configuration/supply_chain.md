@@ -33,6 +33,14 @@ than pulling the tag. The next scan picks up the new digest, and the update can 
 This applies when the registry check is enabled. Containers with a digest pinned in their compose
 file, e.g. `nginx:1.27@sha256:...`, are pulled by that ref, as before.
 
+From v1.19.0:
+
+- `docker compose up` is run with `--pull never`, so a service with `pull_policy: always` can't
+  have Compose pull the tag again, and replace the image that was checked
+- If the last scan has no digest for the image, for example because the registry was rate limiting,
+  an *Auto* update is skipped until a scan finds one. An update asked for from Home Assistant still
+  pulls the tag, with a warning in the log
+
 ## Release history
 
 Updates2MQTT records when it first saw each image digest, in `release_history.json` alongside

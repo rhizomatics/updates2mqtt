@@ -74,7 +74,7 @@ Updates2MQTTは、保持（retained）された`updates2mqtt/{node_name}/availab
 
 ## ヘルスチェック
 
-`healthcheck.sh`スクリプトがDockerイメージに含まれており、コンテナの環境変数`MQTT_HOST`、`MQTT_PORT`、`MQTT_USER`、`MQTT_PASS`が設定されている場合、Dockerヘルスチェックとして使用できます。トピックをサブスクライブするための`mosquitto_sub`コマンドを提供する`mosquitto-clients` Linuxパッケージを使用します。
+`healthcheck.sh`スクリプトがDockerイメージに含まれており、Dockerヘルスチェックとして使用できます。このスクリプト自体はMQTTに接続しません。代わりに、アプリが書き込むハートビートファイルを読み取ります。このファイルには、アプリが最後にハートビートを実行した時刻と、MQTTブローカーが最後に確認応答した時刻が記録されるため、MQTTの設定や追加パッケージは不要です。MQTTの設定とブローカーへの接続を直接確認するには、`docker exec -it updates2mqtt u2m-cli mqtt=check`を実行します。
 
 !!! tip
 
