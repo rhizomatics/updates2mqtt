@@ -5,6 +5,9 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+# Nothing by default; each job grants only what it needs (OpenSSF Scorecard Token-Permissions).
+permissions: {}
+
 jobs:
   automerge:
     permissions:

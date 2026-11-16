@@ -5,6 +5,9 @@ on:
   pull_request:
     branches: [main]
 
+# Nothing by default; each job grants only what it needs (OpenSSF Scorecard Token-Permissions).
+permissions: {}
+
 jobs:
   dependency-review:
     permissions:

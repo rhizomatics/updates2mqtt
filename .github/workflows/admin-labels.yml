@@ -9,6 +9,9 @@ on:
     branches: [main]
     paths: [.github/workflows/admin-labels.yml]
 
+# Nothing by default; each job grants only what it needs (OpenSSF Scorecard Token-Permissions).
+permissions: {}
+
 jobs:
   labels:
     permissions:
