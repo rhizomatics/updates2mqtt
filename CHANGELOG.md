@@ -4,6 +4,9 @@ title: What's New
 
 # 1.19.0
 Security hardening, following an audit of how container settings, git, MQTT commands and the build pipeline could be misused. See [Improving Security](https://updates2mqtt.rhizomatics.org.uk/configuration/security/)
+## 🚨 Breaking changes
+- Labels embedded in images are now ignore unless the image is explicitly trusted, see the *Security* section below.
+- `mosquitto` and `jq` removed from images, replaced by the built-in MQTT health check introduced in v1.12.0
 ## 🔒 Security
 ### Container settings
 - **Breaking:** settings that come from an image's own labels or environment, rather than being set on the container, are now ignored, apart from the picture, release notes and display name. An image could otherwise opt itself into *Auto* updates, switch off its cooldown, hide itself from update checks, or choose where git is run
