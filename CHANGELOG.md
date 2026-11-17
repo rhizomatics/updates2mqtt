@@ -1,6 +1,4 @@
----
-title: What's New
----
+# What's New
 
 # 1.19.0
 Security hardening, following an audit of how container settings, git, MQTT commands and the build pipeline could be misused. See [Improving Security](https://updates2mqtt.rhizomatics.org.uk/configuration/security/)
