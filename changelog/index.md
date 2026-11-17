@@ -8,7 +8,7 @@ Security hardening, following an audit of how container settings, git, MQTT comm
 
 ## 🚨 Breaking changes
 
-- Labels embedded in images are now ignore unless the image is explicitly trusted, see the *Security* section below.
+- Labels embedded in images are now ignored unless the image is explicitly trusted, see the *Security* section below.
 - `mosquitto` and `jq` removed from images, replaced by the built-in MQTT health check introduced in v1.12.0
 
 ## 🔒 Security
