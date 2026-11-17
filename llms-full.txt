@@ -237,9 +237,7 @@ One case where access tokens help is if there either no version label in the ima
 
 See the [Portainer Configuration](https://updates2mqtt.rhizomatics.org.uk/configuration/portainer/index.md) section.
 
-______________________________________________________________________
-
-## title: What’s New
+# What’s New
 
 # 1.19.0
 
