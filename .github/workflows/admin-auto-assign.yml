@@ -5,7 +5,7 @@ on:
   issues:
     types: [opened, reopened]
   # pull_request_target so fork PRs get a writable token; the called workflow never runs PR code.
-  pull_request_target:
+  pull_request_target: # zizmor: ignore[dangerous-triggers] only assigns, never checks out the PR
     types: [opened, reopened]
 
 # Nothing by default; each job grants only what it needs (OpenSSF Scorecard Token-Permissions).
@@ -16,4 +16,4 @@ jobs:
     permissions:
       issues: write
       pull-requests: write
-    uses: rhizomatics/hq/.github/workflows/reusable-auto-assign.yml@5c22e38809c2209b38d5ed13e2a8ea01b9c2d96e # v1.0.0
+    uses: rhizomatics/hq/.github/workflows/reusable-auto-assign.yml@0b71f7ee4e19ea72a529b96395fa81eeb641a590 # v1.0.1

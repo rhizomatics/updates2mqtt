@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #MISE description="Refresh tools and dependencies"
-# Shared copy, kept in step by rhizomatics/.github scripts/sync-admin.sh: change it there, not here.
+# Shared copy, kept in step by rhizomatics/hq admin/sync-admin.sh: change it there, not here.
 set -euo pipefail
 
 # Hide the user-level ~/.config/uv/uv.toml from uv, whose settings (e.g. exclude-newer-package
