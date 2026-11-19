@@ -13,4 +13,4 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    uses: rhizomatics/hq/.github/workflows/reusable-dependency-review.yml@5c22e38809c2209b38d5ed13e2a8ea01b9c2d96e # v1.0.0
+    uses: rhizomatics/hq/.github/workflows/reusable-dependency-review.yml@0b71f7ee4e19ea72a529b96395fa81eeb641a590 # v1.0.1

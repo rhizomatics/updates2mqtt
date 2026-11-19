@@ -1,0 +1,20 @@
+# Managed by rhizomatics/hq (admin/sync-admin.sh) - edit there, not here.
+name: zizmor
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "41 5 * * 2"
+
+# Nothing by default; each job grants only what it needs (OpenSSF Scorecard Token-Permissions).
+permissions: {}
+
+jobs:
+  zizmor:
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    uses: rhizomatics/hq/.github/workflows/reusable-zizmor.yml@0b71f7ee4e19ea72a529b96395fa81eeb641a590 # v1.0.1
