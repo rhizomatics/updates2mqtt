@@ -4,6 +4,7 @@ minimum_release_age = "7d"
 
 [tools]
 actionlint = "latest"
+"pipx:pngquant-cli" = "latest"
 prek = "latest"
 ruff = { version = "latest", minimum_release_age = "2d" }
 shellcheck = "latest"
