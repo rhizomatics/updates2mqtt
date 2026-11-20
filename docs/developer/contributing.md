@@ -14,3 +14,5 @@ Relevant ones are, covering testing, design proposals and tool use, are:
 - [Python Stack](https://hq.rhizomatics.org.uk/policies/python_stack/)
 - [Python Versions](https://hq.rhizomatics.org.uk/policies/python_versions/)
 - [Home Assistant Alignment](https://hq.rhizomatics.org.uk/policies/hass-alignment/)
+
+The project has extensive unit and integration test suite, uses Python typing, security checks, automated linting and formatting. These are applied automatically using `prek` at pre-commit time, and GitHub Actions for continuous build and release.
