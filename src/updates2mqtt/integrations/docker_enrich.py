@@ -784,6 +784,11 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
             credentials=credentials if credentials is not None else DockerConfigCredentials(),
             strict=cfg.strict,
         )
+        if not cfg.strict:
+            self.log.warning(
+                "Registry strict mode is off, so tag digests reported by registries are trusted without checking, "
+                "set `docker.registry.strict: true` to verify them"
+            )
 
     def close(self) -> None:
         """Close the transport if created here, with its cache database"""

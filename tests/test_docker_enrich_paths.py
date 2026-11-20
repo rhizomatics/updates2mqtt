@@ -4,6 +4,7 @@ from unittest.mock import Mock
 
 import docker.errors
 from pytest_httpx import HTTPXMock
+from structlog.testing import capture_logs
 
 from tests.lib_test import docker_config
 from tests.oci.fake_registry import REGISTRY, FakeRegistry
@@ -70,6 +71,18 @@ def test_registry_lookup_invalid_reference() -> None:
     result = uut.lookup(local)
     assert result.error is not None
     assert not result.throttled
+
+
+def test_registry_lookup_warns_when_not_strict() -> None:
+    with capture_logs() as logs:
+        ContainerDistributionAPIVersionLookup(Throttler(), RegistryConfig(), transport=Mock())
+    assert any(e["log_level"] == "warning" and "strict mode is off" in e["event"] for e in logs)
+
+
+def test_registry_lookup_quiet_when_strict() -> None:
+    with capture_logs() as logs:
+        ContainerDistributionAPIVersionLookup(Throttler(), RegistryConfig(strict=True), transport=Mock())
+    assert not any("strict mode" in e["event"] for e in logs)
 
 
 def test_registry_lookup_verification_failure_reported() -> None:

@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import platform
 import signal
 import sys
 import tempfile
@@ -354,7 +355,7 @@ async def repeated_call(func: Callable[..., Awaitable[Any]], interval: int = 60,
 
 
 def run() -> None:
-    log.debug(f"Starting updates2mqtt v{updates2mqtt.version}")  # pyright: ignore[reportAttributeAccessIssue]
+    log.info(f"Starting updates2mqtt v{updates2mqtt.version} on Python {platform.python_version()}")  # pyright: ignore[reportAttributeAccessIssue]
     app = App()
     exit_code: int = asyncio.run(app.main_loop(), debug=False)
     log.debug("App exited", exit_code=exit_code)
