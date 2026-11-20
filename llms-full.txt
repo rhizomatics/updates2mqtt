@@ -239,6 +239,23 @@ See the [Portainer Configuration](https://updates2mqtt.rhizomatics.org.uk/config
 
 # What’s New
 
+# 1.19.1
+
+## 🔒 Security
+
+- New `strict` option in the `docker.registry` config section, off by default, refuses registry data that can’t be verified rather than trusting the registry. See [Supply Chain Protection](https://updates2mqtt.rhizomatics.org.uk/configuration/supply_chain/#strict-registry-checks)
+- The digest a registry reports for a tag has to match the manifest it serves. This is the digest shown in Home Assistant, recorded in the release history and pulled by an update
+- Digests in an algorithm that can’t be computed are rejected, rather than trusted
+- Image signature checks will be added to this option later, see RFC 0002
+- An image that fails a registry check is shown with no update, and an error is logged
+
+## 📝 Other changes
+
+- New developer documentation: an *Interface Reference* for the MQTT topics and message schemas, and a *Configuration Reference* generated from the configuration classes
+- The test coverage report is published on the documentation site again
+- Badges and docs are published from main by their own workflow, so CI and the release workflows that call it run with a read-only token
+- The weekly image scan runs the scanner without permission to start workflows, which is limited to a separate rebuild job
+
 # 1.19.0
 
 Security hardening, following an audit of how container settings, git, MQTT commands and the build pipeline could be misused. See [Improving Security](https://updates2mqtt.rhizomatics.org.uk/configuration/security/)
@@ -2666,6 +2683,27 @@ template example
 {{ state_attr('update.dockernuc_docker_mosquitto', 'cooldown').until }}
 ```
 
+## Strict registry checks
+
+Anything Updates2MQTT fetches from a registry by its digest, such as a platform’s image manifest or an image config, is always checked against that digest. But a scan looks an image up by its tag, such as `latest`, and the registry then says which digest the tag points to, in a response header that by default is trusted. That digest is the one shown in Home Assistant, recorded in the release history, and pulled by an update.
+
+Strict mode checks it instead, refusing registry data it can’t verify:
+
+- The digest a registry reports for a tag must match the manifest it serves
+- A digest in an algorithm Updates2MQTT can’t compute is rejected, rather than trusted
+
+config.yaml snippet
+
+```yaml
+docker:
+  registry:
+    strict: true
+```
+
+A registry that follows the OCI specification always passes these checks. If one fails, the image is shown with no update, and an error is logged, as either the registry or something between it and Updates2MQTT is serving content that isn’t what it claims to be.
+
+Strict mode applies to the built-in registry client, the default `OCI_V2` and `OCI_V2_MINIMAL` values of `docker.registry.api`, not to `DOCKER_CLIENT`. It’s off by default for now. Further checks, such as image signatures, will be added to it as described in [RFC 0002](https://updates2mqtt.rhizomatics.org.uk/developer/design/rfcs/rfc0002-cyber_security/index.md).
+
 ## Related
 
 - [Improving Security](https://updates2mqtt.rhizomatics.org.uk/configuration/security/index.md), including restricting who can send update commands over MQTT
@@ -3359,6 +3397,8 @@ Updates2MQTT no longer adds repos to the global git `safe.directory` list. Each 
 Since there’s no image digest, the current git revision will be used as the version, like `git:c2b12584a27f`, and when there are remote repo commits to pull, the new version will show how many commits ahead it is, for example `git:c2b12584a27f+5`
 
 # Developer Documentation
+
+> RFCs with design proposals can be found in the Design Documentation.
 
 {{ pagetree(siblings) }}
 
@@ -4424,6 +4464,14 @@ token_cache_ttl: int | None = None
 ```
 
 Seconds to cache registry auth tokens, or `None` to follow the registry’s own expiry
+
+### strict
+
+```python
+strict: bool = False
+```
+
+Refuse registry data that can’t be verified, rather than trusting the registry, for the OCI clients. For now, checks the digest the registry reports for a tag against the manifest it serves. More checks, such as image signatures, will be added under this setting, see RFC 0002
 
 ## RegistryAPI
 

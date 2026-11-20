@@ -237,6 +237,14 @@ token_cache_ttl: int | None = None
 
 Seconds to cache registry auth tokens, or `None` to follow the registry’s own expiry
 
+### strict
+
+```python
+strict: bool = False
+```
+
+Refuse registry data that can’t be verified, rather than trusting the registry, for the OCI clients. For now, checks the digest the registry reports for a tag against the manifest it serves. More checks, such as image signatures, will be added under this setting, see RFC 0002
+
 ## RegistryAPI
 
 How the latest version of an image is looked up, matched case insensitively
