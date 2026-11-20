@@ -3362,6 +3362,1317 @@ Since there’s no image digest, the current git revision will be used as the ve
 
 {{ pagetree(siblings) }}
 
+# Interface Reference
+
+Updates2MQTT’s external interface is MQTT. This page lists every topic it publishes or subscribes to, and the schema of each message, using the default topic names. For how Home Assistant uses them, see [Home Assistant Integration](https://updates2mqtt.rhizomatics.org.uk/home_assistant/index.md).
+
+## Topic Names
+
+Topics are built from these values, shown with their defaults:
+
+| Placeholder     | Default                            | Setting                           |
+| --------------- | ---------------------------------- | --------------------------------- |
+| `<topic_root>`  | `updates2mqtt`                     | `mqtt.topic_root`                 |
+| `<node>`        | host name, or `NODE_NAME`          | `node.name`                       |
+| `<discovery>`   | `homeassistant`                    | `homeassistant.discovery.prefix`  |
+| `<source_type>` | `docker`                           | set by the integration            |
+| `<container>`   | container name, sanitized for MQTT | set by the integration            |
+| heartbeat topic | `healthcheck/<node>/updates2mqtt`  | `node.healthcheck.topic_template` |
+
+`<container>` holds only `A-Z`, `a-z`, `0-9`, `_`, `-` and `.`.
+
+## Topic Summary
+
+| Topic                                                                 | Direction | Payload    | Retained | QoS |
+| --------------------------------------------------------------------- | --------- | ---------- | -------- | --- |
+| `updates2mqtt/<node>/<source_type>/<container>`                       | publish   | JSON       | yes      | 1   |
+| `updates2mqtt/<node>/<source_type>/<container>/state`                 | publish   | JSON       | yes      | 1   |
+| `homeassistant/update/<node>_<source_type>_<container>/update/config` | publish   | JSON       | yes      | 1   |
+| `updates2mqtt/<node>/availability`                                    | publish   | plain text | yes      | 1   |
+| `healthcheck/<node>/updates2mqtt`                                     | publish   | JSON       | yes      | 1   |
+| `updates2mqtt/<node>/<source_type>`                                   | subscribe | plain text | **no**   | any |
+
+Which topics are published for a component depends on its publish policy:
+
+| Publish policy  | General | State | Discovery config                                       |
+| --------------- | ------- | ----- | ------------------------------------------------------ |
+| `HomeAssistant` | yes     | yes   | yes, unless `homeassistant.discovery.enabled` is false |
+| `MQTT`          | yes     | no    | no                                                     |
+| `Silent`        | no      | no    | no                                                     |
+
+On startup, Updates2MQTT reads back its own retained topics for the node and clears, by publishing an empty retained message, any for components it no longer finds, along with incomplete state messages and `in_progress` flags left behind by an interrupted update.
+
+## General Topic
+
+`updates2mqtt/<node>/docker/<container>`
+
+The full description of a component, independent of Home Assistant. Home Assistant reads it as the update entity’s `json_attributes_topic`, unless `homeassistant.extra_attributes` is false. Published after every scan, and when an update starts and ends.
+
+| Key                    | Type                    | Description                                                              |
+| ---------------------- | ----------------------- | ------------------------------------------------------------------------ |
+| `name`                 | string                  | Component name, as in the topic                                          |
+| `node`                 | string                  | Node name                                                                |
+| `provider.source_type` | string                  | Integration, e.g. `docker`                                               |
+| `first_scan.timestamp` | ISO 8601 string         | When the component was first scanned since startup                       |
+| `last_scan.timestamp`  | ISO 8601 string         | When it was last scanned                                                 |
+| `last_scan.session`    | string                  | Id of the scan run                                                       |
+| `last_scan.throttled`  | boolean                 | Registry lookups were throttled, so the latest version may be stale      |
+| `scan_count`           | integer                 | Scans since startup                                                      |
+| `installed_version`    | string or null          | Version running now                                                      |
+| `latest_version`       | string or null          | Latest version available                                                 |
+| `version_basis`        | string or null          | How the versions were derived, e.g. `version`, `digest`, `timestamp`     |
+| `title`                | string                  | Display title                                                            |
+| `can_update`           | boolean                 | Any of `can_build`, `can_restart` or pull is possible                    |
+| `can_build`            | boolean                 | Can be rebuilt from a local git repo                                     |
+| `can_restart`          | boolean                 | Can be recreated with `docker compose`                                   |
+| `device_icon`          | string or null          | Material Design Icon, e.g. `mdi:docker`                                  |
+| `update_type`          | string or null          | e.g. `Docker Image`, `Docker Build`                                      |
+| `status`               | string                  | Component status                                                         |
+| `features`             | list of strings         | `INSTALL`, `PROGRESS`, `RELEASE_NOTES`                                   |
+| `entity_picture_url`   | string or null          | Logo URL                                                                 |
+| `update_policy`        | string                  | `Auto` or `Passive`                                                      |
+| `publish_policy`       | string                  | `HomeAssistant`, `MQTT` or `Silent`                                      |
+| `version_policy`       | string                  | `AUTO`, `VERSION`, `DIGEST`, `VERSION_DIGEST` or `TIMESTAMP`             |
+| `update.last_attempt`  | ISO 8601 string or null | When an update was last attempted                                        |
+| `update.in_progress`   | boolean                 | An update is running now                                                 |
+| `installation_detail`  | object or null          | How the component is installed, see [Docker detail](#docker-detail)      |
+| `current_detail`       | object or null          | Installed artefact, see [Docker detail](#docker-detail)                  |
+| `latest_detail`        | object or null          | Latest artefact, see [Docker detail](#docker-detail)                     |
+| `release`              | object                  | Present only when release details are known, see [Release](#release)     |
+| `cooldown`             | object or null          | Supply chain cooldown, see [Cooldown](#cooldown)                         |
+| `tag_moved`            | object or null          | A versioned tag seen pointing at a new digest, see [Tag move](#tag-move) |
+
+Consumers should ignore keys they don’t recognise, as new ones are added from time to time.
+
+### Release
+
+| Key               | Type                    | Description                                                                         |
+| ----------------- | ----------------------- | ----------------------------------------------------------------------------------- |
+| `captured`        | ISO 8601 string         | When these details were collected                                                   |
+| `title`           | string or null          | Release title                                                                       |
+| `version`         | string or null          | Release version                                                                     |
+| `source_platform` | string or null          | `GitHub`, `GitLab`, `CodeBerg` or `SourceHut`                                       |
+| `source_repo`     | string or null          | Source repository URL                                                               |
+| `source`          | string or null          | Source URL for this release                                                         |
+| `revision`        | string or null          | Source revision, e.g. git commit                                                    |
+| `diff_url`        | string or null          | Link to the changes since the installed version                                     |
+| `notes_url`       | string or null          | Release notes link                                                                  |
+| `summary`         | string or null          | Release notes, possibly HTML, truncated to `homeassistant.release_summary_max_size` |
+| `net_score`       | string or null          | Net reaction score on the release                                                   |
+| `published`       | ISO 8601 string or null | When the release was published                                                      |
+
+### Cooldown
+
+See [Supply Chain Protection](https://updates2mqtt.rhizomatics.org.uk/configuration/supply_chain/index.md).
+
+| Key                   | Type            | Description                                                  |
+| --------------------- | --------------- | ------------------------------------------------------------ |
+| `policy`              | string          | Cooldown setting, e.g. `3d`                                  |
+| `release_time`        | ISO 8601 string | When the release is treated as published                     |
+| `release_time_source` | string          | Where `release_time` came from                               |
+| `until`               | ISO 8601 string | When the cooldown ends                                       |
+| `active`              | boolean         | Still cooling down                                           |
+| `enforced`            | boolean         | Updates are blocked until it ends, rather than only reported |
+
+### Tag Move
+
+| Key               | Type            | Description                      |
+| ----------------- | --------------- | -------------------------------- |
+| `tag`             | string          | The versioned tag, e.g. `2.0.18` |
+| `previous_digest` | string          | Digest it pointed at before      |
+| `digest`          | string          | Digest it points at now          |
+| `moved`           | ISO 8601 string | When the move was seen           |
+
+### Docker Detail
+
+For `docker` components, `installation_detail` describes the container:
+
+| Key                   | Type           | Description                                                        |
+| --------------------- | -------------- | ------------------------------------------------------------------ |
+| `container_name`      | string         | Docker container name                                              |
+| `compose_path`        | string or null | Directory of the compose file                                      |
+| `compose_path_found`  | boolean        | The compose file directory is reachable from Updates2MQTT          |
+| `compose_project`     | string or null | Compose project name                                               |
+| `compose_service`     | string or null | Compose service name                                               |
+| `compose_version`     | string or null | Docker Compose version that created the container, from its labels |
+| `portainer_stack_id`  | string         | Only present for Portainer stacks                                  |
+| `git_local_timestamp` | string         | Only present for local builds                                      |
+| `git_repo_path`       | string         | Only present for local builds                                      |
+
+and `current_detail` and `latest_detail` describe an image:
+
+| Key             | Type                    | Description                                |
+| --------------- | ----------------------- | ------------------------------------------ |
+| `captured`      | ISO 8601 string         | When these details were collected          |
+| `image_ref`     | string or null          | Image reference, as in the compose file    |
+| `name`          | string or null          | Untagged image name                        |
+| `version`       | string or null          | Version, from labels, annotations or tag   |
+| `image_digest`  | string or null          | Image digest                               |
+| `repo_digest`   | string or null          | Repository digest                          |
+| `repo_digests`  | string or null          | Repository digest, kept for compatibility  |
+| `config_digest` | string or null          | Image config digest                        |
+| `git_digest`    | string or null          | Git commit, for local builds               |
+| `index_name`    | string or null          | Registry, e.g. `docker.io`, `ghcr.io`      |
+| `tag`           | string or null          | Tag                                        |
+| `pinned_digest` | string or null          | Digest the compose file pins the image to  |
+| `tag_or_digest` | string or null          | Tag, or the pinned digest                  |
+| `tags`          | list of strings or null | Other tags                                 |
+| `origin`        | string or null          | Where the details came from, e.g. `OCI_V2` |
+| `platform`      | string or null          | e.g. `linux/amd64`                         |
+| `local_build`   | boolean                 | Built locally rather than pulled           |
+| `error`         | string or null          | Lookup error                               |
+| `throttled`     | boolean                 | The registry throttled the lookup          |
+| `custom`        | object                  | Integration specific extras                |
+
+### Example
+
+Example: container jellyfin on node dockernuc
+
+```json
+{
+  "name": "jellyfin",
+  "node": "dockernuc",
+  "provider": {"source_type": "docker"},
+  "first_scan": {"timestamp": "2026-11-20T09:00:03+00:00"},
+  "last_scan": {"timestamp": "2026-11-20T12:00:04+00:00", "session": "a41f9c", "throttled": false},
+  "scan_count": 2,
+  "installed_version": "10.11.2",
+  "latest_version": "10.11.3",
+  "version_basis": "version",
+  "title": "Jellyfin",
+  "can_update": true,
+  "can_build": false,
+  "can_restart": true,
+  "device_icon": "mdi:docker",
+  "update_type": "Docker Image",
+  "status": "on",
+  "features": ["INSTALL", "PROGRESS", "RELEASE_NOTES"],
+  "entity_picture_url": "https://example.org/jellyfin.png",
+  "update_policy": "Passive",
+  "publish_policy": "HomeAssistant",
+  "version_policy": "AUTO",
+  "update": {"last_attempt": null, "in_progress": false},
+  "installation_detail": {"container_name": "jellyfin", "compose_path": "/home/containers/jellyfin", "...": "..."},
+  "current_detail": {"image_ref": "jellyfin/jellyfin:latest", "version": "10.11.2", "...": "..."},
+  "latest_detail": {"image_ref": "jellyfin/jellyfin:latest", "version": "10.11.3", "...": "..."},
+  "release": {"notes_url": "https://github.com/jellyfin/jellyfin/releases", "...": "..."},
+  "cooldown": {"policy": "3d", "active": false, "enforced": false, "...": "..."},
+  "tag_moved": null
+}
+```
+
+## State Topic
+
+`updates2mqtt/<node>/docker/<container>/state`
+
+The Home Assistant [MQTT Update](https://www.home-assistant.io/integrations/update.mqtt/) state, the update entity’s `state_topic`. Only published for the `HomeAssistant` publish policy.
+
+| Key                 | Type           | Description                                                          |
+| ------------------- | -------------- | -------------------------------------------------------------------- |
+| `installed_version` | string or null | Version running now                                                  |
+| `latest_version`    | string or null | Latest version available                                             |
+| `title`             | string         | Display title                                                        |
+| `in_progress`       | boolean        | An update is running now                                             |
+| `release_summary`   | string         | Only if known, truncated to `homeassistant.release_summary_max_size` |
+| `release_url`       | string         | Only if known, release notes link                                    |
+
+Example: container jellyfin on node dockernuc
+
+```json
+{
+  "installed_version": "10.11.2",
+  "latest_version": "10.11.3",
+  "title": "Jellyfin",
+  "in_progress": false,
+  "release_url": "https://github.com/jellyfin/jellyfin/releases"
+}
+```
+
+## Discovery Config Topic
+
+`homeassistant/update/<node>_docker_<container>/update/config`
+
+Home Assistant [MQTT discovery](https://www.home-assistant.io/integrations/mqtt/#mqtt-discovery) config for the update entity.
+
+| Key                        | Description                                                                                                                          |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `name`                     | Display title                                                                                                                        |
+| `device_class`             | Always null                                                                                                                          |
+| `unique_id`                | `<source_type>_<node>_<container>`                                                                                                   |
+| `default_entity_id`        | `update.<node>_<source_type>_<container>`                                                                                            |
+| `state_topic`              | The [state topic](#state-topic)                                                                                                      |
+| `supported_features`       | As `features` in the [general topic](#general-topic)                                                                                 |
+| `origin`                   | `name`, `sw_version` and `support_url` of Updates2MQTT                                                                               |
+| `availability_topic`       | The [availability topic](#availability-topic)                                                                                        |
+| `json_attributes_topic`    | The [general topic](#general-topic), unless `homeassistant.extra_attributes` is false                                                |
+| `json_attributes_template` | Drops keys that would override the update entity’s own state                                                                         |
+| `entity_picture`           | Logo URL, if known                                                                                                                   |
+| `icon`                     | Device icon, if set                                                                                                                  |
+| `device`                   | Shared by all of a node’s entities, unless `homeassistant.device_creation` is false, with `suggested_area` from `homeassistant.area` |
+| `command_topic`            | The [command topic](#command-topic), if the component can be updated, or `homeassistant.force_command_topic` is true                 |
+| `payload_install`          | `<source_type>\|<container>\|install`, if the component can be updated                                                               |
+
+Example: container jellyfin on node dockernuc
+
+```json
+{
+  "name": "Jellyfin",
+  "device_class": null,
+  "unique_id": "docker_dockernuc_jellyfin",
+  "state_topic": "updates2mqtt/dockernuc/docker/jellyfin/state",
+  "supported_features": ["INSTALL", "PROGRESS", "RELEASE_NOTES"],
+  "default_entity_id": "update.dockernuc_docker_jellyfin",
+  "origin": {
+    "name": "dockernuc updates2mqtt",
+    "sw_version": "1.19.0",
+    "support_url": "https://github.com/rhizomatics/updates2mqtt/issues"
+  },
+  "availability_topic": "updates2mqtt/dockernuc/availability",
+  "json_attributes_topic": "updates2mqtt/dockernuc/docker/jellyfin",
+  "json_attributes_template": "{{ dict(value_json.items() | rejectattr('0', 'in', [...])) | to_json }}",
+  "entity_picture": "https://example.org/jellyfin.png",
+  "icon": "mdi:docker",
+  "device": {
+    "name": "dockernuc updates2mqtt",
+    "sw_version": "1.19.0",
+    "manufacturer": "rhizomatics",
+    "identifiers": ["dockernuc.updates2mqtt"]
+  },
+  "command_topic": "updates2mqtt/dockernuc/docker",
+  "payload_install": "docker|jellyfin|install"
+}
+```
+
+## Command Topic
+
+`updates2mqtt/<node>/docker`
+
+Subscribed to, one per node and integration, to install updates. The payload is plain text:
+
+```text
+<source_type>|<container>|install[|<digest>]
+```
+
+- `<source_type>` has to match the topic, e.g. `docker`
+- `install` is the only command
+- `<digest>` is optional. When given, the command is ignored unless it matches the latest digest found by the last scan, `latest_detail.image_digest`, so a script or automation can be sure which release it installs
+
+Commands must **not** be retained, and retained ones are ignored, so that an old command isn’t replayed when Updates2MQTT reconnects. A command for a component already being updated is ignored. Progress is reported through `in_progress` on the state and general topics.
+
+Example: install the latest image for container jellyfin on node dockernuc
+
+```shell
+mosquitto_pub -t updates2mqtt/dockernuc/docker -m 'docker|jellyfin|install'
+```
+
+See [Security](https://updates2mqtt.rhizomatics.org.uk/configuration/security/index.md) for restricting who can publish commands.
+
+## Availability Topic
+
+`updates2mqtt/<node>/availability`
+
+Plain text, `online` or `offline`, the Home Assistant defaults for `payload_available` and `payload_not_available`. `online` is published on every connection, `offline` on a clean shutdown, and `offline` is also the MQTT last will, so the broker publishes it if the connection is lost.
+
+## Heartbeat Topic
+
+`healthcheck/<node>/updates2mqtt`
+
+Published every `node.healthcheck.interval` seconds, 300 by default, while `node.healthcheck.enabled` is true. Not under `<topic_root>`, so it can be monitored separately.
+
+| Key               | Type                    | Description                     |
+| ----------------- | ----------------------- | ------------------------------- |
+| `version`         | string                  | Updates2MQTT version            |
+| `node`            | string                  | Node name                       |
+| `heartbeat_raw`   | number                  | Epoch seconds of this heartbeat |
+| `heartbeat_stamp` | ISO 8601 string         | Time of this heartbeat, UTC     |
+| `startup_stamp`   | ISO 8601 string         | When Updates2MQTT started       |
+| `last_scan_stamp` | ISO 8601 string or null | When the last scan ran          |
+| `scan_count`      | integer                 | Scans since startup             |
+
+Example: node dockernuc
+
+```json
+{
+  "version": "1.19.0",
+  "node": "dockernuc",
+  "heartbeat_raw": 1795165204.51,
+  "heartbeat_stamp": "2026-11-20T12:00:04.510000+00:00",
+  "startup_stamp": "2026-11-20T09:00:00.120000+00:00",
+  "last_scan_stamp": "2026-11-20T12:00:04.200000+00:00",
+  "scan_count": 2
+}
+```
+
+# Configuration Reference
+
+Generated from the OmegaConf structured config dataclasses in `updates2mqtt.config`, so it always matches the code. For how to write a config file, see [Using a Configuration File](https://updates2mqtt.rhizomatics.org.uk/configuration/using_a_config_file/index.md).
+
+Each class is a block in `config.yaml`, and each attribute a key in that block, with its type and default as written in the source. Defaults written as `${oc.env:VAR,default}` are OmegaConf interpolations, read from environment variable `VAR` if set, otherwise `default`, and `MISSING` marks a mandatory value. Nested blocks default to the defaults of their own class.
+
+{{ pagetree(siblings) }}
+
+## Top Level
+
+## Config
+
+Root of `config.yaml`
+
+### log
+
+```python
+log: LogConfig = field(default_factory=LogConfig)
+```
+
+Logging
+
+### node
+
+```python
+node: NodeConfig = field(default_factory=NodeConfig)
+```
+
+This instance
+
+### mqtt
+
+```python
+mqtt: MqttConfig = field(default_factory=MqttConfig)
+```
+
+MQTT broker connection
+
+### homeassistant
+
+```python
+homeassistant: HomeAssistantConfig = field(
+    default_factory=HomeAssistantConfig
+)
+```
+
+Home Assistant integration
+
+### docker
+
+```python
+docker: DockerConfig = field(default_factory=DockerConfig)
+```
+
+Docker containers
+
+### github
+
+```python
+github: GitHubConfig = field(default_factory=GitHubConfig)
+```
+
+GitHub API access
+
+### scan_interval
+
+```python
+scan_interval: int = 60 * 60 * 3
+```
+
+Seconds between scans
+
+### packages
+
+```python
+packages: dict[str, PackageUpdateInfo] = field(
+    default_factory=dict
+)
+```
+
+Package metadata, keyed by package name, adding to or overriding the common packages
+
+## Node
+
+## NodeConfig
+
+This Updates2MQTT instance, the `node` block
+
+### name
+
+```python
+name: str = field(
+    default_factory=lambda: os.getenv(
+        "NODE_NAME",
+        os.uname().nodename.replace(".local", ""),
+    )
+)
+```
+
+Unique name for this instance, used in topics and entity ids, from `NODE_NAME` or the host name
+
+### git_path
+
+```python
+git_path: str = '/usr/bin/git'
+```
+
+Path to the git executable, used for local builds
+
+### healthcheck
+
+```python
+healthcheck: HealthCheckConfig = field(
+    default_factory=HealthCheckConfig
+)
+```
+
+Heartbeat settings
+
+## HealthCheckConfig
+
+Heartbeat publishing, the `node.healthcheck` block
+
+### enabled
+
+```python
+enabled: bool = True
+```
+
+Publish heartbeats
+
+### interval
+
+```python
+interval: int = 300
+```
+
+Interval in seconds to publish heartbeat message, 0 to disable
+
+### topic_template
+
+```python
+topic_template: str = "healthcheck/{node_name}/updates2mqtt"
+```
+
+Heartbeat topic, with `{node_name}` replaced by the node name
+
+### heartbeat_file
+
+```python
+heartbeat_file: str = field(
+    default_factory=lambda: (
+        f"${{oc.env:U2M_HEARTBEAT_FILE,{default_heartbeat_file()}}}"
+    )
+)
+```
+
+Local file for the container healthcheck, holding when the app last ran its heartbeat, and when the broker last acknowledged one, so no separate MQTT connection is needed to check it; empty to not write one. `U2M_HEARTBEAT_FILE` sets it for both the app and `healthcheck.sh`, which can’t read this config file
+
+## Logging
+
+## LogConfig
+
+Logging, the `log` block
+
+### level
+
+```python
+level: LogLevel = (
+    "${oc.decode:${oc.env:U2M_LOG_LEVEL,INFO}}"
+)
+```
+
+Log level, from `U2M_LOG_LEVEL`
+
+### json
+
+```python
+json: bool = False
+```
+
+Use JSON structured logging for non-interactive running
+
+## LogLevel
+
+### DEBUG
+
+```python
+DEBUG = 'DEBUG'
+```
+
+### INFO
+
+```python
+INFO = 'INFO'
+```
+
+### WARNING
+
+```python
+WARNING = 'WARNING'
+```
+
+### ERROR
+
+```python
+ERROR = 'ERROR'
+```
+
+### CRITICAL
+
+```python
+CRITICAL = 'CRITICAL'
+```
+
+## GitHub
+
+## GitHubConfig
+
+GitHub API access for release notes, the `github` block
+
+### access_token
+
+```python
+access_token: str | None = None
+```
+
+Personal access token, to raise the GitHub API rate limit
+
+### mutable_cache_ttl
+
+```python
+mutable_cache_ttl: int = 60 * 60 * 15
+```
+
+Seconds to cache GitHub release lookups
+
+# MQTT
+
+The `mqtt` block. See [Interface Reference](https://updates2mqtt.rhizomatics.org.uk/developer/interface_reference/index.md) for the topics published.
+
+## MqttConfig
+
+MQTT broker connection, the `mqtt` block
+
+### host
+
+```python
+host: str = '${oc.env:MQTT_HOST,localhost}'
+```
+
+Broker host name or IP address, from `MQTT_HOST`
+
+### user
+
+```python
+user: str = f'${{oc.env:MQTT_USER,{MISSING}}}'
+```
+
+Broker user name, from `MQTT_USER`, the one mandatory setting
+
+### password
+
+```python
+password: str | None = "${oc.env:MQTT_PASS,''}"
+```
+
+Broker password, from `MQTT_PASS`
+
+### port
+
+```python
+port: int = '${oc.decode:${oc.env:MQTT_PORT,1883}}'
+```
+
+Broker port, from `MQTT_PORT`
+
+### topic_root
+
+```python
+topic_root: str = 'updates2mqtt'
+```
+
+First level of every topic Updates2MQTT publishes, other than Home Assistant discovery and healthcheck
+
+### protocol
+
+```python
+protocol: str = '${oc.env:MQTT_VERSION,3.11}'
+```
+
+MQTT protocol version, `3.1`, `3.11` or `5`, from `MQTT_VERSION`
+
+### transport
+
+```python
+transport: str = "${oc.env:MQTT_TRANSPORT,'tcp'}"
+```
+
+`tcp`, `websockets` or `unix`, from `MQTT_TRANSPORT`
+
+### connect_timeout
+
+```python
+connect_timeout: float = 20
+```
+
+Seconds to wait for the broker to accept a connection
+
+### keepalive
+
+```python
+keepalive: int = 30
+```
+
+Seconds between MQTT keepalive pings
+
+### tls_mode
+
+```python
+tls_mode: TlsMode = '${oc.env:MQTT_TLS_MODE,off}'
+```
+
+TLS for the broker connection, from `MQTT_TLS_MODE`
+
+### ca_certs
+
+```python
+ca_certs: str | None = "${oc.env:MQTT_CA_CERTS,''}"
+```
+
+CA certificate bundle file to verify the broker, from `MQTT_CA_CERTS`
+
+### client_cert
+
+```python
+client_cert: str | None = "${oc.env:MQTT_CLIENT_CERT,''}"
+```
+
+Client certificate file for mutual TLS, from `MQTT_CLIENT_CERT`
+
+### client_key
+
+```python
+client_key: str | None = "${oc.env:MQTT_CLIENT_KEY,''}"
+```
+
+Client private key file for mutual TLS, from `MQTT_CLIENT_KEY`
+
+### client_key_password
+
+```python
+client_key_password: str | None = (
+    "${oc.env:MQTT_CLIENT_KEY_PASS,''}"
+)
+```
+
+Password for the client private key, from `MQTT_CLIENT_KEY_PASS`
+
+### cert_reqs
+
+```python
+cert_reqs: VerifyMode = (
+    "${oc.env:MQTT_CERT_REQUIRED,CERT_REQUIRED}"
+)
+```
+
+Broker certificate verification, `CERT_REQUIRED`, `CERT_OPTIONAL` or `CERT_NONE`, from `MQTT_CERT_REQUIRED`
+
+## TlsMode
+
+MQTT broker TLS, matched case insensitively
+
+### ON
+
+```python
+ON = auto()
+```
+
+TLS with certificate verification
+
+### OFF
+
+```python
+OFF = auto()
+```
+
+Plain TCP
+
+### INSECURE
+
+```python
+INSECURE = auto()
+```
+
+TLS without verifying the broker’s certificate or host name
+
+# Home Assistant
+
+The `homeassistant` block. See [Home Assistant Integration](https://updates2mqtt.rhizomatics.org.uk/home_assistant/index.md) for how these are used.
+
+## HomeAssistantConfig
+
+Home Assistant integration, the `homeassistant` block
+
+### discovery
+
+```python
+discovery: HomeAssistantDiscoveryConfig = field(
+    default_factory=HomeAssistantDiscoveryConfig
+)
+```
+
+MQTT discovery settings
+
+### state_topic_suffix
+
+```python
+state_topic_suffix: str = 'state'
+```
+
+Reserved, the state topic currently always ends in `state`
+
+### device_creation
+
+```python
+device_creation: bool = True
+```
+
+Group each node’s update entities under a Home Assistant device
+
+### force_command_topic
+
+```python
+force_command_topic: bool = False
+```
+
+Publish a command topic even where an update can’t be installed
+
+### extra_attributes
+
+```python
+extra_attributes: bool = True
+```
+
+Source the entity’s attributes from the general topic, using `json_attributes_topic`
+
+### area
+
+```python
+area: str | None = None
+```
+
+Suggested area for the Home Assistant device
+
+### release_summary_max_size
+
+```python
+release_summary_max_size: int = 6144
+```
+
+Characters of release notes to publish before truncating
+
+## HomeAssistantDiscoveryConfig
+
+Home Assistant MQTT discovery, the `homeassistant.discovery` block
+
+### prefix
+
+```python
+prefix: str = 'homeassistant'
+```
+
+Discovery topic prefix, matching Home Assistant’s MQTT integration setting
+
+### enabled
+
+```python
+enabled: bool = True
+```
+
+Publish discovery config topics
+
+# Docker
+
+The `docker` block, and the blocks nested inside it.
+
+## DockerConfig
+
+Docker container scanning and updating, the `docker` block
+
+### enabled
+
+```python
+enabled: bool = True
+```
+
+Scan Docker containers
+
+### allow_pull
+
+```python
+allow_pull: bool = True
+```
+
+Allow updates by pulling the new image
+
+### allow_restart
+
+```python
+allow_restart: bool = True
+```
+
+Allow updates to recreate the container with `docker compose up`
+
+### allow_build
+
+```python
+allow_build: bool = True
+```
+
+Allow updates of local builds with `docker compose build`
+
+### git_repo_roots
+
+```python
+git_repo_roots: list[str] = field(default_factory=list)
+```
+
+Directories that local build git repos have to be inside, e.g. `["/home/containers"]`. Any path set on a container is accepted while this is empty
+
+### trust_image_settings
+
+```python
+trust_image_settings: list[str] = field(
+    default_factory=list
+)
+```
+
+Images trusted to supply any setting through their own labels or env, e.g. ones you build yourself. Plain image refs only, as written in the compose file, with or without a tag, e.g. `["ghcr.io/me/myapp"]`. Wildcards and patterns are refused
+
+### remove_old_image
+
+```python
+remove_old_image: bool = (
+    "${oc.env:U2M_REMOVE_OLD_IMAGE,false}"
+)
+```
+
+Remove the previous image once a container has been recreated with the new one, from `U2M_REMOVE_OLD_IMAGE`
+
+### compose_version
+
+```python
+compose_version: str = 'v2'
+```
+
+`v2` for `docker compose`, `v1` for `docker-compose`
+
+### max_concurrent_updates
+
+```python
+max_concurrent_updates: int = (
+    "${oc.env:U2M_MAX_CONCURRENT_UPDATES,3}"
+)
+```
+
+Updates run in parallel up to this limit, further ones queue for a free slot, from `U2M_MAX_CONCURRENT_UPDATES`
+
+### default_entity_picture_url
+
+```python
+default_entity_picture_url: str = "https://www.docker.com/wp-content/uploads/2022/03/Moby-logo.png"
+```
+
+Picture for update entities with no package logo
+
+### device_icon
+
+```python
+device_icon: str = 'mdi:docker'
+```
+
+Icon to show when browsing entities in Home Assistant
+
+### discover_metadata
+
+```python
+discover_metadata: dict[str, MetadataSourceConfig] = field(
+    default_factory=lambda: {
+        "linuxserver.io": MetadataSourceConfig(
+            enabled=True
+        ),
+        "hotio.dev": MetadataSourceConfig(enabled=True),
+    }
+)
+```
+
+Online catalogues of image metadata, keyed by name
+
+### registry
+
+```python
+registry: RegistryConfig = field(
+    default_factory=lambda: RegistryConfig()
+)
+```
+
+Registry client and caching
+
+### default_api_backoff
+
+```python
+default_api_backoff: int = 60 * 15
+```
+
+Seconds to back off a registry API after it throttles
+
+### image_ref_select
+
+```python
+image_ref_select: Selector = field(
+    default_factory=lambda: Selector()
+)
+```
+
+Image refs to publish
+
+### version_select
+
+```python
+version_select: Selector = field(
+    default_factory=lambda: Selector()
+)
+```
+
+Latest versions to publish
+
+### version_policy
+
+```python
+version_policy: VersionPolicy = VersionPolicy.AUTO
+```
+
+Default version policy for all containers
+
+### registry_select
+
+```python
+registry_select: Selector = field(
+    default_factory=lambda: Selector()
+)
+```
+
+Registries, by index name, to look up latest versions in
+
+### container_select
+
+```python
+container_select: Selector = field(
+    default_factory=lambda: Selector()
+)
+```
+
+Container names to ignore completely, e.g. exclude `["^lab_", "^beta_"]`, as regular expressions
+
+### portainer
+
+```python
+portainer: PortainerConfig = field(
+    default_factory=lambda: PortainerConfig()
+)
+```
+
+Portainer API access, for stacks managed by Portainer
+
+### cooldown
+
+```python
+cooldown: str = '3d'
+```
+
+How long a release has to be known before it’s eligible to update, e.g. `72h`, `3d`, `1w`, or `0` for none. Observe only for now, reported in the update attributes, see RFC 0002
+
+## Registry
+
+## RegistryConfig
+
+Container registry lookups, the `docker.registry` block
+
+### api
+
+```python
+api: RegistryAPI = RegistryAPI.OCI_V2
+```
+
+Registry client used to find the latest image
+
+### mutable_cache_ttl
+
+```python
+mutable_cache_ttl: int | None = 60 * 60
+```
+
+Seconds to cache responses that can change, such as tag lookups
+
+### immutable_cache_ttl
+
+```python
+immutable_cache_ttl: int | None = 7776000
+```
+
+Seconds to cache responses addressed by digest, which can’t change
+
+### token_cache_ttl
+
+```python
+token_cache_ttl: int | None = None
+```
+
+Seconds to cache registry auth tokens, or `None` to follow the registry’s own expiry
+
+## RegistryAPI
+
+How the latest version of an image is looked up, matched case insensitively
+
+### OCI_V2
+
+```python
+OCI_V2 = 'OCI_V2'
+```
+
+Built-in OCI Distribution v2 client, with manifests, configs and annotations, see RFC 0001
+
+### OCI_V2_MINIMAL
+
+```python
+OCI_V2_MINIMAL = 'OCI_V2_MINIMAL'
+```
+
+Built-in OCI v2 client, using the manifest only, without fetching the image config for labels
+
+### DOCKER_CLIENT
+
+```python
+DOCKER_CLIENT = 'DOCKER_CLIENT'
+```
+
+The Docker engine’s own distribution API
+
+### DISABLED
+
+```python
+DISABLED = 'DISABLED'
+```
+
+No registry lookups
+
+## Selection
+
+## Selector
+
+Regular expression filter, where a value is selected if it matches an `include` and no `exclude`
+
+### include
+
+```python
+include: list[str] | None = None
+```
+
+Patterns to select, or all if empty
+
+### exclude
+
+```python
+exclude: list[str] | None = None
+```
+
+Patterns to reject, applied after `include`
+
+## VersionPolicy
+
+How the installed and latest versions are described
+
+### AUTO
+
+```python
+AUTO = 'AUTO'
+```
+
+Pick the best available for the image
+
+### VERSION
+
+```python
+VERSION = 'VERSION'
+```
+
+Version label or tag only
+
+### DIGEST
+
+```python
+DIGEST = 'DIGEST'
+```
+
+Image digest only
+
+### VERSION_DIGEST
+
+```python
+VERSION_DIGEST = 'VERSION_DIGEST'
+```
+
+Version with an abbreviated digest
+
+### TIMESTAMP
+
+```python
+TIMESTAMP = 'TIMESTAMP'
+```
+
+Image creation time
+
+## Metadata Catalogues
+
+## MetadataSourceConfig
+
+A catalogue of image metadata, such as linuxserver.io, in `docker.discover_metadata`
+
+### enabled
+
+```python
+enabled: bool = True
+```
+
+Look up logos, release notes and source links in this catalogue
+
+### cache_ttl
+
+```python
+cache_ttl: int = 60 * 60 * 24 * 7
+```
+
+Seconds to cache the catalogue
+
+## Portainer
+
+See [Portainer](https://updates2mqtt.rhizomatics.org.uk/configuration/portainer/index.md).
+
+## PortainerConfig
+
+Portainer API access, used to redeploy stacks whose compose files live in Portainer’s data volume
+
+### url
+
+```python
+url: str | None = '${oc.env:PORTAINER_URL,null}'
+```
+
+Portainer base URL, from `PORTAINER_URL`
+
+### api_key
+
+```python
+api_key: str | None = '${oc.env:PORTAINER_API_KEY,null}'
+```
+
+Portainer API access token, from `PORTAINER_API_KEY`
+
+### verify_ssl
+
+```python
+verify_ssl: bool = '${oc.env:PORTAINER_VERIFY_SSL,true}'
+```
+
+Verify Portainer’s TLS certificate, from `PORTAINER_VERIFY_SSL`
+
+### ca_certs
+
+```python
+ca_certs: str | None = '${oc.env:PORTAINER_CA_CERTS,null}'
+```
+
+CA certificate bundle to verify Portainer, e.g. a private root CA, from `PORTAINER_CA_CERTS`
+
+### timeout
+
+```python
+timeout: int = 300
+```
+
+Seconds allowed for API calls, and for a stack deployment to finish
+
+# Packages
+
+The `packages` block, keyed by package name, and the built-in `common_packages.yaml`, which share the same entry format. See [Common Packages](https://updates2mqtt.rhizomatics.org.uk/configuration/common_packages/index.md).
+
+## PackageUpdateInfo
+
+Metadata for a package, an entry in `packages`, or in the built-in common packages
+
+### docker
+
+```python
+docker: DockerPackageUpdateInfo | None = field(
+    default_factory=DockerPackageUpdateInfo
+)
+```
+
+Images that belong to this package
+
+### logo_url
+
+```python
+logo_url: str | None = None
+```
+
+Picture shown on the Home Assistant update entity
+
+### release_notes_url
+
+```python
+release_notes_url: str | None = None
+```
+
+Link to the release notes
+
+### source_repo_url
+
+```python
+source_repo_url: str | None = None
+```
+
+Source code repository, used to find release notes on GitHub
+
+## DockerPackageUpdateInfo
+
+Docker specifics of a package
+
+### image_name
+
+```python
+image_name: Any = MISSING
+```
+
+Untagged image ref, either a single string or a list of strings, mandatory
+
+### version_policy
+
+```python
+version_policy: VersionPolicy = VersionPolicy.AUTO
+```
+
+Version policy for images of this package
+
+## CommonPackages
+
+Built-in package metadata, the format of `common_packages.yaml`
+
+### common_packages
+
+```python
+common_packages: dict[str, PackageUpdateInfo] = field(
+    default_factory=dict
+)
+```
+
+Package metadata, keyed by package name
+
 # RFC 0001 OCI Client
 
 |                  |                                                                                            |

@@ -111,6 +111,36 @@
         <changefreq>daily</changefreq>
     </url>
     <url>
+        <loc>https://updates2mqtt.rhizomatics.org.uk/developer/interface_reference/</loc>
+        <lastmod>2026-11-20</lastmod>
+        <changefreq>daily</changefreq>
+    </url>
+    <url>
+        <loc>https://updates2mqtt.rhizomatics.org.uk/developer/configuration_reference/</loc>
+        <lastmod>2026-11-20</lastmod>
+        <changefreq>daily</changefreq>
+    </url>
+    <url>
+        <loc>https://updates2mqtt.rhizomatics.org.uk/developer/configuration_reference/docker/</loc>
+        <lastmod>2026-11-20</lastmod>
+        <changefreq>daily</changefreq>
+    </url>
+    <url>
+        <loc>https://updates2mqtt.rhizomatics.org.uk/developer/configuration_reference/homeassistant/</loc>
+        <lastmod>2026-11-20</lastmod>
+        <changefreq>daily</changefreq>
+    </url>
+    <url>
+        <loc>https://updates2mqtt.rhizomatics.org.uk/developer/configuration_reference/mqtt/</loc>
+        <lastmod>2026-11-20</lastmod>
+        <changefreq>daily</changefreq>
+    </url>
+    <url>
+        <loc>https://updates2mqtt.rhizomatics.org.uk/developer/configuration_reference/packages/</loc>
+        <lastmod>2026-11-20</lastmod>
+        <changefreq>daily</changefreq>
+    </url>
+    <url>
         <loc>https://updates2mqtt.rhizomatics.org.uk/developer/design/</loc>
         <lastmod>2026-11-20</lastmod>
         <changefreq>daily</changefreq>
