@@ -236,6 +236,19 @@ hold those back.
 See [Supply Chain Protection](supply_chain.md) for how Updates2MQTT installs exactly the image it
 checked, tracks release history, and reports update cooldowns.
 
+By default, the digest a registry reports for an image tag is trusted. Switch on
+[strict mode](supply_chain.md#strict-registry-checks) to check it against the manifest the registry serves,
+and to refuse registry data that can't be verified:
+
+```yaml title="config.yaml snippet"
+docker:
+  registry:
+    strict: true
+```
+
+Until strict mode is on, a warning is logged at startup. It applies to the default `OCI_V2` and
+`OCI_V2_MINIMAL` registry clients, not to `DOCKER_CLIENT`.
+
 ## MQTT TLS
 
 `tls_mode` defaults to `off`, and can be switched to `on` or to `insecure` for testing with mismatched hostnames.
