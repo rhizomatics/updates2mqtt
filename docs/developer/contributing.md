@@ -13,3 +13,4 @@ Relevant ones are, covering testing, design proposals and tool use, are:
 - [Design](https://hq.rhizomatics.org.uk/policies/design/)
 - [Python Stack](https://hq.rhizomatics.org.uk/policies/python_stack/)
 - [Python Versions](https://hq.rhizomatics.org.uk/policies/python_versions/)
+- [Home Assistant Alignment](https://hq.rhizomatics.org.uk/policies/hass-alignment/)
