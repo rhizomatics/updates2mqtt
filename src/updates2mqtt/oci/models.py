@@ -7,7 +7,7 @@ import json
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
-from .errors import DigestMismatchError, OCIError
+from .errors import DigestMismatchError, OCIError, UnsupportedDigestError
 from .media_types import INDEX_MEDIA_TYPES
 
 if TYPE_CHECKING:
@@ -95,9 +95,11 @@ def compute_digest(content: bytes, algorithm: str = "sha256") -> str:
         raise OCIError(f"Unsupported digest algorithm {algorithm}") from e
 
 
-def verify_digest(content: bytes, expected: str) -> None:
+def verify_digest(content: bytes, expected: str, strict: bool = False) -> None:
     algorithm: str = expected.split(":", 1)[0]
     if algorithm not in hashlib.algorithms_available:
+        if strict:
+            raise UnsupportedDigestError(f"Can't check {expected}, {algorithm} digests aren't supported")
         # can't check, e.g. a future algorithm, so trust the registry
         return
     actual: str = compute_digest(content, algorithm)
@@ -127,17 +129,25 @@ class Manifest:
     response: HttpResponse | None = field(default=None, repr=False)
 
     @classmethod
-    def from_response(cls, response: HttpResponse, expected_digest: str | None = None) -> Manifest:
+    def from_response(cls, response: HttpResponse, expected_digest: str | None = None, strict: bool = False) -> Manifest:
+        """Parse a manifest response, checking it against `expected_digest` if fetched by digest
+
+        Strict mode also checks the registry's `Docker-Content-Digest` header, which is otherwise
+        trusted as the digest of a manifest fetched by tag
+        """
         raw: bytes = response.content
+        header_digest: str | None = response.headers.get(HEADER_CONTENT_DIGEST)
         if expected_digest:
-            verify_digest(raw, expected_digest)
+            verify_digest(raw, expected_digest, strict)
+        elif strict and header_digest:
+            verify_digest(raw, header_digest, strict)
         try:
             content: Any = json.loads(raw)
         except ValueError as e:
             raise OCIError(f"Manifest at {response.request.url} isn't JSON") from e
         if not isinstance(content, dict):
             raise OCIError(f"Manifest at {response.request.url} isn't a JSON object")
-        digest: str = expected_digest or response.headers.get(HEADER_CONTENT_DIGEST) or compute_digest(raw)
+        digest: str = expected_digest or header_digest or compute_digest(raw)
         media_type: str | None = content.get("mediaType") or response.headers.get("content-type", "").split(";")[0] or None
         return cls(media_type=media_type, digest=digest, content=content, raw=raw, response=response)
 

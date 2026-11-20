@@ -72,6 +72,8 @@ class FakeRegistry:
     identity_tokens: set[str] = field(default_factory=set)
     referrers_api: bool = True
     content_digest_header: bool = True
+    # Docker-Content-Digest to send for (repo, tag or digest), instead of the true one, as a tampering registry might
+    digest_headers: dict[tuple[str, str], str] = field(default_factory=dict)
     redirect_blobs: bool = False
     expires_in: int | None = 300
     page_size: int = 2
@@ -207,7 +209,7 @@ class FakeRegistry:
             return json_reply(404, {"errors": [{"code": "MANIFEST_UNKNOWN", "message": "not acceptable"}]})
         headers: list[tuple[str, str]] = [("Content-Type", media_type)]
         if self.content_digest_header:
-            headers.append(("Docker-Content-Digest", digest_of(raw)))
+            headers.append(("Docker-Content-Digest", self.digest_headers.get((repo, identifier), digest_of(raw))))
         return 200, headers, b"" if request.method == "HEAD" else raw
 
     def tag_page(self, request: Recorded, repo: str) -> Reply:

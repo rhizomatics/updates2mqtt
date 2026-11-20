@@ -32,6 +32,8 @@ from .errors import (
     RateLimitedError,
     RegistryError,
     TransportError,
+    UnsupportedDigestError,
+    VerificationError,
 )
 from .http import AsyncTransport, Headers, HttpRequest, HttpResponse, Transport
 from .models import Blob, Descriptor, Manifest, Platform, ResolvedImage
@@ -67,5 +69,7 @@ __all__ = [
     "StaticCredentials",
     "Transport",
     "TransportError",
+    "UnsupportedDigestError",
+    "VerificationError",
     "parse_www_authenticate",
 ]

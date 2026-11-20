@@ -43,5 +43,13 @@ class RateLimitedError(RegistryError):
         self.retry_after: float | None = retry_after
 
 
-class DigestMismatchError(OCIError):
-    """Content didn't hash to the digest it was fetched by"""
+class VerificationError(OCIError):
+    """Content couldn't be shown to be what the registry said it was"""
+
+
+class DigestMismatchError(VerificationError):
+    """Content didn't hash to the digest it was fetched by, or the registry said it had"""
+
+
+class UnsupportedDigestError(VerificationError):
+    """Strict mode only: a digest in an algorithm that can't be computed here, so can't be checked"""

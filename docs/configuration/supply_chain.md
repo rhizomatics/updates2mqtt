@@ -121,6 +121,33 @@ left, or to only install updates whose cooldown has finished:
 {{ state_attr('update.dockernuc_docker_mosquitto', 'cooldown').until }}
 ```
 
+## Strict registry checks
+
+Anything Updates2MQTT fetches from a registry by its digest, such as a platform's image manifest or
+an image config, is always checked against that digest. But a scan looks an image up by its tag, such
+as `latest`, and the registry then says which digest the tag points to, in a response header that by
+default is trusted. That digest is the one shown in Home Assistant, recorded in the release history,
+and pulled by an update.
+
+Strict mode checks it instead, refusing registry data it can't verify:
+
+- The digest a registry reports for a tag must match the manifest it serves
+- A digest in an algorithm Updates2MQTT can't compute is rejected, rather than trusted
+
+```yaml title="config.yaml snippet"
+docker:
+  registry:
+    strict: true
+```
+
+A registry that follows the OCI specification always passes these checks. If one fails, the image
+is shown with no update, and an error is logged, as either the registry or something between it and
+Updates2MQTT is serving content that isn't what it claims to be.
+
+Strict mode applies to the built-in registry client, the default `OCI_V2` and `OCI_V2_MINIMAL`
+values of `docker.registry.api`, not to `DOCKER_CLIENT`. It's off by default for now. Further
+checks, such as image signatures, will be added to it as described in [RFC 0002](../developer/design/rfcs/rfc0002-cyber_security.md).
+
 ## Related
 
 - [Improving Security](security.md), including restricting who can send update commands over MQTT

@@ -6,6 +6,7 @@ import docker.errors
 from pytest_httpx import HTTPXMock
 
 from tests.lib_test import docker_config
+from tests.oci.fake_registry import REGISTRY, FakeRegistry
 from updates2mqtt.config import MetadataSourceConfig, RegistryConfig
 from updates2mqtt.helpers import Throttler
 from updates2mqtt.integrations.docker_enrich import (
@@ -68,6 +69,19 @@ def test_registry_lookup_invalid_reference() -> None:
     local.name = "UPPER/Case"
     result = uut.lookup(local)
     assert result.error is not None
+    assert not result.throttled
+
+
+def test_registry_lookup_verification_failure_reported() -> None:
+    fake = FakeRegistry()
+    fake.add_image("org/app", "latest")
+    fake.digest_headers["org/app", "latest"] = "sha256:" + "f" * 64
+    uut = ContainerDistributionAPIVersionLookup(Throttler(), RegistryConfig(strict=True), transport=fake.transport())
+    local = DockerImageInfo(f"{REGISTRY}/org/app:latest")
+    result = uut.lookup(local)
+    assert result.error is not None
+    assert "doesn't match" in result.error
+    assert result.image_digest is None
     assert not result.throttled
 
 

@@ -17,6 +17,7 @@ from updates2mqtt.oci import (
     RegistryAuth,
     RegistryClient,
     StaticCredentials,
+    VerificationError,
 )
 from updates2mqtt.oci import media_types as mt
 
@@ -150,6 +151,38 @@ def test_get_manifest_by_digest_verified() -> None:
     fake.manifests[REPO, manifest_digest] = (mt.OCI_MANIFEST, to_bytes({"schemaVersion": 2, "config": {}}))
     with pytest.raises(DigestMismatchError):
         client(fake).get_manifest(f"{REGISTRY}/{REPO}@{manifest_digest}")
+
+
+def test_tampered_tag_digest_trusted_unless_strict() -> None:
+    fake = FakeRegistry()
+    digests = multi_platform(fake)
+    forged: str = "sha256:" + "f" * 64
+    fake.digest_headers[REPO, "latest"] = forged
+    assert client(fake).resolve(REF, "linux/amd64").digest == forged
+    with pytest.raises(DigestMismatchError):
+        client(fake, strict=True).resolve(REF, "linux/amd64")
+    del fake.digest_headers[REPO, "latest"]
+    assert client(fake, strict=True).resolve(REF, "linux/amd64").digest == digests["index"]
+
+
+def test_tampered_single_platform_manifest_rejected_when_strict() -> None:
+    fake = FakeRegistry()
+    fake.add_image(REPO, "latest")
+    fake.manifests[REPO, "latest"] = (mt.OCI_MANIFEST, to_bytes({"schemaVersion": 2, "config": {}}))
+    fake.digest_headers[REPO, "latest"] = digest_of(b"what the registry claims")
+    with pytest.raises(VerificationError):
+        client(fake, strict=True).resolve(REF, "linux/amd64")
+
+
+def test_head_manifest_strict_fetches_and_checks() -> None:
+    fake = FakeRegistry()
+    digests = multi_platform(fake)
+    assert client(fake, strict=True).head_manifest(REF) == digests["index"]
+    assert fake.registry_requests[-1].method == "GET"
+    fake.digest_headers[REPO, "latest"] = "sha256:" + "f" * 64
+    assert client(fake).head_manifest(REF) == "sha256:" + "f" * 64
+    with pytest.raises(DigestMismatchError):
+        client(fake, strict=True).head_manifest(REF)
 
 
 def test_head_manifest() -> None:

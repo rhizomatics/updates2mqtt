@@ -7,6 +7,7 @@ import pytest
 
 from updates2mqtt.oci import (
     Descriptor,
+    DigestMismatchError,
     Headers,
     HttpRequest,
     HttpResponse,
@@ -15,6 +16,7 @@ from updates2mqtt.oci import (
     Platform,
     Reference,
     ResolvedImage,
+    UnsupportedDigestError,
 )
 from updates2mqtt.oci.models import compute_digest, verify_digest
 
@@ -58,6 +60,21 @@ def test_compute_digest_unsupported_algorithm() -> None:
 
 def test_verify_digest_trusts_unknown_algorithm() -> None:
     verify_digest(b"anything", "future512:" + "0" * 64)
+
+
+def test_verify_digest_strict_rejects_unknown_algorithm() -> None:
+    with pytest.raises(UnsupportedDigestError):
+        verify_digest(b"anything", "future512:" + "0" * 64, strict=True)
+
+
+def test_manifest_header_trusted_unless_strict() -> None:
+    raw: bytes = b'{"schemaVersion": 2}'
+    assert Manifest.from_response(response(raw, {"docker-content-digest": DIGEST})).digest == DIGEST
+    with pytest.raises(DigestMismatchError):
+        Manifest.from_response(response(raw, {"docker-content-digest": DIGEST}), strict=True)
+    honest = Manifest.from_response(response(raw, {"docker-content-digest": compute_digest(raw)}), strict=True)
+    assert honest.digest == compute_digest(raw)
+    assert Manifest.from_response(response(raw), strict=True).digest == compute_digest(raw)
 
 
 def test_manifest_rejects_non_json() -> None:

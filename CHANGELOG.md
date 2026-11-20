@@ -1,5 +1,18 @@
 # What's New
 
+# 1.19.1
+## 🔒 Security
+- New `strict` option in the `docker.registry` config section, off by default, refuses registry data that can't be verified rather than trusting the registry. See [Supply Chain Protection](https://updates2mqtt.rhizomatics.org.uk/configuration/supply_chain/#strict-registry-checks)
+  - The digest a registry reports for a tag has to match the manifest it serves. This is the digest shown in Home Assistant, recorded in the release history and pulled by an update
+  - Digests in an algorithm that can't be computed are rejected, rather than trusted
+  - Image signature checks will be added to this option later, see RFC 0002
+- An image that fails a registry check is shown with no update, and an error is logged
+## 📝 Other changes
+- New developer documentation: an *Interface Reference* for the MQTT topics and message schemas, and a *Configuration Reference* generated from the configuration classes
+- The test coverage report is published on the documentation site again
+- Badges and docs are published from main by their own workflow, so CI and the release workflows that call it run with a read-only token
+- The weekly image scan runs the scanner without permission to start workflows, which is limited to a separate rebuild job
+
 # 1.19.0
 Security hardening, following an audit of how container settings, git, MQTT commands and the build pipeline could be misused. See [Improving Security](https://updates2mqtt.rhizomatics.org.uk/configuration/security/)
 ## 🚨 Breaking changes

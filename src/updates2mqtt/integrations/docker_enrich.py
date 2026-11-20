@@ -40,6 +40,7 @@ from updates2mqtt.oci import (
     ResolvedImage,
     Transport,
     TransportError,
+    VerificationError,
 )
 from updates2mqtt.oci.transports.httpx_transport import HttpxTransport
 
@@ -781,6 +782,7 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
         self.client: RegistryClient = RegistryClient(
             self.transport,
             credentials=credentials if credentials is not None else DockerConfigCredentials(),
+            strict=cfg.strict,
         )
 
     def close(self) -> None:
@@ -831,6 +833,11 @@ class ContainerDistributionAPIVersionLookup(VersionLookup):
             return result
         except AuthenticationError as e:
             self.log.warning("Authentication error prevented Docker Registry enrichment: %s", e)
+            result.error = str(e)
+            return result
+        except VerificationError as e:
+            # the registry, or something between, served content that isn't what it claims, so no update is offered
+            self.log.error("Registry data for %s failed verification: %s", local_image_info.ref, e)
             result.error = str(e)
             return result
         except OCIError as e:

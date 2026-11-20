@@ -4,3 +4,4 @@ description: Developer documentation for updates2mqtt, covering design notes, th
 # Developer Documentation
 
 {{ pagetree(siblings) }}
+{{ pagetree(children) }}
