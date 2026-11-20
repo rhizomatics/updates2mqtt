@@ -86,6 +86,7 @@ docs=[
     "mkdocs-htmlproofer-plugin",
     "mkdocs-llmstxt>=0.5.1",
     "mkdocs-redirects>=1.2.3,<2.0.0",
+    "mkdocstrings[python]>=1.0.8,<2.0.0",
 ]
 
 [build-system]

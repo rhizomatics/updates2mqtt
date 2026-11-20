@@ -84,6 +84,12 @@ plugins:
         Development:
           - local_builds.md: Tracking updates for locally built images
           - developer/index.md: Developer documentation overview
+          - developer/interface_reference.md: MQTT topics, retention and JSON message schemas published and subscribed to
+          - developer/configuration_reference/index.md: Configuration reference generated from the OmegaConf config classes
+          - developer/configuration_reference/mqtt.md: MQTT broker connection settings
+          - developer/configuration_reference/homeassistant.md: Home Assistant integration settings
+          - developer/configuration_reference/docker.md: Docker, registry and Portainer settings
+          - developer/configuration_reference/packages.md: Package metadata settings
           - developer/design/rfcs/rfc0001-oci_client.md: RFC 0001, design and use of the self-contained OCI registry client, with OCI image indexes, manifests, configs and annotations in its appendix
           - developer/design/rfcs/rfc0002-cyber_security.md: RFC 0002, supply chain protection with update cooldowns, digest pinning, signature verification and image scanning
           - developer/design/rfcs/rfc0003-configuration.md: RFC 0003, options for moving configuration off OmegaConf 2.3
@@ -92,6 +98,25 @@ plugins:
   - htmlproofer:
       skip_downloads: True
   - autorefs
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths: [src]
+          options:
+            show_root_heading: true
+            show_root_full_path: false
+            show_source: false
+            show_bases: false
+            show_if_no_docstring: true
+            members_order: source
+            docstring_section_style: list
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            separate_signature: true
+            show_signature_annotations: true
+            show_labels: false
+            filters: ["!^_"]
   - redirects:
       redirect_maps:
         troubleshooting.md: help/troubleshooting.md
