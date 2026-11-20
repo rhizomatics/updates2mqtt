@@ -2,7 +2,7 @@
 
 # 1.19.1
 ## 🔒 Security
-- New `strict` option in the `docker.registry` config section, off by default, refuses registry data that can't be verified rather than trusting the registry. See [Supply Chain Protection](https://updates2mqtt.rhizomatics.org.uk/configuration/supply_chain/#strict-registry-checks)
+- New `strict` option in the `docker.registry` config section, on by default, refuses registry data that can't be verified rather than trusting the registry. See [Supply Chain Protection](https://updates2mqtt.rhizomatics.org.uk/configuration/supply_chain/#strict-registry-checks)
   - The digest a registry reports for a tag has to match the manifest it serves. This is the digest shown in Home Assistant, recorded in the release history and pulled by an update
   - Digests in an algorithm that can't be computed are rejected, rather than trusted
   - Image signature checks will be added to this option later, see RFC 0002

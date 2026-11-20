@@ -88,7 +88,7 @@ class RegistryConfig:
     """Seconds to cache responses addressed by digest, which can't change"""
     token_cache_ttl: int | None = None
     """Seconds to cache registry auth tokens, or `None` to follow the registry's own expiry"""
-    strict: bool = False
+    strict: bool = True
     """Refuse registry data that can't be verified, rather than trusting the registry, for the OCI clients.
     For now, checks the digest the registry reports for a tag against the manifest it serves.
     More checks, such as image signatures, will be added under this setting, see RFC 0002"""
