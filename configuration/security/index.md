@@ -165,6 +165,18 @@ Version tags, such as `1.19.0`, are published once and never changed. When a rel
 
 See [Supply Chain Protection](https://updates2mqtt.rhizomatics.org.uk/configuration/supply_chain/index.md) for how Updates2MQTT installs exactly the image it checked, tracks release history, and reports update cooldowns.
 
+By default, the digest a registry reports for an image tag is trusted. Switch on [strict mode](https://updates2mqtt.rhizomatics.org.uk/configuration/supply_chain/#strict-registry-checks) to check it against the manifest the registry serves, and to refuse registry data that can’t be verified:
+
+config.yaml snippet
+
+```yaml
+docker:
+  registry:
+    strict: true
+```
+
+Until strict mode is on, a warning is logged at startup. It applies to the default `OCI_V2` and `OCI_V2_MINIMAL` registry clients, not to `DOCKER_CLIENT`.
+
 ## MQTT TLS
 
 `tls_mode` defaults to `off`, and can be switched to `on` or to `insecure` for testing with mismatched hostnames.
