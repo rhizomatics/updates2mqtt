@@ -23,7 +23,7 @@ jobs:
     if: ${{ !inputs.force }}
     uses: ./.github/workflows/ci.yml
     permissions:
-      contents: write  # ci.yml's docs job asks for it, though it only runs on pushes to main
+      contents: read
 
   build:
     name: Build distribution 📦

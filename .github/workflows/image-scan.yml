@@ -38,10 +38,16 @@ jobs:
   scan:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
+    # No actions: write here, so the scanner and other third-party actions never hold a token that
+    # can start workflows; the rebuild job below does that on its own
     permissions:
       contents: read
-      actions: write
       security-events: write
+    outputs:
+      apt: ${{ steps.fixable.outputs.apt }}
+      base: ${{ steps.fixable.outputs.base }}
+      tag: ${{ steps.base.outputs.tag }}
+      image: ${{ steps.base.outputs.image }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -141,18 +147,26 @@ jobs:
             echo "image=$name_tag@$digest" >> "$GITHUB_OUTPUT"
           fi
 
-      # Never on workflow_run: that is the scan after a publish, and rebuilding from it could loop.
-      # Runs docker-publish.yml from main, so the rebuild uses the current workflow, on the release's code.
+  # Never on workflow_run: that is the scan after a publish, and rebuilding from it could loop.
+  # Runs docker-publish.yml from main, so the rebuild uses the current workflow, on the release's code.
+  rebuild:
+    name: Rebuild the latest release
+    needs: scan
+    if: >-
+      (github.event_name == 'schedule' || inputs.rebuild) &&
+      (needs.scan.outputs.apt != '0' || (needs.scan.outputs.base != '0' && needs.scan.outputs.image != ''))
+    runs-on: ubuntu-slim
+    # actions: write only to dispatch docker-publish.yml, in a job with no other steps or actions
+    permissions:
+      actions: write
+    steps:
       - name: Rebuild the latest release
-        if: >-
-          (github.event_name == 'schedule' || inputs.rebuild) &&
-          (steps.fixable.outputs.apt != '0' || (steps.fixable.outputs.base != '0' && steps.base.outputs.image != ''))
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.base.outputs.tag }}
-          BASE_IMAGE: ${{ steps.base.outputs.image }}
+          TAG: ${{ needs.scan.outputs.tag }}
+          BASE_IMAGE: ${{ needs.scan.outputs.image }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch || 'main' }}
         run: |
           echo "Rebuilding $TAG as a new revision${BASE_IMAGE:+, on $BASE_IMAGE}"
-          gh workflow run docker-publish.yml --ref "$DEFAULT_BRANCH" \
+          gh workflow run docker-publish.yml --repo "$GITHUB_REPOSITORY" --ref "$DEFAULT_BRANCH" \
             -f "release_tag=$TAG" ${BASE_IMAGE:+-f "base_image=$BASE_IMAGE"}

@@ -4,6 +4,8 @@ on:
   schedule:
     - cron: '30 4 * * *'
 
+permissions: {}
+
 jobs:
   free-disk-space:
     permissions: {}
