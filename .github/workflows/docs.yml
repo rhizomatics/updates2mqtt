@@ -1,7 +1,7 @@
 # Publishes the coverage and test badges, and the documentation site, from main.
 # Kept apart from ci.yml, the only workflow here that writes to the repo, so ci.yml and the release
 # workflows that call it run with a read-only token. Runs the tests once more, on one Python version,
-# for the badge figures, and so docs are only published from code that passes.
+# for the badge figures and the HTML coverage report, and so docs are only published from code that passes.
 
 name: Badges and docs
 
@@ -32,8 +32,12 @@ jobs:
         python-version: 3.14
     - name: Install dependencies
       run: uv sync --locked --all-extras --dev
-    - name: Test, for badge figures
-      run: uv run pytest tests
+    # also writes htmlcov/, published by the coverage plugin as developer/coverage/, which only warns and
+    # leaves the page out if the report is missing
+    - name: Test, for badge figures and coverage report
+      run: |
+        uv run pytest tests
+        test -f htmlcov/index.html || { echo "::error::No HTML coverage report for developer/coverage/"; exit 1; }
     - name: Generate badges
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
