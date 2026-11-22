@@ -26,6 +26,8 @@ jobs:
       contents: write  # push to the badges and gh-pages branches
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
     - name: Install uv
       uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       with:
@@ -60,8 +62,17 @@ jobs:
         fi
 
     - name: ProperDocs
+      env:
+        GH_TOKEN: ${{ github.token }}
       run:  |
+        # The token as actions/checkout would give it, but in this step's environment only, not .git/config
+        export GIT_CONFIG_COUNT=1
+        export GIT_CONFIG_KEY_0="http.https://github.com/.extraheader"
+        GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+        export GIT_CONFIG_VALUE_0
         git pull --no-tags
+        # gh-deploy adds its commit to origin/gh-pages, which the checkout of main alone doesn't have
+        git fetch --no-tags origin +gh-pages:refs/remotes/origin/gh-pages
         uv sync --dev --group docs
         sudo apt-get update
         sudo apt-get install pngquant

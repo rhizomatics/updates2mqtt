@@ -1,0 +1,8 @@
+# Managed by rhizomatics/hq (admin/sync-admin.sh) - edit there, not here.
+# zizmor configuration shared by every repo (policies/release_workflows.md). A repo-specific exception goes
+# inline, on the line zizmor flags, as `# zizmor: ignore[<audit>] <why>`, never here.
+rules:
+  self-repository:
+    # Style only: prefers GitHub's new `$/` self-repository syntax to `./.github/workflows/...` for local
+    # reusable workflows. Off until `$/` is confirmed for reusable workflows as well as actions.
+    disable: true
