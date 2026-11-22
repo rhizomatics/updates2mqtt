@@ -14,7 +14,7 @@ on:
   schedule:
     - cron: "22 3 * * 6"
   push:
-    branches: [ "main" ]
+    branches: ["main"]
 
 # Nothing by default; the job grants only what it needs.
 permissions: {}
