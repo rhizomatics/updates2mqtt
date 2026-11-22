@@ -1,13 +1,14 @@
 #
 name: Create and publish a Docker image
 
-# Runs when a release is published. A version tag, such as `1.18.0`, is published once and never
+# Runs when a version tag is pushed. A version tag, such as `1.18.0`, is published once and never
 # pushed again: if it's already in the registry the run fails. A rebuild of an existing release, to
 # pick up base image and apt fixes, is published as a new revision, `1.18.0-r1`, `1.18.0-r2` and so
 # on, and only the floating `1.18` and `release` tags move to it.
 on:
-  release:
-    types: [published]
+  # the version tag; the PyPI package and GitHub release are published by pypi-publish.yml, started by the same tag
+  push:
+    tags: ["v*"]
   # Manual run. To publish a release, select its tag as the ref. To rebuild a release that's already
   # published, run from main with `release_tag` set, as the weekly image scan does.
   workflow_dispatch:
@@ -155,7 +156,7 @@ jobs:
             type=raw,value=${{ steps.version.outputs.tag }},enable=${{ steps.version.outputs.tag != '' }},priority=1000
             type=semver,pattern={{major}}.{{minor}},value=${{ steps.version.outputs.version }},enable=${{ steps.version.outputs.version != '' }}
             type=ref,event=branch,enable=${{ inputs.release_tag == '' }}
-            type=raw,value=release
+            type=raw,value=release,enable=${{ steps.version.outputs.version != '' && !contains(steps.version.outputs.version, '-') }}
           # a rebuild keeps its release's version and commit, rather than the revision tag and the commit of main
           labels: |
             org.opencontainers.image.version=${{ steps.version.outputs.label_version }}
@@ -201,3 +202,19 @@ jobs:
           subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
+
+  # Scans the image just published, by starting image-scan.yml from main, in a job with no other steps or actions.
+  # Not a workflow_run trigger on image-scan.yml, which zizmor flags as a dangerous trigger.
+  scan:
+    needs: build-and-push-image
+    if: ${{ !cancelled() && needs.build-and-push-image.result == 'success' }}
+    runs-on: ubuntu-slim
+    permissions:
+      # only to start image-scan.yml
+      actions: write
+    steps:
+      - name: Scan the published image
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch || 'main' }}
+        run: gh workflow run image-scan.yml --repo "$GITHUB_REPOSITORY" --ref "$DEFAULT_BRANCH"

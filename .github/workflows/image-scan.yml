@@ -24,9 +24,6 @@ on:
         description: "Rebuild the latest release if a rebuild would pick up a critical or high fix"
         type: boolean
         default: false
-  workflow_run:
-    workflows: ["Create and publish a Docker image"]
-    types: [completed]
 
 permissions: {}
 
@@ -36,7 +33,6 @@ env:
 
 jobs:
   scan:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     # No actions: write here, so the scanner and other third-party actions never hold a token that
     # can start workflows; the rebuild job below does that on its own
@@ -147,7 +143,7 @@ jobs:
             echo "image=$name_tag@$digest" >> "$GITHUB_OUTPUT"
           fi
 
-  # Never on workflow_run: that is the scan after a publish, and rebuilding from it could loop.
+  # Never for the scan docker-publish.yml starts after a publish (no rebuild input), as rebuilding from it could loop.
   # Runs docker-publish.yml from main, so the rebuild uses the current workflow, on the release's code.
   rebuild:
     name: Rebuild the latest release

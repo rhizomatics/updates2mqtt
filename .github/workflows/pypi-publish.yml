@@ -1,22 +1,24 @@
+# Releases updates2mqtt when a version tag (v1.2.3, v1.3.0-beta1) is pushed - see policies/release_workflows.md in
+# rhizomatics/hq. CI runs on the tag, the wheel and sdist are built and attested, the GitHub release is published with
+# the version's CHANGELOG.md notes and those files attached, and then the same files go to PyPI, or to TestPyPI for a
+# pre-release. The container image is published by docker-publish.yml, started by the same tag.
+# PyPI's trusted publisher names this workflow and the `pypi`/`testpypi` environments, so this file keeps its name.
 name: Publish Python 🐍 distribution 📦 to PyPI and TestPyPI
 
 on:
-  release:
-    types: [published]
+  push:
+    tags: ["v*"]
+  # Manual run, selecting the version tag as the ref: to finish a release whose run failed, or, with force, to publish
+  # despite a CI failure
   workflow_dispatch:
     inputs:
       force:
         description: "Skip CI and publish anyway (emergency use only, e.g. security fix blocked by a minor build break)"
         type: boolean
         default: false
-      repository:
-        description: "Where to publish"
-        type: choice
-        options: [ pypi, testpypi ]
-        default: pypi
 
-permissions:
-  contents: read
+# Nothing by default; each job grants only what it needs (OpenSSF Scorecard Token-Permissions).
+permissions: {}
 
 jobs:
   ci:
@@ -30,8 +32,12 @@ jobs:
     needs: ci
     # Publish only on a clean CI run, unless forced
     if: ${{ !cancelled() && (needs.ci.result == 'success' || (inputs.force && needs.ci.result == 'skipped')) }}
-    runs-on: ubuntu-slim
-
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # for the build provenance attestation
+      id-token: write
+      attestations: write
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
@@ -40,65 +46,66 @@ jobs:
       uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       with:
         python-version: 3.14
-    - name: Install dependencies
-      run: uv sync --locked --all-extras --dev
+        # nothing cached is used to build what's released
+        enable-cache: false
     - name: Build a binary wheel and a source tarball
-      run: uv build
-    - name: Store the distribution packages
+      run: uv build --out-dir release
+    - name: Attest build provenance
+      uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+      with:
+        subject-path: release/*
+    - name: Keep the files for the release
       uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
-        name: python-package-distributions
-        path: dist/
+        name: release
+        path: release/
+
+  github-release:
+    needs: build
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
+    permissions:
+      contents: write
+    uses: ./.github/workflows/github-release.yml
+    with:
+      artifact: release
 
   publish-to-pypi:
     name: >-
       Publish Python 🐍 distribution 📦 to PyPI
-    # Publish to PyPI on full releases (not pre-releases), or when chosen on a manual run
-    if: >-
-      ${{ !cancelled() && needs.build.result == 'success' && (
-        (github.event_name == 'release' && github.event.release.prerelease == false) ||
-        (github.event_name == 'workflow_dispatch' && inputs.repository == 'pypi')) }}
-    needs:
-    - build
+    # Only full releases (not pre-releases)
+    if: ${{ !cancelled() && needs.github-release.result == 'success' && needs.github-release.outputs.prerelease == 'false' }}
+    needs: github-release
     runs-on: ubuntu-latest
     environment:
       name: pypi
       url: https://pypi.org/p/updates2mqtt
     permissions:
       id-token: write  # IMPORTANT: mandatory for trusted publishing
-
     steps:
-    - name: Download all the dists
+    - name: Download the released files
       uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
       with:
-        name: python-package-distributions
+        name: release
         path: dist/
     - name: Publish distribution 📦 to PyPI
       uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
 
   publish-to-testpypi:
     name: Publish Python 🐍 distribution 📦 to TestPyPI
-    # Publish to TestPyPI on pre-releases, or when chosen on a manual run
-    if: >-
-      ${{ !cancelled() && needs.build.result == 'success' && (
-        (github.event_name == 'release' && github.event.release.prerelease == true) ||
-        (github.event_name == 'workflow_dispatch' && inputs.repository == 'testpypi')) }}
-    needs:
-    - build
+    # Pre-releases
+    if: ${{ !cancelled() && needs.github-release.result == 'success' && needs.github-release.outputs.prerelease == 'true' }}
+    needs: github-release
     runs-on: ubuntu-latest
-
     environment:
       name: testpypi
       url: https://test.pypi.org/p/updates2mqtt
-
     permissions:
       id-token: write  # IMPORTANT: mandatory for trusted publishing
-
     steps:
-    - name: Download all the dists
+    - name: Download the released files
       uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
       with:
-        name: python-package-distributions
+        name: release
         path: dist/
     - name: Publish distribution 📦 to TestPyPI
       uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
